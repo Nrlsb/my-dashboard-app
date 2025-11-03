@@ -1,176 +1,224 @@
-import React from 'react';
-// Necesitarás instalar lucide-react: npm install lucide-react
+import React, { useState } from 'react';
 import {
   ShoppingCart,
-  History,
-  CircleDollarSign,
+  Clock,
+  DollarSign,
   Gift,
-  Landmark,
+  Banknote,
   FileText,
   HelpCircle,
-  Upload
+  UploadCloud,
+  Building,
+  ChevronDown
 } from 'lucide-react';
 
-/*
- * ===================================================================
- * Componente de Tarjeta Reutilizable
- * ===================================================================
- * Este componente crea cada uno de los "módulos" del panel.
- * Acepta props para el título, ícono, texto del botón y una
- * "etiqueta" opcional (como la de "NUEVO").
- */
-const DashboardCard = ({ title, icon: Icon, buttonText, badge }) => {
+// --- Componente de Login ---
+// Este es el nuevo componente para la página de inicio de sesión.
+const LoginPage = ({ onLoginSuccess }) => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // Lógica de autenticación de simulación
+    // En un proyecto real, aquí llamarías a tu API
+    if (username.trim() !== '' && password.trim() !== '') {
+      setError('');
+      onLoginSuccess(); // Llama a la función del padre para cambiar el estado
+    } else {
+      setError('Usuario o contraseña no pueden estar vacíos.');
+    }
+  };
+
   return (
-    <div className="relative flex flex-col items-center justify-between p-4 bg-zinc-100 border border-zinc-300 rounded-lg shadow-sm text-center h-48">
-      {/* Etiqueta opcional (para "NUEVO") */}
-      {badge && (
-        <span className="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-2.5 py-0.5 rounded-full">
-          {badge}
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 font-sans">
+      <div className="w-full max-w-sm p-8 space-y-6 bg-white rounded-lg shadow-xl">
+        {/* Logo */}
+        <div className="text-center">
+          {/* Cambiado 'KUM' y ajustado el tamaño de fuente */}
+          <span className="text-3xl font-bold text-red-600">Pintureria Mercurio</span>
+          {/* Eliminada la línea 'APORTES EN VIRTUAL' para mejor ajuste */}
+        </div>
+        
+        <h2 className="text-2xl font-bold text-center text-gray-800">Iniciar Sesión</h2>
+        
+        <form className="space-y-6" onSubmit={handleSubmit}>
+          {/* Campo Usuario */}
+          <div>
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+              Usuario
+            </label>
+            <input
+              id="username"
+              name="username"
+              type="text"
+              required
+              className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Tu usuario"
+            />
+          </div>
+          
+          {/* Campo Contraseña */}
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              Contraseña
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+            />
+          </div>
+
+          {/* Mensaje de Error */}
+          {error && (
+            <p className="text-sm text-center text-red-600">{error}</p>
+          )}
+
+          {/* Botón de Ingreso */}
+          <button
+            type="submit"
+            className="w-full px-4 py-2 font-semibold text-white bg-red-600 rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200"
+          >
+            Ingresar
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+
+// --- Componentes del Dashboard (el código original) ---
+
+// El Header
+const Header = () => {
+  return (
+    <header className="bg-white shadow-md">
+      <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-20">
+          {/* Logo */}
+          <div className="flex-shrink-0">
+            {/* Cambiado 'KUM' y ajustado el tamaño de fuente */}
+            <span className="text-2xl font-bold text-red-600">Pintureria Mercurio</span>
+            {/* Eliminada la línea 'APORTES EN VIRTUAL' para mejor ajuste */}
+          </div>
+          
+          {/* Perfil de Usuario */}
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-gray-100 rounded-full">
+              <Building className="w-6 h-6 text-gray-600" />
+            </div>
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-medium text-gray-800">Nombre de la Empresa</p>
+              <p className="text-xs text-gray-500">Usuario Logueado</p>
+            </div>
+            <button className="p-2 rounded-full hover:bg-gray-100">
+              <ChevronDown className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+};
+
+// El Card
+const DashboardCard = ({ title, subTitle, icon: Icon, tag, bgColor = 'bg-gray-700', ...props }) => {
+  return (
+    <div 
+      className="relative flex flex-col items-center justify-center p-4 pt-8 text-center bg-white border border-gray-200 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer overflow-hidden"
+      {...props}
+    >
+      {tag && (
+        <span className="absolute top-0 right-0 px-3 py-1 text-xs font-bold text-white bg-red-600 rounded-bl-lg">
+          {tag}
         </span>
       )}
-
-      {/* Título del Módulo */}
-      <h3 className="text-sm font-semibold text-zinc-600 uppercase tracking-wider">
-        {title}
-      </h3>
-
-      {/* Ícono */}
-      <div className="my-2">
-        <Icon className="h-12 w-12 text-zinc-800" strokeWidth={1.5} />
+      
+      <div className="flex items-center justify-center w-16 h-16 mb-4">
+        <Icon className="w-12 h-12 text-gray-700" />
       </div>
-
-      {/* Botón de Acción */}
-      <button className="w-full bg-zinc-700 text-white text-sm font-medium py-2 px-4 rounded-md hover:bg-zinc-800 transition-colors duration-200">
-        {buttonText}
+      
+      <h3 className="text-sm font-semibold text-gray-500 uppercase">{title}</h3>
+      
+      <button 
+        className={`w-full px-4 py-2 mt-4 text-sm font-semibold text-white ${bgColor} rounded-md hover:opacity-90 transition-opacity`}
+      >
+        {subTitle}
       </button>
     </div>
   );
 };
 
-/*
- * ===================================================================
- * Cabecera de la Aplicación
- * ===================================================================
- */
-const AppHeader = () => (
-  <header className="w-full bg-red-700 p-4 shadow-md">
-    <div className="w-full max-w-7xl mx-auto flex justify-center items-center">
-      {/* Asumo que "KUM" es un logo de texto. Puedes cambiarlo por un <img> */}
-      <h1 className="text-white text-3xl font-bold tracking-wider">
-        KUM
-      </h1>
-      <span className="text-white text-xs font-light ml-2 mt-2 self-start">
-        APORTES EN VIRTUAL
-      </span>
-    </div>
-  </header>
-);
-
-/*
- * ===================================================================
- * Componente Principal de la Aplicación
- * ===================================================================
- * Aquí se renderiza la cabecera y el panel de módulos.
- */
-export default function App() {
-  // Datos para los módulos, separados por filas como en la imagen.
-  const topRowModules = [
-    {
-      title: "Nuevo Pedido",
-      icon: ShoppingCart,
-      buttonText: "Nuevo Pedido",
-      badge: null,
-    },
-    {
-      title: "Histórico",
-      icon: History,
-      buttonText: "Histórico de Pedidos",
-      badge: null,
-    },
-    {
-      title: "Precios",
-      icon: CircleDollarSign,
-      buttonText: "Lista de Precios",
-      badge: null,
-    },
-    {
-      title: "Ofertas",
-      icon: Gift,
-      buttonText: "Nuevas Ofertas",
-      badge: "NUEVO",
-    },
-    {
-      title: "Cuenta Corriente",
-      icon: Landmark,
-      buttonText: "Saldo Cuenta",
-      badge: null,
-    },
-  ];
-
-  const bottomRowModules = [
-    {
-      title: "Información Importante",
-      icon: FileText,
-      buttonText: "Información", // El botón no es visible en la foto
-      badge: null,
-    },
-    {
-      title: "Consultas",
-      icon: HelpCircle,
-      buttonText: "Envío de Consultas",
-      badge: null,
-    },
-    {
-      title: "Cupones Tarjeta",
-      icon: Upload,
-      buttonText: "Carga Comprobantes",
-      badge: null,
-    },
+// El Contenido del Dashboard
+const Dashboard = () => {
+  const cards = [
+    { title: '', subTitle: 'Nuevo Pedido', icon: ShoppingCart, bgColor: 'bg-gray-700' },
+    { title: 'Historico', subTitle: 'Histórico de Pedidos', icon: Clock, bgColor: 'bg-gray-700' },
+    { title: 'Precios', subTitle: 'Lista de Precios', icon: DollarSign, bgColor: 'bg-gray-700' },
+    { title: 'Ofertas', subTitle: 'Nuevas Ofertas', icon: Gift, tag: 'NUEVO', bgColor: 'bg-gray-700' },
+    { title: 'Cuenta Corriente', subTitle: 'Saldo Cuenta', icon: Banknote, bgColor: 'bg-gray-700' },
+    { title: 'Información Importante', subTitle: 'Información', icon: FileText, bgColor: 'bg-gray-700' },
+    { title: 'Consultas', subTitle: 'Envío de Consultas', icon: HelpCircle, bgColor: 'bg-gray-700' },
+    { title: 'Cupones Tarjeta', subTitle: 'Carga Comprobantes', icon: UploadCloud, bgColor: 'bg-gray-700' },
   ];
 
   return (
-    <div className="min-h-screen bg-zinc-200 font-sans">
-      <AppHeader />
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+      {cards.map((card, index) => (
+        <DashboardCard
+          key={index}
+          title={card.title}
+          subTitle={card.subTitle}
+          icon={card.icon}
+          tag={card.tag}
+          bgColor={card.bgColor}
+        />
+      ))}
+    </div>
+  );
+};
 
-      <main className="w-full max-w-7xl mx-auto p-4 md:p-8">
-        {/* --- Fila Superior de Módulos --- */}
-        {/* En pantallas grandes (lg) muestra 5 columnas, como en la foto */}
-        {/* En pantallas medianas (md) muestra 3 */}
-        {/* En pantallas pequeñas (sm) muestra 2 */}
-        {/* En pantallas muy pequeñas (móvil) muestra 1 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6">
-          {topRowModules.map((mod) => (
-            <DashboardCard
-              key={mod.title}
-              title={mod.title}
-              icon={mod.icon}
-              buttonText={mod.buttonText}
-              badge={mod.badge}
-            />
-          ))}
-        </div>
 
-        {/* --- Fila Inferior de Módulos --- */}
-        {/* Esta fila se alinea con la de arriba, pero solo tiene 3 elementos */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mt-4 md:mt-6">
-          {bottomRowModules.map((mod) => (
-            <DashboardCard
-              key={mod.title}
-              title={mod.title}
-              icon={mod.icon}
-              buttonText={mod.buttonText}
-              badge={mod.badge}
-            />
-          ))}
-          {/* Dejé el grid de 5 columnas para que los 3 elementos se alineen
-              con los 3 primeros de la fila de arriba, como en la foto.
-              Si prefieres que los 3 se centren, puedes cambiar
-              "lg:grid-cols-5" por "lg:grid-cols-3" arriba y
-              agregar "lg:w-3/5 lg:mx-auto" a este div.
-          */}
-        </div>
+// --- Página Principal del Dashboard ---
+// (Esto era el 'App' original)
+const DashboardPage = () => {
+  return (
+    <div className="min-h-screen bg-gray-100 font-sans">
+      <Header />
+      <main className="p-4 md:p-8 max-w-7xl mx-auto">
+        <Dashboard />
       </main>
     </div>
   );
+};
+
+// --- Componente Raíz (Maneja la autenticación) ---
+// Este es el componente principal que decide qué página mostrar.
+export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Simula un login exitoso
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+  };
+
+  // Renderizado condicional
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  // Si está autenticado, muestra el dashboard
+  return <DashboardPage />;
 }
+
 
