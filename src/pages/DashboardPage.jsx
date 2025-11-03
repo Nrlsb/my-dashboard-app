@@ -1,6 +1,6 @@
 import React from 'react';
-import Header from '../components/Header.jsx';
-import DashboardCard from '../components/DashboardCard.jsx';
+import Header from '/src/components/Header.jsx';
+import DashboardCard from '/src/components/DashboardCard.jsx';
 import {
   ShoppingCart,
   Clock,
@@ -46,7 +46,13 @@ const Dashboard = ({ onNavigate }) => {
       bgColor: 'bg-gray-700',
       action: () => onNavigate('offers') // <-- Acción para Ofertas
     },
-    { title: 'Cuenta Corriente', subTitle: 'Saldo Cuenta', icon: Banknote, bgColor: 'bg-gray-700' },
+    { 
+      title: 'Cuenta Corriente', 
+      subTitle: 'Saldo Cuenta', 
+      icon: Banknote, 
+      bgColor: 'bg-gray-700',
+      action: () => onNavigate('accountBalance') // <-- (MODIFICADO) Acción para Cuenta Corriente
+    },
     { title: 'Información Importante', subTitle: 'Información', icon: FileText, bgColor: 'bg-gray-700' },
     { title: 'Consultas', subTitle: 'Envío de Consultas', icon: HelpCircle, bgColor: 'bg-gray-700' },
     { title: 'Cupones Tarjeta', subTitle: 'Carga Comprobantes', icon: UploadCloud, bgColor: 'bg-gray-700' },
@@ -83,3 +89,5 @@ const DashboardPage = ({ onNavigate }) => {
 };
 
 export default DashboardPage;
+
+
