@@ -9,6 +9,8 @@ import OrderHistoryPage from '/src/pages/OrderHistoryPage.jsx';
 import PriceListPage from '/src/pages/PriceListPage.jsx';
 import OffersPage from '/src/pages/OffersPage.jsx';
 import AccountBalancePage from '/src/pages/AccountBalancePage.jsx';
+import QueriesPage from '/src/pages/QueriesPage.jsx';
+import VoucherUploadPage from '/src/pages/VoucherUploadPage.jsx'; // <-- (AÑADIDO) Importar página de Carga
 
 // --- Componente Raíz (Maneja la autenticación y navegación) ---
 // Este es el componente principal que decide qué página mostrar.
@@ -54,9 +56,19 @@ export default function App() {
   }
 
   // 7. Vista de Cuenta Corriente
-  // Esta es la lógica que faltaba para que el botón funcione.
   if (currentView === 'accountBalance') {
     return <AccountBalancePage onNavigate={navigateTo} />;
+  }
+
+  // 8. Vista de Consultas
+  if (currentView === 'queries') {
+    return <QueriesPage onNavigate={navigateTo} />;
+  }
+
+  // 9. Vista de Carga de Comprobantes
+  // (AÑADIDO) Lógica para mostrar la página de carga
+  if (currentView === 'voucherUpload') {
+    return <VoucherUploadPage onNavigate={navigateTo} />;
   }
 
   // Fallback por si acaso: si la vista no se reconoce, vuelve al login.

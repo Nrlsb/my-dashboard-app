@@ -54,8 +54,20 @@ const Dashboard = ({ onNavigate }) => {
       action: () => onNavigate('accountBalance') // <-- (MODIFICADO) Acción para Cuenta Corriente
     },
     { title: 'Información Importante', subTitle: 'Información', icon: FileText, bgColor: 'bg-gray-700' },
-    { title: 'Consultas', subTitle: 'Envío de Consultas', icon: HelpCircle, bgColor: 'bg-gray-700' },
-    { title: 'Cupones Tarjeta', subTitle: 'Carga Comprobantes', icon: UploadCloud, bgColor: 'bg-gray-700' },
+    { 
+      title: 'Consultas', 
+      subTitle: 'Envío de Consultas', 
+      icon: HelpCircle, 
+      bgColor: 'bg-gray-700',
+      action: () => onNavigate('queries') // <-- (AÑADIDO) Acción para Consultas
+    },
+    { 
+      title: 'Cupones Tarjeta', 
+      subTitle: 'Carga Comprobantes', 
+      icon: UploadCloud, 
+      bgColor: 'bg-gray-700',
+      action: () => onNavigate('voucherUpload') // <-- (AÑADIDO) Acción para Carga de Comprobantes
+    },
   ];
 
   return (
@@ -89,5 +101,4 @@ const DashboardPage = ({ onNavigate }) => {
 };
 
 export default DashboardPage;
-
 
