@@ -1,37 +1,95 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '../components/Header.jsx';
 import { ArrowLeft } from 'lucide-react';
+
+// (NUEVO) Definimos la URL de la API
+const API_URL = 'http://localhost:3001';
 
 // --- Página de Ofertas ---
 const OffersPage = ({ onNavigate }) => {
 
-  // Datos de ejemplo para las ofertas
-  const offers = [
-    {
-      id: 1,
-      title: 'Kit Pintor Completo Mercurio',
-      description: 'Llevate 20L de Latex Interior + Rodillo + Pincel N°10 con un 20% de descuento.',
-      price: '$28,000.00',
-      oldPrice: '$35,000.00',
-      imageUrl: 'https://placehold.co/600x400/ef4444/white?text=Oferta+Kit',
-    },
-    {
-      id: 2,
-      title: '2x1 en Sintético Brillante Alba',
-      description: 'Comprando 1L de Sintético Brillante Blanco, te llevas otro de regalo (o 50% off en la 2da unidad).',
-      price: '$5,500.00',
-      oldPrice: '$11,000.00',
-      imageUrl: 'https://placehold.co/600x400/3b82f6/white?text=Oferta+2x1',
-    },
-    {
-      id: 3,
-      title: 'Envío Gratis Superando $50,000',
-      description: 'Todas tus compras superiores a $50,000 tienen envío gratis a tu sucursal.',
-      price: '¡GRATIS!',
-      oldPrice: '',
-      imageUrl: 'https://placehold.co/600x400/10b981/white?text=Envío+Gratis',
-    },
-  ];
+  // (NUEVO) Estados
+  const [offers, setOffers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // (NUEVO) Cargar datos al montar
+  useEffect(() => {
+    const fetchOffers = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await fetch(`${API_URL}/api/offers`);
+        if (!response.ok) throw new Error('No se pudo cargar las ofertas.');
+        const data = await response.json();
+        
+        setOffers(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchOffers();
+  }, []);
+
+  // (NUEVO) Renderizado condicional
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="text-center p-10 text-gray-600">
+          Cargando ofertas...
+        </div>
+      );
+    }
+    
+    if (error) {
+      return (
+        <div className="text-center p-10 text-red-600">
+          {error}
+        </div>
+      );
+    }
+
+    if (offers.length === 0) {
+      return (
+        <div className="text-center p-10 text-gray-500">
+          No hay ofertas disponibles en este momento.
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {offers.map((offer) => (
+          <div key={offer.id} className="bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
+            <img 
+              src={offer.imageUrl} 
+              alt={offer.title} 
+              className="w-full h-48 object-cover"
+              onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/600x400/cccccc/white?text=Imagen+no+disponible'; }}
+            />
+            <div className="p-6 flex-1 flex flex-col">
+              <h3 className="text-xl font-bold text-gray-800 mb-2">{offer.title}</h3>
+              <p className="text-gray-600 text-sm mb-4 flex-1">{offer.description}</p>
+              <div className="flex items-baseline justify-between">
+                <span className="text-2xl font-extrabold text-red-600">{offer.price}</span>
+                {offer.oldPrice && (
+                  <span className="text-lg text-gray-500 line-through">{offer.oldPrice}</span>
+                )}
+              </div>
+              <button className="w-full px-4 py-2 mt-4 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors">
+                Ver Detalles
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
@@ -50,31 +108,7 @@ const OffersPage = ({ onNavigate }) => {
         </div>
 
         {/* Grid de Tarjetas de Ofertas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {offers.map((offer) => (
-            <div key={offer.id} className="bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
-              <img 
-                src={offer.imageUrl} 
-                alt={offer.title} 
-                className="w-full h-48 object-cover"
-                onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/600x400/cccccc/white?text=Imagen+no+disponible'; }}
-              />
-              <div className="p-6 flex-1 flex flex-col">
-                <h3 className="text-xl font-bold text-gray-800 mb-2">{offer.title}</h3>
-                <p className="text-gray-600 text-sm mb-4 flex-1">{offer.description}</p>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-extrabold text-red-600">{offer.price}</span>
-                  {offer.oldPrice && (
-                    <span className="text-lg text-gray-500 line-through">{offer.oldPrice}</span>
-                  )}
-                </div>
-                <button className="w-full px-4 py-2 mt-4 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors">
-                  Ver Detalles
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+        {renderContent()}
 
       </main>
     </div>

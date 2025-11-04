@@ -1,19 +1,41 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '../components/Header.jsx';
 import { ArrowLeft } from 'lucide-react';
+
+// (NUEVO) Definimos la URL de la API
+const API_URL = 'http://localhost:3001';
 
 // --- Página de Histórico de Pedidos ---
 const OrderHistoryPage = ({ onNavigate }) => {
   
-  // Datos de ejemplo para el histórico
-  const orderHistory = [
-    { id: '12345', date: '2024-10-28', total: '$15,000.00', status: 'Entregado' },
-    { id: '12346', date: '2024-10-25', total: '$8,200.00', status: 'Entregado' },
-    { id: '12347', date: '2024-10-22', total: '$1,500.00', status: 'Pendiente' },
-    { id: '12348', date: '2024-10-19', total: '$22,100.00', status: 'En Proceso' },
-    { id: '12349', date: '2024-10-15', total: '$5,000.00', status: 'Cancelado' },
-  ];
+  // (NUEVO) Estados para datos, carga y error
+  const [orderHistory, setOrderHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // (NUEVO) Cargar datos al montar
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await fetch(`${API_URL}/api/orders`);
+        if (!response.ok) throw new Error('No se pudo cargar el histórico.');
+        const data = await response.json();
+        
+        setOrderHistory(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchOrders();
+  }, []);
+
+  // ... (función getStatusColor sin cambios) ...
   // Función para obtener el color del estado
   const getStatusColor = (status) => {
     switch (status) {
@@ -23,6 +45,60 @@ const OrderHistoryPage = ({ onNavigate }) => {
       case 'Cancelado': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  // (NUEVO) Renderizado condicional
+  const renderContent = () => {
+    if (loading) {
+      return <div className="p-6 text-center text-gray-600">Cargando histórico...</div>;
+    }
+    
+    if (error) {
+      return <div className="p-6 text-center text-red-600">{error}</div>;
+    }
+
+    return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                N° Pedido
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Fecha
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Total
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Estado
+              </th>
+              <th scope="col" className="relative px-6 py-3">
+                <span className="sr-only">Acciones</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {orderHistory.map((order) => (
+              <tr key={order.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{order.id}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.date}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.total}</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(order.status)}`}>
+                    {order.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <button className="text-red-600 hover:text-red-900">Ver</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
   };
 
   return (
@@ -43,46 +119,7 @@ const OrderHistoryPage = ({ onNavigate }) => {
 
         {/* Tabla de Histórico de Pedidos */}
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    N° Pedido
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Fecha
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Estado
-                  </th>
-                  <th scope="col" className="relative px-6 py-3">
-                    <span className="sr-only">Acciones</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {orderHistory.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{order.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.date}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.total}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(order.status)}`}>
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="text-red-600 hover:text-red-900">Ver</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {renderContent()}
         </div>
       </main>
     </div>

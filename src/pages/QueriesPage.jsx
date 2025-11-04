@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
-import Header from '/src/components/Header.jsx'; // <-- (CORRECCIÓN) Ruta de importación absoluta
+import Header from '/src/components/Header.jsx';
 import { ArrowLeft, Send } from 'lucide-react';
+
+// (NUEVO) Definimos la URL de la API
+const API_URL = 'http://localhost:3001';
 
 // --- Página de Envío de Consultas ---
 const QueriesPage = ({ onNavigate }) => {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [isSent, setIsSent] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // (NUEVO)
+  const [error, setError] = useState(null); // (NUEVO)
 
   // Opciones para el selector de "Asunto"
   const querySubjects = [
@@ -17,23 +22,44 @@ const QueriesPage = ({ onNavigate }) => {
     'Otro',
   ];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Aquí iría la lógica de envío a una API
-    console.log("Enviando consulta:", { subject, message });
+    setIsLoading(true);
+    setError(null);
 
-    // Simulación de envío exitoso
-    setIsSent(true);
-    
-    // Resetear y volver al dashboard después de 3 segundos
-    setTimeout(() => {
-      setIsSent(false); // Resetea por si vuelve a entrar
-      onNavigate('dashboard');
-    }, 3000);
+    try {
+      // (NUEVO) Enviar a la API
+      const response = await fetch(`${API_URL}/api/queries`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ subject, message }),
+      });
+
+      if (!response.ok) throw new Error('No se pudo enviar la consulta.');
+
+      // const result = await response.json();
+      // console.log('Consulta enviada:', result);
+
+      // Simulación de envío exitoso
+      setIsSent(true);
+      
+      // Resetear y volver al dashboard después de 3 segundos
+      setTimeout(() => {
+        setIsSent(false);
+        onNavigate('dashboard');
+      }, 3000);
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Deshabilitar el botón si no hay asunto o mensaje
-  const isButtonDisabled = !subject || message.trim() === '';
+  // Deshabilitar el botón si no hay asunto, mensaje, o está cargando
+  const isButtonDisabled = !subject || message.trim() === '' || isLoading;
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
@@ -73,6 +99,7 @@ const QueriesPage = ({ onNavigate }) => {
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
+                  disabled={isLoading}
                 >
                   <option value="">Selecciona un motivo...</option>
                   {querySubjects.map((s) => (
@@ -93,8 +120,16 @@ const QueriesPage = ({ onNavigate }) => {
                   onChange={(e) => setMessage(e.target.value)}
                   className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
                   placeholder="Escribe tu consulta aquí..."
+                  disabled={isLoading}
                 />
               </div>
+
+              {/* (NUEVO) Mensaje de error */}
+              {error && (
+                <div className="text-sm text-red-600 text-right">
+                  Error: {error}
+                </div>
+              )}
 
               {/* Botón de Envío */}
               <div className="mt-6 text-right">
@@ -104,7 +139,7 @@ const QueriesPage = ({ onNavigate }) => {
                   className="inline-flex items-center px-6 py-2 font-semibold text-white bg-red-600 rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send className="w-4 h-4 mr-2" />
-                  Enviar Consulta
+                  {isLoading ? 'Enviando...' : 'Enviar Consulta'}
                 </button>
               </div>
             </form>
@@ -116,4 +151,3 @@ const QueriesPage = ({ onNavigate }) => {
 };
 
 export default QueriesPage;
-
