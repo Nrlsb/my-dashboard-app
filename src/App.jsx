@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 // --- Importar Páginas ---
 import LoginPage from '/src/pages/LoginPage.jsx';
-import RegisterPage from '/src/pages/RegisterPage.jsx'; // (NUEVO) Importar Registro
+import RegisterPage from '/src/pages/RegisterPage.jsx';
 import DashboardPage from '/src/pages/DashboardPage.jsx';
 import NewOrderPage from '/src/pages/NewOrderPage.jsx';
 import OrderHistoryPage from '/src/pages/OrderHistoryPage.jsx';
@@ -11,6 +11,7 @@ import OffersPage from '/src/pages/OffersPage.jsx';
 import AccountBalancePage from '/src/pages/AccountBalancePage.jsx';
 import QueriesPage from '/src/pages/QueriesPage.jsx';
 import VoucherUploadPage from '/src/pages/VoucherUploadPage.jsx'; 
+import ProfilePage from '/src/pages/ProfilePage.jsx'; // (NUEVO) Importar Perfil
 
 // --- Componente Raíz (Maneja la autenticación y navegación) ---
 // Este es el componente principal que decide qué página mostrar.
@@ -74,6 +75,11 @@ export default function App() {
   // 9. Vista de Carga de Comprobantes
   if (currentView === 'voucherUpload') {
     return <VoucherUploadPage onNavigate={navigateTo} />;
+  }
+
+  // (NUEVO) 10. Vista de Perfil
+  if (currentView === 'profile') {
+    return <ProfilePage onNavigate={navigateTo} />;
   }
 
   // Fallback por si acaso: si la vista no se reconoce, vuelve al login.

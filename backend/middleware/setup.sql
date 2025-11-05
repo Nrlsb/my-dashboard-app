@@ -1,23 +1,43 @@
 -- =================================================================
--- SCRIPT DE CONFIGURACIÓN DE POSTGRESQL
+-- SCRIPT DE CONFIGURACIÓN DE POSTGRESQL (Actualizado)
 -- =================================================================
--- Ejecuta este script en tu base de datos local (ej. "my_dashboard")
--- para crear las tablas e insertar los datos de ejemplo.
+-- Se ha modificado la tabla 'users' para incluir los campos
+-- solicitados en la captura de pantalla del cliente.
 -- =================================================================
 
 -- Limpiar tablas si ya existen (para poder re-ejecutar el script)
 DROP TABLE IF EXISTS users, products, orders, order_items, offers, queries, vouchers, account_movements CASCADE;
 
--- --- Autenticación ---
+-- --- Autenticación y Datos del Cliente ---
+-- (ACTUALIZADO) Se añaden todos los campos del formulario de cliente
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
-  username TEXT NOTABLE UNIQUE,
-  password_hash TEXT NOTABLE, -- En un proyecto real, esto debe ser un hash (ej. bcrypt)
-  company_name TEXT
+  username TEXT NOT NULL UNIQUE, -- Usuario de Login (CORREGIDO: NOTABLE -> NOT NULL)
+  password_hash TEXT NOT NULL, -- (CORREGIDO: NOTABLE -> NOT NULL)
+  
+  -- Campos de la captura (pestaña "de Registro")
+  codigo TEXT, -- A1_COD
+  tienda TEXT, -- A1_LOJA
+  nombre TEXT, -- A1_NOME
+  fisica_juridica TEXT, -- A1_PESSOA
+  n_fantasia TEXT, -- A1_NREDUZ
+  direccion TEXT, -- A1_END
+  municipio TEXT, -- A1_MUN
+  provincia TEXT, -- A1_EST
+  estatus TEXT,
+  telefono TEXT, -- A1_NUMBER
+  email TEXT, -- A1_EMAIL
+  descr_pais TEXT DEFAULT 'ARGENTINA',
+  tipo_iva TEXT, -- A1_TIPO
+  tipo_doc TEXT, -- A1_AFIP
+  cuit_cuil TEXT, -- A1_CGC
+  di TEXT
 );
 
-INSERT INTO users (username, password_hash, company_name)
-VALUES ('cliente1', '1234', 'Nombre de la Empresa (desde DB)'); -- Simulación de hash
+-- NOTA: Se elimina el INSERT de ejemplo. El registro se debe
+-- hacer desde la app para que la contraseña se guarde
+-- hasheada correctamente por bcrypt.
+
 
 -- --- Productos (Lista de Precios) ---
 CREATE TABLE products (
@@ -55,12 +75,8 @@ CREATE TABLE order_items (
 );
 
 -- Insertar pedidos de ejemplo
-INSERT INTO orders (user_id, total_amount, status) VALUES
-(1, 15000.00, 'Entregado'),
-(1, 8200.00, 'Entregado'),
-(1, 1500.00, 'Pendiente'),
-(1, 22100.00, 'En Proceso'),
-(1, 5000.00, 'Cancelado');
+-- (Se asume que el user_id = 1 será creado por el primer registro)
+-- INSERT INTO orders (user_id, total_amount, status) VALUES ...
 
 -- --- Ofertas ---
 CREATE TABLE offers (
@@ -86,10 +102,8 @@ CREATE TABLE account_movements (
   credit NUMERIC(10, 2) DEFAULT 0
 );
 
-INSERT INTO account_movements (user_id, move_date, description, debit, credit) VALUES
-(1, '2024-10-28', 'Factura A-001-12345', 25000.00, 0),
-(1, '2024-10-27', 'Pago recibido (desde DB)', 0, 50000.00),
-(1, '2024-10-25', 'Factura A-001-12340', 175000.00, 0);
+-- (Se asume que el user_id = 1 será creado por el primer registro)
+-- INSERT INTO account_movements (user_id, move_date, description, debit, credit) VALUES ...
 
 -- --- Consultas y Comprobantes ---
 CREATE TABLE queries (

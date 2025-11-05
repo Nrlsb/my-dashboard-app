@@ -44,16 +44,16 @@ const upload = multer({ storage: storage });
 // =================================================================
 
 // --- Autenticación ---
-const authenticateProtheusUser = async (username, password) => {
-  // (ACTUALIZADO) Ahora busca por username
+const authenticateProtheusUser = async (email, password) => {
+  // (ACTUALIZADO) Ahora busca por email (que está en la columna 'username')
   const result = await db.query(
     'SELECT * FROM users WHERE username = $1',
-    [username]
+    [email]
   );
 
   if (result.rows.length === 0) {
     // Usuario no encontrado
-    return { success: false, message: 'Usuario o contraseña incorrectos.' };
+    return { success: false, message: 'Email o contraseña incorrectos.' };
   }
   
   const user = result.rows[0];
@@ -62,99 +62,57 @@ const authenticateProtheusUser = async (username, password) => {
   const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
   if (isPasswordValid) {
-    // (ACTUALIZADO) Devuelve más datos del usuario
+    // (ACTUALIZADO) Devuelve 'nombre' de tu tabla (en lugar de 'company_name')
     return { 
       success: true, 
       user: { 
-        name: user.nombre, // Usamos el nuevo campo 'nombre'
-        code: user.username, 
+        name: user.nombre, // Mapeado desde la columna 'nombre'
+        code: user.username, // El "código" ahora es el email
         id: user.id 
       } 
     };
   }
   
-  return { success: false, message: 'Usuario o contraseña incorrectos.' };
+  return { success: false, message: 'Email o contraseña incorrectos.' };
 };
 
 // (ACTUALIZADO) --- Registro de Usuario ---
-// Ahora acepta todos los campos del formulario
+// Ahora acepta solo los campos simplificados
 const registerProtheusUser = async (userData) => {
   const {
-    username, password, 
-    codigo, // A1_COD
-    tienda, // A1_LOJA
-    nombre, // A1_NOME
-    fisica_juridica, // A1_PESSOA
-    n_fantasia, // A1_NREDUZ
-    direccion, // A1_END
-    municipio, // A1_MUN
-    provincia, // A1_EST
-    estatus,
-    telefono, // A1_NUMBER
-    email, // A1_EMAIL
-    tipo_iva, // A1_TIPO
-    tipo_doc, // A1_AFIP
-    cuit_cuil, // A1_CGC
-    di
+    nombre, 
+    email, 
+    password
   } = userData;
 
-  // 1. Verificar si el usuario ya existe
+  // 1. Verificar si el email (username) ya existe
   const existingUser = await db.query(
-    'SELECT * FROM users WHERE username = $1 OR codigo = $2 OR cuit_cuil = $3',
-    [username, codigo, cuit_cuil]
+    'SELECT * FROM users WHERE username = $1',
+    [email]
   );
   
   if (existingUser.rows.length > 0) {
-    throw new Error('El nombre de usuario, código o CUIT ya están registrados.');
+    throw new Error('El email ya está registrado.');
   }
 
   // 2. Hashear la contraseña
   const salt = await bcrypt.genSalt(10);
   const passwordHash = await bcrypt.hash(password, salt);
 
-  // 3. Insertar el nuevo usuario con todos los campos
+  // 3. Insertar el nuevo usuario con los campos básicos
+  // 'email' se guarda en 'username'
+  // 'nombre' se guarda en 'nombre'
+  // 'email' también se guarda en 'email'
   const queryText = `
     INSERT INTO users (
-      username, password_hash, 
-      codigo, -- A1_COD
-      tienda, -- A1_LOJA
-      nombre, -- A1_NOME
-      fisica_juridica, -- A1_PESSOA
-      n_fantasia, -- A1_NREDUZ
-      direccion, -- A1_END
-      municipio, -- A1_MUN
-      provincia, -- A1_EST
-      estatus,
-      telefono, -- A1_NUMBER
-      email, -- A1_EMAIL
-      tipo_iva, -- A1_TIPO
-      tipo_doc, -- A1_AFIP
-      cuit_cuil, -- A1_CGC
-      di, 
-      descr_pais
+      username, password_hash, nombre, email
     ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
-    ) RETURNING id, username, nombre, codigo
+      $1, $2, $3, $4
+    ) RETURNING id, username, nombre
   `;
   
   const queryParams = [
-    username, passwordHash, 
-    codigo, // A1_COD
-    tienda, // A1_LOJA
-    nombre, // A1_NOME
-    fisica_juridica, // A1_PESSOA
-    n_fantasia, // A1_NREDUZ
-    direccion, // A1_END
-    municipio, // A1_MUN
-    provincia, // A1_EST
-    estatus,
-    telefono, // A1_NUMBER
-    email, // A1_EMAIL
-    tipo_iva, // A1_TIPO
-    tipo_doc, // A1_AFIP
-    cuit_cuil, // A1_CGC
-    di, 
-    'ARGENTINA' // Se asume 'ARGENTINA'
+    email, passwordHash, nombre, email
   ];
 
   const result = await db.query(queryText, queryParams);
@@ -281,8 +239,8 @@ const MOCK_USER_ID = 1;
 app.post('/api/login', async (req, res) => {
   console.log('POST /api/login -> Autenticando contra DB...');
   try {
-    const { username, password } = req.body;
-    const result = await authenticateProtheusUser(username, password);
+    const { email, password } = req.body; // (ACTUALIZADO)
+    const result = await authenticateProtheusUser(email, password); // (ACTUALIZADO)
     if (result.success) {
       // En una app real, aquí se generaría un JWT
       res.json(result);
@@ -299,23 +257,97 @@ app.post('/api/login', async (req, res) => {
 app.post('/api/register', async (req, res) => {
   console.log('POST /api/register -> Registrando nuevo usuario en DB...');
   try {
-    // (ACTUALIZADO) Recibimos el body completo
-    const userData = req.body;
+    // (ACTUALIZADO) Recibimos el body simplificado
+    const { nombre, email, password } = req.body;
 
-    // Validación simple de campos obligatorios (ajusta según tus reglas)
-    if (!userData.username || !userData.password || !userData.nombre || !userData.codigo || !userData.cuit_cuil) {
-      return res.status(400).json({ message: 'Campos obligatorios (usuario, contraseña, nombre, código, CUIT) faltantes.' });
+    // Validación simple de campos obligatorios
+    if (!nombre || !email || !password) {
+      return res.status(400).json({ message: 'Nombre, email y contraseña son obligatorios.' });
     }
 
-    const newUser = await registerProtheusUser(userData);
+    const newUser = await registerProtheusUser(req.body);
     res.status(201).json({ success: true, user: newUser });
 
   } catch (error) {
     console.error('Error en /api/register:', error);
     // Manejar error de usuario duplicado
-    if (error.message.includes('ya están registrados')) {
+    if (error.message.includes('email ya está registrado')) { // (ACTUALIZADO)
       return res.status(409).json({ message: error.message }); // 409 Conflict
     }
+    res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+});
+
+
+// (NUEVO) --- Endpoints de Perfil ---
+// GET: Obtener los datos actuales del perfil
+app.get('/api/profile', async (req, res) => {
+  console.log('GET /api/profile -> Consultando perfil de usuario en DB...');
+  try {
+    // NOTA: Usamos MOCK_USER_ID (1)
+    const result = await db.query(
+      'SELECT * FROM users WHERE id = $1', 
+      [MOCK_USER_ID]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado.' });
+    }
+    
+    // No enviar el hash de la contraseña al frontend
+    delete result.rows[0].password_hash; 
+    res.json(result.rows[0]);
+    
+  } catch (error) {
+    console.error('Error en /api/profile (GET):', error);
+    res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+});
+
+// PUT: Actualizar los datos del perfil
+app.put('/api/profile', async (req, res) => {
+  console.log('PUT /api/profile -> Actualizando perfil en DB...');
+  try {
+    // NOTA: Usamos MOCK_USER_ID (1)
+    const {
+      codigo, tienda, nombre, fisica_juridica, n_fantasia, 
+      direccion, municipio, provincia, estatus, telefono, 
+      email, tipo_iva, tipo_doc, cuit_cuil, di
+    } = req.body;
+
+    const queryText = `
+      UPDATE users SET
+        codigo = $1,
+        tienda = $2,
+        nombre = $3,
+        fisica_juridica = $4,
+        n_fantasia = $5,
+        direccion = $6,
+        municipio = $7,
+        provincia = $8,
+        estatus = $9,
+        telefono = $10,
+        email = $11,
+        tipo_iva = $12,
+        tipo_doc = $13,
+        cuit_cuil = $14,
+        di = $15
+      WHERE id = $16
+    `;
+    
+    const queryParams = [
+      codigo, tienda, nombre, fisica_juridica, n_fantasia, 
+      direccion, municipio, provincia, estatus, telefono, 
+      email, tipo_iva, tipo_doc, cuit_cuil, di,
+      MOCK_USER_ID // El ID del usuario a actualizar
+    ];
+
+    await db.query(queryText, queryParams);
+    
+    res.json({ success: true, message: 'Perfil actualizado correctamente.' });
+
+  } catch (error) {
+    console.error('Error en /api/profile (PUT):', error);
     res.status(500).json({ message: 'Error interno del servidor.' });
   }
 });

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
+import { Mail, Lock } from 'lucide-react'; // (NUEVO) Iconos
 
 // (NUEVO) Definimos la URL de la API
 const API_URL = 'http://localhost:3001';
 
 // --- Componente de Login ---
-const LoginPage = ({ onLoginSuccess, onNavigate }) => { // (NUEVO) Añadir onNavigate
-  const [username, setUsername] = useState('');
+const LoginPage = ({ onLoginSuccess, onNavigate }) => { 
+  const [email, setEmail] = useState(''); // (ACTUALIZADO) de username a email
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false); 
@@ -15,12 +16,12 @@ const LoginPage = ({ onLoginSuccess, onNavigate }) => { // (NUEVO) Añadir onNav
     setError('');
     
     // Validar campos vacíos en el frontend primero
-    if (username.trim() === '' || password.trim() === '') {
-      setError('Usuario o contraseña no pueden estar vacíos.');
+    if (email.trim() === '' || password.trim() === '') { // (ACTUALIZADO)
+      setError('Email o contraseña no pueden estar vacíos.'); // (ACTUALIZADO)
       return;
     }
 
-    setIsLoading(true); // (NUEVO) Empezar carga
+    setIsLoading(true); 
 
     try {
       // (NUEVO) Llamada a la API de middleware
@@ -29,7 +30,7 @@ const LoginPage = ({ onLoginSuccess, onNavigate }) => { // (NUEVO) Añadir onNav
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email, password }), // (ACTUALIZADO)
       });
 
       if (!response.ok) {
@@ -37,9 +38,6 @@ const LoginPage = ({ onLoginSuccess, onNavigate }) => { // (NUEVO) Añadir onNav
         const errorData = await response.json();
         throw new Error(errorData.message || 'Error de autenticación');
       }
-
-      // const data = await response.json();
-      // console.log('Login exitoso:', data);
 
       // Si la autenticación es exitosa
       onLoginSuccess(); // Llama a la función del padre para cambiar el estado
@@ -63,41 +61,52 @@ const LoginPage = ({ onLoginSuccess, onNavigate }) => { // (NUEVO) Añadir onNav
         <h2 className="text-2xl font-bold text-center text-gray-800">Iniciar Sesión</h2>
         
         <form className="space-y-6" onSubmit={handleSubmit}>
-          {/* ... campos de usuario y contraseña ... */}
-          {/* ... (sin cambios aquí) ... */}
+          
+          {/* (ACTUALIZADO) Campo de Email */}
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-              Usuario
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              Email
             </label>
-            <input
-              id="username"
-              name="username"
-              type="text"
-              required
-              className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Tu usuario"
-              disabled={isLoading}
-            />
+            <div className="relative mt-1">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                <Mail className="w-5 h-5 text-gray-400" />
+              </span>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="tu@email.com"
+                disabled={isLoading}
+              />
+            </div>
           </div>
           
+          {/* (ACTUALIZADO) Campo de Contraseña */}
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700">
               Contraseña
             </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-            disabled={isLoading}
-          />
-        </div>
+            <div className="relative mt-1">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                <Lock className="w-5 h-5 text-gray-400" />
+              </span>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                disabled={isLoading}
+              />
+            </div>
+          </div>
           
           {/* Mensaje de Error */}
           {error && (
