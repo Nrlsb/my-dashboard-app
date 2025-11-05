@@ -62,33 +62,102 @@ const authenticateProtheusUser = async (username, password) => {
   const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
   if (isPasswordValid) {
-    return { success: true, user: { name: user.company_name, code: user.username, id: user.id } };
+    // (ACTUALIZADO) Devuelve más datos del usuario
+    return { 
+      success: true, 
+      user: { 
+        name: user.nombre, // Usamos el nuevo campo 'nombre'
+        code: user.username, 
+        id: user.id 
+      } 
+    };
   }
   
   return { success: false, message: 'Usuario o contraseña incorrectos.' };
 };
 
-// (NUEVO) --- Registro de Usuario ---
-const registerProtheusUser = async (username, password, companyName) => {
+// (ACTUALIZADO) --- Registro de Usuario ---
+// Ahora acepta todos los campos del formulario
+const registerProtheusUser = async (userData) => {
+  const {
+    username, password, 
+    codigo, // A1_COD
+    tienda, // A1_LOJA
+    nombre, // A1_NOME
+    fisica_juridica, // A1_PESSOA
+    n_fantasia, // A1_NREDUZ
+    direccion, // A1_END
+    municipio, // A1_MUN
+    provincia, // A1_EST
+    estatus,
+    telefono, // A1_NUMBER
+    email, // A1_EMAIL
+    tipo_iva, // A1_TIPO
+    tipo_doc, // A1_AFIP
+    cuit_cuil, // A1_CGC
+    di
+  } = userData;
+
   // 1. Verificar si el usuario ya existe
   const existingUser = await db.query(
-    'SELECT * FROM users WHERE username = $1',
-    [username]
+    'SELECT * FROM users WHERE username = $1 OR codigo = $2 OR cuit_cuil = $3',
+    [username, codigo, cuit_cuil]
   );
   
   if (existingUser.rows.length > 0) {
-    throw new Error('El nombre de usuario ya está registrado.');
+    throw new Error('El nombre de usuario, código o CUIT ya están registrados.');
   }
 
   // 2. Hashear la contraseña
   const salt = await bcrypt.genSalt(10);
   const passwordHash = await bcrypt.hash(password, salt);
 
-  // 3. Insertar el nuevo usuario
-  const result = await db.query(
-    'INSERT INTO users (username, password_hash, company_name) VALUES ($1, $2, $3) RETURNING id, username, company_name',
-    [username, passwordHash, companyName]
-  );
+  // 3. Insertar el nuevo usuario con todos los campos
+  const queryText = `
+    INSERT INTO users (
+      username, password_hash, 
+      codigo, -- A1_COD
+      tienda, -- A1_LOJA
+      nombre, -- A1_NOME
+      fisica_juridica, -- A1_PESSOA
+      n_fantasia, -- A1_NREDUZ
+      direccion, -- A1_END
+      municipio, -- A1_MUN
+      provincia, -- A1_EST
+      estatus,
+      telefono, -- A1_NUMBER
+      email, -- A1_EMAIL
+      tipo_iva, -- A1_TIPO
+      tipo_doc, -- A1_AFIP
+      cuit_cuil, -- A1_CGC
+      di, 
+      descr_pais
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
+    ) RETURNING id, username, nombre, codigo
+  `;
+  
+  const queryParams = [
+    username, passwordHash, 
+    codigo, // A1_COD
+    tienda, // A1_LOJA
+    nombre, // A1_NOME
+    fisica_juridica, // A1_PESSOA
+    n_fantasia, // A1_NREDUZ
+    direccion, // A1_END
+    municipio, // A1_MUN
+    provincia, // A1_EST
+    estatus,
+    telefono, // A1_NUMBER
+    email, // A1_EMAIL
+    tipo_iva, // A1_TIPO
+    tipo_doc, // A1_AFIP
+    cuit_cuil, // A1_CGC
+    di, 
+    'ARGENTINA' // Se asume 'ARGENTINA'
+  ];
+
+  const result = await db.query(queryText, queryParams);
 
   return result.rows[0];
 };
@@ -226,23 +295,25 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// (NUEVO) --- Registro ---
+// (ACTUALIZADO) --- Registro ---
 app.post('/api/register', async (req, res) => {
   console.log('POST /api/register -> Registrando nuevo usuario en DB...');
   try {
-    const { username, password, companyName } = req.body;
+    // (ACTUALIZADO) Recibimos el body completo
+    const userData = req.body;
 
-    if (!username || !password || !companyName) {
-      return res.status(400).json({ message: 'Todos los campos son obligatorios.' });
+    // Validación simple de campos obligatorios (ajusta según tus reglas)
+    if (!userData.username || !userData.password || !userData.nombre || !userData.codigo || !userData.cuit_cuil) {
+      return res.status(400).json({ message: 'Campos obligatorios (usuario, contraseña, nombre, código, CUIT) faltantes.' });
     }
 
-    const newUser = await registerProtheusUser(username, password, companyName);
+    const newUser = await registerProtheusUser(userData);
     res.status(201).json({ success: true, user: newUser });
 
   } catch (error) {
     console.error('Error en /api/register:', error);
     // Manejar error de usuario duplicado
-    if (error.message.includes('ya está registrado')) {
+    if (error.message.includes('ya están registrados')) {
       return res.status(409).json({ message: error.message }); // 409 Conflict
     }
     res.status(500).json({ message: 'Error interno del servidor.' });

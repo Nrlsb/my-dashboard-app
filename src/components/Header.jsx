@@ -10,7 +10,7 @@ const Header = () => {
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <span className="text-2xl font-bold text-red-600">Pintureria Mercurio</span>
+            <span className="text-2xl font-bold text-blue-600">Pintureria Mercurio</span>
           </div>
           
           {/* Perfil de Usuario */}
