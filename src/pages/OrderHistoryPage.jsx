@@ -35,14 +35,14 @@ const OrderHistoryPage = ({ onNavigate }) => {
     fetchOrders();
   }, []);
 
-  // ... (función getStatusColor sin cambios) ...
-  // Función para obtener el color del estado
+  // (ACTUALIZADO) Función para obtener el color del estado
   const getStatusColor = (status) => {
     switch (status) {
       case 'Entregado': return 'bg-green-100 text-green-800';
       case 'Pendiente': return 'bg-yellow-100 text-yellow-800';
       case 'En Proceso': return 'bg-blue-100 text-blue-800';
       case 'Cancelado': return 'bg-red-100 text-red-800';
+      case 'Cotizado': return 'bg-gray-100 text-gray-800'; // <-- (NUEVO)
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -103,7 +103,8 @@ const OrderHistoryPage = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      <Header />
+      {/* (ACTUALIZADO) Pasamos onNavigate al Header */}
+      <Header onNavigate={onNavigate} />
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         {/* Encabezado con Botón de Volver y Título */}
         <div className="flex items-center mb-6">

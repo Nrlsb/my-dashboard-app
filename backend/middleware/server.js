@@ -170,10 +170,14 @@ const fetchProtheusOrders = async (userId) => {
 
 const saveProtheusOrder = async (orderData, userId) => {
   // En un proyecto real, esto debe ser una TRANSACCIÓN
+  
+  // (NUEVO) Determinar el estado basado en el tipo de solicitud
+  const orderStatus = orderData.type === 'quote' ? 'Cotizado' : 'Pendiente';
+
   // 1. Insertar en 'orders'
   const orderResult = await db.query(
     'INSERT INTO orders (user_id, total_amount, status) VALUES ($1, $2, $3) RETURNING id',
-    [userId, orderData.total, 'Pendiente']
+    [userId, orderData.total, orderStatus] // (ACTUALIZADO) Usar el estado dinámico
   );
   const newOrderId = orderResult.rows[0].id;
 
@@ -389,9 +393,9 @@ app.get('/api/orders', async (req, res) => {
 });
 
 app.post('/api/orders', async (req, res) => {
-  console.log('POST /api/orders -> Guardando nuevo pedido en DB...');
+  console.log('POST /api/orders -> Guardando nuevo pedido/presupuesto en DB...'); // (ACTUALIZADO)
   try {
-    const orderData = req.body;
+    const orderData = req.body; // Esto ahora incluye { items, total, type }
     const result = await saveProtheusOrder(orderData, MOCK_USER_ID);
     res.json(result);
   } catch (error) {

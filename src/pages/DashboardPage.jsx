@@ -10,7 +10,7 @@ import {
   FileText,
   HelpCircle,
   UploadCloud,
-  User, // (NUEVO) Importar icono de Perfil
+  // User, // Ya no se usa aquí
 } from 'lucide-react';
 
 // El Contenido del Dashboard
@@ -69,14 +69,14 @@ const Dashboard = ({ onNavigate }) => {
       bgColor: 'bg-gray-700',
       action: () => onNavigate('voucherUpload') // <-- (AÑADIDO) Acción para Carga de Comprobantes
     },
-    // (NUEVO) Tarjeta de Perfil
-    { 
-      title: 'Mi Perfil', 
-      subTitle: 'Mis Datos', 
-      icon: User, 
-      bgColor: 'bg-gray-700',
-      action: () => onNavigate('profile') 
-    },
+    // (ELIMINADO) La tarjeta de Perfil se movió al Header
+    // { 
+    //   title: 'Mi Perfil', 
+    //   subTitle: 'Mis Datos', 
+    //   icon: User, 
+    //   bgColor: 'bg-gray-700',
+    //   action: () => onNavigate('profile') 
+    // },
   ];
 
   return (
@@ -101,7 +101,8 @@ const Dashboard = ({ onNavigate }) => {
 const DashboardPage = ({ onNavigate }) => {
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      <Header />
+      {/* (ACTUALIZADO) Pasamos onNavigate al Header */}
+      <Header onNavigate={onNavigate} />
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         <Dashboard onNavigate={onNavigate} />
       </main>

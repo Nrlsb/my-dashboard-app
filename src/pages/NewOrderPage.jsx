@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Header from '../components/Header.jsx';
-import { ArrowLeft, Search, ShoppingCart, Trash2, Package, CheckCircle, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Search, ShoppingCart, Trash2, Package, CheckCircle, AlertTriangle, FileText } from 'lucide-react';
 
 // (NUEVO) Definimos la URL de la API
 const API_URL = 'http://localhost:3001';
@@ -8,7 +8,7 @@ const API_URL = 'http://localhost:3001';
 // --- Página de Nuevo Pedido ---
 const NewOrderPage = ({ onNavigate }) => {
   // --- Estados ---
-  const [allProducts, setAllProducts] = useState([]); // (NUEVO) Todos los productos de la API
+  const [allProducts, setAllProducts] = useState([]); 
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [productError, setProductError] = useState(null);
   
@@ -16,9 +16,9 @@ const NewOrderPage = ({ onNavigate }) => {
   const [selectedBrand, setSelectedBrand] = useState('');
   const [cart, setCart] = useState([]);
   
-  // (NUEVO) Estados para el envío del pedido
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState(null); // 'success' | 'error' | null
+  const [submitStatus, setSubmitStatus] = useState(null); 
+  const [submitMessage, setSubmitMessage] = useState(''); 
 
   // --- Carga de Productos ---
   useEffect(() => {
@@ -99,17 +99,94 @@ const NewOrderPage = ({ onNavigate }) => {
       currency: 'ARS',
     }).format(amount);
   };
+  
+  // --- (NUEVO) Función para Generar PDF ---
+  const generateQuotePDF = () => {
+    // jsPDF estará disponible en 'window' gracias al script en index.html
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    const clientName = "CLIENTE-001"; // Simulado
+    const companyName = "Pintureria Mercurio";
+    const date = new Date().toLocaleDateString('es-AR');
+    let yPos = 20; // Posición vertical inicial
 
-  // --- (NUEVO) Lógica de Envío de Pedido ---
-  const handleSubmitOrder = async () => {
+    // Título y Cabecera
+    doc.setFontSize(20);
+    doc.text("PRESUPUESTO", 105, yPos, { align: 'center' });
+    yPos += 10;
+    doc.setFontSize(12);
+    doc.text(`${companyName}`, 20, yPos);
+    doc.text(`Fecha: ${date}`, 180, yPos, { align: 'right' });
+    yPos += 7;
+    doc.text(`Cliente: ${clientName}`, 20, yPos);
+    yPos += 10;
+    
+    // Línea divisoria
+    doc.setLineWidth(0.5);
+    doc.line(20, yPos, 190, yPos);
+    yPos += 10;
+
+    // Cabecera de la tabla
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'bold');
+    doc.text("Cód.", 20, yPos);
+    doc.text("Descripción", 40, yPos);
+    doc.text("Cant.", 120, yPos, { align: 'right' });
+    doc.text("Precio Unit.", 150, yPos, { align: 'right' });
+    doc.text("Subtotal", 180, yPos, { align: 'right' });
+    doc.setFont(undefined, 'normal');
+    yPos += 7;
+
+    // Items del carrito
+    cart.forEach(item => {
+      const subtotal = item.price * item.quantity;
+      doc.text(item.id, 20, yPos);
+      doc.text(doc.splitTextToSize(item.name, 70), 40, yPos); // Auto-ajuste de texto
+      doc.text(item.quantity.toString(), 120, yPos, { align: 'right' });
+      doc.text(formatCurrency(item.price), 150, yPos, { align: 'right' });
+      doc.text(formatCurrency(subtotal), 180, yPos, { align: 'right' });
+      yPos += 10; // Espacio para siguiente item
+    });
+
+    // Línea divisoria
+    doc.setLineWidth(0.5);
+    doc.line(20, yPos, 190, yPos);
+    yPos += 10;
+    
+    // Total
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text("TOTAL:", 140, yPos);
+    doc.text(formatCurrency(totalPrice), 180, yPos, { align: 'right' });
+
+    // Guardar el PDF
+    doc.save(`presupuesto-${clientName}-${date}.pdf`);
+  };
+
+  // --- (ACTUALIZADO) Lógica de Envío de Pedido ---
+  const handleSubmitOrder = async (submissionType) => { // submissionType: 'order' | 'quote'
     setIsSubmitting(true);
     setSubmitStatus(null);
+    setSubmitMessage('');
+    
+    // (NUEVO) Generar PDF si es un presupuesto
+    if (submissionType === 'quote') {
+      try {
+        generateQuotePDF();
+      } catch (pdfError) {
+        console.error("Error al generar PDF:", pdfError);
+        setError("Error al generar el PDF. El presupuesto se guardará de todas formas.");
+      }
+    }
+    
     try {
       // Preparamos solo los datos necesarios para el backend
       const orderData = {
         items: cart.map(item => ({ id: item.id, quantity: item.quantity, price: item.price })),
         total: totalPrice,
-        clientCode: 'CLIENTE-001' // Esto vendría del estado de login
+        clientCode: 'CLIENTE-001', // Esto vendría del estado de login
+        type: submissionType // (NUEVO) Enviamos el tipo
       };
 
       const response = await fetch(`${API_URL}/api/orders`, {
@@ -120,21 +197,28 @@ const NewOrderPage = ({ onNavigate }) => {
         body: JSON.stringify(orderData),
       });
       
-      if (!response.ok) throw new Error('Error al enviar el pedido.');
+      if (!response.ok) throw new Error('Error al enviar la solicitud.');
       
       const result = await response.json();
-      console.log('Pedido exitoso:', result);
+      console.log('Solicitud exitosa:', result);
+      
+      // (ACTUALIZADO) Mensajes dinámicos
       setSubmitStatus('success');
+      setSubmitMessage(submissionType === 'order' ? '¡Pedido Enviado!' : '¡Presupuesto Generado!');
       setCart([]); // Vaciar carrito
       
-      // Volver al dashboard después de 3 seg
+      // (ACTUALIZADO) Volver al HISTÓRICO después de 3 seg
       setTimeout(() => {
-        onNavigate('dashboard');
+        onNavigate('orderHistory'); // <--- CAMBIO AQUÍ
+        setSubmitStatus(null); // Limpiar estado
+        setSubmitMessage('');
       }, 3000);
 
     } catch (err) {
       console.error(err);
       setSubmitStatus('error');
+      // (ACTUALIZADO) Mensajes de error dinámicos
+      setSubmitMessage(submissionType === 'order' ? 'Error al enviar el pedido.' : 'Error al generar el presupuesto.');
     } finally {
       setIsSubmitting(false);
     }
@@ -179,7 +263,8 @@ const NewOrderPage = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      <Header />
+      {/* (ACTUALIZADO) Pasamos onNavigate al Header */}
+      <Header onNavigate={onNavigate} />
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         {/* Encabezado con Botón de Volver y Título */}
         <div className="flex items-center mb-6">
@@ -252,18 +337,18 @@ const NewOrderPage = ({ onNavigate }) => {
           <div className="lg:col-span-1">
             <div className="sticky top-8 p-6 bg-white rounded-lg shadow-md">
               
-              {/* (NUEVO) Mensajes de estado de envío */}
+              {/* (ACTUALIZADO) Mensajes de estado de envío */}
               {submitStatus === 'success' && (
                 <div className="p-4 mb-4 text-center bg-green-100 text-green-800 rounded-md">
                   <CheckCircle className="w-8 h-8 mx-auto mb-2" />
-                  <p className="font-semibold">¡Pedido Enviado!</p>
-                  <p className="text-sm">Serás redirigido al inicio.</p>
+                  <p className="font-semibold">{submitMessage}</p>
+                  <p className="text-sm">Serás redirigido al Histórico.</p>
                 </div>
               )}
               {submitStatus === 'error' && (
                 <div className="p-4 mb-4 text-center bg-red-100 text-red-800 rounded-md">
                   <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
-                  <p className="font-semibold">Error al enviar</p>
+                  <p className="font-semibold">{submitMessage}</p>
                   <p className="text-sm">Inténtalo de nuevo más tarde.</p>
                 </div>
               )}
@@ -306,19 +391,28 @@ const NewOrderPage = ({ onNavigate }) => {
                 ))}
               </div>
 
-              {/* Total y Botón */}
+              {/* (ACTUALIZADO) Total y Botones */}
               {cart.length > 0 && (
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <div className="flex justify-between items-center mb-4">
+                <div className="mt-6 pt-6 border-t border-gray-200 space-y-3">
+                  <div className="flex justify-between items-center mb-2">
                     <span className="text-lg font-medium text-gray-900">Total:</span>
                     <span className="text-2xl font-bold text-gray-900">{formatCurrency(totalPrice)}</span>
                   </div>
                   <button
-                    onClick={handleSubmitOrder}
+                    onClick={() => handleSubmitOrder('quote')}
                     disabled={isSubmitting}
-                    className="w-full px-6 py-3 font-semibold text-white bg-green-600 rounded-md shadow-sm hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full inline-flex items-center justify-center px-6 py-3 font-semibold text-white bg-blue-600 rounded-md shadow-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isSubmitting ? 'Enviando Pedido...' : 'Finalizar Pedido'}
+                    <FileText className="w-4 h-4 mr-2" />
+                    {isSubmitting ? 'Generando...' : 'Generar Presupuesto'}
+                  </button>
+                  <button
+                    onClick={() => handleSubmitOrder('order')}
+                    disabled={isSubmitting}
+                    className="w-full inline-flex items-center justify-center px-6 py-3 font-semibold text-white bg-green-600 rounded-md shadow-sm hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    {isSubmitting ? 'Enviando...' : 'Generar Pedido de Venta'}
                   </button>
                 </div>
               )}

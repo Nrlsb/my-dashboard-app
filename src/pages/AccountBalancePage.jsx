@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'; // (PASO 1) Importar useState y useEffect
-import Header from '/src/components/Header.jsx'; // <-- (CORRECCIÓN) Ruta absoluta
+import React, { useState, useEffect } from 'react'; 
+import Header from '/src/components/Header.jsx'; 
 import { ArrowLeft } from 'lucide-react';
 
 // --- Página de Cuenta Corriente (Modificada para API) ---
@@ -54,7 +54,8 @@ const AccountBalancePage = ({ onNavigate }) => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 font-sans">
-        <Header />
+        {/* (ACTUALIZADO) Pasamos onNavigate al Header */}
+        <Header onNavigate={onNavigate} />
         <main className="p-4 md:p-8 max-w-7xl mx-auto text-center">
           <div className="p-10 bg-white rounded-lg shadow-md">
             <h2 className="text-xl font-semibold text-gray-700">Cargando datos...</h2>
@@ -69,7 +70,8 @@ const AccountBalancePage = ({ onNavigate }) => {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-100 font-sans">
-        <Header />
+        {/* (ACTUALIZADO) Pasamos onNavigate al Header */}
+        <Header onNavigate={onNavigate} />
         <main className="p-4 md:p-8 max-w-7xl mx-auto text-center">
           <div className="p-10 bg-white rounded-lg shadow-md border-l-4 border-red-500">
             <h2 className="text-xl font-semibold text-red-600">Error</h2>
@@ -90,7 +92,8 @@ const AccountBalancePage = ({ onNavigate }) => {
   // Usamos "balanceSummary?.total" (optional chaining) por si el estado es null
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      <Header />
+      {/* (ACTUALIZADO) Pasamos onNavigate al Header */}
+      <Header onNavigate={onNavigate} />
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         {/* Encabezado con Botón de Volver y Título */}
         <div className="flex items-center mb-6">
@@ -161,4 +164,3 @@ const AccountBalancePage = ({ onNavigate }) => {
 };
 
 export default AccountBalancePage;
-

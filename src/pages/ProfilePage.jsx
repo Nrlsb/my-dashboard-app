@@ -130,7 +130,8 @@ const ProfilePage = ({ onNavigate }) => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-100 font-sans">
-        <Header />
+        {/* (ACTUALIZADO) Pasamos onNavigate al Header */}
+        <Header onNavigate={onNavigate} />
         <main className="p-4 md:p-8 max-w-7xl mx-auto text-center">
           <p className="text-gray-600">Cargando perfil...</p>
         </main>
@@ -140,7 +141,8 @@ const ProfilePage = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      <Header />
+      {/* (ACTUALIZADO) Pasamos onNavigate al Header */}
+      <Header onNavigate={onNavigate} />
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         {/* Encabezado con Botón de Volver y Título */}
         <div className="flex items-center mb-6">
