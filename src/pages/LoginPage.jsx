@@ -4,11 +4,11 @@ import React, { useState } from 'react';
 const API_URL = 'http://localhost:3001';
 
 // --- Componente de Login ---
-const LoginPage = ({ onLoginSuccess }) => {
+const LoginPage = ({ onLoginSuccess, onNavigate }) => { // (NUEVO) Añadir onNavigate
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false); // (NUEVO) Estado de carga
+  const [isLoading, setIsLoading] = useState(false); 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -95,9 +95,9 @@ const LoginPage = ({ onLoginSuccess }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              disabled={isLoading}
-            />
-          </div>
+            disabled={isLoading}
+          />
+        </div>
           
           {/* Mensaje de Error */}
           {error && (
@@ -113,6 +113,18 @@ const LoginPage = ({ onLoginSuccess }) => {
             {isLoading ? 'Ingresando...' : 'Ingresar'}
           </button>
         </form>
+        
+        {/* (NUEVO) Enlace a Registro */}
+        <div className="text-sm text-center text-gray-600">
+          ¿No tienes una cuenta?{' '}
+          <button
+            onClick={() => onNavigate('register')}
+            className="font-medium text-red-600 hover:text-red-500"
+            disabled={isLoading}
+          >
+            Regístrate aquí
+          </button>
+        </div>
       </div>
     </div>
   );
