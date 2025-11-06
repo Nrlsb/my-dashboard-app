@@ -1,103 +1,131 @@
 # Pintureria Mercurio - Dashboard de Cliente
 
-Este proyecto es una aplicación web de tipo dashboard desarrollada en React, diseñada para que los clientes de Pintureria Mercurio puedan gestionar sus cuentas, pedidos e interactuar con la empresa.
+Este proyecto es una aplicación web full-stack de tipo dashboard diseñada para que los clientes de Pintureria Mercurio puedan gestionar sus cuentas, pedidos e interactuar con la empresa.
 
-La aplicación está construida con [Vite](https://vitejs.dev/) y estilizada con [Tailwind CSS](https://tailwindcss.com/).
-
-## Características Principales
-
-La aplicación simula un portal de cliente completo, permitiendo la navegación entre varias secciones clave:
-
-* **Login:** Página de autenticación para el ingreso de clientes.
-* **Dashboard Principal:** Un panel central con accesos directos a todas las funcionalidades.
-* **Nuevo Pedido:** Interfaz para la creación de nuevos pedidos (actualmente con filtros de búsqueda).
-* **Histórico de Pedidos:** Muestra una tabla con el historial de pedidos del cliente y sus estados (Entregado, Pendiente, etc.).
-* **Lista de Precios:** Permite buscar y filtrar productos para consultar precios.
-* **Ofertas:** Muestra las ofertas y promociones vigentes.
-* **Cuenta Corriente:** Presenta un resumen del saldo de la cuenta del cliente (total, disponible, pendiente) y los últimos movimientos.
-* **Consultas:** Un formulario para que el cliente pueda enviar consultas o reclamos.
-* **Carga de Comprobantes:** Una interfaz para arrastrar y soltar (drag-and-drop) archivos (PDF, JPG, PNG) y subirlos.
-
-## Tech Stack (Tecnologías Utilizadas)
-
-* **Framework:** React 19
-* **Bundler:** Vite
-* **Estilos:** Tailwind CSS (cargado vía CDN)
-* **Iconos:** `lucide-react`
-* **Linting:** ESLint
-
-## Estructura del Proyecto
-
-El proyecto está organizado de la siguiente manera:
-
-¡Ah, entiendo perfectamente!
-
-Tienes razón. Lo que ves a la derecha es el archivo README.md renderizado. Como es un archivo .md, el editor lo formatea automáticamente para que se vea bonito (como en GitHub).
-
-Si lo que quieres es el código Markdown literal (el texto crudo con los ##, * y los bloques de código ````), aquí te lo muestro en el chat para que lo puedas ver y copiar:
-
-Markdown
-
-# Pintureria Mercurio - Dashboard de Cliente
-
-Este proyecto es una aplicación web de tipo dashboard desarrollada en React, diseñada para que los clientes de Pintureria Mercurio puedan gestionar sus cuentas, pedidos e interactuar con la empresa.
-
-La aplicación está construida con [Vite](https://vitejs.dev/) y estilizada con [Tailwind CSS](https://tailwindcss.com/).
+La aplicación consiste en un frontend de React (construido con Vite) y un backend middleware (Node.js/Express) que se conecta a una base de datos PostgreSQL para gestionar toda la lógica de negocio.
 
 ## Características Principales
 
 La aplicación simula un portal de cliente completo, permitiendo la navegación entre varias secciones clave:
 
-* **Login:** Página de autenticación para el ingreso de clientes.
+* **Login / Registro:** Páginas de autenticación y creación de cuentas (con hashing de contraseñas en el backend).
 * **Dashboard Principal:** Un panel central con accesos directos a todas las funcionalidades.
-* **Nuevo Pedido:** Interfaz para la creación de nuevos pedidos (actualmente con filtros de búsqueda).
-* **Histórico de Pedidos:** Muestra una tabla con el historial de pedidos del cliente y sus estados (Entregado, Pendiente, etc.).
-* **Lista de Precios:** Permite buscar y filtrar productos para consultar precios.
-* **Ofertas:** Muestra las ofertas y promociones vigentes.
+* **Mi Perfil:** Formulario para que los clientes vean y actualicen sus datos de registro (simulando campos de Protheus como A1_COD, A1_LOJA, etc.).
+* **Nuevo Pedido:** Interfaz para la creación de nuevos pedidos, permitiendo filtrar productos, añadirlos a un carrito y enviar la orden.
+* **Generación de Presupuestos:** Desde "Nuevo Pedido", se puede generar un presupuesto en PDF (jsPDF) y guardarlo en el backend con estado "Cotizado".
+* **Histórico de Pedidos:** Muestra una tabla con el historial de pedidos del cliente y sus estados (Entregado, Pendiente, Cotizado, etc.).
+* **Lista de Precios:** Permite buscar y filtrar todos los productos de la base de datos para consultar precios.
+* **Ofertas:** Muestra las ofertas y promociones vigentes cargadas desde la base de datos.
 * **Cuenta Corriente:** Presenta un resumen del saldo de la cuenta del cliente (total, disponible, pendiente) y los últimos movimientos.
 * **Consultas:** Un formulario para que el cliente pueda enviar consultas o reclamos.
-* **Carga de Comprobantes:** Una interfaz para arrastrar y soltar (drag-and-drop) archivos (PDF, JPG, PNG) y subirlos.
+* **Carga de Comprobantes:** Una interfaz para arrastrar y soltar (drag-and-drop) archivos (PDF, JPG, PNG) y subirlos al servidor (usando multer).
 
 ## Tech Stack (Tecnologías Utilizadas)
+
+### Frontend
 
 * **Framework:** React 19
 * **Bundler:** Vite
 * **Estilos:** Tailwind CSS (cargado vía CDN)
-* **Iconos:** `lucide-react`
-* **Linting:** ESLint
+* **Iconos:** lucide-react
+* **Generación de PDF:** jsPDF
+
+### Backend
+
+* **Runtime:** Node.js
+* **Framework:** Express
+* **Base de Datos:** PostgreSQL (con node-pg)
+* **Autenticación:** bcryptjs (para hashing de contraseñas)
+* **Manejo de Archivos:** multer (para la carga de comprobantes)
+* **Variables de Entorno:** dotenv
 
 ## Estructura del Proyecto
 
-El proyecto está organizado de la siguiente manera:
+El proyecto está organizado con el frontend (`src`) y el backend (`backend/middleware`) en el mismo repositorio.
 
-/src |-- /components | |-- DashboardCard.jsx (Componente reutilizable para las tarjetas del menú) | +-- Header.jsx (Cabecera principal de la aplicación) |-- /pages | |-- AccountBalancePage.jsx | |-- DashboardPage.jsx | |-- LoginPage.jsx | |-- NewOrderPage.jsx | |-- OffersPage.jsx | |-- OrderHistoryPage.jsx | |-- PriceListPage.jsx | |-- QueriesPage.jsx | +-- VoucherUploadPage.jsx +-- App.jsx (Manejador principal de estado y navegación) +-- main.jsx (Punto de entrada de React)
+```bash
+my-dashboard-app/
+├── backend/middleware/
+│   ├── db.js           # Gestor de conexión a PostgreSQL
+│   ├── server.js       # Servidor Express (API REST)
+│   ├── setup.sql       # Script de creación de la base de datos
+│   ├── package.json    # Dependencias del backend
+│   └── .env            # (Requerido) Variables de entorno
+├── public/
+│   └── vite.svg
+├── src/
+│   ├── components/
+│   │   ├── DashboardCard.jsx
+│   │   └── Header.jsx
+│   ├── pages/
+│   │   ├── AccountBalancePage.jsx
+│   │   ├── DashboardPage.jsx
+│   │   ├── LoginPage.jsx
+│   │   ├── NewOrderPage.jsx
+│   │   ├── OffersPage.jsx
+│   │   ├── OrderHistoryPage.jsx
+│   │   ├── PriceListPage.jsx
+│   │   ├── ProfilePage.jsx
+│   │   ├── QueriesPage.jsx
+│   │   ├── RegisterPage.jsx
+│   │   └── VoucherUploadPage.jsx
+│   ├── App.jsx         # Manejador principal de estado y navegación
+│   └── main.jsx        # Punto de entrada de React
+├── index.html          # HTML principal (incluye CDN de Tailwind y jsPDF)
+└── package.json        # Dependencias del frontend (React)
+```
 
-La navegación se maneja a través de un estado simple en `App.jsx`, que renderiza condicionalmente cada componente de página basado en el estado `currentView`.
+## Instalación y Puesta en Marcha
 
-## Instalación y Scripts
+Para correr este proyecto localmente, necesitas tener Node.js y PostgreSQL instalados. La aplicación requiere que tanto el frontend como el backend estén corriendo simultáneamente.
 
-Para correr este proyecto localmente, sigue estos pasos:
+### 1. Backend (Servidor Middleware)
 
-1.  **Clonar el repositorio:**
+1.  Navegar a la carpeta del backend:
     ```bash
-    git clone [URL-DEL-REPOSITORIO]
-    cd my-dashboard-app
+    cd backend/middleware
     ```
-
-2.  **Instalar dependencias:**
-    (Se recomienda usar `npm` o `yarn` según el `package-lock.json`)
+2.  Instalar dependencias del backend:
     ```bash
     npm install
     ```
+3.  Configurar la Base de Datos:
+    * Asegúrate de que tu servicio de PostgreSQL esté corriendo.
+    * Crea una base de datos (ej. `mercurio_db`).
+    * Ejecuta el script `setup.sql` en tu base de datos para crear todas las tablas (users, products, orders, etc.).
+    * (Ej. usando `psql`: `psql -U tu_usuario -d mercurio_db -f setup.sql`)
 
-3.  **Correr el servidor de desarrollo:**
-    Inicia la aplicación en modo de desarrollo con Vite.
+4.  Crear variables de entorno:
+    * Crea un archivo `.env` en la carpeta `backend/middleware/`.
+    * Añade tus credenciales de PostgreSQL (basado en `db.js`):
+        ```.env
+        DB_USER=tu_usuario_postgres
+        DB_HOST=localhost
+        DB_DATABASE=mercurio_db
+        DB_PASSWORD=tu_contraseña_postgres
+        DB_PORT=5432
+        ```
+5.  Iniciar el servidor backend:
+    ```bash
+    node server.js
+    ```
+    * El servidor estará corriendo y escuchando en `http://localhost:3001`.
+
+### 2. Frontend (Aplicación React)
+
+1.  Abrir una nueva terminal y navegar a la raíz del proyecto (la carpeta que contiene `src`).
+
+2.  Instalar dependencias del frontend:
+    ```bash
+    npm install
+    ```
+3.  Iniciar el cliente de desarrollo (Vite):
     ```bash
     npm run dev
     ```
-    La aplicación estará disponible en `http://localhost:5173` (o el puerto que indique Vite).
+    La aplicación estará disponible en `http://localhost:5173` (o el puerto que indique Vite). Ya está configurada para hacer peticiones al backend en el puerto 3001.
 
-### Otros Scripts Disponibles
+## Scripts del Frontend
 
 * **Construir para producción (Build):**
     ```bash
