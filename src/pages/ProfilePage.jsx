@@ -46,22 +46,22 @@ const FormSelect = ({ label, id, value, onChange, required = false, disabled = f
 
 // --- Página de Perfil ---
 const ProfilePage = ({ onNavigate }) => {
-  // Estado para todos los campos del formulario
+  // (ACTUALIZADO) Estado usa las claves de Protheus (A1_...)
   const [formData, setFormData] = useState({
-    codigo: '',
-    tienda: '',
-    nombre: '',
-    fisica_juridica: 'F',
-    n_fantasia: '',
-    direccion: '',
-    municipio: '',
-    provincia: '',
+    A1_COD: '',
+    A1_LOJA: '',
+    A1_NOME: '',
+    A1_PESSOA: 'F',
+    A1_NREDUZ: '',
+    A1_END: '',
+    A1_MUN: '',
+    A1_EST: '',
     estatus: '2',
-    telefono: '',
-    email: '',
-    tipo_iva: 'I',
-    tipo_doc: '80',
-    cuit_cuil: '',
+    A1_NUMBER: '',
+    A1_EMAIL: '',
+    A1_TIPO: 'I',
+    A1_AFIP: '80',
+    A1_CGC: '',
     di: '',
     username: '' // El email de login
   });
@@ -81,7 +81,7 @@ const ProfilePage = ({ onNavigate }) => {
         const response = await fetch(`${API_URL}/api/profile`);
         if (!response.ok) throw new Error('No se pudieron cargar los datos del perfil.');
         const data = await response.json();
-        setFormData(data);
+        setFormData(data); // El backend ahora devuelve las claves A1_...
       } catch (err) {
         setError(err.message);
       } finally {
@@ -110,7 +110,7 @@ const ProfilePage = ({ onNavigate }) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(formData), // (ACTUALIZADO) Envía A1_NOME, A1_COD, etc.
       });
 
       const data = await response.json();
@@ -164,32 +164,33 @@ const ProfilePage = ({ onNavigate }) => {
           <form className="space-y-6" onSubmit={handleSubmit}>
             
             {/* --- GRILLA DE DATOS DEL CLIENTE --- */}
+            {/* (ACTUALIZADO) 'id' y 'value' usan claves A1_... 'label' incluye el * */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               
               {/* Columna 1 */}
               <div className="space-y-4">
-                <FormInput label="Apellido y Nombre (A1_NOME)" id="nombre" value={formData.nombre} onChange={handleChange} required disabled={isSaving} />
-                <FormInput label="N Fantasia (A1_NREDUZ)" id="n_fantasia" value={formData.n_fantasia} onChange={handleChange} required disabled={isSaving} />
-                <FormInput label="Provincia (A1_EST)" id="provincia" value={formData.provincia} onChange={handleChange} required disabled={isSaving} />
-                <FormInput label="Telefono (A1_NUMBER)" id="telefono" value={formData.telefono} onChange={handleChange} disabled={isSaving} />
-                <FormSelect label="Tipo (A1_TIPO)" id="tipo_iva" value={formData.tipo_iva} onChange={handleChange} required disabled={isSaving}>
+                <FormInput label="Apellido y Nombre" id="A1_NOME" value={formData.A1_NOME} onChange={handleChange} required disabled={isSaving} />
+                <FormInput label="N Fantasia" id="A1_NREDUZ" value={formData.A1_NREDUZ} onChange={handleChange} required disabled={isSaving} />
+                <FormInput label="Provincia" id="A1_EST" value={formData.A1_EST} onChange={handleChange} required disabled={isSaving} />
+                <FormInput label="Telefono" id="A1_NUMBER" value={formData.A1_NUMBER} onChange={handleChange} disabled={isSaving} />
+                <FormSelect label="Tipo" id="A1_TIPO" value={formData.A1_TIPO} onChange={handleChange} required disabled={isSaving}>
                   <option value="I">I - Resp. Inscripto</option>
                   <option value="M">M - Monotributo</option>
                   <option value="C">C - Consumidor Final</option>
                 </FormSelect>
-                <FormInput label="CUIT/CUIL (A1_CGC)" id="cuit_cuil" value={formData.cuit_cuil} onChange={handleChange} disabled={isSaving} placeholder="20-11426267-7" />
+                <FormInput label="CUIT/CUIL" id="A1_CGC" value={formData.A1_CGC} onChange={handleChange} disabled={isSaving} placeholder="20-11426267-7" />
               </div>
 
               {/* Columna 2 */}
               <div className="space-y-4">
-                <FormInput label="Codigo (A1_COD)" id="codigo" value={formData.codigo} onChange={handleChange} required disabled={isSaving} />
-                <FormInput label="Tienda (A1_LOJA)" id="tienda" value={formData.tienda} onChange={handleChange} required disabled={isSaving} />
-                <FormInput label="Direccion (A1_END)" id="direccion" value={formData.direccion} onChange={handleChange} required disabled={isSaving} />
+                <FormInput label="Codigo" id="A1_COD" value={formData.A1_COD} onChange={handleChange} required disabled={isSaving} />
+                <FormInput label="Tienda" id="A1_LOJA" value={formData.A1_LOJA} onChange={handleChange} required disabled={isSaving} />
+                <FormInput label="Direccion" id="A1_END" value={formData.A1_END} onChange={handleChange} required disabled={isSaving} />
                 <FormSelect label="Estatus" id="estatus" value={formData.estatus} onChange={handleChange} disabled={isSaving}>
                   <option value="1">1 - Inactivo</option>
                   <option value="2">2 - Activo</option>
                 </FormSelect>
-                <FormSelect label="Tipo Doc (A1_AFIP)" id="tipo_doc" value={formData.tipo_doc} onChange={handleChange} required disabled={isSaving}>
+                <FormSelect label="Tipo Doc" id="A1_AFIP" value={formData.A1_AFIP} onChange={handleChange} required disabled={isSaving}>
                    <option value="80">80 - CUIT</option>
                    <option value="86">86 - CUIL</option>
                    <option value="96">96 - DNI</option>
@@ -199,17 +200,17 @@ const ProfilePage = ({ onNavigate }) => {
 
               {/* Columna 3 */}
               <div className="space-y-4">
-                <FormSelect label="Fisica/Jurid (A1_PESSOA)" id="fisica_juridica" value={formData.fisica_juridica} onChange={handleChange} required disabled={isSaving}>
+                <FormSelect label="Fisica/Jurid" id="A1_PESSOA" value={formData.A1_PESSOA} onChange={handleChange} required disabled={isSaving}>
                   <option value="F">F - Fisica</option>
                   <option value="J">J - Juridica</option>
                 </FormSelect>
-                <FormInput label="Municipio" id="municipio" value={formData.municipio} onChange={handleChange} required disabled={isSaving} />
+                <FormInput label="Municipio" id="A1_MUN" value={formData.A1_MUN} onChange={handleChange} required disabled={isSaving} />
                 <FormInput label="Descr Pais" id="descr_pais" value={formData.descr_pais} disabled={true} />
                 
                 {/* Campos de Login (No editables) */}
                 <div className="p-4 border border-gray-200 rounded-md bg-gray-50 space-y-4">
                   <FormInput label="Email (Login)" id="username" value={formData.username} onChange={handleChange} disabled={true} />
-                  <FormInput label="E-Mail (Contacto)" id="email" value={formData.email} onChange={handleChange} type="email" disabled={isSaving} />
+                  <FormInput label="E-Mail (Contacto)" id="A1_EMAIL" value={formData.A1_EMAIL} onChange={handleChange} type="email" disabled={isSaving} />
                 </div>
               </div>
             </div>

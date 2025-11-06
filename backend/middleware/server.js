@@ -168,6 +168,48 @@ const fetchProtheusOrders = async (userId) => {
   }));
 };
 
+// (NUEVO) --- Lógica para buscar detalles de UN pedido ---
+const fetchProtheusOrderDetails = async (orderId, userId) => {
+  // 1. Obtener la orden principal
+  const orderResult = await db.query(
+    'SELECT * FROM orders WHERE id = $1 AND user_id = $2',
+    [orderId, userId]
+  );
+
+  if (orderResult.rows.length === 0) {
+    throw new Error('Pedido no encontrado o no pertenece al usuario.');
+  }
+  
+  const order = orderResult.rows[0];
+
+  // 2. Obtener los items del pedido (uniendo con products para obtener el nombre)
+  const itemsQuery = `
+    SELECT 
+      oi.quantity, 
+      oi.price, 
+      p.id AS product_id, 
+      p.name AS product_name
+    FROM order_items oi
+    JOIN products p ON oi.product_id = p.id
+    WHERE oi.order_id = $1
+    ORDER BY p.name;
+  `;
+  const itemsResult = await db.query(itemsQuery, [orderId]);
+
+  // 3. Formatear y devolver
+  return {
+    ...order,
+    date: new Date(order.order_date).toLocaleDateString('es-AR'),
+    // total: formatCurrency(order.total_amount), // El frontend ya lo recibe formateado, pero lo mandamos crudo para el modal
+    items: itemsResult.rows.map(item => ({
+      ...item,
+      price: Number(item.price), // Asegurarse de que sea número
+      quantity: Number(item.quantity)
+    }))
+  };
+};
+
+
 const saveProtheusOrder = async (orderData, userId) => {
   // En un proyecto real, esto debe ser una TRANSACCIÓN
   
@@ -289,8 +331,24 @@ app.get('/api/profile', async (req, res) => {
   console.log('GET /api/profile -> Consultando perfil de usuario en DB...');
   try {
     // NOTA: Usamos MOCK_USER_ID (1)
+    // (ACTUALIZADO) Se usan alias (AS) para enviar las claves A1_... al frontend
     const result = await db.query(
-      'SELECT * FROM users WHERE id = $1', 
+      `SELECT 
+        id, username, email, descr_pais, estatus, di,
+        codigo AS "A1_COD",
+        tienda AS "A1_LOJA",
+        nombre AS "A1_NOME",
+        fisica_juridica AS "A1_PESSOA",
+        n_fantasia AS "A1_NREDUZ",
+        direccion AS "A1_END",
+        municipio AS "A1_MUN",
+        provincia AS "A1_EST",
+        telefono AS "A1_NUMBER",
+        email AS "A1_EMAIL",
+        tipo_iva AS "A1_TIPO",
+        tipo_doc AS "A1_AFIP",
+        cuit_cuil AS "A1_CGC"
+      FROM users WHERE id = $1`, 
       [MOCK_USER_ID]
     );
     
@@ -313,12 +371,14 @@ app.put('/api/profile', async (req, res) => {
   console.log('PUT /api/profile -> Actualizando perfil en DB...');
   try {
     // NOTA: Usamos MOCK_USER_ID (1)
+    // (ACTUALIZADO) Se destructuran las claves A1_... que vienen del frontend
     const {
-      codigo, tienda, nombre, fisica_juridica, n_fantasia, 
-      direccion, municipio, provincia, estatus, telefono, 
-      email, tipo_iva, tipo_doc, cuit_cuil, di
+      A1_COD, A1_LOJA, A1_NOME, A1_PESSOA, A1_NREDUZ, 
+      A1_END, A1_MUN, A1_EST, estatus, A1_NUMBER, 
+      A1_EMAIL, A1_TIPO, A1_AFIP, A1_CGC, di
     } = req.body;
 
+    // (SIN CAMBIOS) El query usa los nombres de columna de la BD
     const queryText = `
       UPDATE users SET
         codigo = $1,
@@ -339,10 +399,11 @@ app.put('/api/profile', async (req, res) => {
       WHERE id = $16
     `;
     
+    // (ACTUALIZADO) Se pasan las variables A1_... en el orden correcto
     const queryParams = [
-      codigo, tienda, nombre, fisica_juridica, n_fantasia, 
-      direccion, municipio, provincia, estatus, telefono, 
-      email, tipo_iva, tipo_doc, cuit_cuil, di,
+      A1_COD, A1_LOJA, A1_NOME, A1_PESSOA, A1_NREDUZ, 
+      A1_END, A1_MUN, A1_EST, estatus, A1_NUMBER, 
+      A1_EMAIL, A1_TIPO, A1_AFIP, A1_CGC, di,
       MOCK_USER_ID // El ID del usuario a actualizar
     ];
 
@@ -391,6 +452,24 @@ app.get('/api/orders', async (req, res) => {
     res.status(500).json({ message: 'Error al obtener pedidos.' });
   }
 });
+
+// (NUEVO) --- Endpoint para UN pedido específico ---
+app.get('/api/orders/:id', async (req, res) => {
+  console.log(`GET /api/orders/${req.params.id} -> Consultando detalles en DB...`);
+  try {
+    const orderId = req.params.id;
+    const orderDetails = await fetchProtheusOrderDetails(orderId, MOCK_USER_ID);
+    if (orderDetails) {
+      res.json(orderDetails);
+    } else {
+      res.status(404).json({ message: 'Pedido no encontrado.' });
+    }
+  } catch (error) {
+    console.error(`Error en /api/orders/${req.params.id}:`, error);
+    res.status(500).json({ message: error.message || 'Error al obtener detalles del pedido.' });
+  }
+});
+
 
 app.post('/api/orders', async (req, res) => {
   console.log('POST /api/orders -> Guardando nuevo pedido/presupuesto en DB...'); // (ACTUALIZADO)
