@@ -18,8 +18,9 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-const db = require('./db'); // Importa nuestro gestor de conexión
-const bcrypt = require('bcryptjs'); // (NUEVO) Para hashear contraseñas
+// FIX 1: Importar { pool } correctamente
+const { pool } = require('./db'); // Importa nuestro GESTOR DE CONEXIÓN
+const bcrypt = require('bcryptjs'); // Para hashear contraseñas
 
 const app = express();
 const PORT = 3001;
@@ -40,14 +41,14 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 // =================================================================
-// --- LÓGICA DE BASE DE DATOS (Reemplaza las simulaciones) ---
+// --- LÓGICA DE BASE DE DATOS (Sincronizada con setup.sql) ---
 // =================================================================
 
 // --- Autenticación ---
 const authenticateProtheusUser = async (email, password) => {
-  // (ACTUALIZADO) Ahora busca por email (que está en la columna 'username')
-  const result = await db.query(
-    'SELECT * FROM users WHERE username = $1',
+  // (ACTUALIZADO) Usa 'pool' y busca por 'email'
+  const result = await pool.query(
+    'SELECT * FROM users WHERE email = $1',
     [email]
   );
 
@@ -62,12 +63,13 @@ const authenticateProtheusUser = async (email, password) => {
   const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
   if (isPasswordValid) {
-    // (ACTUALIZADO) Devuelve 'nombre' de tu tabla (en lugar de 'company_name')
+    // (ACTUALIZADO) Devuelve 'full_name' de tu nueva tabla
     return { 
       success: true, 
       user: { 
-        name: user.nombre, // Mapeado desde la columna 'nombre'
-        code: user.username, // El "código" ahora es el email
+        name: user.full_name, // Mapeado desde 'full_name'
+        code: user.a1_cod,   // Mapeado desde 'a1_cod'
+        email: user.email,
         id: user.id 
       } 
     };
@@ -77,17 +79,16 @@ const authenticateProtheusUser = async (email, password) => {
 };
 
 // (ACTUALIZADO) --- Registro de Usuario ---
-// Ahora acepta solo los campos simplificados
 const registerProtheusUser = async (userData) => {
   const {
-    nombre, 
+    nombre, // El frontend debe enviar 'nombre'
     email, 
     password
   } = userData;
 
-  // 1. Verificar si el email (username) ya existe
-  const existingUser = await db.query(
-    'SELECT * FROM users WHERE username = $1',
+  // 1. Verificar si el email ya existe
+  const existingUser = await pool.query(
+    'SELECT * FROM users WHERE email = $1',
     [email]
   );
   
@@ -99,23 +100,20 @@ const registerProtheusUser = async (userData) => {
   const salt = await bcrypt.genSalt(10);
   const passwordHash = await bcrypt.hash(password, salt);
 
-  // 3. Insertar el nuevo usuario con los campos básicos
-  // 'email' se guarda en 'username'
-  // 'nombre' se guarda en 'nombre'
-  // 'email' también se guarda en 'email'
+  // 3. Insertar el nuevo usuario (alineado con setup.sql)
   const queryText = `
     INSERT INTO users (
-      username, password_hash, nombre, email
+      full_name, email, password_hash
     ) VALUES (
-      $1, $2, $3, $4
-    ) RETURNING id, username, nombre
+      $1, $2, $3
+    ) RETURNING id, email, full_name
   `;
   
   const queryParams = [
-    email, passwordHash, nombre, email
+    nombre, email, passwordHash
   ];
 
-  const result = await db.query(queryText, queryParams);
+  const result = await pool.query(queryText, queryParams);
 
   return result.rows[0];
 };
@@ -123,15 +121,14 @@ const registerProtheusUser = async (userData) => {
 
 // --- Cuenta Corriente ---
 const fetchProtheusBalance = async (userId) => {
-  // Calculamos el balance sumando débitos y restando créditos
-  // NOTA: Esto asume que el saldo es (CREDITOS - DEBITOS). Ajusta la lógica a tu necesidad.
-  const result = await db.query(
+  // (ACTUALIZADO) Usa 'pool'. La lógica SQL era correcta.
+  const result = await pool.query(
     'SELECT SUM(credit) - SUM(debit) as total FROM account_movements WHERE user_id = $1',
     [userId]
   );
   const balance = result.rows[0].total || 0;
 
-  // Simulación de disponible y pendiente (requeriría lógica más compleja)
+  // Simulación de disponible y pendiente
   return {
     total: formatCurrency(balance),
     available: formatCurrency(balance * 0.33), // Simulación
@@ -140,14 +137,15 @@ const fetchProtheusBalance = async (userId) => {
 };
 
 const fetchProtheusMovements = async (userId) => {
-  const result = await db.query(
-    'SELECT id, move_date, description, debit, credit FROM account_movements WHERE user_id = $1 ORDER BY move_date DESC',
+  // (ACTUALIZADO) Usa 'pool' y la columna 'date' de setup.sql
+  const result = await pool.query(
+    'SELECT id, date, description, debit, credit FROM account_movements WHERE user_id = $1 ORDER BY date DESC',
     [userId]
   );
   // Formatear datos para el frontend
   return result.rows.map(row => ({
     id: row.id,
-    date: new Date(row.move_date).toLocaleDateString('es-AR'),
+    date: new Date(row.date).toLocaleDateString('es-AR'), // 'date' en lugar de 'move_date'
     description: row.description,
     debit: row.debit > 0 ? formatCurrency(row.debit) : '',
     credit: row.credit > 0 ? formatCurrency(row.credit) : ''
@@ -156,22 +154,23 @@ const fetchProtheusMovements = async (userId) => {
 
 // --- Pedidos ---
 const fetchProtheusOrders = async (userId) => {
-  const result = await db.query(
-    'SELECT id, order_date, total_amount, status FROM orders WHERE user_id = $1 ORDER BY order_date DESC',
+  // (ACTUALIZADO) Usa 'pool' y columnas 'created_at', 'total'
+  const result = await pool.query(
+    'SELECT id, created_at, total, status FROM orders WHERE user_id = $1 ORDER BY created_at DESC',
     [userId]
   );
   return result.rows.map(row => ({
     id: row.id,
-    date: new Date(row.order_date).toLocaleDateString('es-AR'),
-    total: formatCurrency(row.total_amount),
+    date: new Date(row.created_at).toLocaleDateString('es-AR'), // 'created_at' en lugar de 'order_date'
+    total: formatCurrency(row.total), // 'total' en lugar de 'total_amount'
     status: row.status
   }));
 };
 
-// (NUEVO) --- Lógica para buscar detalles de UN pedido ---
+// (ACTUALIZADO) --- Lógica para buscar detalles de UN pedido ---
 const fetchProtheusOrderDetails = async (orderId, userId) => {
   // 1. Obtener la orden principal
-  const orderResult = await db.query(
+  const orderResult = await pool.query(
     'SELECT * FROM orders WHERE id = $1 AND user_id = $2',
     [orderId, userId]
   );
@@ -186,24 +185,24 @@ const fetchProtheusOrderDetails = async (orderId, userId) => {
   const itemsQuery = `
     SELECT 
       oi.quantity, 
-      oi.price, 
+      oi.unit_price, 
       p.id AS product_id, 
-      p.name AS product_name
+      p.code AS product_code,
+      p.description AS product_name
     FROM order_items oi
     JOIN products p ON oi.product_id = p.id
     WHERE oi.order_id = $1
-    ORDER BY p.name;
+    ORDER BY p.description;
   `;
-  const itemsResult = await db.query(itemsQuery, [orderId]);
+  const itemsResult = await pool.query(itemsQuery, [orderId]);
 
   // 3. Formatear y devolver
   return {
     ...order,
-    date: new Date(order.order_date).toLocaleDateString('es-AR'),
-    // total: formatCurrency(order.total_amount), // El frontend ya lo recibe formateado, pero lo mandamos crudo para el modal
+    date: new Date(order.created_at).toLocaleDateString('es-AR'), // 'created_at'
     items: itemsResult.rows.map(item => ({
       ...item,
-      price: Number(item.price), // Asegurarse de que sea número
+      price: Number(item.unit_price), // 'unit_price'
       quantity: Number(item.quantity)
     }))
   };
@@ -211,47 +210,69 @@ const fetchProtheusOrderDetails = async (orderId, userId) => {
 
 
 const saveProtheusOrder = async (orderData, userId) => {
-  // En un proyecto real, esto debe ser una TRANSACCIÓN
+  // (ACTUALIZADO) Esta función ahora debe ser una TRANSACCIÓN
+  const client = await pool.connect();
   
-  // (NUEVO) Determinar el estado basado en el tipo de solicitud
-  const orderStatus = orderData.type === 'quote' ? 'Cotizado' : 'Pendiente';
+  try {
+    await client.query('BEGIN');
 
-  // 1. Insertar en 'orders'
-  const orderResult = await db.query(
-    'INSERT INTO orders (user_id, total_amount, status) VALUES ($1, $2, $3) RETURNING id',
-    [userId, orderData.total, orderStatus] // (ACTUALIZADO) Usar el estado dinámico
-  );
-  const newOrderId = orderResult.rows[0].id;
+    // (ACTUALIZADO) Determinar el estado basado en el tipo de solicitud
+    const orderStatus = orderData.type === 'quote' ? 'Cotizado' : 'Pendiente';
 
-  // 2. Insertar cada item en 'order_items'
-  for (const item of orderData.items) {
-    await db.query(
-      'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES ($1, $2, $3, $4)',
-      [newOrderId, item.id, item.quantity, item.price]
+    // 1. Insertar en 'orders' (usando 'total')
+    const orderResult = await client.query(
+      'INSERT INTO orders (user_id, total, status) VALUES ($1, $2, $3) RETURNING id',
+      [userId, orderData.total, orderStatus]
     );
-    // (Opcional) Actualizar stock en la tabla 'products'
-    // await db.query('UPDATE products SET stock = stock - $1 WHERE id = $2', [item.quantity, item.id]);
+    const newOrderId = orderResult.rows[0].id;
+
+    // 2. Insertar cada item en 'order_items' (usando 'unit_price' y 'product_code')
+    for (const item of orderData.items) {
+      // Asumimos que el frontend envía 'id', 'code', 'quantity' y 'price'
+      await client.query(
+        'INSERT INTO order_items (order_id, product_id, product_code, quantity, unit_price) VALUES ($1, $2, $3, $4, $5)',
+        [newOrderId, item.id, item.code, item.quantity, item.price]
+      );
+    }
+    
+    await client.query('COMMIT');
+    return { success: true, orderId: newOrderId };
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error; // Propagar el error
+  } finally {
+    client.release();
   }
-  
-  return { success: true, orderId: newOrderId };
 };
 
 
 // --- Productos y Ofertas ---
 const fetchProtheusProducts = async () => {
-  const result = await db.query('SELECT id, name, brand, price, stock FROM products ORDER BY name');
-  // Devuelve los datos crudos, el frontend (NewOrderPage) ya sabe formatearlos
-  return result.rows.map(row => ({ ...row, price: Number(row.price), stock: Number(row.stock) }));
+  // (ACTUALIZADO) Consulta alineada con setup.sql
+  const result = await pool.query('SELECT id, code, description, product_group, price FROM products ORDER BY description');
+  
+  // (ACTUALIZADO) Mapeo para el frontend (que espera 'name', 'brand', 'stock')
+  return result.rows.map(row => ({ 
+    id: row.id,
+    code: row.code,
+    name: row.description, // Mapeado
+    brand: row.product_group, // Mapeado
+    price: Number(row.price),
+    stock: 999 // MOCK: setup.sql no tiene columna 'stock'.
+  }));
 };
 
 const fetchProtheusOffers = async () => {
-  const result = await db.query('SELECT * FROM offers ORDER BY id');
-  return result.rows;
+  // (ACTUALIZADO) MOCK: setup.sql no tiene tabla 'offers'
+  console.warn("fetchProtheusOffers: No hay tabla 'offers' en setup.sql. Devolviendo array vacío.");
+  return []; 
 };
 
 // --- Consultas y Carga de Archivos ---
 const saveProtheusQuery = async (queryData, userId) => {
-  const result = await db.query(
+  // (ACTUALIZADO) Usa 'pool'. La consulta es correcta.
+  const result = await pool.query(
     'INSERT INTO queries (user_id, subject, message) VALUES ($1, $2, $3) RETURNING id',
     [userId, queryData.subject, queryData.message]
   );
@@ -259,10 +280,19 @@ const saveProtheusQuery = async (queryData, userId) => {
 };
 
 const saveProtheusVoucher = async (fileInfo, userId) => {
-  const result = await db.query(
-    'INSERT INTO vouchers (user_id, filename, original_name, path) VALUES ($1, $2, $3, $4) RETURNING id',
-    [userId, fileInfo.filename, fileInfo.originalName, fileInfo.path]
-  );
+  // (ACTUALIZADO) Usa 'pool' e inserta todos los datos de setup.sql
+  const queryText = `
+    INSERT INTO vouchers (user_id, file_path, original_name, mime_type, file_size) 
+    VALUES ($1, $2, $3, $4, $5) RETURNING id
+  `;
+  const queryParams = [
+    userId, 
+    fileInfo.path, 
+    fileInfo.originalName, 
+    fileInfo.mimeType, // Nuevo
+    fileInfo.size      // Nuevo
+  ];
+  const result = await pool.query(queryText, queryParams);
   return { success: true, fileRef: result.rows[0].id };
 };
 
@@ -275,7 +305,7 @@ const formatCurrency = (amount) => {
 };
 
 // =================================================================
-// --- ENDPOINTS DE TU API (Ahora usan la BD) ---
+// --- ENDPOINTS DE TU API (Ahora usan 'pool' y SQL corregido) ---
 // =================================================================
 // NOTA: En una app real, el userId vendría de un Token (JWT)
 // Por ahora, simulamos que es el 'user_id = 1'
@@ -285,10 +315,9 @@ const MOCK_USER_ID = 1;
 app.post('/api/login', async (req, res) => {
   console.log('POST /api/login -> Autenticando contra DB...');
   try {
-    const { email, password } = req.body; // (ACTUALIZADO)
-    const result = await authenticateProtheusUser(email, password); // (ACTUALIZADO)
+    const { email, password } = req.body;
+    const result = await authenticateProtheusUser(email, password);
     if (result.success) {
-      // En una app real, aquí se generaría un JWT
       res.json(result);
     } else {
       res.status(401).json({ message: result.message });
@@ -303,7 +332,7 @@ app.post('/api/login', async (req, res) => {
 app.post('/api/register', async (req, res) => {
   console.log('POST /api/register -> Registrando nuevo usuario en DB...');
   try {
-    // (ACTUALIZADO) Recibimos el body simplificado
+    // (ACTUALIZADO) El frontend debe enviar 'nombre'
     const { nombre, email, password } = req.body;
 
     // Validación simple de campos obligatorios
@@ -317,37 +346,37 @@ app.post('/api/register', async (req, res) => {
   } catch (error) {
     console.error('Error en /api/register:', error);
     // Manejar error de usuario duplicado
-    if (error.message.includes('email ya está registrado')) { // (ACTUALIZADO)
+    if (error.message.includes('email ya está registrado')) {
       return res.status(409).json({ message: error.message }); // 409 Conflict
+    }
+    if (error.code === '23505') { // Error de 'unique constraint' de PostgreSQL
+       return res.status(409).json({ message: 'El email ya está registrado.' });
     }
     res.status(500).json({ message: 'Error interno del servidor.' });
   }
 });
 
 
-// (NUEVO) --- Endpoints de Perfil ---
+// (ACTUALIZADO) --- Endpoints de Perfil (Alineados con setup.sql) ---
 // GET: Obtener los datos actuales del perfil
 app.get('/api/profile', async (req, res) => {
   console.log('GET /api/profile -> Consultando perfil de usuario en DB...');
   try {
     // NOTA: Usamos MOCK_USER_ID (1)
     // (ACTUALIZADO) Se usan alias (AS) para enviar las claves A1_... al frontend
-    const result = await db.query(
+    // Se mapean las columnas que SÍ existen en setup.sql
+    const result = await pool.query(
       `SELECT 
-        id, username, email, descr_pais, estatus, di,
-        codigo AS "A1_COD",
-        tienda AS "A1_LOJA",
-        nombre AS "A1_NOME",
-        fisica_juridica AS "A1_PESSOA",
-        n_fantasia AS "A1_NREDUZ",
-        direccion AS "A1_END",
-        municipio AS "A1_MUN",
-        provincia AS "A1_EST",
-        telefono AS "A1_NUMBER",
-        email AS "A1_EMAIL",
-        tipo_iva AS "A1_TIPO",
-        tipo_doc AS "A1_AFIP",
-        cuit_cuil AS "A1_CGC"
+        id, email, full_name,
+        a1_cod AS "A1_COD",
+        a1_loja AS "A1_LOJA",
+        full_name AS "A1_NOME",
+        a1_cgc AS "A1_CGC",
+        a1_tel AS "A1_NUMBER",
+        a1_endereco AS "A1_END",
+        email AS "A1_EMAIL"
+        -- Campos del frontend que NO ESTÁN en setup.sql:
+        -- A1_PESSOA, A1_NREDUZ, A1_MUN, A1_EST, A1_TIPO, A1_AFIP, estatus, di
       FROM users WHERE id = $1`, 
       [MOCK_USER_ID]
     );
@@ -356,8 +385,6 @@ app.get('/api/profile', async (req, res) => {
       return res.status(404).json({ message: 'Usuario no encontrado.' });
     }
     
-    // No enviar el hash de la contraseña al frontend
-    delete result.rows[0].password_hash; 
     res.json(result.rows[0]);
     
   } catch (error) {
@@ -371,43 +398,39 @@ app.put('/api/profile', async (req, res) => {
   console.log('PUT /api/profile -> Actualizando perfil en DB...');
   try {
     // NOTA: Usamos MOCK_USER_ID (1)
-    // (ACTUALIZADO) Se destructuran las claves A1_... que vienen del frontend
+    // (ACTUALIZADO) Se destructuran las claves A1_... que SÍ existen en setup.sql
     const {
-      A1_COD, A1_LOJA, A1_NOME, A1_PESSOA, A1_NREDUZ, 
-      A1_END, A1_MUN, A1_EST, estatus, A1_NUMBER, 
-      A1_EMAIL, A1_TIPO, A1_AFIP, A1_CGC, di
+      A1_NOME, // -> full_name
+      A1_COD,  // -> a1_cod
+      A1_LOJA, // -> a1_loja
+      A1_CGC,  // -> a1_cgc
+      A1_NUMBER, // -> a1_tel
+      A1_END,  // -> a1_endereco
+      A1_EMAIL // -> email
+      // Ignoramos las otras claves (A1_PESSOA, A1_MUN, etc.) ya que no hay columna
     } = req.body;
 
-    // (SIN CAMBIOS) El query usa los nombres de columna de la BD
+    // (ACTUALIZADO) El query usa los nombres de columna de setup.sql
     const queryText = `
       UPDATE users SET
-        codigo = $1,
-        tienda = $2,
-        nombre = $3,
-        fisica_juridica = $4,
-        n_fantasia = $5,
-        direccion = $6,
-        municipio = $7,
-        provincia = $8,
-        estatus = $9,
-        telefono = $10,
-        email = $11,
-        tipo_iva = $12,
-        tipo_doc = $13,
-        cuit_cuil = $14,
-        di = $15
-      WHERE id = $16
+        full_name = $1,
+        a1_cod = $2,
+        a1_loja = $3,
+        a1_cgc = $4,
+        a1_tel = $5,
+        a1_endereco = $6,
+        email = $7
+      WHERE id = $8
     `;
     
     // (ACTUALIZADO) Se pasan las variables A1_... en el orden correcto
     const queryParams = [
-      A1_COD, A1_LOJA, A1_NOME, A1_PESSOA, A1_NREDUZ, 
-      A1_END, A1_MUN, A1_EST, estatus, A1_NUMBER, 
-      A1_EMAIL, A1_TIPO, A1_AFIP, A1_CGC, di,
+      A1_NOME, A1_COD, A1_LOJA, A1_CGC, A1_NUMBER, 
+      A1_END, A1_EMAIL,
       MOCK_USER_ID // El ID del usuario a actualizar
     ];
 
-    await db.query(queryText, queryParams);
+    await pool.query(queryText, queryParams);
     
     res.json({ success: true, message: 'Perfil actualizado correctamente.' });
 
@@ -453,7 +476,7 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
-// (NUEVO) --- Endpoint para UN pedido específico ---
+// (ACTUALIZADO) --- Endpoint para UN pedido específico ---
 app.get('/api/orders/:id', async (req, res) => {
   console.log(`GET /api/orders/${req.params.id} -> Consultando detalles en DB...`);
   try {
@@ -472,7 +495,7 @@ app.get('/api/orders/:id', async (req, res) => {
 
 
 app.post('/api/orders', async (req, res) => {
-  console.log('POST /api/orders -> Guardando nuevo pedido/presupuesto en DB...'); // (ACTUALIZADO)
+  console.log('POST /api/orders -> Guardando nuevo pedido/presupuesto en DB...');
   try {
     const orderData = req.body; // Esto ahora incluye { items, total, type }
     const result = await saveProtheusOrder(orderData, MOCK_USER_ID);
@@ -526,10 +549,13 @@ app.post('/api/upload-voucher', upload.single('voucherFile'), async (req, res) =
       return res.status(400).json({ message: 'No se recibió ningún archivo.' });
     }
     
+    // (ACTUALIZADO) Capturamos todos los datos del archivo
     const fileInfo = {
       filename: req.file.filename,
       originalName: req.file.originalname,
       path: req.file.path,
+      mimeType: req.file.mimetype, // Nuevo
+      size: req.file.size         // Nuevo
     };
     
     const result = await saveProtheusVoucher(fileInfo, MOCK_USER_ID);
@@ -544,7 +570,7 @@ app.post('/api/upload-voucher', upload.single('voucherFile'), async (req, res) =
 // --- Iniciar el servidor ---
 app.listen(PORT, () => {
   console.log(`=======================================================`);
-  console.log(`  Servidor Middleware (Conectado a PostgreSQL)`);
-  console.log(`  Escuchando en http://localhost:${PORT}`);
+  console.log(`   Servidor Middleware (Conectado a PostgreSQL)`);
+  console.log(`   Escuchando en http://localhost:${PORT}`);
   console.log(`=======================================================`);
 });
