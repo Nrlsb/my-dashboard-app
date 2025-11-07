@@ -250,7 +250,14 @@ const saveProtheusOrder = async (orderData, userId) => {
 // --- Productos y Ofertas ---
 const fetchProtheusProducts = async () => {
   // (ACTUALIZADO) Consulta alineada con setup.sql
-  const result = await pool.query('SELECT id, code, description, product_group, price FROM products ORDER BY description');
+  // (MODIFICADO) Se añade WHERE para filtrar precios nulos o < 400
+  const queryText = `
+    SELECT id, code, description, product_group, price 
+    FROM products 
+    WHERE price IS NOT NULL AND price >= 400 
+    ORDER BY description
+  `;
+  const result = await pool.query(queryText);
   
   // (ACTUALIZADO) Mapeo para el frontend (que espera 'name', 'brand', 'stock')
   return result.rows.map(row => ({ 
