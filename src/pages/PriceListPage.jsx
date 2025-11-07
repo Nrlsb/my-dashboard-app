@@ -38,12 +38,32 @@ const PriceListPage = ({ onNavigate }) => {
     fetchProducts();
   }, []);
 
-  // (ACTUALIZADO) Lógica de filtrado ahora se aplica sobre el estado `allProducts`
+  // (ACTUALIZADO) Lógica de filtrado con búsqueda inteligente
   const filteredProducts = useMemo(() => {
+    // (NUEVO) Lógica de búsqueda inteligente
+    // 1. Convertir el término de búsqueda en un array de palabras, en minúscula
+    const searchTerms = searchTerm.toLowerCase().split(' ').filter(t => t); // filter(t => t) elimina espacios vacíos
+  
     return allProducts.filter(product => {
       const matchesBrand = selectedBrand ? product.brand === selectedBrand : true;
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            product.id.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // 2. Convertir el nombre y código del producto a minúscula
+      const productName = product.name.toLowerCase();
+      
+      // ======================================================
+      // --- INICIO DE CORRECCIÓN ---
+      // Convertimos product.id (que es un número) a un String antes de usar .toLowerCase()
+      const productCode = String(product.id).toLowerCase(); 
+      // --- FIN DE CORRECCIÓN ---
+      // ======================================================
+
+      // 3. Comprobar si *todos* los términos de búsqueda están en el nombre O el código
+      // Ej: "PAD" y "MIC" deben estar ambos.
+      const matchesSearch = searchTerms.every(term => 
+        productName.includes(term) || 
+        productCode.includes(term)
+      );
+      
       return matchesBrand && matchesSearch;
     });
   }, [searchTerm, selectedBrand, allProducts]);

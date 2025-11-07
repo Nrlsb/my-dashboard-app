@@ -41,10 +41,30 @@ const NewOrderPage = ({ onNavigate }) => {
 
   // --- Lógica de Filtro ---
   const filteredProducts = useMemo(() => {
+    // (NUEVO) Lógica de búsqueda inteligente
+    // 1. Convertir el término de búsqueda en un array de palabras, en minúscula
+    const searchTerms = searchTerm.toLowerCase().split(' ').filter(t => t); // filter(t => t) elimina espacios vacíos
+  
     return allProducts.filter(product => {
       const matchesBrand = selectedBrand ? product.brand === selectedBrand : true;
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            product.id.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // 2. Convertir el nombre y código del producto a minúscula
+      const productName = product.name.toLowerCase();
+
+      // ======================================================
+      // --- INICIO DE CORRECCIÓN ---
+      // Convertimos product.id (que es un número) a un String antes de usar .toLowerCase()
+      const productCode = String(product.id).toLowerCase(); 
+      // --- FIN DE CORRECCIÓN ---
+      // ======================================================
+
+      // 3. Comprobar si *todos* los términos de búsqueda están en el nombre O el código
+      // Ej: "PAD" y "MIC" deben estar ambos.
+      const matchesSearch = searchTerms.every(term => 
+        productName.includes(term) || 
+        productCode.includes(term)
+      );
+      
       return matchesBrand && matchesSearch;
     });
   }, [searchTerm, selectedBrand, allProducts]);
@@ -141,7 +161,7 @@ const NewOrderPage = ({ onNavigate }) => {
     // Items del carrito
     cart.forEach(item => {
       const subtotal = item.price * item.quantity;
-      doc.text(item.id, 20, yPos);
+      doc.text(String(item.id), 20, yPos); // Convertido a String por si acaso
       doc.text(doc.splitTextToSize(item.name, 70), 40, yPos); // Auto-ajuste de texto
       doc.text(item.quantity.toString(), 120, yPos, { align: 'right' });
       doc.text(formatCurrency(item.price), 150, yPos, { align: 'right' });
@@ -176,18 +196,34 @@ const NewOrderPage = ({ onNavigate }) => {
         generateQuotePDF();
       } catch (pdfError) {
         console.error("Error al generar PDF:", pdfError);
-        setError("Error al generar el PDF. El presupuesto se guardará de todas formas.");
+        setSubmitStatus('error'); // Usar setSubmitStatus
+        setSubmitMessage("Error al generar el PDF. El presupuesto se guardará de todas formas.");
+        // No usamos 'setError' del estado general, sino el del formulario
       }
     }
     
     try {
       // Preparamos solo los datos necesarios para el backend
       const orderData = {
-        items: cart.map(item => ({ id: item.id, quantity: item.quantity, price: item.price })),
+        // (CORREGIDO) product.id es numérico, pero el backend espera product.id (int) y product.code (string)
+        // Viendo el server.js (saveProtheusOrder), espera 'id', 'code', 'quantity', 'price'
+        // El estado 'cart' ya tiene 'id', 'code', 'quantity', 'price' del fetch original
+        items: cart.map(item => ({ 
+          id: item.id, // El ID numérico (ej: 123)
+          code: item.code, // El CÓDIGO string (ej: "000001")
+          quantity: item.quantity, 
+          price: item.price 
+        })),
         total: totalPrice,
         clientCode: 'CLIENTE-001', // Esto vendría del estado de login
         type: submissionType // (NUEVO) Enviamos el tipo
       };
+      
+      // Validamos que 'code' esté presente, ya que el backend (saveProtheusOrder) lo necesita
+      if (orderData.items.some(item => !item.code)) {
+        console.error("Error: items en el carrito no tienen 'code'", cart);
+        throw new Error("Error interno: los items del carrito no tienen código.");
+      }
 
       const response = await fetch(`${API_URL}/api/orders`, {
         method: 'POST',
@@ -244,7 +280,8 @@ const NewOrderPage = ({ onNavigate }) => {
           </div>
           <div>
             <p className="text-sm font-semibold text-gray-900">{product.name}</p>
-            <p className="text-sm text-gray-500">{product.brand} (Cód: {product.id})</p>
+            {/* (CORREGIDO) Usamos product.code (string) aquí, no product.id (int) */}
+            <p className="text-sm text-gray-500">{product.brand} (Cód: {product.code})</p>
             <p className="text-sm text-gray-500">Stock: {product.stock}</p>
           </div>
         </div>
