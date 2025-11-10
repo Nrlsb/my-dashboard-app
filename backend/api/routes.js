@@ -191,6 +191,27 @@ router.get('/products', async (req, res) => {
   }
 });
 
+// --- (NUEVA RUTA) ---
+// Obtiene un producto específico por su ID
+// Es pública, no necesita requireUserId
+router.get('/products/:id', async (req, res) => {
+  const productId = req.params.id;
+  console.log(`GET /api/products/${productId} -> Consultando producto individual...`);
+  try {
+    const product = await controllers.fetchProductDetails(productId);
+    if (product) {
+      res.json(product);
+    } else {
+      res.status(404).json({ message: 'Producto no encontrado.' });
+    }
+  } catch (error) {
+    console.error(`Error en /api/products/${productId}:`, error);
+    res.status(500).json({ message: 'Error al obtener el producto.' });
+  }
+});
+// --- (FIN NUEVA RUTA) ---
+
+
 router.get('/brands', async (req, res) => {
   console.log('GET /api/brands -> Consultando lista de marcas...');
   try {

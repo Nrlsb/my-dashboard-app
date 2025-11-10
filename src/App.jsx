@@ -16,8 +16,9 @@ import QueriesPage from './pages/QueriesPage.jsx';
 import VoucherUploadPage from './pages/VoucherUploadPage.jsx'; 
 import ProfilePage from './pages/ProfilePage.jsx'; 
 import OrderPreviewPage from './pages/OrderPreviewPage.jsx'; 
-// (NUEVO) Importar la nueva página de detalle
 import OrderDetailPage from './pages/OrderDetailPage.jsx';
+// (NUEVO) Importar la nueva página de detalle de producto
+import ProductDetailPage from './pages/ProductDetailPage.jsx';
 import Header from './components/Header.jsx'; // Importa el Header unificado
 
 // Importar el hook del carrito
@@ -31,6 +32,8 @@ function App() {
   const [currentUser, setCurrentUser] = useState(null);
   // (NUEVO) Estado para guardar el ID del pedido que queremos ver
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  // (NUEVO) Estado para guardar el ID del producto que queremos ver
+  const [selectedProductId, setSelectedProductId] = useState(null);
   
   const isLoggedIn = !!currentUser;
   
@@ -53,10 +56,16 @@ function App() {
     setCurrentPage(pageMap[page] || page);
   };
   
-  // (NUEVO) Función para navegar a la página de detalle
+  // (NUEVO) Función para navegar a la página de detalle de pedido
   const handleViewOrderDetail = (orderId) => {
     setSelectedOrderId(orderId);
     setCurrentPage('order-detail');
+  };
+
+  // (NUEVO) Función para navegar a la página de detalle de producto
+  const handleViewProductDetails = (productId) => {
+    setSelectedProductId(productId);
+    setCurrentPage('product-detail');
   };
 
 
@@ -117,7 +126,8 @@ function App() {
       case 'new-order':
         // Ya no pasamos props de carrito (vienen del context)
         // Pasamos currentUser para la lógica de cliente
-        return <NewOrderPage onNavigate={handleNavigate} currentUser={currentUser} />;
+        // (NUEVO) Pasamos el manejador 'handleViewProductDetails'
+        return <NewOrderPage onNavigate={handleNavigate} currentUser={currentUser} onViewProductDetails={handleViewProductDetails} />;
       case 'order-preview':
         // Pasamos currentUser para la lógica de envío
         return (
@@ -143,7 +153,7 @@ function App() {
         // (CORREGIDO) Cambiado 'currentUser' por 'user' para que coincida con el prop de AccountBalancePage.jsx
         return <AccountBalancePage onNavigate={handleNavigate} user={currentUser} />;
       
-      // (NUEVO) Caso para la nueva página de detalle
+      // (NUEVO) Caso para la nueva página de detalle de pedido
       case 'order-detail':
         return (
           <OrderDetailPage 
@@ -153,6 +163,15 @@ function App() {
           />
         );
         
+      // (NUEVO) Caso para la nueva página de detalle de producto
+      case 'product-detail':
+        return (
+          <ProductDetailPage
+            onNavigate={handleNavigate}
+            productId={selectedProductId}
+          />
+        );
+
       case 'voucher-upload':
         // Pasamos currentUser para asociar el archivo
         return <VoucherUploadPage onNavigate={handleNavigate} currentUser={currentUser} />;

@@ -1,14 +1,154 @@
 import React, { useState, useMemo, useEffect } from 'react';
 // (NUEVO) Importamos el hook useCart
 import { useCart } from '../context/CartContext.jsx';
-import { ArrowLeft, Search, ShoppingCart, Trash2, Package, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { 
+  ArrowLeft, Search, ShoppingCart, Trash2, Package, CheckCircle, 
+  ChevronLeft, ChevronRight, X, Plus, Minus, Star 
+} from 'lucide-react';
 
 const API_URL = 'http://localhost:3001';
 const PRODUCTS_PER_PAGE = 20;
 
+// Formateador de moneda (reutilizado)
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+  }).format(amount || 0);
+};
+
+// --- (NUEVO) Componente de Modal de Vista Rápida ---
+const ProductModal = ({ product, onClose, onAddToCart, onViewDetails }) => {
+  const [quantity, setQuantity] = useState(1);
+  const [isAdded, setIsAdded] = useState(false);
+
+  // Resetea la cantidad si el producto cambia
+  useEffect(() => {
+    setQuantity(1);
+    setIsAdded(false);
+  }, [product]);
+
+  const handleAddToCartClick = () => {
+    onAddToCart(product, quantity);
+    setIsAdded(true);
+    setTimeout(() => {
+      onClose(); // Cierra el modal después de agregar
+    }, 1500); // Espera 1.5s
+  };
+
+  if (!product) return null;
+
+  return (
+    // Fondo oscuro (Backdrop)
+    <div 
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-50"
+      onClick={onClose}
+    >
+      {/* Contenedor del Modal */}
+      <div
+        className="relative bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col md:flex-row overflow-hidden"
+        onClick={(e) => e.stopPropagation()} // Evita que el clic en el modal lo cierre
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 text-gray-500 hover:text-gray-800 bg-gray-100 rounded-full z-10"
+        >
+          <X className="w-6 h-6" />
+        </button>
+
+        {/* Columna de Imagen (Placeholder) */}
+        <div className="w-full md:w-1/2 flex items-center justify-center bg-gray-100 p-8">
+          <Package className="w-48 h-48 text-gray-400" />
+        </div>
+
+        {/* Columna de Detalles */}
+        <div className="w-full md:w-1/2 p-8 flex flex-col justify-center overflow-y-auto">
+          <span className="text-sm font-medium text-blue-600 uppercase">{product.brand || 'Marca'}</span>
+          <h2 className="text-2xl font-bold text-gray-900 mt-1">{product.name}</h2>
+          
+          {/* --- BLOQUE DE ESTRELLAS ELIMINADO ---
+          <div className="flex items-center my-3">
+            <div className="flex text-yellow-400">
+              <Star className="w-5 h-5 fill-current" />
+              <Star className="w-5 h-5 fill-current" />
+              <Star className="w-5 h-5 fill-current" />
+              <Star className="w-5 h-5 fill-current" />
+              <Star className="w-5 h-5 text-gray-300 fill-current" />
+            </div>
+            <span className="text-sm text-gray-500 ml-2">(1)</span>
+          </div>
+          */}
+
+          <p className="text-3xl font-extrabold text-gray-800 mt-3">{formatCurrency(product.price)}</p>
+
+          <p className="text-gray-600 leading-relaxed my-4 text-sm">
+            {product.capacity_description || 'Descripción no disponible.'} 
+            Aquí tienes una descripción de producto para "Látex Interior Constructor Mate Blanco 20L" de Alba.
+          </p>
+          
+          <div className="flex items-center space-x-4 my-4">
+            <span className="font-medium text-gray-700">Cantidad:</span>
+            <div className="flex items-center border border-gray-300 rounded-lg">
+              <button
+                onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-l-lg"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <input
+                type="number"
+                value={quantity}
+                readOnly
+                className="w-16 text-center border-y-0 border-x focus:ring-0"
+              />
+              <button
+                onClick={() => setQuantity(q => q + 1)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-r-lg"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+            <span className="text-sm text-gray-500">({product.stock} disponibles)</span>
+          </div>
+
+          <button
+            onClick={handleAddToCartClick}
+            disabled={isAdded}
+            className={`w-full py-3 px-6 rounded-lg text-white font-semibold transition-colors duration-300 ${
+              isAdded
+                ? 'bg-green-500 hover:bg-green-600'
+                : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+          >
+            {isAdded ? (
+              <span className="flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 mr-2" />
+                Agregado
+              </span>
+            ) : (
+              <span className="flex items-center justify-center">
+                <ShoppingCart className="w-5 h-5 mr-2" />
+                Agregar al Carrito
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => onViewDetails(product.id)}
+            className="mt-4 text-center text-sm text-blue-600 hover:underline"
+          >
+            Ver detalles completos del producto
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 // --- Página de Nuevo Pedido ---
-// (MODIFICADO) Ya no recibe props del carrito, sí recibe 'currentUser'
-const NewOrderPage = ({ onNavigate, currentUser }) => {
+// (MODIFICADO) Acepta 'onViewProductDetails'
+const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
   // --- Estados ---
   const [allProducts, setAllProducts] = useState([]); // Almacena solo la página actual
   const [productMap, setProductMap] = useState(new Map()); // Mapa para lookup rápido
@@ -20,6 +160,9 @@ const NewOrderPage = ({ onNavigate, currentUser }) => {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
+  
+  // (NUEVO) Estado para el modal
+  const [selectedProduct, setSelectedProduct] = useState(null);
   
   // (NUEVO) Obtenemos el carrito y sus funciones del Contexto
   const { cart, addToCart, updateQuantity, removeFromCart } = useCart();
@@ -103,14 +246,6 @@ const NewOrderPage = ({ onNavigate, currentUser }) => {
   const totalPrice = useMemo(() => {
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   }, [cart]);
-
-  // Formateador de moneda
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency: 'ARS',
-    }).format(amount);
-  };
   
 
   // --- Renderizado de Lista de Productos ---
@@ -126,7 +261,12 @@ const NewOrderPage = ({ onNavigate, currentUser }) => {
     }
     
     return allProducts.map(product => (
-      <div key={product.id} className="flex items-center justify-between p-4 bg-white rounded-lg shadow-md">
+      // (MODIFICADO) Se añade onClick para abrir el modal
+      <div 
+        key={product.id} 
+        className="flex items-center justify-between p-4 bg-white rounded-lg shadow-md cursor-pointer hover:shadow-lg transition-shadow"
+        onClick={() => setSelectedProduct(product)} // <-- Abre el modal
+      >
         <div className="flex items-center space-x-4">
           <div className="flex-shrink-0 p-3 bg-gray-100 rounded-lg">
             <Package className="w-6 h-6 text-gray-600" />
@@ -139,8 +279,12 @@ const NewOrderPage = ({ onNavigate, currentUser }) => {
         </div>
         <div className="text-right">
           <p className="text-lg font-bold text-gray-800">{formatCurrency(product.price)}</p>
+          {/* (MODIFICADO) El botón ahora está en el modal, pero dejamos uno aquí por si acaso */}
           <button
-            onClick={() => handleAddToCartClick(product)} // (MODIFICADO)
+            onClick={(e) => {
+              e.stopPropagation(); // Evita que el clic en el botón abra el modal
+              handleAddToCartClick(product);
+            }}
             className="mt-2 px-4 py-1 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
           >
             Añadir
@@ -153,6 +297,15 @@ const NewOrderPage = ({ onNavigate, currentUser }) => {
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
       {/* (ELIMINADO) Header ya no se renderiza aquí */}
+      
+      {/* (NUEVO) Renderiza el modal si hay un producto seleccionado */}
+      <ProductModal
+        product={selectedProduct}
+        onClose={() => setSelectedProduct(null)}
+        onAddToCart={addToCart}
+        onViewDetails={onViewProductDetails}
+      />
+      
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         {/* Encabezado con Botón de Volver y Título */}
         <div className="flex items-center mb-6">

@@ -369,6 +369,43 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
   return { products, totalProducts };
 };
 
+// --- (NUEVA FUNCIÓN) ---
+// Obtiene los detalles de un solo producto por su ID
+const fetchProductDetails = async (productId) => {
+  // Asegurarnos de que el ID es un número para evitar inyección SQL
+  const id = parseInt(productId, 10);
+  if (isNaN(id)) {
+    throw new Error('ID de producto inválido.');
+  }
+
+  const queryText = `
+    SELECT id, code, description, product_group, price, brand, capacity, capacity_description
+    FROM products 
+    WHERE id = $1
+  `;
+  const result = await pool.query(queryText, [id]);
+
+  if (result.rows.length === 0) {
+    return null; // Opcionalmente: throw new Error('Producto no encontrado');
+  }
+  
+  // Mapeamos los nombres de columna a los nombres que espera el frontend
+  const row = result.rows[0];
+  return {
+    id: row.id,
+    code: row.code,
+    name: row.description,
+    brand: row.brand,
+    product_group: row.product_group,
+    price: Number(row.price),
+    capacity: row.capacity,
+    capacity_description: row.capacity_description,
+    stock: 999 // MOCK
+  };
+};
+// --- (FIN NUEVA FUNCIÓN) ---
+
+
 // (NUEVO) Endpoint para obtener solo las marcas (para el dropdown)
 const fetchProtheusBrands = async () => {
   const queryText = `
@@ -427,6 +464,7 @@ module.exports = {
   fetchProtheusOrderDetails,
   saveProtheusOrder,
   fetchProtheusProducts,
+  fetchProductDetails, // <-- Exportar la nueva función
   fetchProtheusBrands,
   fetchProtheusOffers,
   saveProtheusQuery,

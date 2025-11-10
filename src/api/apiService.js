@@ -37,6 +37,19 @@ export const fetchProducts = async (page, searchTerm, brand) => {
   return handleResponse(response); // Devuelve el objeto { products, totalProducts }
 };
 
+/**
+ * (NUEVA FUNCIÓN) Obtiene un solo producto por su ID
+ * @param {string} productId - El ID del producto
+ * @returns {Promise<object>} - El objeto del producto
+ */
+export const fetchProductById = async (productId) => {
+  if (!productId) {
+    throw new Error("El ID de producto es requerido");
+  }
+  const response = await fetch(`${API_BASE_URL}/products/${productId}`);
+  return handleResponse(response);
+};
+
 
 /**
  * Obtiene el balance y movimientos de la cuenta de un usuario
