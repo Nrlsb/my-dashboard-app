@@ -80,6 +80,23 @@ export const fetchOrderHistory = async (userId) => {
 };
 
 /**
+ * (NUEVO) Obtiene el detalle de UN pedido específico
+ * @param {string} orderId - El ID del pedido
+ * @param {string} userId - El ID del usuario
+ * @returns {Promise<object>} - Detalles del pedido
+ */
+export const fetchOrderDetail = async (orderId, userId) => {
+  if (!orderId || !userId) throw new Error("ID de pedido y de usuario requeridos");
+  
+  // La ruta es /orders/:id?userId=...
+  const response = await fetch(`${API_BASE_URL}/orders/${orderId}?userId=${userId}`, {
+    // No se necesita token, el middleware requireUserId usa el userId
+  });
+  return handleResponse(response);
+};
+
+
+/**
  * Obtiene las ofertas activas
  * @returns {Promise<Array<object>>} - Lista de ofertas
  */

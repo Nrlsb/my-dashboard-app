@@ -23,7 +23,8 @@ const ErrorMessage = ({ message }) => (
 
 // Componente para un solo pedido en la lista
 // (CORREGIDO) Se usan los props 'nro_pedido', 'fecha', 'total' y 'estado'
-const OrderRow = ({ order }) => {
+// (NUEVO) Recibe 'onViewDetails'
+const OrderRow = ({ order, onViewDetails }) => {
   const getStatusChip = (status) => {
     switch (status) {
       case 'Entregado':
@@ -79,7 +80,11 @@ const OrderRow = ({ order }) => {
         {getStatusChip(order.estado)}
       </td>
       <td className="py-4 px-6 text-right">
-        <button className="text-blue-600 hover:text-blue-800 font-medium text-sm">
+        {/* (CORREGIDO) Se añade el onClick y se pasa el id del pedido */}
+        <button 
+          onClick={() => onViewDetails(order.id)} 
+          className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+        >
           Ver Detalle
         </button>
       </td>
@@ -87,7 +92,8 @@ const OrderRow = ({ order }) => {
   );
 };
 
-export default function OrderHistoryPage({ user, onNavigate }) { // (NUEVO) Recibe onNavigate
+// (NUEVO) Recibe 'onViewDetails'
+export default function OrderHistoryPage({ user, onNavigate, onViewDetails }) { 
   // 1. Reemplazamos useEffect y useState con useQuery
   const { 
     data: orders = [], // Valor por defecto
@@ -140,7 +146,11 @@ export default function OrderHistoryPage({ user, onNavigate }) { // (NUEVO) Reci
             </thead>
             <tbody className="divide-y divide-gray-200">
               {orders.map((order) => (
-                <OrderRow key={order.id} order={order} />
+                <OrderRow 
+                  key={order.id} 
+                  order={order} 
+                  onViewDetails={onViewDetails} // <-- (NUEVO) Pasar la función
+                />
               ))}
             </tbody>
           </table>

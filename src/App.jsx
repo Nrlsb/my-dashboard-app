@@ -1,6 +1,9 @@
 import React, { useState, useMemo } from 'react';
+// (NUEVO) Importamos el hook para acceder al cliente de React Query
+import { useQueryClient } from '@tanstack/react-query';
 
 // --- Importar Páginas ---
+// (CORREGIDO) Se cambian las rutas a relativas
 import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
@@ -13,23 +16,27 @@ import QueriesPage from './pages/QueriesPage.jsx';
 import VoucherUploadPage from './pages/VoucherUploadPage.jsx'; 
 import ProfilePage from './pages/ProfilePage.jsx'; 
 import OrderPreviewPage from './pages/OrderPreviewPage.jsx'; 
+// (NUEVO) Importar la nueva página de detalle
+import OrderDetailPage from './pages/OrderDetailPage.jsx';
 import Header from './components/Header.jsx'; // Importa el Header unificado
 
-// (NUEVO) Importar el hook del carrito
+// Importar el hook del carrito
+// (CORREGIDO) Se cambian las rutas a relativas
 import { useCart } from './context/CartContext.jsx'; 
 
 // --- Componente Raíz (Maneja la autenticación y navegación) ---
 function App() {
   const [currentPage, setCurrentPage] = useState('login');
   
-  // (NUEVO) Guardamos el objeto del usuario logueado (ej: { id: 1, full_name: '...', email: '...' })
   const [currentUser, setCurrentUser] = useState(null);
+  // (NUEVO) Estado para guardar el ID del pedido que queremos ver
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
   
-  // (MODIFICADO) El estado de login ahora es una variable derivada
   const isLoggedIn = !!currentUser;
   
-  // (NUEVO) Obtenemos el carrito y la función para limpiarlo desde el contexto
   const { cart, clearCart } = useCart();
+  
+  const queryClient = useQueryClient();
 
   // Función para cambiar de vista (nuestro "router" simple)
   const handleNavigate = (page) => {
@@ -45,27 +52,43 @@ function App() {
     // Si viene un nombre antiguo, lo convierte. Si no, usa el nombre nuevo.
     setCurrentPage(pageMap[page] || page);
   };
+  
+  // (NUEVO) Función para navegar a la página de detalle
+  const handleViewOrderDetail = (orderId) => {
+    setSelectedOrderId(orderId);
+    setCurrentPage('order-detail');
+  };
 
-  // (MODIFICADO) handleLogin ahora recibe y guarda el objeto 'user'
+
   const handleLogin = (user) => {
     setCurrentUser(user);
     setCurrentPage('dashboard');
   };
 
-  // (MODIFICADO) handleLogout limpia el usuario y el carrito
   const handleLogout = () => {
     setCurrentUser(null);
     clearCart(); // Limpiamos el carrito al cerrar sesión
     setCurrentPage('login');
   };
 
-  // (MODIFICADO) Esta función ahora usa 'clearCart' del contexto
+  // (MODIFICADO) Esta función ahora invalida el caché antes de navegar
   const handleCompleteOrder = () => {
-    // La lógica de envío ahora está en OrderPreviewPage
-    // App solo necesita limpiar el carrito y navegar
-    console.log('Pedido completado, limpiando carrito y navegando...');
-    clearCart(); // Limpia el carrito usando la función del contexto
-    setCurrentPage('order-history'); // Navega al historial
+    console.log('Pedido completado, invalidando caché, limpiando carrito y navegando...');
+
+    // --- INICIO DE LA SOLUCIÓN ---
+    // 1. Invalidamos las 'queries' cacheadas.
+    // Esto le dice a React Query que los datos de 'orderHistory' y 'accountBalance' 
+    // están obsoletos y debe volver a pedirlos a la API la próxima vez que se 
+    // rendericen las páginas correspondientes.
+    queryClient.invalidateQueries({ queryKey: ['orderHistory'] });
+    queryClient.invalidateQueries({ queryKey: ['accountBalance'] });
+    // --- FIN DE LA SOLUCIÓN ---
+
+    // 2. Limpiamos el carrito local
+    clearCart(); 
+    
+    // 3. Navegamos al historial
+    setCurrentPage('order-history');
   };
 
   // Función para renderizar la página correcta
@@ -87,7 +110,8 @@ function App() {
         return <DashboardPage onNavigate={handleNavigate} />;
       case 'profile':
         // Pasamos el currentUser para que la página cargue sus datos
-        return <ProfilePage onNavigate={handleNavigate} currentUser={currentUser} />;
+        // (CORREGIDO) Cambiado 'currentUser' por 'user' para que coincida con el prop de ProfilePage.jsx
+        return <ProfilePage onNavigate={handleNavigate} user={currentUser} />;
       case 'price-list':
         return <PriceListPage onNavigate={handleNavigate} />;
       case 'new-order':
@@ -105,10 +129,30 @@ function App() {
         );
       case 'order-history':
         // Pasamos currentUser para filtrar pedidos
-        return <OrderHistoryPage onNavigate={handleNavigate} currentUser={currentUser} />;
+        // (CORREGIDO) Cambiado 'currentUser' por 'user' para que coincida con el prop de OrderHistoryPage.jsx
+        // (NUEVO) Pasamos el manejador 'handleViewOrderDetail'
+        return (
+          <OrderHistoryPage 
+            onNavigate={handleNavigate} 
+            user={currentUser} 
+            onViewDetails={handleViewOrderDetail} 
+          />
+        );
       case 'account-balance':
         // Pasamos currentUser para filtrar movimientos
-        return <AccountBalancePage onNavigate={handleNavigate} currentUser={currentUser} />;
+        // (CORREGIDO) Cambiado 'currentUser' por 'user' para que coincida con el prop de AccountBalancePage.jsx
+        return <AccountBalancePage onNavigate={handleNavigate} user={currentUser} />;
+      
+      // (NUEVO) Caso para la nueva página de detalle
+      case 'order-detail':
+        return (
+          <OrderDetailPage 
+            onNavigate={handleNavigate} 
+            user={currentUser} 
+            orderId={selectedOrderId} 
+          />
+        );
+        
       case 'voucher-upload':
         // Pasamos currentUser para asociar el archivo
         return <VoucherUploadPage onNavigate={handleNavigate} currentUser={currentUser} />;
