@@ -49,16 +49,12 @@ export const fetchAccountBalance = async (userId) => {
     throw new Error("El ID de usuario es requerido para obtener el balance");
   }
 
-  const token = localStorage.getItem('token');
-  if (!token) {
-    throw new Error("No autenticado");
-  }
+  // (CORREGIDO) Se elimina la verificación de 'token' que no existe.
+  // La autenticación se maneja enviando el 'userId' en la query.
 
   // (CORREGIDO) La ruta es /balance?userId=...
   const response = await fetch(`${API_BASE_URL}/balance?userId=${userId}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
+    // (CORREGIDO) Se elimina el header de 'Authorization'
   });
   return handleResponse(response);
 };
@@ -74,12 +70,11 @@ export const fetchAccountBalance = async (userId) => {
 export const fetchOrderHistory = async (userId) => {
   if (!userId) throw new Error("ID de usuario requerido");
   
-  const token = localStorage.getItem('token');
-  if (!token) throw new Error("No autenticado");
+  // (CORREGIDO) Se elimina la verificación de 'token' que no existe.
 
   // (CORREGIDO) La ruta es /orders?userId=...
   const response = await fetch(`${API_BASE_URL}/orders?userId=${userId}`, {
-    headers: { 'Authorization': `Bearer ${token}` },
+    // (CORREGIDO) Se elimina el header de 'Authorization'
   });
   return handleResponse(response);
 };
@@ -101,12 +96,11 @@ export const fetchOffers = async () => {
 export const fetchUserProfile = async (userId) => {
     if (!userId) throw new Error("ID de usuario requerido");
 
-    const token = localStorage.getItem('token');
-    if (!token) throw new Error("No autenticado");
+    // (CORREGIDO) Se elimina la verificación de 'token' que no existe.
 
     // (CORREGIDO) La ruta es /profile?userId=...
     const response = await fetch(`${API_BASE_URL}/profile?userId=${userId}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
+        // (CORREGIDO) Se elimina el header de 'Authorization'
     });
     return handleResponse(response);
 };
@@ -119,14 +113,13 @@ export const fetchUserProfile = async (userId) => {
 export const updateUserProfile = async ({ userId, profileData }) => {
   if (!userId) throw new Error("ID de usuario requerido para actualizar");
 
-  const token = localStorage.getItem('token');
-  if (!token) throw new Error("No autenticado");
+  // (CORREGIDO) Se elimina la verificación de 'token' que no existe.
 
   // (CORREGIDO) La ruta es /profile?userId=...
   const response = await fetch(`${API_BASE_URL}/profile?userId=${userId}`, {
     method: 'PUT',
     headers: {
-      'Authorization': `Bearer ${token}`,
+      // (CORREGIDO) Se elimina el header de 'Authorization'
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(profileData),

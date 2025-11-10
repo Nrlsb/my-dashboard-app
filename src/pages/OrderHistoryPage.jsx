@@ -1,5 +1,6 @@
 import React from 'react';
-import { FileText, Clock, Truck, CheckCircle } from 'lucide-react';
+// (NUEVO) Importar ArrowLeft
+import { FileText, Clock, Truck, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchOrderHistory } from '../api/apiService.js';
 
@@ -86,7 +87,7 @@ const OrderRow = ({ order }) => {
   );
 };
 
-export default function OrderHistoryPage({ user }) {
+export default function OrderHistoryPage({ user, onNavigate }) { // (NUEVO) Recibe onNavigate
   // 1. Reemplazamos useEffect y useState con useQuery
   const { 
     data: orders = [], // Valor por defecto
@@ -150,9 +151,19 @@ export default function OrderHistoryPage({ user }) {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Historial de Pedidos</h1>
-        <p className="text-gray-600">Consulta el estado y los detalles de todos tus pedidos.</p>
+      {/* (MODIFICADO) Encabezado con botón de volver */}
+      <header className="mb-6 flex items-center">
+        <button
+          onClick={() => onNavigate('dashboard')}
+          className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
+          aria-label="Volver al dashboard"
+        >
+          <ArrowLeft className="w-6 h-6" />
+        </button>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">Historial de Pedidos</h1>
+          <p className="text-gray-600">Consulta el estado y los detalles de todos tus pedidos.</p>
+        </div>
       </header>
 
       {renderContent()}

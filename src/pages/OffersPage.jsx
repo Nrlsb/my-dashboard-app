@@ -1,5 +1,6 @@
 import React from 'react';
-import { Tag } from 'lucide-react';
+// (NUEVO) Importar ArrowLeft
+import { Tag, ArrowLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchOffers } from '../api/apiService.js'; // <-- Corregido con .js
 
@@ -39,7 +40,7 @@ const OfferCard = ({ offer }) => (
   </div>
 );
 
-export default function OffersPage() {
+export default function OffersPage({ onNavigate }) { // (NUEVO) Recibe onNavigate
   // 1. Reemplazamos useEffect y useState con useQuery
   const { 
     data: offers = [], // Valor por defecto
@@ -83,9 +84,19 @@ export default function OffersPage() {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Ofertas y Promociones</h1>
-        <p className="text-gray-600">Descubre los descuentos vigentes que tenemos para ti.</p>
+      {/* (MODIFICADO) Encabezado con botón de volver */}
+      <header className="mb-6 flex items-center">
+        <button
+          onClick={() => onNavigate('dashboard')}
+          className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
+          aria-label="Volver al dashboard"
+        >
+          <ArrowLeft className="w-6 h-6" />
+        </button>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">Ofertas y Promociones</h1>
+          <p className="text-gray-600">Descubre los descuentos vigentes que tenemos para ti.</p>
+        </div>
       </header>
       
       {renderContent()}

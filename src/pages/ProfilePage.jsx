@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, Building, Save, Home, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
+// (NUEVO) Importar ArrowLeft
+import { User, Mail, Phone, Building, Save, Home, AlertTriangle, CheckCircle, Loader2, ArrowLeft } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 // (NUEVO) Importamos las funciones de API actualizadas
 import { fetchUserProfile, updateUserProfile } from '../api/apiService.js';
@@ -50,7 +51,7 @@ const ErrorMessage = ({ message }) => (
   </div>
 );
 
-export default function ProfilePage({ user }) {
+export default function ProfilePage({ user, onNavigate }) { // (NUEVO) Recibe onNavigate
   // (CORREGIDO) El estado del formulario usa los nombres de campo del backend
   const [formData, setFormData] = useState({
     A1_COD: '',
@@ -137,9 +138,19 @@ export default function ProfilePage({ user }) {
   if (isLoadingProfile) {
     return (
       <div className="p-6 bg-gray-50 min-h-screen">
-        <header className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">Mi Perfil</h1>
-          <p className="text-gray-600">Actualiza tu información personal y de contacto.</p>
+        {/* (MODIFICADO) Encabezado con botón de volver */}
+        <header className="mb-6 flex items-center">
+          <button
+            onClick={() => onNavigate('dashboard')}
+            className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
+            aria-label="Volver al dashboard"
+          >
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">Mi Perfil</h1>
+            <p className="text-gray-600">Actualiza tu información personal y de contacto.</p>
+          </div>
         </header>
         <div className="bg-white p-8 rounded-lg shadow-md max-w-4xl mx-auto">
           <LoadingSkeleton />
@@ -164,9 +175,19 @@ export default function ProfilePage({ user }) {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Mi Perfil</h1>
-        <p className="text-gray-600">Actualiza tu información personal y de contacto.</p>
+      {/* (MODIFICADO) Encabezado con botón de volver */}
+      <header className="mb-6 flex items-center">
+        <button
+          onClick={() => onNavigate('dashboard')}
+          className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
+          aria-label="Volver al dashboard"
+        >
+          <ArrowLeft className="w-6 h-6" />
+        </button>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">Mi Perfil</h1>
+          <p className="text-gray-600">Actualiza tu información personal y de contacto.</p>
+        </div>
       </header>
 
       <div className="bg-white p-8 rounded-lg shadow-md max-w-4xl mx-auto">

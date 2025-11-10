@@ -1,5 +1,6 @@
 import React from 'react';
-import { DollarSign, ArrowDown, ArrowUp } from 'lucide-react';
+// (NUEVO) Importar ArrowLeft
+import { DollarSign, ArrowDown, ArrowUp, ArrowLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchAccountBalance } from '../api/apiService';
 
@@ -69,7 +70,7 @@ const MovementRow = ({ movement }) => {
 };
 
 
-export default function AccountBalancePage({ user }) {
+export default function AccountBalancePage({ user, onNavigate }) { // (NUEVO) Recibe onNavigate
   
   // 1. Reemplazamos useEffect y useState con useQuery
   const { data, isLoading, isError, error } = useQuery({
@@ -105,9 +106,19 @@ export default function AccountBalancePage({ user }) {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Mi Cuenta Corriente</h1>
-        <p className="text-gray-600">Resumen de saldos y últimos movimientos.</p>
+      {/* (MODIFICADO) Encabezado con botón de volver */}
+      <header className="mb-8 flex items-center">
+        <button
+          onClick={() => onNavigate('dashboard')}
+          className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
+          aria-label="Volver al dashboard"
+        >
+          <ArrowLeft className="w-6 h-6" />
+        </button>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">Mi Cuenta Corriente</h1>
+          <p className="text-gray-600">Resumen de saldos y últimos movimientos.</p>
+        </div>
       </header>
 
       {/* Sección de Saldos */}
