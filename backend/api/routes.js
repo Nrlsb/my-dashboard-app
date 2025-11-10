@@ -167,24 +167,42 @@ router.get('/movements', requireUserId, async (req, res) => {
 router.post('/credit-note', requireUserId, requireAdmin, async (req, res) => {
   console.log(`POST /api/credit-note -> Admin ${req.userId} creando NC...`);
   try {
-    const { targetUserId, amount, reason } = req.body;
+    // (MODIFICADO) Ahora recibe targetUserCod
+    const { targetUserCod, amount, reason } = req.body; 
     const adminUserId = req.userId; // El admin que está haciendo la solicitud
 
-    if (!targetUserId || !amount || !reason) {
-      return res.status(400).json({ message: 'Faltan campos: targetUserId, amount, y reason son obligatorios.' });
+    if (!targetUserCod || !amount || !reason) { // Validar targetUserCod
+      return res.status(400).json({ message: 'Faltan campos: targetUserCod, amount, y reason son obligatorios.' });
     }
     
     if (parseFloat(amount) <= 0) {
        return res.status(400).json({ message: 'El importe debe ser un número positivo.' });
     }
 
-    const result = await controllers.createCreditNote(targetUserId, amount, reason, adminUserId);
+    // (MODIFICADO) Pasar targetUserCod al controlador
+    const result = await controllers.createCreditNote(targetUserCod, amount, reason, adminUserId);
     res.json(result); // Devuelve { success: true, message: '...' }
 
   } catch (error) {
     console.error('Error en /api/credit-note:', error);
     // Devolvemos el mensaje de error específico del controlador (ej. "Usuario no existe")
     res.status(500).json({ message: error.message || 'Error interno del servidor.' });
+  }
+});
+
+// --- (NUEVO ENDPOINT) Buscar Facturas de Cliente por A1_COD ---
+// Protegido por requireUserId (para saber qué admin lo hace)
+// y requireAdmin (para asegurar que SÓLO un admin pueda hacerlo)
+router.get('/customer-invoices/:cod', requireUserId, requireAdmin, async (req, res) => {
+  console.log(`GET /api/customer-invoices/${req.params.cod} -> Buscando facturas...`);
+  try {
+    const customerCod = req.params.cod;
+    const invoices = await controllers.fetchCustomerInvoices(customerCod);
+    res.json(invoices); // Devuelve un array de facturas
+  } catch (error) {
+    console.error('Error en /api/customer-invoices:', error);
+    // Si el error es "no existe", devolvemos 404. Si no, 500.
+    res.status(error.message.includes('no existe') ? 404 : 500).json({ message: error.message });
   }
 });
 

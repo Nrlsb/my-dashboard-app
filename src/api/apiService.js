@@ -75,10 +75,10 @@ export const fetchAccountBalance = async (userId) => {
 // --- (NUEVA FUNCIÓN) ---
 /**
  * Crea una nota de crédito (solo para Admins)
- * @param {object} data - { targetUserId, amount, reason, adminUserId }
+ * @param {object} data - { targetUserCod, amount, reason, adminUserId }
  * @returns {Promise<object>} - Respuesta de éxito/error
  */
-export const createCreditNoteApi = async ({ targetUserId, amount, reason, adminUserId }) => {
+export const createCreditNoteApi = async ({ targetUserCod, amount, reason, adminUserId }) => {
   if (!adminUserId) {
     throw new Error("El ID del administrador es requerido para esta acción.");
   }
@@ -89,9 +89,27 @@ export const createCreditNoteApi = async ({ targetUserId, amount, reason, adminU
     headers: {
       'Content-Type': 'application/json',
     },
-    // El targetUserId, amount y reason van en el body
-    body: JSON.stringify({ targetUserId, amount, reason }),
+    // (MODIFICADO) El targetUserCod, amount y reason van en el body
+    body: JSON.stringify({ targetUserCod, amount, reason }),
   });
+  return handleResponse(response);
+};
+// --- (FIN NUEVA FUNCIÓN) ---
+
+// --- (NUEVA FUNCIÓN) ---
+/**
+ * Busca las facturas (movimientos de débito) de un cliente por su A1_COD
+ * @param {object} data - { customerCod, adminUserId }
+ * @returns {Promise<Array<object>>} - Lista de facturas
+ */
+export const fetchCustomerInvoicesApi = async ({ customerCod, adminUserId }) => {
+  if (!adminUserId || !customerCod) {
+    throw new Error("El ID de admin y el Cód. de Cliente son requeridos.");
+  }
+  
+  // El adminUserId va en la query para la autenticación
+  // El customerCod va en la URL (parámetro de ruta)
+  const response = await fetch(`${API_BASE_URL}/customer-invoices/${customerCod}?userId=${adminUserId}`);
   return handleResponse(response);
 };
 // --- (FIN NUEVA FUNCIÓN) ---

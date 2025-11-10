@@ -187,19 +187,49 @@ const fetchProtheusBalance = async (userId) => {
 };
 
 // --- (NUEVA FUNCIÓN) ---
-// Controlador para crear la nota de crédito
-const createCreditNote = async (targetUserId, amount, reason, adminUserId) => {
+// Controlador para buscar las facturas (débitos) de un cliente por su A1_COD
+const fetchCustomerInvoices = async (customerCod) => {
+  // 1. Encontrar al usuario por A1_COD
+  const userResult = await pool.query('SELECT id FROM users WHERE a1_cod = $1', [customerCod]);
+  if (userResult.rows.length === 0) {
+    throw new Error('El Nº de Cliente (A1_COD) no existe.');
+  }
+  const userId = userResult.rows[0].id;
+
+  // 2. Buscar sus facturas (movimientos de débito)
+  // Seleccionamos la fecha, descripción (comprobante) y el débito (importe)
+  const result = await pool.query(
+    `SELECT id, date, description AS comprobante, debit AS importe 
+     FROM account_movements 
+     WHERE user_id = $1 AND debit > 0 
+     ORDER BY date DESC`,
+    [userId]
+  );
+  
+  // Devolvemos la lista de facturas
+  return result.rows.map(row => ({
+    ...row,
+    importe: Number(row.importe) // Asegurarse de que sea un número
+  }));
+};
+// --- (FIN NUEVA FUNCIÓN) ---
+
+
+// --- (MODIFICADO) Controlador para crear la nota de crédito
+// Ahora usa targetUserCod en lugar de targetUserId
+const createCreditNote = async (targetUserCod, amount, reason, adminUserId) => {
   const client = await pool.connect();
   
   try {
     // Iniciar transacción
     await client.query('BEGIN');
 
-    // 1. Validar que el targetUserId existe
-    const userResult = await client.query('SELECT id FROM users WHERE id = $1', [targetUserId]);
+    // 1. Validar que el targetUserCod existe y obtener su ID
+    const userResult = await client.query('SELECT id FROM users WHERE a1_cod = $1', [targetUserCod]);
     if (userResult.rows.length === 0) {
-      throw new Error('El ID de cliente especificado no existe.');
+      throw new Error('El Nº de Cliente (A1_COD) especificado no existe.');
     }
+    const targetUserId = userResult.rows[0].id; // <-- Este es el ID interno del cliente
 
     // 2. Crear el movimiento de CRÉDITO (positivo) para el cliente
     const creditQuery = `
@@ -208,7 +238,7 @@ const createCreditNote = async (targetUserId, amount, reason, adminUserId) => {
       RETURNING id
     `;
     // (MODIFICADO) Usamos CURRENT_DATE para que sea solo fecha, no timestamp
-    const creditParams = [targetUserId, reason, amount];
+    const creditParams = [targetUserId, reason, amount]; // <-- Usamos el targetUserId encontrado
     await client.query(creditQuery, creditParams);
 
     // 3. (Opcional pero recomendado) Crear un movimiento de DÉBITO (negativo)
@@ -218,7 +248,7 @@ const createCreditNote = async (targetUserId, amount, reason, adminUserId) => {
       INSERT INTO account_movements (user_id, date, description, debit, credit)
       VALUES ($1, CURRENT_DATE, $2, $3, 0)
     `;
-    const debitParams = [adminUserId, `NC a Cliente ID ${targetUserId}: ${reason}`, amount];
+    const debitParams = [adminUserId, `NC a Cliente ${targetUserCod}: ${reason}`, amount]; // (MODIFICADO) Usamos targetUserCod en la descripción
     await client.query(debitQuery, debitParams);
 
     // Confirmar transacción
@@ -529,5 +559,6 @@ module.exports = {
   fetchProtheusBrands,
   fetchProtheusOffers,
   saveProtheusQuery,
-  saveProtheusVoucher
+  saveProtheusVoucher,
+  fetchCustomerInvoices // (NUEVO) Exportar la nueva función
 };

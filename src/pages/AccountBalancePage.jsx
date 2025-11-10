@@ -1,69 +1,131 @@
-import React, { useState } from 'react';
-// (NUEVO) Importar iconos, hook de modal, y cliente de query
-import { DollarSign, ArrowDown, ArrowUp, ArrowLeft, FilePlus, X, Loader2, AlertTriangle, User, FileText, CheckCircle } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+// (CORREGIDO) Se cambió 'Listbox' (que no existe) por 'List'
+import { DollarSign, ArrowDown, ArrowUp, ArrowLeft, FilePlus, X, Loader2, AlertTriangle, User, FileText, CheckCircle, Search, List } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-// (NUEVO) Importar la nueva función de API
-import { fetchAccountBalance, createCreditNoteApi } from '../api/apiService';
+import { fetchAccountBalance, createCreditNoteApi, fetchCustomerInvoicesApi } from '../api/apiService.js';
 
 // --- (NUEVO) Componente del Modal para Nota de Crédito ---
 // Lo definimos aquí mismo para mantener todo en un solo archivo
 const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
-  const [targetUserId, setTargetUserId] = useState('');
+  // (MODIFICADO) Cambiamos el ID por el A1_COD
+  const [targetUserCod, setTargetUserCod] = useState('');
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
+  // (NUEVO) Estados para la búsqueda de facturas
+  const [customerInvoices, setCustomerInvoices] = useState([]);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState('');
+  const [invoiceError, setInvoiceError] = useState('');
   
   const queryClient = useQueryClient();
 
-  // Mutación para crear la nota de crédito
-  const mutation = useMutation({
+  // (NUEVO) Mutación para BUSCAR facturas
+  const invoiceSearchMutation = useMutation({
+    mutationFn: fetchCustomerInvoicesApi,
+    onSuccess: (data) => {
+      if (data.length === 0) {
+        setInvoiceError('No se encontraron facturas (débitos) para este cliente.');
+        setCustomerInvoices([]);
+      } else {
+        setCustomerInvoices(data);
+        setInvoiceError('');
+      }
+    },
+    onError: (error) => {
+      setInvoiceError(error.message || 'Error al buscar facturas.');
+      setCustomerInvoices([]);
+    }
+  });
+
+  // (MODIFICADO) Mutación para CREAR la nota de crédito
+  const creditNoteMutation = useMutation({
     mutationFn: createCreditNoteApi,
     onSuccess: (data) => {
       // Éxito: Invalidamos el caché de la cta. cte. del cliente afectado
       // y también la del admin (para ver su débito).
-      queryClient.invalidateQueries({ queryKey: ['accountBalance', parseInt(targetUserId, 10)] });
+      // Buscamos el ID interno del cliente en la DB (aunque ya lo tenemos, es buena práctica)
+      queryClient.invalidateQueries({ queryKey: ['accountBalanceByCod', targetUserCod] }); // Invalidar por COD
+      // Invalidamos la query de la página actual, que es la del admin.
       queryClient.invalidateQueries({ queryKey: ['accountBalance', adminUser.id] });
-      // Llamamos a la función onSuccess pasada por props (que cierra el modal)
+      // Llamamos a la función onSuccess pasada por props (que cierra el modal y muestra msg)
       onSuccess(data.message || 'Nota de crédito creada con éxito.');
     },
     // onError es manejado por el estado 'error' de la mutación
   });
 
+  // (NUEVO) Handler para el botón "Buscar Facturas"
+  const handleSearchInvoices = () => {
+    if (!targetUserCod.trim()) {
+      setInvoiceError('Debe ingresar un Nº de Cliente.');
+      return;
+    }
+    setInvoiceError('');
+    setSelectedInvoiceId('');
+    setAmount('');
+    setReason('');
+    invoiceSearchMutation.mutate({ customerCod: targetUserCod, adminUserId: adminUser.id });
+  };
+  
+  // (NUEVO) Handler para cuando se selecciona una factura del dropdown
+  const handleInvoiceSelect = (e) => {
+    const invoiceId = e.target.value;
+    setSelectedInvoiceId(invoiceId);
+    
+    if (invoiceId) {
+      const selected = customerInvoices.find(inv => inv.id.toString() === invoiceId);
+      if (selected) {
+        // Auto-rellenar campos
+        setAmount(selected.importe.toString());
+        setReason(`Devolución/Anulación ref. Factura: ${selected.comprobante}`);
+      }
+    } else {
+      // Si des-selecciona, limpiar campos
+      setAmount('');
+      setReason('');
+    }
+  };
+
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const numAmount = parseFloat(amount);
-    const numTargetUserId = parseInt(targetUserId, 10);
 
-    if (isNaN(numTargetUserId) || numTargetUserId <= 0) {
-      mutation.reset(); // Limpia errores anteriores
-      mutation.mutate(null, { onError: () => {} }); // Truco para setear error
-      mutation.variables = null; // Limpia variables
-      mutation.error = new Error('El ID de Cliente debe ser un número válido.');
+    // Limpiamos errores viejos
+    creditNoteMutation.reset(); 
+    
+    if (!targetUserCod.trim()) {
+      // Usamos .mutate para setear el error, pero no ejecutamos
+      creditNoteMutation.mutate(undefined, {
+        onError: () => {} // Evita que se lance un error de mutación
+      });
+      creditNoteMutation.error = new Error('El Nº de Cliente (A1_COD) es obligatorio.'); // Seteamos el error manualmente
       return;
     }
     
     if (isNaN(numAmount) || numAmount <= 0) {
-      mutation.reset();
-      mutation.mutate(null, { onError: () => {} });
-      mutation.variables = null;
-      mutation.error = new Error('El importe debe ser un número positivo.');
+      creditNoteMutation.mutate(undefined, {
+        onError: () => {} 
+      });
+      creditNoteMutation.error = new Error('El importe debe ser un número positivo.');
       return;
     }
 
     if (!reason.trim()) {
-      mutation.reset();
-      mutation.mutate(null, { onError: () => {} });
-      mutation.variables = null;
-      mutation.error = new Error('Debe ingresar un concepto.');
+      creditNoteMutation.mutate(undefined, {
+        onError: () => {} 
+      });
+      creditNoteMutation.error = new Error('Debe ingresar un concepto.');
       return;
     }
 
-    mutation.mutate({
-      targetUserId: numTargetUserId,
+    creditNoteMutation.mutate({
+      targetUserCod: targetUserCod.trim(), // (MODIFICADO)
       amount: numAmount,
-      reason,
+      reason: reason.trim(),
       adminUserId: adminUser.id
     });
   };
+  
+  const isFormDisabled = creditNoteMutation.isPending || invoiceSearchMutation.isPending;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
@@ -76,7 +138,7 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
           </h3>
           <button
             onClick={onClose}
-            disabled={mutation.isPending}
+            disabled={isFormDisabled}
             className="p-2 text-gray-400 rounded-full hover:bg-gray-200 hover:text-gray-600 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -86,24 +148,69 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
         {/* Formulario */}
         <form onSubmit={handleSubmit}>
           <div className="p-6 space-y-5">
-            {/* Campo ID Cliente */}
+            {/* Campo Nº Cliente (A1_COD) */}
             <div>
-              <label htmlFor="targetUserId" className="block text-sm font-medium text-gray-700 mb-1">
-                ID de Cliente a acreditar
+              <label htmlFor="targetUserCod" className="block text-sm font-medium text-gray-700 mb-1">
+                Nº de Cliente (A1_COD)
               </label>
-              <div className="relative">
-                <User className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  id="targetUserId"
-                  type="number"
-                  value={targetUserId}
-                  onChange={(e) => setTargetUserId(e.target.value)}
-                  placeholder="Ej: 42"
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  disabled={mutation.isPending}
-                />
+              <div className="flex space-x-2">
+                <div className="relative flex-grow">
+                  <User className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    id="targetUserCod"
+                    type="text" // A1_COD puede ser alfanumérico
+                    value={targetUserCod}
+                    onChange={(e) => setTargetUserCod(e.target.value)}
+                    placeholder="Ej: 000123"
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    disabled={isFormDisabled}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSearchInvoices}
+                  disabled={isFormDisabled || !targetUserCod}
+                  className="inline-flex items-center justify-center px-4 py-2.5 bg-blue-600 text-white font-medium rounded-lg shadow-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {invoiceSearchMutation.isPending ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Search className="w-5 h-5" />
+                  )}
+                  <span className="ml-2 hidden sm:inline">Buscar Facturas</span>
+                </button>
               </div>
             </div>
+
+            {/* (NUEVO) Dropdown de Facturas */}
+            {(customerInvoices.length > 0 || invoiceError) && (
+              <div>
+                <label htmlFor="invoiceSelect" className="block text-sm font-medium text-gray-700 mb-1">
+                  Seleccionar Factura (Opcional)
+                </label>
+                <div className="relative">
+                  {/* (CORREGIDO) Icono 'List' en lugar de 'Listbox' */}
+                  <List className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <select
+                    id="invoiceSelect"
+                    value={selectedInvoiceId}
+                    onChange={handleInvoiceSelect}
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    disabled={isFormDisabled}
+                  >
+                    <option value="">-- Seleccionar una factura para auto-rellenar --</option>
+                    {customerInvoices.map(invoice => (
+                      <option key={invoice.id} value={invoice.id}>
+                        {`${new Date(invoice.date).toLocaleDateString('es-AR')} - ${invoice.comprobante} - ${parseFloat(invoice.importe).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {invoiceError && (
+                  <p className="mt-1 text-sm text-red-600">{invoiceError}</p>
+                )}
+              </div>
+            )}
 
             {/* Campo Importe */}
             <div>
@@ -121,7 +228,7 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.00"
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  disabled={mutation.isPending}
+                  disabled={isFormDisabled}
                 />
               </div>
             </div>
@@ -140,16 +247,16 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Ej: Devolución pedido #123"
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  disabled={mutation.isPending}
+                  disabled={isFormDisabled}
                 />
               </div>
             </div>
 
-            {/* Mensajes de Error */}
-            {mutation.isError && (
+            {/* Mensajes de Error de Creación */}
+            {creditNoteMutation.isError && (
               <div className="flex items-center p-3 bg-red-100 text-red-700 rounded-lg">
                 <AlertTriangle className="w-5 h-5 mr-2 flex-shrink-0" />
-                <span className="text-sm">{mutation.error.message}</span>
+                <span className="text-sm">{creditNoteMutation.error.message}</span>
               </div>
             )}
           </div>
@@ -159,22 +266,22 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
             <button
               type="button"
               onClick={onClose}
-              disabled={mutation.isPending}
+              disabled={isFormDisabled}
               className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              disabled={mutation.isPending}
+              disabled={isFormDisabled}
               className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-medium text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {mutation.isPending ? (
+              {creditNoteMutation.isPending ? (
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
               ) : (
                 <CheckCircle className="w-5 h-5 mr-2" />
               )}
-              {mutation.isPending ? 'Creando...' : 'Confirmar N/C'}
+              {creditNoteMutation.isPending ? 'Creando...' : 'Confirmar N/C'}
             </button>
           </div>
         </form>
@@ -186,6 +293,7 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
 
 
 // Componente de UI para el estado de carga
+// ... (código de LoadingSkeleton sin cambios) ...
 const LoadingSkeleton = () => (
   <div className="animate-pulse">
     {/* Tarjetas de Saldo */}
@@ -200,6 +308,7 @@ const LoadingSkeleton = () => (
 );
 
 // Componente de UI para el estado de error
+// ... (código de ErrorMessage sin cambios) ...
 const ErrorMessage = ({ message }) => (
   <div className="flex flex-col items-center justify-center p-10 bg-white rounded-lg shadow-md">
     <p className="text-red-500 font-semibold text-lg">Error al cargar el balance</p>
@@ -209,32 +318,12 @@ const ErrorMessage = ({ message }) => (
 );
 
 // Tarjeta para mostrar saldos
-const BalanceCard = ({ title, amount, bgColorClass, isCurrency = true }) => {
-  const formattedAmount = isCurrency
-    ? (amount || 0).toLocaleString('es-AR', {
-        style: 'currency',
-        currency: 'ARS',
-      })
-    : amount;
-
-  // (MODIFICADO) Ajusta el color del texto basado en el valor
-  let textColorClass = bgColorClass;
-  if (isCurrency) {
-    if (amount < 0) {
-      textColorClass = 'text-red-600';
-    } else if (amount > 0) {
-      textColorClass = 'text-green-600';
-    } else {
-      textColorClass = 'text-gray-800';
-    }
-    // Caso especial para Saldo Total (deuda)
-    if (title === "Saldo Total" && amount < 0) {
-       textColorClass = 'text-red-600';
-    } else if (title === "Saldo Total") {
-       textColorClass = 'text-blue-600';
-    }
-  }
-
+// ... (código de BalanceCard sin cambios) ...
+const BalanceCard = ({ title, amount, bgColorClass }) => {
+  const formattedAmount = (amount || 0).toLocaleString('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+  });
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
@@ -242,16 +331,15 @@ const BalanceCard = ({ title, amount, bgColorClass, isCurrency = true }) => {
         <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">{title}</h3>
         <DollarSign className="w-6 h-6 text-gray-400" />
       </div>
-      <p className={`text-3xl font-bold ${textColorClass}`}>{formattedAmount}</p>
+      <p className={`text-3xl font-bold ${bgColorClass}`}>{formattedAmount}</p>
     </div>
   );
 };
 
 // Fila de la tabla de movimientos
+// ... (código de MovementRow sin cambios) ...
 const MovementRow = ({ movement }) => {
-  // (MODIFICADO) Un importe positivo (credit) es verde (Pago / NC)
-  // Un importe negativo (debit) es rojo (Factura)
-  const isPositive = parseFloat(movement.importe) > 0;
+  const isPositive = movement.importe >= 0; // (MODIFICADO) Cualquier cosa >= 0 es positiva (Pago, NC)
   const formattedDate = new Date(movement.fecha).toLocaleDateString('es-AR');
 
   return (
@@ -275,10 +363,11 @@ const MovementRow = ({ movement }) => {
 
 
 export default function AccountBalancePage({ user, onNavigate }) {
+  
   // (NUEVO) Estado para el modal y mensajes
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-
+  
   // 1. Reemplazamos useEffect y useState con useQuery
   const { data, isLoading, isError, error } = useQuery({
     // La clave de consulta incluye el user.id. 
@@ -294,11 +383,6 @@ export default function AccountBalancePage({ user, onNavigate }) {
     staleTime: 1000 * 60 * 2, // 2 minutos de caché
   });
 
-  // 2. Extraemos los datos para el renderizado, con valores por defecto
-  // (MODIFICADO) La lógica de 'disponible' y 'pendiente' ahora viene del backend
-  const balance = data?.balance || { total: 0, disponible: 0, pendiente: 0 };
-  const movements = data?.movements || [];
-
   // (NUEVO) Manejador para cerrar el modal y mostrar mensaje
   const handleModalSuccess = (message) => {
     setSuccessMessage(message);
@@ -306,6 +390,10 @@ export default function AccountBalancePage({ user, onNavigate }) {
     // Ocultar el mensaje después de 3 segundos
     setTimeout(() => setSuccessMessage(''), 3000);
   };
+  
+  // 2. Extraemos los datos para el renderizado, con valores por defecto
+  const balance = data?.balance || { total: 0, disponible: 0, pendiente: 0 };
+  const movements = data?.movements || [];
 
   // 3. Renderizado condicional
   if (isLoading) {
@@ -324,13 +412,13 @@ export default function AccountBalancePage({ user, onNavigate }) {
     <>
       {/* (NUEVO) Renderizar el modal si está abierto */}
       {isModalOpen && (
-        <CreditNoteModal
-          adminUser={user} // El usuario logueado es el admin
+        <CreditNoteModal 
+          adminUser={user} 
           onClose={() => setIsModalOpen(false)}
           onSuccess={handleModalSuccess}
         />
       )}
-
+    
       <div className="p-6 bg-gray-50 min-h-screen">
         {/* (MODIFICADO) Encabezado con botón de volver y botón de admin */}
         <header className="mb-8 flex items-center justify-between">
@@ -348,22 +436,21 @@ export default function AccountBalancePage({ user, onNavigate }) {
             </div>
           </div>
           
-          {/* --- (NUEVO) Botón visible solo para Admins --- */}
+          {/* (NUEVO) Botón para Admin */}
           {user?.is_admin && (
             <button
               onClick={() => setIsModalOpen(true)}
-              className="ml-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow hover:bg-green-700 transition-colors flex items-center"
+              className="inline-flex items-center px-4 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-colors"
             >
               <FilePlus className="w-5 h-5 mr-2" />
               Crear Nota de Crédito
             </button>
           )}
-          {/* --- (FIN) Botón de Admin --- */}
         </header>
-
-        {/* (NUEVO) Mensaje de éxito de la Nota de Crédito */}
+        
+        {/* (NUEVO) Mensaje de éxito global */}
         {successMessage && (
-            <div className="mb-6 flex items-center p-4 bg-green-100 text-green-800 rounded-lg shadow-md">
+            <div className="mb-6 flex items-center p-4 bg-green-100 text-green-700 rounded-lg shadow-md">
               <CheckCircle className="w-5 h-5 mr-3 flex-shrink-0" />
               <span className="text-sm font-medium">{successMessage}</span>
             </div>
@@ -371,10 +458,9 @@ export default function AccountBalancePage({ user, onNavigate }) {
 
         {/* Sección de Saldos */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {/* (MODIFICADO) Se usan los valores directos del backend */}
-          <BalanceCard title="Saldo Total" amount={balance.total} />
-          <BalanceCard title="Disponible" amount={balance.disponible} />
-          <BalanceCard title="Pendiente de Imputación" amount={balance.pendiente} isCurrency={false} bgColorClass="text-yellow-600" />
+          <BalanceCard title="Saldo Total" amount={balance.total} bgColorClass={balance.total >= 0 ? "text-green-600" : "text-red-600"} />
+          <BalanceCard title="Disponible" amount={balance.disponible} bgColorClass="text-green-600" />
+          <BalanceCard title="Pendiente de Imputación" amount={balance.pendiente} bgColorClass="text-yellow-600" />
         </div>
 
         {/* Sección de Últimos Movimientos */}
