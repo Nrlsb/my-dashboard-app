@@ -2,10 +2,11 @@
 const fs = require('fs');
 const path = require('path');
 const csv = require('csv-parser');
-const { pool } = require('./db');
+const { pool } = require('../db'); // <-- CAMBIO DE RUTA
 
 // 1. Apuntar al archivo de precios
-const filePath = path.join(__dirname, 'ListaDeProductos2.csv');
+// __dirname ahora es 'backend/api/scripts', así que subimos un nivel
+const filePath = path.join(__dirname, '../ListaDeProductos2.csv');
 const productsToUpdate = [];
 
 console.log(`Iniciando la lectura de precios desde: ${filePath}`);

@@ -1,44 +1,6 @@
-/*
-* =================================================================
-* SERVIDOR MIDDLEWARE (Conectado a PostgreSQL)
-* =================================================================
-*
-* Requisitos:
-* 1. npm install express cors multer pg dotenv bcryptjs
-* 2. Crear archivo ".env" con las credenciales de la BD.
-* 3. Haber ejecutado "setup.sql" (la nueva versión) en la DB.
-*
-* Para ejecutar:
-* 1. node server.js
-* =================================================================
-*/
-
-require('dotenv').config(); // Cargar variables de .env
-const express = require('express');
-const cors = require('cors');
-const multer = require('multer');
-const path = require('path');
-// FIX 1: Importar { pool } correctamente
 const { pool } = require('./db'); // Importa nuestro GESTOR DE CONEXIÓN
 const bcrypt = require('bcryptjs'); // Para hashear contraseñas
-
-const app = express();
-const PORT = 3001;
-
-// --- Configuración ---
-app.use(cors());
-app.use(express.json());
-
-// Configuración de Multer (sin cambios)
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
-  }
-});
-const upload = multer({ storage: storage });
+const { formatCurrency } = require('./utils/helpers'); // (NUEVO) Importar helper
 
 // =================================================================
 // --- LÓGICA DE BASE DE DATOS (Sincronizada con setup.sql) ---
@@ -116,6 +78,65 @@ const registerProtheusUser = async (userData) => {
   const result = await pool.query(queryText, queryParams);
 
   return result.rows[0];
+};
+
+// (NUEVO) --- Perfil de Usuario ---
+const getProfile = async (userId) => {
+    const result = await pool.query(
+      `SELECT 
+        id, email, full_name,
+        a1_cod AS "A1_COD",
+        a1_loja AS "A1_LOJA",
+        full_name AS "A1_NOME",
+        a1_cgc AS "A1_CGC",
+        a1_tel AS "A1_NUMBER",
+        a1_endereco AS "A1_END",
+        email AS "A1_EMAIL"
+        -- Campos del frontend que NO ESTÁN en setup.sql:
+        -- A1_PESSOA, A1_NREDUZ, A1_MUN, A1_EST, A1_TIPO, A1_AFIP, estatus, di
+      FROM users WHERE id = $1`, 
+      [userId]
+    );
+    
+    if (result.rows.length === 0) {
+      return null;
+    }
+    
+    return result.rows[0];
+};
+
+const updateProfile = async (userId, profileData) => {
+    const {
+      A1_NOME, // -> full_name
+      A1_COD,  // -> a1_cod
+      A1_LOJA, // -> a1_loja
+      A1_CGC,  // -> a1_cgc
+      A1_NUMBER, // -> a1_tel
+      A1_END,  // -> a1_endereco
+      A1_EMAIL // -> email
+    } = profileData;
+
+    const queryText = `
+      UPDATE users SET
+        full_name = $1,
+        a1_cod = $2,
+        a1_loja = $3,
+        a1_cgc = $4,
+        a1_tel = $5,
+        a1_endereco = $6,
+        email = $7
+      WHERE id = $8
+    `;
+    
+    const queryParams = [
+      A1_NOME, A1_COD, A1_LOJA, A1_CGC, A1_NUMBER, 
+      A1_END, A1_EMAIL,
+      userId // El ID del usuario a actualizar
+    ];
+
+    await pool.query(queryText, queryParams);
+    
+    return { success: true, message: 'Perfil actualizado correctamente.' };
 };
 
 
@@ -382,296 +403,20 @@ const saveProtheusVoucher = async (fileInfo, userId) => {
   return { success: true, fileRef: result.rows[0].id };
 };
 
-// --- Helper ---
-const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-  }).format(amount || 0);
+// (NUEVO) Exportar todas las funciones
+module.exports = {
+  authenticateProtheusUser,
+  registerProtheusUser,
+  getProfile,
+  updateProfile,
+  fetchProtheusBalance,
+  fetchProtheusMovements,
+  fetchProtheusOrders,
+  fetchProtheusOrderDetails,
+  saveProtheusOrder,
+  fetchProtheusProducts,
+  fetchProtheusBrands,
+  fetchProtheusOffers,
+  saveProtheusQuery,
+  saveProtheusVoucher
 };
-
-// =================================================================
-// --- ENDPOINTS DE TU API (Ahora usan 'pool' y SQL corregido) ---
-// =================================================================
-// NOTA: En una app real, el userId vendría de un Token (JWT)
-// Por ahora, simulamos que es el 'user_id = 1'
-const MOCK_USER_ID = 1;
-
-// --- Autenticación ---
-app.post('/api/login', async (req, res) => {
-  console.log('POST /api/login -> Autenticando contra DB...');
-  try {
-    const { email, password } = req.body;
-    const result = await authenticateProtheusUser(email, password);
-    if (result.success) {
-      res.json(result);
-    } else {
-      res.status(401).json({ message: result.message });
-    }
-  } catch (error) {
-    console.error('Error en /api/login:', error);
-    res.status(500).json({ message: 'Error interno del servidor.' });
-  }
-});
-
-// (ACTUALIZADO) --- Registro ---
-app.post('/api/register', async (req, res) => {
-  console.log('POST /api/register -> Registrando nuevo usuario en DB...');
-  try {
-    // (ACTUALIZADO) El frontend debe enviar 'nombre'
-    const { nombre, email, password } = req.body;
-
-    // Validación simple de campos obligatorios
-    if (!nombre || !email || !password) {
-      return res.status(400).json({ message: 'Nombre, email y contraseña son obligatorios.' });
-    }
-
-    const newUser = await registerProtheusUser(req.body);
-    res.status(201).json({ success: true, user: newUser });
-
-  } catch (error) {
-    console.error('Error en /api/register:', error);
-    // Manejar error de usuario duplicado
-    if (error.message.includes('email ya está registrado')) {
-      return res.status(409).json({ message: error.message }); // 409 Conflict
-    }
-    if (error.code === '23505') { // Error de 'unique constraint' de PostgreSQL
-       return res.status(409).json({ message: 'El email ya está registrado.' });
-    }
-    res.status(500).json({ message: 'Error interno del servidor.' });
-  }
-});
-
-
-// (ACTUALIZADO) --- Endpoints de Perfil (Alineados con setup.sql) ---
-// GET: Obtener los datos actuales del perfil
-app.get('/api/profile', async (req, res) => {
-  console.log('GET /api/profile -> Consultando perfil de usuario en DB...');
-  try {
-    // NOTA: Usamos MOCK_USER_ID (1)
-    // (ACTUALIZADO) Se usan alias (AS) para enviar las claves A1_... al frontend
-    // Se mapean las columnas que SÍ existen en setup.sql
-    const result = await pool.query(
-      `SELECT 
-        id, email, full_name,
-        a1_cod AS "A1_COD",
-        a1_loja AS "A1_LOJA",
-        full_name AS "A1_NOME",
-        a1_cgc AS "A1_CGC",
-        a1_tel AS "A1_NUMBER",
-        a1_endereco AS "A1_END",
-        email AS "A1_EMAIL"
-        -- Campos del frontend que NO ESTÁN en setup.sql:
-        -- A1_PESSOA, A1_NREDUZ, A1_MUN, A1_EST, A1_TIPO, A1_AFIP, estatus, di
-      FROM users WHERE id = $1`, 
-      [MOCK_USER_ID]
-    );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Usuario no encontrado.' });
-    }
-    
-    res.json(result.rows[0]);
-    
-  } catch (error) {
-    console.error('Error en /api/profile (GET):', error);
-    res.status(500).json({ message: 'Error interno del servidor.' });
-  }
-});
-
-// PUT: Actualizar los datos del perfil
-app.put('/api/profile', async (req, res) => {
-  console.log('PUT /api/profile -> Actualizando perfil en DB...');
-  try {
-    // NOTA: Usamos MOCK_USER_ID (1)
-    // (ACTUALIZADO) Se destructuran las claves A1_... que SÍ existen en setup.sql
-    const {
-      A1_NOME, // -> full_name
-      A1_COD,  // -> a1_cod
-      A1_LOJA, // -> a1_loja
-      A1_CGC,  // -> a1_cgc
-      A1_NUMBER, // -> a1_tel
-      A1_END,  // -> a1_endereco
-      A1_EMAIL // -> email
-      // Ignoramos las otras claves (A1_PESSOA, A1_MUN, etc.) ya que no hay columna
-    } = req.body;
-
-    // (ACTUALIZADO) El query usa los nombres de columna de setup.sql
-    const queryText = `
-      UPDATE users SET
-        full_name = $1,
-        a1_cod = $2,
-        a1_loja = $3,
-        a1_cgc = $4,
-        a1_tel = $5,
-        a1_endereco = $6,
-        email = $7
-      WHERE id = $8
-    `;
-    
-    // (ACTUALIZADO) Se pasan las variables A1_... en el orden correcto
-    const queryParams = [
-      A1_NOME, A1_COD, A1_LOJA, A1_CGC, A1_NUMBER, 
-      A1_END, A1_EMAIL,
-      MOCK_USER_ID // El ID del usuario a actualizar
-    ];
-
-    await pool.query(queryText, queryParams);
-    
-    res.json({ success: true, message: 'Perfil actualizado correctamente.' });
-
-  } catch (error) {
-    console.error('Error en /api/profile (PUT):', error);
-    res.status(500).json({ message: 'Error interno del servidor.' });
-  }
-});
-
-
-// --- Cuenta Corriente ---
-app.get('/api/balance', async (req, res) => {
-  console.log('GET /api/balance -> Consultando saldo en DB...');
-  try {
-    const balanceData = await fetchProtheusBalance(MOCK_USER_ID);
-    res.json(balanceData);
-  } catch (error) {
-    console.error('Error en /api/balance:', error);
-    res.status(500).json({ message: 'Error interno del servidor.' });
-  }
-});
-
-app.get('/api/movements', async (req, res) => {
-  console.log('GET /api/movements -> Consultando movimientos en DB...');
-  try {
-    const movementsData = await fetchProtheusMovements(MOCK_USER_ID);
-    res.json(movementsData);
-  } catch (error) {
-    console.error('Error en /api/movements:', error);
-    res.status(500).json({ message: 'Error interno del servidor.' });
-  }
-});
-
-// --- Pedidos ---
-app.get('/api/orders', async (req, res) => {
-  console.log('GET /api/orders -> Consultando pedidos en DB...');
-  try {
-    const orders = await fetchProtheusOrders(MOCK_USER_ID);
-    res.json(orders);
-  } catch (error) {
-    console.error('Error en /api/orders:', error);
-    res.status(500).json({ message: 'Error al obtener pedidos.' });
-  }
-});
-
-// (ACTUALIZADO) --- Endpoint para UN pedido específico ---
-app.get('/api/orders/:id', async (req, res) => {
-  console.log(`GET /api/orders/${req.params.id} -> Consultando detalles en DB...`);
-  try {
-    const orderId = req.params.id;
-    const orderDetails = await fetchProtheusOrderDetails(orderId, MOCK_USER_ID);
-    if (orderDetails) {
-      res.json(orderDetails);
-    } else {
-      res.status(404).json({ message: 'Pedido no encontrado.' });
-    }
-  } catch (error) {
-    console.error(`Error en /api/orders/${req.params.id}:`, error);
-    res.status(500).json({ message: error.message || 'Error al obtener detalles del pedido.' });
-  }
-});
-
-
-app.post('/api/orders', async (req, res) => {
-  console.log('POST /api/orders -> Guardando nuevo pedido/presupuesto en DB...');
-  try {
-    const orderData = req.body; // Esto ahora incluye { items, total, type }
-    const result = await saveProtheusOrder(orderData, MOCK_USER_ID);
-    res.json(result);
-  } catch (error) {
-    console.error('Error en POST /api/orders:', error);
-    res.status(500).json({ message: 'Error al guardar el pedido.' });
-  }
-});
-
-// --- Productos y Ofertas ---
-// (ACTUALIZADO) Endpoint de Productos: ahora acepta paginación y filtros
-app.get('/api/products', async (req, res) => {
-  console.log('GET /api/products -> Consultando productos en DB (paginado)...');
-  try {
-    const { page = 1, limit = 20, search = '', brand = '' } = req.query;
-    // Pasamos los filtros del query a la función de lógica
-    const data = await fetchProtheusProducts(page, limit, search, brand);
-    res.json(data); // Devuelve { products: [...], totalProducts: X }
-  } catch (error) {
-    console.error('Error en /api/products:', error);
-    res.status(500).json({ message: 'Error al obtener productos.' });
-  }
-});
-
-// (NUEVO) Endpoint de Marcas
-app.get('/api/brands', async (req, res) => {
-  console.log('GET /api/brands -> Consultando lista de marcas...');
-  try {
-    const brands = await fetchProtheusBrands();
-    res.json(brands);
-  } catch (error) {
-    console.error('Error en /api/brands:', error);
-    res.status(500).json({ message: 'Error al obtener marcas.' });
-  }
-});
-
-app.get('/api/offers', async (req, res) => {
-  console.log('GET /api/offers -> Consultando ofertas en DB...');
-  try {
-    const offers = await fetchProtheusOffers();
-    res.json(offers);
-  } catch (error) {
-    console.error('Error en /api/offers:', error);
-    res.status(500).json({ message: 'Error al obtener ofertas.' });
-  }
-});
-
-// --- Consultas y Carga de Archivos ---
-app.post('/api/queries', async (req, res) => {
-  console.log('POST /api/queries -> Guardando consulta en DB...');
-  try {
-    const queryData = req.body;
-    const result = await saveProtheusQuery(queryData, MOCK_USER_ID);
-    res.json(result);
-  } catch (error) {
-    console.error('Error en /api/queries:', error);
-    res.status(500).json({ message: 'Error al enviar la consulta.' });
-  }
-});
-
-app.post('/api/upload-voucher', upload.single('voucherFile'), async (req, res) => {
-  console.log('POST /api/upload-voucher -> Archivo recibido, guardando en DB...');
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'No se recibió ningún archivo.' });
-    }
-    
-    // (ACTUALIZADO) Capturamos todos los datos del archivo
-    const fileInfo = {
-      filename: req.file.filename,
-      originalName: req.file.originalname,
-      path: req.file.path,
-      mimeType: req.file.mimetype, // Nuevo
-      size: req.file.size         // Nuevo
-    };
-    
-    const result = await saveProtheusVoucher(fileInfo, MOCK_USER_ID);
-    res.json({ success: true, fileInfo: result });
-
-  } catch (error) {
-    console.error('Error en /api/upload-voucher:', error);
-    res.status(500).json({ message: 'Error al procesar el archivo.' });
-  }
-});
-
-// --- Iniciar el servidor ---
-app.listen(PORT, () => {
-  console.log(`=======================================================`);
-  console.log(`   Servidor Middleware (Conectado a PostgreSQL)`);
-  console.log(`   Escuchando en http://localhost:${PORT}`);
-  console.log(`=======================================================`);
-});

@@ -2,10 +2,11 @@
 const fs = require('fs');
 const path = require('path');
 const csv = require('csv-parser');
-const { pool } = require('./db');
+const { pool } = require('../db'); // <-- CAMBIO DE RUTA
 
 // 1. Apuntar al archivo de mapeo de marcas (ListaDeProductos4.csv)
-const filePath = path.join(__dirname, 'ListaDeProductos4.csv');
+// __dirname ahora es 'backend/api/scripts', así que subimos un nivel
+const filePath = path.join(__dirname, '../ListaDeProductos4.csv');
 // Almacenará los mapeos, ej: [ { 'Cod. Grupo': '0101', 'Marca': '3D ARGENTINA' }, ... ]
 const groupToBrandMap = [];
 

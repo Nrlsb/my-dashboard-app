@@ -2,14 +2,15 @@
 const fs = require('fs'); // Módulo de sistema de archivos (File System)
 const path = require('path'); // Módulo para manejar rutas de archivos
 const csv = require('csv-parser'); // Módulo para parsear (leer) archivos CSV
-const { pool } = require('./db'); // Importamos el pool de conexiones de tu db.js
+const { pool } = require('../db'); // <-- CAMBIO DE RUTA
 
 // ======================================================
 // --- INICIO DE MODIFICACIÓN 1: Apuntar al archivo de prueba ---
 // ======================================================
 // Definir la ruta al archivo CSV
 // !! IMPORTANTE: Apuntamos a ListaDeProductos.csv para la prueba
-const filePath = path.join(__dirname, 'ListaDeProductos.csv');
+// __dirname ahora es 'backend/api/scripts', así que subimos un nivel
+const filePath = path.join(__dirname, '../ListaDeProductos.csv');
 // ======================================================
 // --- FIN DE MODIFICACIÓN 1 ---
 // ======================================================
