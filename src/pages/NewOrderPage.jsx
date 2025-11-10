@@ -1,14 +1,16 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import Header from '/src/components/Header.jsx';
-import { ArrowLeft, Search, ShoppingCart, Trash2, Package, CheckCircle, AlertTriangle, FileText } from 'lucide-react';
+import Header from '../components/Header.jsx';
+import { ArrowLeft, Search, ShoppingCart, Trash2, Package, CheckCircle, AlertTriangle, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // (NUEVO) Definimos la URL de la API
 const API_URL = 'http://localhost:3001';
+const PRODUCTS_PER_PAGE = 20; // (NUEVO) Paginación
 
 // --- Página de Nuevo Pedido ---
 const NewOrderPage = ({ onNavigate }) => {
   // --- Estados ---
-  const [allProducts, setAllProducts] = useState([]); 
+  const [allProducts, setAllProducts] = useState([]); // (CAMBIADO) Almacena solo la página actual
+  const [brands, setBrands] = useState([]); // (NUEVO) Almacena las marcas para el filtro
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [productError, setProductError] = useState(null);
   
@@ -20,80 +22,66 @@ const NewOrderPage = ({ onNavigate }) => {
   const [submitStatus, setSubmitStatus] = useState(null); 
   const [submitMessage, setSubmitMessage] = useState(''); 
 
-  // --- Carga de Productos ---
+  // (NUEVO) Estados de Paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
+
+  // --- Carga de Datos ---
+
+  // (NUEVO) Cargar marcas (solo una vez)
+  useEffect(() => {
+    const fetchBrands = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/brands`);
+        if (!response.ok) throw new Error('No se pudo cargar las marcas.');
+        const data = await response.json();
+        setBrands(data);
+      } catch (err) {
+        // No es un error crítico si las marcas no cargan
+        console.error("Error cargando marcas:", err);
+      }
+    };
+    fetchBrands();
+  }, []);
+
+  // (ACTUALIZADO) Cargar productos (se ejecuta cada vez que cambian los filtros o la página)
   useEffect(() => {
     const fetchProducts = async () => {
+      setLoadingProducts(true);
+      setProductError(null);
+      
       try {
-        setLoadingProducts(true);
-        setProductError(null);
-        const response = await fetch(`${API_URL}/api/products`);
+        // (NUEVO) Construir los parámetros de consulta para el backend
+        const params = new URLSearchParams({
+          page: currentPage,
+          limit: PRODUCTS_PER_PAGE,
+          search: searchTerm,
+          brand: selectedBrand,
+        });
+        
+        // (ACTUALIZADO) Hacer la solicitud con los parámetros
+        const response = await fetch(`${API_URL}/api/products?${params.toString()}`);
         if (!response.ok) throw new Error('No se pudo cargar la lista de productos.');
-        const data = await response.json();
-        setAllProducts(data);
+        
+        const data = await response.json(); // data ahora es { products: [...], totalProducts: X }
+
+        // (CORREGIDO) Seteamos los productos y el total
+        setAllProducts(data.products);
+        setTotalProducts(data.totalProducts);
+
       } catch (err) {
         setProductError(err.message);
+        setAllProducts([]); // Limpiar productos en caso de error
+        setTotalProducts(0);
       } finally {
         setLoadingProducts(false);
       }
     };
     fetchProducts();
-  }, []);
+  }, [currentPage, searchTerm, selectedBrand]); // (ACTUALIZADO) Dependencias del useEffect
 
-  // --- Lógica de Filtro ---
-  const filteredProducts = useMemo(() => {
-    // ======================================================
-    // --- INICIO DE CORRECCIÓN DE RUNTIME ERROR ---
-    // Nos aseguramos de que allProducts sea un array antes de filtrarlo.
-    if (!Array.isArray(allProducts)) {
-      return [];
-    }
-    // --- FIN DE CORRECCIÓN DE RUNTIME ERROR ---
-    // ======================================================
-
-    // (NUEVO) Lógica de búsqueda inteligente
-    // 1. Convertir el término de búsqueda en un array de palabras, en minúscula
-    const searchTerms = searchTerm.toLowerCase().split(' ').filter(t => t); // filter(t => t) elimina espacios vacíos
-  
-    return allProducts.filter(product => {
-      const matchesBrand = selectedBrand ? product.brand === selectedBrand : true;
-      
-      // ======================================================
-      // --- INICIO DE CORRECCIÓN (de la respuesta anterior) ---
-      // 1. Aseguramos que 'name' y 'code' sean strings vacíos si son null/undefined
-      // 2. Usamos 'product.code' para la búsqueda, no 'product.id'.
-      const productName = (product.name || '').toLowerCase();
-      const productCode = (product.code || '').toLowerCase();
-      // --- FIN DE CORRECCIÓN ---
-      // ======================================================
-
-      // Si no hay término de búsqueda, solo filtrar por marca
-      if (searchTerms.length === 0) {
-        return matchesBrand;
-      }
-
-      // 3. Comprobar si *todos* los términos de búsqueda están en el nombre O el código
-      // Ej: "PAD" y "MIC" deben estar ambos.
-      const matchesSearch = searchTerms.every(term => 
-        productName.includes(term) || 
-        productCode.includes(term)
-      );
-      
-      return matchesBrand && matchesSearch;
-    });
-  }, [searchTerm, selectedBrand, allProducts]); // Esto recalculates when searchTerm changes. Correct.
-
-  // Derivar marcas de productos cargados
-  const brands = useMemo(() => {
-    // ======================================================
-    // --- INICIO DE CORRECCIÓN DE RUNTIME ERROR ---
-    // Añadimos la misma validación por si acaso.
-    if (!Array.isArray(allProducts)) {
-      return [];
-    }
-    // --- FIN DE CORRECCIÓN DE RUNTIME ERROR ---
-    // ======================================================
-    return [...new Set(allProducts.map(p => p.brand))];
-  }, [allProducts]);
+  // (ELIMINADO) El useMemo para filteredProducts ya no es necesario.
+  // (ELIMINADO) El useMemo para brands ya no es necesario.
 
   // --- Lógica de Carrito (sin cambios) ---
   const addToCart = (product) => {
@@ -102,21 +90,25 @@ const NewOrderPage = ({ onNavigate }) => {
       if (existingItem) {
         return prevCart.map(item =>
           item.id === product.id
-            ? { ...item, quantity: Math.min(item.quantity + 1, product.stock) }
+            ? { ...item, quantity: Math.min(item.quantity + 1, product.stock) } // Usa el stock del producto
             : item
         );
       } else {
-        return [...prevCart, { ...product, quantity: 1 }];
+        return [...prevCart, { ...product, quantity: 1 }]; // Añade el producto completo (incluido el stock)
       }
     });
   };
 
+  // (CORREGIDO) updateCartQuantity ahora usa el stock guardado en el carrito,
+  //            para no depender de 'allProducts' (que ahora está paginado).
   const updateCartQuantity = (productId, quantity) => {
-    const product = allProducts.find(p => p.id === productId);
-    if (!product) return;
-    const newQuantity = Math.max(0, Math.min(quantity, product.stock)); 
-
     setCart(prevCart => {
+      const itemInCart = prevCart.find(item => item.id === productId);
+      if (!itemInCart) return prevCart; // El item no está en el carrito
+
+      // Usar el stock guardado en el item del carrito
+      const newQuantity = Math.max(0, Math.min(quantity, itemInCart.stock)); 
+
       if (newQuantity === 0) {
         return prevCart.filter(item => item.id !== productId);
       }
@@ -143,6 +135,21 @@ const NewOrderPage = ({ onNavigate }) => {
     }).format(amount);
   };
   
+  // --- (NUEVO) Lógica de Paginación ---
+  const totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(prev => prev + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(prev => prev - 1);
+    }
+  };
+
   // --- (NUEVO) Función para Generar PDF ---
   const generateQuotePDF = () => {
     // jsPDF estará disponible en 'window' gracias al script en index.html
@@ -184,7 +191,7 @@ const NewOrderPage = ({ onNavigate }) => {
     // Items del carrito
     cart.forEach(item => {
       const subtotal = item.price * item.quantity;
-      doc.text(String(item.code), 20, yPos); // (CORREGIDO) Usar code en lugar de id
+      doc.text(String(item.code), 20, yPos); // Usar code
       doc.text(doc.splitTextToSize(item.name, 70), 40, yPos); // Auto-ajuste de texto
       doc.text(item.quantity.toString(), 120, yPos, { align: 'right' });
       doc.text(formatCurrency(item.price), 150, yPos, { align: 'right' });
@@ -207,42 +214,37 @@ const NewOrderPage = ({ onNavigate }) => {
     doc.save(`presupuesto-${clientName}-${date}.pdf`);
   };
 
-  // --- (ACTUALIZADO) Lógica de Envío de Pedido ---
+  // --- Lógica de Envío de Pedido (Actualizada) ---
   const handleSubmitOrder = async (submissionType) => { // submissionType: 'order' | 'quote'
     setIsSubmitting(true);
     setSubmitStatus(null);
     setSubmitMessage('');
     
-    // (NUEVO) Generar PDF si es un presupuesto
+    // Generar PDF si es un presupuesto
     if (submissionType === 'quote') {
       try {
         generateQuotePDF();
       } catch (pdfError) {
         console.error("Error al generar PDF:", pdfError);
-        setSubmitStatus('error'); // Usar setSubmitStatus
+        setSubmitStatus('error'); 
         setSubmitMessage("Error al generar el PDF. El presupuesto se guardará de todas formas.");
-        // No usamos 'setError' del estado general, sino el del formulario
       }
     }
     
     try {
       // Preparamos solo los datos necesarios para el backend
       const orderData = {
-        // (CORREGIDO) product.id es numérico, pero el backend espera product.id (int) y product.code (string)
-        // Viendo el server.js (saveProtheusOrder), espera 'id', 'code', 'quantity', 'price'
-        // El estado 'cart' ya tiene 'id', 'code', 'quantity', 'price' del fetch original
         items: cart.map(item => ({ 
-          id: item.id, // El ID numérico (ej: 123)
-          code: item.code, // El CÓDIGO string (ej: "000001")
+          id: item.id, 
+          code: item.code, 
           quantity: item.quantity, 
           price: item.price 
         })),
         total: totalPrice,
-        clientCode: 'CLIENTE-001', // Esto vendría del estado de login
-        type: submissionType // (NUEVO) Enviamos el tipo
+        clientCode: 'CLIENTE-001', // Simulado
+        type: submissionType 
       };
       
-      // Validamos que 'code' esté presente, ya que el backend (saveProtheusOrder) lo necesita
       if (orderData.items.some(item => !item.code)) {
         console.error("Error: items en el carrito no tienen 'code'", cart);
         throw new Error("Error interno: los items del carrito no tienen código.");
@@ -261,29 +263,26 @@ const NewOrderPage = ({ onNavigate }) => {
       const result = await response.json();
       console.log('Solicitud exitosa:', result);
       
-      // (ACTUALIZADO) Mensajes dinámicos
       setSubmitStatus('success');
       setSubmitMessage(submissionType === 'order' ? '¡Pedido Enviado!' : '¡Presupuesto Generado!');
       setCart([]); // Vaciar carrito
       
-      // (ACTUALIZADO) Volver al HISTÓRICO después de 3 seg
       setTimeout(() => {
-        onNavigate('orderHistory'); // <--- CAMBIO AQUÍ
-        setSubmitStatus(null); // Limpiar estado
+        onNavigate('orderHistory'); 
+        setSubmitStatus(null); 
         setSubmitMessage('');
       }, 3000);
 
     } catch (err) {
       console.error(err);
       setSubmitStatus('error');
-      // (ACTUALIZADO) Mensajes de error dinámicos
       setSubmitMessage(submissionType === 'order' ? 'Error al enviar el pedido.' : 'Error al generar el presupuesto.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // --- (NUEVO) Renderizado de Lista de Productos ---
+  // --- (ACTUALIZADO) Renderizado de Lista de Productos ---
   const renderProductList = () => {
     if (loadingProducts) {
       return <div className="p-6 bg-white rounded-lg shadow-md text-center text-gray-500">Cargando productos...</div>;
@@ -291,11 +290,13 @@ const NewOrderPage = ({ onNavigate }) => {
     if (productError) {
       return <div className="p-6 bg-white rounded-lg shadow-md text-center text-red-500">{productError}</div>;
     }
-    if (filteredProducts.length === 0) {
+    // (ACTUALIZADO) Usar 'allProducts.length'
+    if (allProducts.length === 0) {
       return <div className="p-6 bg-white rounded-lg shadow-md text-center text-gray-500">No se encontraron productos.</div>;
     }
     
-    return filteredProducts.map(product => (
+    // (ACTUALIZADO) Mapear 'allProducts' directamente
+    return allProducts.map(product => (
       <div key={product.id} className="flex items-center justify-between p-4 bg-white rounded-lg shadow-md">
         <div className="flex items-center space-x-4">
           <div className="flex-shrink-0 p-3 bg-gray-100 rounded-lg">
@@ -303,7 +304,6 @@ const NewOrderPage = ({ onNavigate }) => {
           </div>
           <div>
             <p className="text-sm font-semibold text-gray-900">{product.name}</p>
-            {/* (CORREGIDO) Usamos product.code (string) aquí, no product.id (int) */}
             <p className="text-sm text-gray-500">{product.brand} (Cód: {product.code})</p>
             <p className="text-sm text-gray-500">Stock: {product.stock}</p>
           </div>
@@ -323,7 +323,6 @@ const NewOrderPage = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      {/* (ACTUALIZADO) Pasamos onNavigate al Header */}
       <Header onNavigate={onNavigate} />
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         {/* Encabezado con Botón de Volver y Título */}
@@ -347,7 +346,7 @@ const NewOrderPage = ({ onNavigate }) => {
             <div className="p-6 bg-white rounded-lg shadow-md">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
-                {/* Selector de Marca */}
+                {/* (ACTUALIZADO) Selector de Marca usa el estado 'brands' */}
                 <div>
                   <label htmlFor="brand-select" className="block text-sm font-medium text-gray-700 mb-2">
                     Seleccionar Marca
@@ -355,7 +354,10 @@ const NewOrderPage = ({ onNavigate }) => {
                   <select
                     id="brand-select"
                     value={selectedBrand}
-                    onChange={(e) => setSelectedBrand(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedBrand(e.target.value);
+                      setCurrentPage(1); // (NUEVO) Resetear página
+                    }}
                     className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
                   >
                     <option value="">Todas las marcas</option>
@@ -375,7 +377,10 @@ const NewOrderPage = ({ onNavigate }) => {
                       id="search-product"
                       type="text"
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setCurrentPage(1); // (NUEVO) Resetear página
+                      }}
                       className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
                       placeholder="Buscar por nombre, código..."
                     />
@@ -391,17 +396,43 @@ const NewOrderPage = ({ onNavigate }) => {
             <div className="space-y-4">
               {renderProductList()}
             </div>
+
+            {/* (NUEVO) Controles de Paginación */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6 px-6 py-4 bg-white rounded-lg shadow-md">
+                <button
+                  onClick={handlePrevPage}
+                  disabled={currentPage === 1 || loadingProducts}
+                  className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="w-5 h-5 mr-1" />
+                  Anterior
+                </button>
+                <span className="text-sm text-gray-700">
+                  Página <span className="font-medium">{currentPage}</span> de <span className="font-medium">{totalPages}</span>
+                </span>
+                <button
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages || loadingProducts}
+                  className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Siguiente
+                  <ChevronRight className="w-5 h-5 ml-1" />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* --- Columna Derecha: Carrito --- */}
           <div className="lg:col-span-1">
-            <div className="sticky top-8 p-6 bg-white rounded-lg shadow-md">
+            {/* (MODIFICADO) Se añade flex-col y un max-h para que el sticky funcione con el scroll interno */}
+            <div className="sticky top-8 bg-white rounded-lg shadow-md flex flex-col max-h-[calc(100vh-4rem)]">
               
-              {/* (ACTUALIZADO) Mensajes de estado de envío */}
-              {submitStatus === 'success' && (
-                <div className="p-4 mb-4 text-center bg-green-100 text-green-800 rounded-md">
-                  <CheckCircle className="w-8 h-8 mx-auto mb-2" />
-                  <p className="font-semibold">{submitMessage}</p>
+              {/* (NUEVO) Encabezado del Carrito (no se encoge) */}
+              <div className="flex-shrink-0 p-6">
+                {/* Mensajes de estado de envío */}
+                {submitStatus === 'success' && (
+                  <div className="p-4 mb-4 text-center bg-green-100 text-green-800 rounded-md">
                   <p className="text-sm">Serás redirigido al Histórico.</p>
                 </div>
               )}
@@ -417,8 +448,11 @@ const NewOrderPage = ({ onNavigate }) => {
                 <ShoppingCart className="w-6 h-6 text-gray-800 mr-3" />
                 <h2 className="text-xl font-bold text-gray-800">Resumen del Pedido</h2>
               </div>
+              </div>
               
-              <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
+              {/* (MODIFICADO) Lista de Items (flexible y con scroll) */}
+              {/* Se quita max-h-96, se añade flex-1, overflow-y-auto y padding horizontal */}
+              <div className="flex-1 divide-y divide-gray-200 overflow-y-auto px-6">
                 {cart.length === 0 && submitStatus !== 'success' && (
                   <p className="py-4 text-center text-gray-500">Tu carrito está vacío.</p>
                 )}
@@ -451,9 +485,10 @@ const NewOrderPage = ({ onNavigate }) => {
                 ))}
               </div>
 
-              {/* (ACTUALIZADO) Total y Botones */}
+              {/* (MODIFICADO) Pie del Carrito (Total y Botones) (no se encoge) */}
+              {/* Se quita mt-6 y pt-6, se añade flex-shrink-0 y p-6 */}
               {cart.length > 0 && (
-                <div className="mt-6 pt-6 border-t border-gray-200 space-y-3">
+                <div className="flex-shrink-0 p-6 border-t border-gray-200 space-y-3">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-lg font-medium text-gray-900">Total:</span>
                     <span className="text-2xl font-bold text-gray-900">{formatCurrency(totalPrice)}</span>
