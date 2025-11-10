@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 
 // --- Importar Páginas ---
 import LoginPage from '/src/pages/LoginPage.jsx';
@@ -11,13 +11,23 @@ import OffersPage from '/src/pages/OffersPage.jsx';
 import AccountBalancePage from '/src/pages/AccountBalancePage.jsx';
 import QueriesPage from '/src/pages/QueriesPage.jsx';
 import VoucherUploadPage from '/src/pages/VoucherUploadPage.jsx'; 
-import ProfilePage from '/src/pages/ProfilePage.jsx'; // (NUEVO) Importar Perfil
+import ProfilePage from '/src/pages/ProfilePage.jsx'; 
+// (NUEVO) Importar la página de Previsualización
+import OrderPreviewPage from '/src/pages/OrderPreviewPage.jsx'; 
 
 // --- Componente Raíz (Maneja la autenticación y navegación) ---
 // Este es el componente principal que decide qué página mostrar.
 export default function App() {
   // Estado para manejar la vista actual: 'login', 'dashboard', 'newOrder', etc.
   const [currentView, setCurrentView] = useState('login');
+  
+  // (NUEVO) El estado del carrito se mueve aquí para compartirlo
+  const [cart, setCart] = useState([]);
+
+  // (NUEVO) El precio total se calcula aquí
+  const totalPrice = useMemo(() => {
+    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  }, [cart]);
 
   // Función para cambiar de vista
   const navigateTo = (view) => {
@@ -44,7 +54,13 @@ export default function App() {
   
   // 3. Vista de Nuevo Pedido
   if (currentView === 'newOrder') {
-    return <NewOrderPage onNavigate={navigateTo} />;
+    // (ACTUALIZADO) Pasamos el carrito y el setter
+    return <NewOrderPage onNavigate={navigateTo} cart={cart} setCart={setCart} />;
+  }
+
+  // (NUEVO) Vista de Previsualización de Pedido
+  if (currentView === 'orderPreview') {
+    return <OrderPreviewPage onNavigate={navigateTo} cart={cart} setCart={setCart} totalPrice={totalPrice} />;
   }
 
   // 4. Vista de Histórico

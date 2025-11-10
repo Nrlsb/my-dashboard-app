@@ -1,57 +1,62 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Header from '../components/Header.jsx';
+// (MODIFICADO) Se quita el icono X
 import { ArrowLeft, Search, ShoppingCart, Trash2, Package, CheckCircle, AlertTriangle, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // (NUEVO) Definimos la URL de la API
 const API_URL = 'http://localhost:3001';
+
 const PRODUCTS_PER_PAGE = 20; // (NUEVO) Paginación
 
 // --- Página de Nuevo Pedido ---
-const NewOrderPage = ({ onNavigate }) => {
+// (MODIFICADO) Recibe cart y setCart como props
+const NewOrderPage = ({ onNavigate, cart, setCart }) => {
   // --- Estados ---
   const [allProducts, setAllProducts] = useState([]); // (CAMBIADO) Almacena solo la página actual
-  const [brands, setBrands] = useState([]); // (NUEVO) Almacena las marcas para el filtro
+  const [productMap, setProductMap] = useState(new Map()); // (NUEVO) Mapa para lookup rápido
+  const [totalProducts, setTotalProducts] = useState(0); // (NUEVO)
+  const [allBrands, setAllBrands] = useState([]); // (NUEVO)
+  
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [productError, setProductError] = useState(null);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
-  const [cart, setCart] = useState([]);
   
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState(null); 
-  const [submitMessage, setSubmitMessage] = useState(''); 
+  // (ELIMINADO) Estados de submitting y modal, se mueven a la página de previsualización
+  // const [isSubmitting, setIsSubmitting] = useState(false);
+  // const [submitStatus, setSubmitStatus] = useState(null); 
+  // const [submitMessage, setSubmitMessage] = useState(''); 
+  // const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   // (NUEVO) Estados de Paginación
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalProducts, setTotalProducts] = useState(0);
+  const totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
 
-  // --- Carga de Datos ---
-
-  // (NUEVO) Cargar marcas (solo una vez)
+  // --- (NUEVO) Carga de Marcas (solo una vez) ---
   useEffect(() => {
     const fetchBrands = async () => {
       try {
         const response = await fetch(`${API_URL}/api/brands`);
-        if (!response.ok) throw new Error('No se pudo cargar las marcas.');
-        const data = await response.json();
-        setBrands(data);
+        if (!response.ok) throw new Error('No se pudieron cargar las marcas.');
+        const brandsData = await response.json();
+        setAllBrands(brandsData);
       } catch (err) {
-        // No es un error crítico si las marcas no cargan
-        console.error("Error cargando marcas:", err);
+        console.error(err);
+        // No es un error crítico, así que solo lo logueamos
       }
     };
     fetchBrands();
   }, []);
 
-  // (ACTUALIZADO) Cargar productos (se ejecuta cada vez que cambian los filtros o la página)
+  // --- (ACTUALIZADO) Carga de Productos (paginada) ---
   useEffect(() => {
     const fetchProducts = async () => {
-      setLoadingProducts(true);
-      setProductError(null);
-      
       try {
-        // (NUEVO) Construir los parámetros de consulta para el backend
+        setLoadingProducts(true);
+        setProductError(null);
+        
+        // Construir query string para el backend
         const params = new URLSearchParams({
           page: currentPage,
           limit: PRODUCTS_PER_PAGE,
@@ -59,20 +64,23 @@ const NewOrderPage = ({ onNavigate }) => {
           brand: selectedBrand,
         });
         
-        // (ACTUALIZADO) Hacer la solicitud con los parámetros
         const response = await fetch(`${API_URL}/api/products?${params.toString()}`);
         if (!response.ok) throw new Error('No se pudo cargar la lista de productos.');
         
-        const data = await response.json(); // data ahora es { products: [...], totalProducts: X }
-
-        // (CORREGIDO) Seteamos los productos y el total
-        setAllProducts(data.products);
-        setTotalProducts(data.totalProducts);
+        const data = await response.json();
+        
+        setAllProducts(data.products); // Almacena solo los productos de la página actual
+        setTotalProducts(data.totalProducts); // Almacena el conteo total
+        
+        // (NUEVO) Actualizar el mapa de productos para el carrito
+        setProductMap(prevMap => {
+          const newMap = new Map(prevMap);
+          data.products.forEach(p => newMap.set(p.id, p));
+          return newMap;
+        });
 
       } catch (err) {
         setProductError(err.message);
-        setAllProducts([]); // Limpiar productos en caso de error
-        setTotalProducts(0);
       } finally {
         setLoadingProducts(false);
       }
@@ -90,25 +98,22 @@ const NewOrderPage = ({ onNavigate }) => {
       if (existingItem) {
         return prevCart.map(item =>
           item.id === product.id
-            ? { ...item, quantity: Math.min(item.quantity + 1, product.stock) } // Usa el stock del producto
+            // (CORREGIDO) Usar stock del producto original, no del item del carrito
+            ? { ...item, quantity: Math.min(item.quantity + 1, product.stock) }
             : item
         );
       } else {
-        return [...prevCart, { ...product, quantity: 1 }]; // Añade el producto completo (incluido el stock)
+        return [...prevCart, { ...product, quantity: 1 }];
       }
     });
   };
 
-  // (CORREGIDO) updateCartQuantity ahora usa el stock guardado en el carrito,
-  //            para no depender de 'allProducts' (que ahora está paginado).
   const updateCartQuantity = (productId, quantity) => {
+    // (CORREGIDO) Buscar el stock del producto en el productMap
+    const productStock = productMap.get(productId)?.stock || 999; // Fallback
+    const newQuantity = Math.max(0, Math.min(quantity, productStock)); 
+
     setCart(prevCart => {
-      const itemInCart = prevCart.find(item => item.id === productId);
-      if (!itemInCart) return prevCart; // El item no está en el carrito
-
-      // Usar el stock guardado en el item del carrito
-      const newQuantity = Math.max(0, Math.min(quantity, itemInCart.stock)); 
-
       if (newQuantity === 0) {
         return prevCart.filter(item => item.id !== productId);
       }
@@ -122,7 +127,7 @@ const NewOrderPage = ({ onNavigate }) => {
     setCart(prevCart => prevCart.filter(item => item.id !== productId));
   };
 
-  // --- Lógica de Total (sin cambios) ---
+  // (MODIFICADO) El total se calcula en App.jsx, pero lo necesitamos aquí para el botón
   const totalPrice = useMemo(() => {
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   }, [cart]);
@@ -135,152 +140,11 @@ const NewOrderPage = ({ onNavigate }) => {
     }).format(amount);
   };
   
-  // --- (NUEVO) Lógica de Paginación ---
-  const totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
+  // (ELIMINADO) La función generateQuotePDF se movió a OrderPreviewPage
+  // const generateQuotePDF = () => { ... };
 
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(prev => prev + 1);
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(prev => prev - 1);
-    }
-  };
-
-  // --- (NUEVO) Función para Generar PDF ---
-  const generateQuotePDF = () => {
-    // jsPDF estará disponible en 'window' gracias al script en index.html
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    
-    const clientName = "CLIENTE-001"; // Simulado
-    const companyName = "Pintureria Mercurio";
-    const date = new Date().toLocaleDateString('es-AR');
-    let yPos = 20; // Posición vertical inicial
-
-    // Título y Cabecera
-    doc.setFontSize(20);
-    doc.text("PRESUPUESTO", 105, yPos, { align: 'center' });
-    yPos += 10;
-    doc.setFontSize(12);
-    doc.text(`${companyName}`, 20, yPos);
-    doc.text(`Fecha: ${date}`, 180, yPos, { align: 'right' });
-    yPos += 7;
-    doc.text(`Cliente: ${clientName}`, 20, yPos);
-    yPos += 10;
-    
-    // Línea divisoria
-    doc.setLineWidth(0.5);
-    doc.line(20, yPos, 190, yPos);
-    yPos += 10;
-
-    // Cabecera de la tabla
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'bold');
-    doc.text("Cód.", 20, yPos);
-    doc.text("Descripción", 40, yPos);
-    doc.text("Cant.", 120, yPos, { align: 'right' });
-    doc.text("Precio Unit.", 150, yPos, { align: 'right' });
-    doc.text("Subtotal", 180, yPos, { align: 'right' });
-    doc.setFont(undefined, 'normal');
-    yPos += 7;
-
-    // Items del carrito
-    cart.forEach(item => {
-      const subtotal = item.price * item.quantity;
-      doc.text(String(item.code), 20, yPos); // Usar code
-      doc.text(doc.splitTextToSize(item.name, 70), 40, yPos); // Auto-ajuste de texto
-      doc.text(item.quantity.toString(), 120, yPos, { align: 'right' });
-      doc.text(formatCurrency(item.price), 150, yPos, { align: 'right' });
-      doc.text(formatCurrency(subtotal), 180, yPos, { align: 'right' });
-      yPos += 10; // Espacio para siguiente item
-    });
-
-    // Línea divisoria
-    doc.setLineWidth(0.5);
-    doc.line(20, yPos, 190, yPos);
-    yPos += 10;
-    
-    // Total
-    doc.setFontSize(14);
-    doc.setFont(undefined, 'bold');
-    doc.text("TOTAL:", 140, yPos);
-    doc.text(formatCurrency(totalPrice), 180, yPos, { align: 'right' });
-
-    // Guardar el PDF
-    doc.save(`presupuesto-${clientName}-${date}.pdf`);
-  };
-
-  // --- Lógica de Envío de Pedido (Actualizada) ---
-  const handleSubmitOrder = async (submissionType) => { // submissionType: 'order' | 'quote'
-    setIsSubmitting(true);
-    setSubmitStatus(null);
-    setSubmitMessage('');
-    
-    // Generar PDF si es un presupuesto
-    if (submissionType === 'quote') {
-      try {
-        generateQuotePDF();
-      } catch (pdfError) {
-        console.error("Error al generar PDF:", pdfError);
-        setSubmitStatus('error'); 
-        setSubmitMessage("Error al generar el PDF. El presupuesto se guardará de todas formas.");
-      }
-    }
-    
-    try {
-      // Preparamos solo los datos necesarios para el backend
-      const orderData = {
-        items: cart.map(item => ({ 
-          id: item.id, 
-          code: item.code, 
-          quantity: item.quantity, 
-          price: item.price 
-        })),
-        total: totalPrice,
-        clientCode: 'CLIENTE-001', // Simulado
-        type: submissionType 
-      };
-      
-      if (orderData.items.some(item => !item.code)) {
-        console.error("Error: items en el carrito no tienen 'code'", cart);
-        throw new Error("Error interno: los items del carrito no tienen código.");
-      }
-
-      const response = await fetch(`${API_URL}/api/orders`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderData),
-      });
-      
-      if (!response.ok) throw new Error('Error al enviar la solicitud.');
-      
-      const result = await response.json();
-      console.log('Solicitud exitosa:', result);
-      
-      setSubmitStatus('success');
-      setSubmitMessage(submissionType === 'order' ? '¡Pedido Enviado!' : '¡Presupuesto Generado!');
-      setCart([]); // Vaciar carrito
-      
-      setTimeout(() => {
-        onNavigate('orderHistory'); 
-        setSubmitStatus(null); 
-        setSubmitMessage('');
-      }, 3000);
-
-    } catch (err) {
-      console.error(err);
-      setSubmitStatus('error');
-      setSubmitMessage(submissionType === 'order' ? 'Error al enviar el pedido.' : 'Error al generar el presupuesto.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  // (ELIMINADO) La función handleSubmitOrder se movió a OrderPreviewPage
+  // const handleSubmitOrder = async (submissionType) => { ... };
 
   // --- (ACTUALIZADO) Renderizado de Lista de Productos ---
   const renderProductList = () => {
@@ -290,12 +154,11 @@ const NewOrderPage = ({ onNavigate }) => {
     if (productError) {
       return <div className="p-6 bg-white rounded-lg shadow-md text-center text-red-500">{productError}</div>;
     }
-    // (ACTUALIZADO) Usar 'allProducts.length'
     if (allProducts.length === 0) {
       return <div className="p-6 bg-white rounded-lg shadow-md text-center text-gray-500">No se encontraron productos.</div>;
     }
     
-    // (ACTUALIZADO) Mapear 'allProducts' directamente
+    // (CAMBIADO) Mapea sobre allProducts (que ahora es solo la página actual)
     return allProducts.map(product => (
       <div key={product.id} className="flex items-center justify-between p-4 bg-white rounded-lg shadow-md">
         <div className="flex items-center space-x-4">
@@ -346,7 +209,7 @@ const NewOrderPage = ({ onNavigate }) => {
             <div className="p-6 bg-white rounded-lg shadow-md">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
-                {/* (ACTUALIZADO) Selector de Marca usa el estado 'brands' */}
+                {/* (ACTUALIZADO) Selector de Marca usa allBrands */}
                 <div>
                   <label htmlFor="brand-select" className="block text-sm font-medium text-gray-700 mb-2">
                     Seleccionar Marca
@@ -354,20 +217,17 @@ const NewOrderPage = ({ onNavigate }) => {
                   <select
                     id="brand-select"
                     value={selectedBrand}
-                    onChange={(e) => {
-                      setSelectedBrand(e.target.value);
-                      setCurrentPage(1); // (NUEVO) Resetear página
-                    }}
+                    onChange={(e) => { setSelectedBrand(e.target.value); setCurrentPage(1); }} // (NUEVO) Resetea página
                     className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
                   >
                     <option value="">Todas las marcas</option>
-                    {brands.map((brand) => (
+                    {allBrands.map((brand) => (
                       <option key={brand} value={brand}>{brand}</option>
                     ))}
                   </select>
                 </div>
 
-                {/* Barra de Búsqueda */}
+                {/* (ACTUALIZADO) Barra de Búsqueda resetea página */}
                 <div>
                   <label htmlFor="search-product" className="block text-sm font-medium text-gray-700 mb-2">
                     Buscar Producto
@@ -377,10 +237,8 @@ const NewOrderPage = ({ onNavigate }) => {
                       id="search-product"
                       type="text"
                       value={searchTerm}
-                      onChange={(e) => {
-                        setSearchTerm(e.target.value);
-                        setCurrentPage(1); // (NUEVO) Resetear página
-                      }}
+                      // (NUEVO) Actualiza al escribir, pero el fetch se dispara por el useEffect
+                      onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                       className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
                       placeholder="Buscar por nombre, código..."
                     />
@@ -396,64 +254,52 @@ const NewOrderPage = ({ onNavigate }) => {
             <div className="space-y-4">
               {renderProductList()}
             </div>
-
+            
             {/* (NUEVO) Controles de Paginación */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-6 px-6 py-4 bg-white rounded-lg shadow-md">
+              <div className="flex justify-between items-center p-4 bg-white rounded-lg shadow-md">
                 <button
-                  onClick={handlePrevPage}
+                  onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
                   disabled={currentPage === 1 || loadingProducts}
-                  className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
                 >
-                  <ChevronLeft className="w-5 h-5 mr-1" />
+                  <ChevronLeft className="w-5 h-5 mr-2" />
                   Anterior
                 </button>
                 <span className="text-sm text-gray-700">
-                  Página <span className="font-medium">{currentPage}</span> de <span className="font-medium">{totalPages}</span>
+                  Página {currentPage} de {totalPages}
                 </span>
                 <button
-                  onClick={handleNextPage}
+                  onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
                   disabled={currentPage === totalPages || loadingProducts}
-                  className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
                 >
                   Siguiente
-                  <ChevronRight className="w-5 h-5 ml-1" />
+                  <ChevronRight className="w-5 h-5 ml-2" />
                 </button>
               </div>
             )}
           </div>
 
-          {/* --- Columna Derecha: Carrito --- */}
-          <div className="lg:col-span-1">
+          <div className="lg-col-span-1">
             {/* (MODIFICADO) Se añade flex-col y un max-h para que el sticky funcione con el scroll interno */}
             <div className="sticky top-8 bg-white rounded-lg shadow-md flex flex-col max-h-[calc(100vh-4rem)]">
               
               {/* (NUEVO) Encabezado del Carrito (no se encoge) */}
               <div className="flex-shrink-0 p-6">
-                {/* Mensajes de estado de envío */}
-                {submitStatus === 'success' && (
-                  <div className="p-4 mb-4 text-center bg-green-100 text-green-800 rounded-md">
-                  <p className="text-sm">Serás redirigido al Histórico.</p>
+                {/* (ELIMINADO) Mensajes de estado de envío */}
+                
+                {/* (INICIO DE CORRECCIÓN) - Código erróneo de 'submitStatus' eliminado */}
+                <div className="flex items-center mb-4">
+                  <ShoppingCart className="w-6 h-6 text-gray-800 mr-3" />
+                  <h2 className="text-xl font-bold text-gray-800">Resumen del Pedido</h2>
                 </div>
-              )}
-              {submitStatus === 'error' && (
-                <div className="p-4 mb-4 text-center bg-red-100 text-red-800 rounded-md">
-                  <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
-                  <p className="font-semibold">{submitMessage}</p>
-                  <p className="text-sm">Inténtalo de nuevo más tarde.</p>
-                </div>
-              )}
-
-              <div className="flex items-center mb-4">
-                <ShoppingCart className="w-6 h-6 text-gray-800 mr-3" />
-                <h2 className="text-xl font-bold text-gray-800">Resumen del Pedido</h2>
-              </div>
               </div>
               
               {/* (MODIFICADO) Lista de Items (flexible y con scroll) */}
               {/* Se quita max-h-96, se añade flex-1, overflow-y-auto y padding horizontal */}
               <div className="flex-1 divide-y divide-gray-200 overflow-y-auto px-6">
-                {cart.length === 0 && submitStatus !== 'success' && (
+                {cart.length === 0 && ( // (SIMPLIFICADO)
                   <p className="py-4 text-center text-gray-500">Tu carrito está vacío.</p>
                 )}
                 {cart.map(item => (
@@ -470,7 +316,7 @@ const NewOrderPage = ({ onNavigate }) => {
                           onChange={(e) => updateCartQuantity(item.id, parseInt(e.target.value, 10) || 0)}
                           className="w-16 px-2 py-1 border border-gray-300 rounded-md text-sm"
                           min="0"
-                          max={item.stock}
+                          // max={item.stock} // Se usa productMap ahora
                         />
                       </div>
                     </div>
@@ -493,21 +339,14 @@ const NewOrderPage = ({ onNavigate }) => {
                     <span className="text-lg font-medium text-gray-900">Total:</span>
                     <span className="text-2xl font-bold text-gray-900">{formatCurrency(totalPrice)}</span>
                   </div>
+                  {/* (MODIFICADO) Botón único para navegar a la previsualización */}
                   <button
-                    onClick={() => handleSubmitOrder('quote')}
-                    disabled={isSubmitting}
-                    className="w-full inline-flex items-center justify-center px-6 py-3 font-semibold text-white bg-blue-600 rounded-md shadow-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => onNavigate('orderPreview')} // <-- Navega a la nueva página
+                    disabled={cart.length === 0} // (SIMPLIFICADO)
+                    className="w-full inline-flex items-center justify-center px-6 py-3 font-semibold text-white bg-red-600 rounded-md shadow-sm hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <FileText className="w-4 h-4 mr-2" />
-                    {isSubmitting ? 'Generando...' : 'Generar Presupuesto'}
-                  </button>
-                  <button
-                    onClick={() => handleSubmitOrder('order')}
-                    disabled={isSubmitting}
-                    className="w-full inline-flex items-center justify-center px-6 py-3 font-semibold text-white bg-green-600 rounded-md shadow-sm hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ShoppingCart className="w-4 h-4 mr-2" />
-                    {isSubmitting ? 'Enviando...' : 'Generar Pedido de Venta'}
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Revisar Pedido
                   </button>
                 </div>
               )}
@@ -515,9 +354,14 @@ const NewOrderPage = ({ onNavigate }) => {
           </div>
 
         </div>
+
+        {/* (ELIMINADO) El modal de previsualización ya no existe aquí */}
+        
       </main>
     </div>
   );
 };
+
+// (ELIMINADO) El componente OrderPreviewModal se movió a su propio archivo
 
 export default NewOrderPage;

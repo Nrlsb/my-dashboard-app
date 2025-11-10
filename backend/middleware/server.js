@@ -237,6 +237,24 @@ const saveProtheusOrder = async (orderData, userId) => {
       );
     }
     
+    // (NUEVO) 3. Si es un pedido de venta (no un presupuesto), reflejar en la cuenta corriente
+    if (orderData.type === 'order') {
+      console.log(`Reflejando Pedido #${newOrderId} en Cta. Cte. (Débito: ${orderData.total})`);
+      
+      const movementQuery = `
+        INSERT INTO account_movements (user_id, date, description, debit, credit, order_ref)
+        VALUES ($1, CURRENT_TIMESTAMP, $2, $3, 0, $4)
+      `;
+      const movementParams = [
+        userId,
+        `Pedido de Venta #${newOrderId}`, // Descripción del movimiento
+        orderData.total, // El total del pedido va como un débito
+        newOrderId       // Referencia al pedido que lo generó
+      ];
+      
+      await client.query(movementQuery, movementParams);
+    }
+    
     await client.query('COMMIT');
     return { success: true, orderId: newOrderId };
 
