@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
-import Header from '/src/components/Header.jsx';
+// (ELIMINADO) Header ya no se importa
 import { ArrowLeft, Send } from 'lucide-react';
 
-// (NUEVO) Definimos la URL de la API
 const API_URL = 'http://localhost:3001';
 
 // --- Página de Envío de Consultas ---
-const QueriesPage = ({ onNavigate }) => {
+// (NUEVO) Acepta 'currentUser'
+const QueriesPage = ({ onNavigate, currentUser }) => {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [isSent, setIsSent] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // (NUEVO)
-  const [error, setError] = useState(null); // (NUEVO)
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   // Opciones para el selector de "Asunto"
   const querySubjects = [
@@ -24,23 +24,29 @@ const QueriesPage = ({ onNavigate }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!currentUser) {
+      setError("Error de autenticación. Por favor, inicie sesión de nuevo.");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
-      // (NUEVO) Enviar a la API
+      // (MODIFICADO) Enviar el 'userId' en el body
       const response = await fetch(`${API_URL}/api/queries`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ subject, message }),
+        body: JSON.stringify({ 
+          subject, 
+          message, 
+          userId: currentUser.id // <-- ID del usuario real
+        }),
       });
 
       if (!response.ok) throw new Error('No se pudo enviar la consulta.');
-
-      // const result = await response.json();
-      // console.log('Consulta enviada:', result);
 
       // Simulación de envío exitoso
       setIsSent(true);
@@ -63,8 +69,7 @@ const QueriesPage = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      {/* (ACTUALIZADO) Pasamos onNavigate al Header */}
-      <Header onNavigate={onNavigate} />
+      {/* (ELIMINADO) Header ya no se renderiza aquí */}
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         {/* Encabezado con Botón de Volver y Título */}
         <div className="flex items-center mb-6">
@@ -125,7 +130,7 @@ const QueriesPage = ({ onNavigate }) => {
                 />
               </div>
 
-              {/* (NUEVO) Mensaje de error */}
+              {/* Mensaje de error */}
               {error && (
                 <div className="text-sm text-red-600 text-right">
                   Error: {error}

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import Header from '../components/Header.jsx';
-import { ArrowLeft, Package, X } from 'lucide-react'; // (NUEVO) Iconos añadidos
+// (ELIMINADO) Header no se importa
+import { ArrowLeft, Package, X } from 'lucide-react';
 
-// (NUEVO) Definimos la URL de la API
 const API_URL = 'http://localhost:3001';
 
 // --- (NUEVO) Componente Modal para Detalles del Pedido ---
@@ -113,8 +112,7 @@ const OrderDetailsModal = ({ order, loading, error, onClose, formatCurrency }) =
   );
 };
 
-// (NUEVO) Función para obtener el color del estado
-// (Movida fuera del componente para que el Modal pueda usarla)
+// Función para obtener el color del estado
 const getStatusColor = (status) => {
   switch (status) {
     case 'Entregado': return 'bg-green-100 text-green-800';
@@ -126,8 +124,7 @@ const getStatusColor = (status) => {
   }
 };
 
-// (NUEVO) Función para formatear moneda
-// (Movida fuera del componente para que el Modal pueda usarla)
+// Función para formatear moneda
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
@@ -137,14 +134,12 @@ const formatCurrency = (amount) => {
 
 
 // --- Página de Histórico de Pedidos ---
-const OrderHistoryPage = ({ onNavigate }) => {
+// (NUEVO) Acepta 'currentUser'
+const OrderHistoryPage = ({ onNavigate, currentUser }) => {
   
-  // (ACTUALIZADO) Estados para datos, carga y error
   const [orderHistory, setOrderHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // (NUEVO) Estados para el modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOrderDetails, setSelectedOrderDetails] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
@@ -153,11 +148,18 @@ const OrderHistoryPage = ({ onNavigate }) => {
   // Cargar datos al montar
   useEffect(() => {
     const fetchOrders = async () => {
+      if (!currentUser) {
+        setError("No se ha podido identificar al usuario.");
+        setLoading(false);
+        return;
+      }
+      
       try {
         setLoading(true);
         setError(null);
         
-        const response = await fetch(`${API_URL}/api/orders`);
+        // (MODIFICADO) Pasamos el ID del usuario como query param
+        const response = await fetch(`${API_URL}/api/orders?userId=${currentUser.id}`);
         if (!response.ok) throw new Error('No se pudo cargar el histórico.');
         const data = await response.json();
         
@@ -170,17 +172,20 @@ const OrderHistoryPage = ({ onNavigate }) => {
     };
     
     fetchOrders();
-  }, []);
+  }, [currentUser]); // (MODIFICADO) El efecto depende de 'currentUser'
 
   // (NUEVO) Función para ver detalles del pedido
   const handleViewOrder = async (orderId) => {
+    if (!currentUser) return; // No hacer nada si no hay usuario
+
     setIsModalOpen(true);
     setModalLoading(true);
     setModalError(null);
     setSelectedOrderDetails(null);
 
     try {
-      const response = await fetch(`${API_URL}/api/orders/${orderId}`);
+      // (MODIFICADO) Pasamos el ID del usuario como query param
+      const response = await fetch(`${API_URL}/api/orders/${orderId}?userId=${currentUser.id}`);
       if (!response.ok) throw new Error('No se pudieron cargar los detalles del pedido.');
       const data = await response.json();
       setSelectedOrderDetails(data);
@@ -235,7 +240,6 @@ const OrderHistoryPage = ({ onNavigate }) => {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  {/* (ACTUALIZADO) Botón funcional */}
                   <button 
                     onClick={() => handleViewOrder(order.id)}
                     className="text-red-600 hover:text-red-900"
@@ -253,8 +257,7 @@ const OrderHistoryPage = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      {/* (ACTUALIZADO) Pasamos onNavigate al Header */}
-      <Header onNavigate={onNavigate} />
+      {/* (ELIMINADO) Header ya no se renderiza aquí */}
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         {/* Encabezado con Botón de Volver y Título */}
         <div className="flex items-center mb-6">

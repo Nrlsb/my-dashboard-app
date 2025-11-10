@@ -1,5 +1,5 @@
 import React from 'react';
-import Header from '/src/components/Header.jsx';
+// (ELIMINADO) Header ya no se importa ni se renderiza aquí
 import DashboardCard from '/src/components/DashboardCard.jsx';
 import {
   ShoppingCart,
@@ -10,12 +10,9 @@ import {
   FileText,
   HelpCircle,
   UploadCloud,
-  // User, // Ya no se usa aquí
 } from 'lucide-react';
 
 // El Contenido del Dashboard
-// Este componente (Dashboard) es específico de DashboardPage, 
-// por lo que puede quedarse aquí o moverse a components/ si se reutiliza.
 const Dashboard = ({ onNavigate }) => {
   const cards = [
     { 
@@ -23,21 +20,21 @@ const Dashboard = ({ onNavigate }) => {
       subTitle: 'Nuevo Pedido', 
       icon: ShoppingCart, 
       bgColor: 'bg-gray-700',
-      action: () => onNavigate('newOrder') // <-- Acción de navegación
+      action: () => onNavigate('new-order') // (RUTA CORREGIDA)
     },
     { 
       title: 'Historico', 
       subTitle: 'Histórico de Pedidos', 
       icon: Clock, 
       bgColor: 'bg-gray-700',
-      action: () => onNavigate('orderHistory') // <-- Acción para Histórico
+      action: () => onNavigate('order-history') // (RUTA CORREGIDA)
     },
     { 
       title: 'Precios', 
       subTitle: 'Lista de Precios', 
       icon: DollarSign, 
       bgColor: 'bg-gray-700',
-      action: () => onNavigate('priceList') // <-- Acción para Precios
+      action: () => onNavigate('price-list') // (RUTA CORREGIDA)
     },
     { 
       title: 'Ofertas', 
@@ -45,38 +42,36 @@ const Dashboard = ({ onNavigate }) => {
       icon: Gift, 
       tag: 'NUEVO', 
       bgColor: 'bg-gray-700',
-      action: () => onNavigate('offers') // <-- Acción para Ofertas
+      action: () => onNavigate('offers')
     },
     { 
       title: 'Cuenta Corriente', 
       subTitle: 'Saldo Cuenta', 
       icon: Banknote, 
       bgColor: 'bg-gray-700',
-      action: () => onNavigate('accountBalance') // <-- (MODIFICADO) Acción para Cuenta Corriente
+      action: () => onNavigate('account-balance') // (RUTA CORREGIDA)
     },
-    { title: 'Información Importante', subTitle: 'Información', icon: FileText, bgColor: 'bg-gray-700' },
+    { 
+      title: 'Información Importante', 
+      subTitle: 'Información', 
+      icon: FileText, 
+      bgColor: 'bg-gray-700',
+      action: () => {} // Sin acción por ahora
+    },
     { 
       title: 'Consultas', 
       subTitle: 'Envío de Consultas', 
       icon: HelpCircle, 
       bgColor: 'bg-gray-700',
-      action: () => onNavigate('queries') // <-- (AÑADIDO) Acción para Consultas
+      action: () => onNavigate('queries')
     },
     { 
       title: 'Cupones Tarjeta', 
       subTitle: 'Carga Comprobantes', 
       icon: UploadCloud, 
       bgColor: 'bg-gray-700',
-      action: () => onNavigate('voucherUpload') // <-- (AÑADIDO) Acción para Carga de Comprobantes
+      action: () => onNavigate('voucher-upload') // (RUTA CORREGIDA)
     },
-    // (ELIMINADO) La tarjeta de Perfil se movió al Header
-    // { 
-    //   title: 'Mi Perfil', 
-    //   subTitle: 'Mis Datos', 
-    //   icon: User, 
-    //   bgColor: 'bg-gray-700',
-    //   action: () => onNavigate('profile') 
-    // },
   ];
 
   return (
@@ -89,7 +84,7 @@ const Dashboard = ({ onNavigate }) => {
           icon={card.icon}
           tag={card.tag}
           bgColor={card.bgColor}
-          onClick={card.action} // <-- Asignamos el onClick
+          onClick={card.action} // Asignamos el onClick
         />
       ))}
     </div>
@@ -100,9 +95,9 @@ const Dashboard = ({ onNavigate }) => {
 // --- Página Principal del Dashboard ---
 const DashboardPage = ({ onNavigate }) => {
   return (
-    <div className="min-h-screen bg-gray-100 font-sans">
-      {/* (ACTUALIZADO) Pasamos onNavigate al Header */}
-      <Header onNavigate={onNavigate} />
+    // (MODIFICADO) Se quita min-h-screen y bg-gray-100 (App.jsx lo maneja)
+    <div className="font-sans">
+      {/* (ELIMINADO) Header ya no se renderiza aquí */}
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         <Dashboard onNavigate={onNavigate} />
       </main>

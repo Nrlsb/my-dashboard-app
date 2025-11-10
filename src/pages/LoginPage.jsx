@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Mail, Lock } from 'lucide-react'; // (NUEVO) Iconos
+import { Mail, Lock } from 'lucide-react';
 
-// (NUEVO) Definimos la URL de la API
 const API_URL = 'http://localhost:3001';
 
 // --- Componente de Login ---
-const LoginPage = ({ onLoginSuccess, onNavigate }) => { 
-  const [email, setEmail] = useState(''); // (ACTUALIZADO) de username a email
+// (MODIFICADO) Recibe 'onLogin' en lugar de 'onLoginSuccess'
+const LoginPage = ({ onLogin, onNavigate }) => { 
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false); 
@@ -15,38 +15,39 @@ const LoginPage = ({ onLoginSuccess, onNavigate }) => {
     e.preventDefault();
     setError('');
     
-    // Validar campos vacíos en el frontend primero
-    if (email.trim() === '' || password.trim() === '') { // (ACTUALIZADO)
-      setError('Email o contraseña no pueden estar vacíos.'); // (ACTUALIZADO)
+    if (email.trim() === '' || password.trim() === '') {
+      setError('Email o contraseña no pueden estar vacíos.');
       return;
     }
 
     setIsLoading(true); 
 
     try {
-      // (NUEVO) Llamada a la API de middleware
       const response = await fetch(`${API_URL}/api/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }), // (ACTUALIZADO)
+        body: JSON.stringify({ email, password }),
       });
+
+      // (MODIFICADO) Obtenemos la respuesta (sea error o éxito)
+      const result = await response.json();
 
       if (!response.ok) {
         // Si la respuesta no es 2xx (ej. 401 Unauthorized)
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error de autenticación');
+        throw new Error(result.message || 'Error de autenticación');
       }
 
       // Si la autenticación es exitosa
-      onLoginSuccess(); // Llama a la función del padre para cambiar el estado
+      // (MODIFICADO) Llamamos a 'onLogin' con el objeto 'user'
+      onLogin(result.user); // Pasa { id, full_name, email, ... } a App.jsx
 
     } catch (err) {
       console.error(err);
       setError(err.message);
     } finally {
-      setIsLoading(false); // (NUEVO) Terminar carga
+      setIsLoading(false);
     }
   };
 
@@ -62,7 +63,7 @@ const LoginPage = ({ onLoginSuccess, onNavigate }) => {
         
         <form className="space-y-6" onSubmit={handleSubmit}>
           
-          {/* (ACTUALIZADO) Campo de Email */}
+          {/* Campo de Email */}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">
               Email
@@ -85,7 +86,7 @@ const LoginPage = ({ onLoginSuccess, onNavigate }) => {
             </div>
           </div>
           
-          {/* (ACTUALIZADO) Campo de Contraseña */}
+          {/* Campo de Contraseña */}
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700">
               Contraseña
@@ -117,13 +118,13 @@ const LoginPage = ({ onLoginSuccess, onNavigate }) => {
           <button
             type="submit"
             className="w-full px-4 py-2 font-semibold text-white bg-red-600 rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isLoading} // (NUEVO) Deshabilitar mientras carga
+            disabled={isLoading}
           >
             {isLoading ? 'Ingresando...' : 'Ingresar'}
           </button>
         </form>
         
-        {/* (NUEVO) Enlace a Registro */}
+        {/* Enlace a Registro */}
         <div className="text-sm text-center text-gray-600">
           ¿No tienes una cuenta?{' '}
           <button

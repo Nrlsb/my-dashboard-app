@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import Header from '/src/components/Header.jsx';
+// (ELIMINADO) Header ya no se importa
 import { ArrowLeft, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Definimos la URL de la API
@@ -10,21 +10,21 @@ const PRODUCTS_PER_PAGE = 20;
 const PriceListPage = ({ onNavigate }) => {
 
   // --- Estados ---
-  const [products, setProducts] = useState([]); // (CAMBIADO) Almacena solo la página actual
-  const [brands, setBrands] = useState([]); // (NUEVO) Almacena las marcas para el filtro
+  const [products, setProducts] = useState([]); // Almacena solo la página actual
+  const [brands, setBrands] = useState([]); // Almacena las marcas para el filtro
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
   
-  // (NUEVO) Estados de Paginación
+  // Estados de Paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
 
   // --- Carga de Datos ---
 
-  // (NUEVO) Cargar marcas (solo una vez)
+  // Cargar marcas (solo una vez)
   useEffect(() => {
     const fetchBrands = async () => {
       try {
@@ -40,14 +40,14 @@ const PriceListPage = ({ onNavigate }) => {
     fetchBrands();
   }, []);
 
-  // (ACTUALIZADO) Cargar productos (se ejecuta cada vez que cambian los filtros o la página)
+  // Cargar productos (se ejecuta cada vez que cambian los filtros o la página)
   useEffect(() => {
     const fetchProducts = async () => {
       setLoading(true);
       setError(null);
       
       try {
-        // (NUEVO) Construir los parámetros de consulta para el backend
+        // Construir los parámetros de consulta para el backend
         const params = new URLSearchParams({
           page: currentPage,
           limit: PRODUCTS_PER_PAGE,
@@ -55,13 +55,13 @@ const PriceListPage = ({ onNavigate }) => {
           brand: selectedBrand,
         });
 
-        // (ACTUALIZADO) Hacer la solicitud con los parámetros
+        // Hacer la solicitud con los parámetros
         const response = await fetch(`${API_URL}/api/products?${params.toString()}`);
         if (!response.ok) throw new Error('No se pudo cargar la lista de precios.');
         
         const data = await response.json(); // data ahora es { products: [...], totalProducts: X }
 
-        // (CORREGIDO) Seteamos los productos y el total
+        // Seteamos los productos y el total
         setProducts(data.products);
         setTotalProducts(data.totalProducts);
 
@@ -75,10 +75,7 @@ const PriceListPage = ({ onNavigate }) => {
     };
     
     fetchProducts();
-  }, [currentPage, searchTerm, selectedBrand]); // (ACTUALIZADO) Dependencias del useEffect
-
-  // (ELIMINADO) El useMemo para filteredProducts ya no es necesario.
-  // (ELIMINADO) El useMemo para brands ya no es necesario.
+  }, [currentPage, searchTerm, selectedBrand]); // Dependencias del useEffect
 
   // --- Lógica de Paginación ---
   const totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
@@ -113,7 +110,6 @@ const PriceListPage = ({ onNavigate }) => {
       return <div className="p-6 text-center text-red-600">{error}</div>;
     }
     
-    // (ACTUALIZADO) Comprobar 'products.length' en lugar de 'filteredProducts.length'
     if (products.length === 0) {
        return <div className="p-6 text-center text-gray-600">No se encontraron productos.</div>;
     }
@@ -138,7 +134,6 @@ const PriceListPage = ({ onNavigate }) => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {/* (ACTUALIZADO) Mapear 'products' directamente */}
             {products.map((product) => (
               <tr key={product.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.code}</td>
@@ -155,7 +150,7 @@ const PriceListPage = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      <Header onNavigate={onNavigate} />
+      {/* (ELIMINADO) Header ya no se renderiza aquí */}
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         {/* Encabezado con Botón de Volver y Título */}
         <div className="flex items-center mb-6">
@@ -173,7 +168,7 @@ const PriceListPage = ({ onNavigate }) => {
         <div className="p-6 bg-white rounded-lg shadow-md mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            {/* (ACTUALIZADO) Selector de Marca usa el estado 'brands' */}
+            {/* Selector de Marca */}
             <div>
               <label htmlFor="brand-select" className="block text-sm font-medium text-gray-700 mb-2">
                 Filtrar por Marca
@@ -184,11 +179,10 @@ const PriceListPage = ({ onNavigate }) => {
                 value={selectedBrand}
                 onChange={(e) => {
                   setSelectedBrand(e.target.value);
-                  setCurrentPage(1); // (NUEVO) Resetear a página 1 al cambiar filtro
+                  setCurrentPage(1); // Resetear a página 1 al cambiar filtro
                 }}
               >
                 <option value="">Todas las marcas</option>
-                {/* (ACTUALIZADO) Mapear estado 'brands' */}
                 {brands.map((brand) => (
                   <option key={brand} value={brand}>{brand}</option>
                 ))}
@@ -210,7 +204,7 @@ const PriceListPage = ({ onNavigate }) => {
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
-                    setCurrentPage(1); // (NUEVO) Resetear a página 1 al cambiar filtro
+                    setCurrentPage(1); // Resetear a página 1 al cambiar filtro
                   }}
                 />
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -226,7 +220,7 @@ const PriceListPage = ({ onNavigate }) => {
           {renderContent()}
         </div>
 
-        {/* (NUEVO) Controles de Paginación */}
+        {/* Controles de Paginación */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between mt-6 px-6 py-4 bg-white rounded-lg shadow-md">
             <button

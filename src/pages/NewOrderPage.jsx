@@ -1,21 +1,19 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import Header from '../components/Header.jsx';
-// (MODIFICADO) Se quita el icono X
-import { ArrowLeft, Search, ShoppingCart, Trash2, Package, CheckCircle, AlertTriangle, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+// (NUEVO) Importamos el hook useCart
+import { useCart } from '../context/CartContext.jsx';
+import { ArrowLeft, Search, ShoppingCart, Trash2, Package, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 
-// (NUEVO) Definimos la URL de la API
 const API_URL = 'http://localhost:3001';
-
-const PRODUCTS_PER_PAGE = 20; // (NUEVO) Paginación
+const PRODUCTS_PER_PAGE = 20;
 
 // --- Página de Nuevo Pedido ---
-// (MODIFICADO) Recibe cart y setCart como props
-const NewOrderPage = ({ onNavigate, cart, setCart }) => {
+// (MODIFICADO) Ya no recibe props del carrito, sí recibe 'currentUser'
+const NewOrderPage = ({ onNavigate, currentUser }) => {
   // --- Estados ---
-  const [allProducts, setAllProducts] = useState([]); // (CAMBIADO) Almacena solo la página actual
-  const [productMap, setProductMap] = useState(new Map()); // (NUEVO) Mapa para lookup rápido
-  const [totalProducts, setTotalProducts] = useState(0); // (NUEVO)
-  const [allBrands, setAllBrands] = useState([]); // (NUEVO)
+  const [allProducts, setAllProducts] = useState([]); // Almacena solo la página actual
+  const [productMap, setProductMap] = useState(new Map()); // Mapa para lookup rápido
+  const [totalProducts, setTotalProducts] = useState(0); // 
+  const [allBrands, setAllBrands] = useState([]); // 
   
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [productError, setProductError] = useState(null);
@@ -23,17 +21,14 @@ const NewOrderPage = ({ onNavigate, cart, setCart }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
   
-  // (ELIMINADO) Estados de submitting y modal, se mueven a la página de previsualización
-  // const [isSubmitting, setIsSubmitting] = useState(false);
-  // const [submitStatus, setSubmitStatus] = useState(null); 
-  // const [submitMessage, setSubmitMessage] = useState(''); 
-  // const [showPreviewModal, setShowPreviewModal] = useState(false);
-
-  // (NUEVO) Estados de Paginación
+  // (NUEVO) Obtenemos el carrito y sus funciones del Contexto
+  const { cart, addToCart, updateQuantity, removeFromCart } = useCart();
+  
+  // Estados de Paginación
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
 
-  // --- (NUEVO) Carga de Marcas (solo una vez) ---
+  // --- Carga de Marcas (solo una vez) ---
   useEffect(() => {
     const fetchBrands = async () => {
       try {
@@ -47,9 +42,9 @@ const NewOrderPage = ({ onNavigate, cart, setCart }) => {
       }
     };
     fetchBrands();
-  }, []);
+  }, []); // Array vacío, se ejecuta al montar
 
-  // --- (ACTUALIZADO) Carga de Productos (paginada) ---
+  // --- Carga de Productos (paginada) ---
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -72,7 +67,7 @@ const NewOrderPage = ({ onNavigate, cart, setCart }) => {
         setAllProducts(data.products); // Almacena solo los productos de la página actual
         setTotalProducts(data.totalProducts); // Almacena el conteo total
         
-        // (NUEVO) Actualizar el mapa de productos para el carrito
+        // Actualizar el mapa de productos para el carrito
         setProductMap(prevMap => {
           const newMap = new Map(prevMap);
           data.products.forEach(p => newMap.set(p.id, p));
@@ -86,48 +81,25 @@ const NewOrderPage = ({ onNavigate, cart, setCart }) => {
       }
     };
     fetchProducts();
-  }, [currentPage, searchTerm, selectedBrand]); // (ACTUALIZADO) Dependencias del useEffect
+  }, [currentPage, searchTerm, selectedBrand]); // Dependencias del useEffect
 
-  // (ELIMINADO) El useMemo para filteredProducts ya no es necesario.
-  // (ELIMINADO) El useMemo para brands ya no es necesario.
-
-  // --- Lógica de Carrito (sin cambios) ---
-  const addToCart = (product) => {
-    setCart(prevCart => {
-      const existingItem = prevCart.find(item => item.id === product.id);
-      if (existingItem) {
-        return prevCart.map(item =>
-          item.id === product.id
-            // (CORREGIDO) Usar stock del producto original, no del item del carrito
-            ? { ...item, quantity: Math.min(item.quantity + 1, product.stock) }
-            : item
-        );
-      } else {
-        return [...prevCart, { ...product, quantity: 1 }];
-      }
-    });
+  
+  // --- Lógica de Carrito (usa funciones del Contexto) ---
+  
+  // Esta función es solo para el input numérico
+  const handleQuantityChange = (productId, quantityStr) => {
+    const quantity = parseInt(quantityStr, 10);
+    // Llama a la función del contexto
+    updateQuantity(productId, isNaN(quantity) ? 0 : quantity); 
+  };
+  
+  // Esta función es para el botón "Añadir"
+  const handleAddToCartClick = (product) => {
+    // Llama a la función del contexto
+    addToCart(product, 1); // Añade 1 por defecto
   };
 
-  const updateCartQuantity = (productId, quantity) => {
-    // (CORREGIDO) Buscar el stock del producto en el productMap
-    const productStock = productMap.get(productId)?.stock || 999; // Fallback
-    const newQuantity = Math.max(0, Math.min(quantity, productStock)); 
-
-    setCart(prevCart => {
-      if (newQuantity === 0) {
-        return prevCart.filter(item => item.id !== productId);
-      }
-      return prevCart.map(item =>
-        item.id === productId ? { ...item, quantity: newQuantity } : item
-      );
-    });
-  };
-
-  const removeFromCart = (productId) => {
-    setCart(prevCart => prevCart.filter(item => item.id !== productId));
-  };
-
-  // (MODIFICADO) El total se calcula en App.jsx, pero lo necesitamos aquí para el botón
+  // El totalPrice ahora lee del 'cart' del contexto
   const totalPrice = useMemo(() => {
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   }, [cart]);
@@ -140,13 +112,8 @@ const NewOrderPage = ({ onNavigate, cart, setCart }) => {
     }).format(amount);
   };
   
-  // (ELIMINADO) La función generateQuotePDF se movió a OrderPreviewPage
-  // const generateQuotePDF = () => { ... };
 
-  // (ELIMINADO) La función handleSubmitOrder se movió a OrderPreviewPage
-  // const handleSubmitOrder = async (submissionType) => { ... };
-
-  // --- (ACTUALIZADO) Renderizado de Lista de Productos ---
+  // --- Renderizado de Lista de Productos ---
   const renderProductList = () => {
     if (loadingProducts) {
       return <div className="p-6 bg-white rounded-lg shadow-md text-center text-gray-500">Cargando productos...</div>;
@@ -158,7 +125,6 @@ const NewOrderPage = ({ onNavigate, cart, setCart }) => {
       return <div className="p-6 bg-white rounded-lg shadow-md text-center text-gray-500">No se encontraron productos.</div>;
     }
     
-    // (CAMBIADO) Mapea sobre allProducts (que ahora es solo la página actual)
     return allProducts.map(product => (
       <div key={product.id} className="flex items-center justify-between p-4 bg-white rounded-lg shadow-md">
         <div className="flex items-center space-x-4">
@@ -174,7 +140,7 @@ const NewOrderPage = ({ onNavigate, cart, setCart }) => {
         <div className="text-right">
           <p className="text-lg font-bold text-gray-800">{formatCurrency(product.price)}</p>
           <button
-            onClick={() => addToCart(product)}
+            onClick={() => handleAddToCartClick(product)} // (MODIFICADO)
             className="mt-2 px-4 py-1 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
           >
             Añadir
@@ -186,7 +152,7 @@ const NewOrderPage = ({ onNavigate, cart, setCart }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      <Header onNavigate={onNavigate} />
+      {/* (ELIMINADO) Header ya no se renderiza aquí */}
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         {/* Encabezado con Botón de Volver y Título */}
         <div className="flex items-center mb-6">
@@ -209,7 +175,6 @@ const NewOrderPage = ({ onNavigate, cart, setCart }) => {
             <div className="p-6 bg-white rounded-lg shadow-md">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
-                {/* (ACTUALIZADO) Selector de Marca usa allBrands */}
                 <div>
                   <label htmlFor="brand-select" className="block text-sm font-medium text-gray-700 mb-2">
                     Seleccionar Marca
@@ -217,7 +182,7 @@ const NewOrderPage = ({ onNavigate, cart, setCart }) => {
                   <select
                     id="brand-select"
                     value={selectedBrand}
-                    onChange={(e) => { setSelectedBrand(e.target.value); setCurrentPage(1); }} // (NUEVO) Resetea página
+                    onChange={(e) => { setSelectedBrand(e.target.value); setCurrentPage(1); }}
                     className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
                   >
                     <option value="">Todas las marcas</option>
@@ -227,7 +192,6 @@ const NewOrderPage = ({ onNavigate, cart, setCart }) => {
                   </select>
                 </div>
 
-                {/* (ACTUALIZADO) Barra de Búsqueda resetea página */}
                 <div>
                   <label htmlFor="search-product" className="block text-sm font-medium text-gray-700 mb-2">
                     Buscar Producto
@@ -237,7 +201,6 @@ const NewOrderPage = ({ onNavigate, cart, setCart }) => {
                       id="search-product"
                       type="text"
                       value={searchTerm}
-                      // (NUEVO) Actualiza al escribir, pero el fetch se dispara por el useEffect
                       onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                       className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
                       placeholder="Buscar por nombre, código..."
@@ -255,7 +218,7 @@ const NewOrderPage = ({ onNavigate, cart, setCart }) => {
               {renderProductList()}
             </div>
             
-            {/* (NUEVO) Controles de Paginación */}
+            {/* Controles de Paginación */}
             {totalPages > 1 && (
               <div className="flex justify-between items-center p-4 bg-white rounded-lg shadow-md">
                 <button
@@ -281,25 +244,20 @@ const NewOrderPage = ({ onNavigate, cart, setCart }) => {
             )}
           </div>
 
+          {/* --- Columna Derecha: Carrito Sticky --- */}
           <div className="lg-col-span-1">
-            {/* (MODIFICADO) Se añade flex-col y un max-h para que el sticky funcione con el scroll interno */}
             <div className="sticky top-8 bg-white rounded-lg shadow-md flex flex-col max-h-[calc(100vh-4rem)]">
               
-              {/* (NUEVO) Encabezado del Carrito (no se encoge) */}
               <div className="flex-shrink-0 p-6">
-                {/* (ELIMINADO) Mensajes de estado de envío */}
-                
-                {/* (INICIO DE CORRECCIÓN) - Código erróneo de 'submitStatus' eliminado */}
                 <div className="flex items-center mb-4">
                   <ShoppingCart className="w-6 h-6 text-gray-800 mr-3" />
                   <h2 className="text-xl font-bold text-gray-800">Resumen del Pedido</h2>
                 </div>
               </div>
               
-              {/* (MODIFICADO) Lista de Items (flexible y con scroll) */}
-              {/* Se quita max-h-96, se añade flex-1, overflow-y-auto y padding horizontal */}
+              {/* Lista de Items (del contexto) */}
               <div className="flex-1 divide-y divide-gray-200 overflow-y-auto px-6">
-                {cart.length === 0 && ( // (SIMPLIFICADO)
+                {cart.length === 0 && (
                   <p className="py-4 text-center text-gray-500">Tu carrito está vacío.</p>
                 )}
                 {cart.map(item => (
@@ -313,15 +271,15 @@ const NewOrderPage = ({ onNavigate, cart, setCart }) => {
                           id={`qty-${item.id}`}
                           type="number"
                           value={item.quantity}
-                          onChange={(e) => updateCartQuantity(item.id, parseInt(e.target.value, 10) || 0)}
+                          onChange={(e) => handleQuantityChange(item.id, e.target.value)} // (MODIFICADO)
                           className="w-16 px-2 py-1 border border-gray-300 rounded-md text-sm"
                           min="0"
-                          // max={item.stock} // Se usa productMap ahora
+                          max={item.stock} // Usamos el stock del item (que vino del producto)
                         />
                       </div>
                     </div>
                     <button
-                      onClick={() => removeFromCart(item.id)}
+                      onClick={() => removeFromCart(item.id)} // (MODIFICADO)
                       className="p-1 text-gray-400 hover:text-red-600"
                       aria-label="Quitar item"
                     >
@@ -331,18 +289,17 @@ const NewOrderPage = ({ onNavigate, cart, setCart }) => {
                 ))}
               </div>
 
-              {/* (MODIFICADO) Pie del Carrito (Total y Botones) (no se encoge) */}
-              {/* Se quita mt-6 y pt-6, se añade flex-shrink-0 y p-6 */}
+              {/* Pie del Carrito */}
               {cart.length > 0 && (
                 <div className="flex-shrink-0 p-6 border-t border-gray-200 space-y-3">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-lg font-medium text-gray-900">Total:</span>
                     <span className="text-2xl font-bold text-gray-900">{formatCurrency(totalPrice)}</span>
                   </div>
-                  {/* (MODIFICADO) Botón único para navegar a la previsualización */}
+                  {/* (MODIFICADO) Botón navega a 'order-preview' */}
                   <button
-                    onClick={() => onNavigate('orderPreview')} // <-- Navega a la nueva página
-                    disabled={cart.length === 0} // (SIMPLIFICADO)
+                    onClick={() => onNavigate('order-preview')} 
+                    disabled={cart.length === 0}
                     className="w-full inline-flex items-center justify-center px-6 py-3 font-semibold text-white bg-red-600 rounded-md shadow-sm hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />
@@ -353,15 +310,10 @@ const NewOrderPage = ({ onNavigate, cart, setCart }) => {
             </div>
           </div>
 
-        </div>
-
-        {/* (ELIMINADO) El modal de previsualización ya no existe aquí */}
-        
+        </div>        
       </main>
     </div>
   );
 };
-
-// (ELIMINADO) El componente OrderPreviewModal se movió a su propio archivo
 
 export default NewOrderPage;

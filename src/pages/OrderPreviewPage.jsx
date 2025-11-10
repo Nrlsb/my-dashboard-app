@@ -1,19 +1,29 @@
-import React, { useState } from 'react';
-import Header from '../components/Header.jsx';
-import { ArrowLeft, ShoppingCart, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+// (NUEVO) Importamos el hook useCart
+import { useCart } from '../context/CartContext.jsx';
+// (ELIMINADO) Header no se importa
+import { ArrowLeft, ShoppingCart, FileText, CheckCircle, AlertTriangle, Package, X } from 'lucide-react';
 
-// URL de la API
 const API_URL = 'http://localhost:3001';
 
 /**
  * Página de Previsualización y Confirmación del Pedido.
- * Esta página recibe el carrito y la lógica de envío desde App.jsx.
+ * (MODIFICADO) Acepta 'currentUser' y 'onCompleteOrder'
  */
-const OrderPreviewPage = ({ onNavigate, cart, setCart, totalPrice }) => {
+const OrderPreviewPage = ({ onNavigate, onCompleteOrder, currentUser }) => {
+  
+  // (NUEVO) Obtenemos el carrito y funciones del contexto
+  const { cart, clearCart } = useCart();
+  
   // Estados para manejar el envío
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   const [submitMessage, setSubmitMessage] = useState('');
+
+  // (NUEVO) Calculamos el total aquí, leyendo del contexto
+  const totalPrice = useMemo(() => {
+    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  }, [cart]);
 
   // Formateador de moneda
   const formatCurrency = (amount) => {
@@ -23,11 +33,11 @@ const OrderPreviewPage = ({ onNavigate, cart, setCart, totalPrice }) => {
     }).format(amount);
   };
 
-  // Copiada de NewOrderPage: Lógica para Generar PDF
+  // Lógica para Generar PDF (usa 'cart' y 'totalPrice' de este scope)
   const generateQuotePDF = () => {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    const clientName = "CLIENTE-001"; // Simulado
+    const clientName = currentUser?.full_name || "CLIENTE-001"; // Simulado
     const companyName = "Pintureria Mercurio";
     const date = new Date().toLocaleDateString('es-AR');
     let yPos = 20;
@@ -63,14 +73,12 @@ const OrderPreviewPage = ({ onNavigate, cart, setCart, totalPrice }) => {
       doc.text(formatCurrency(item.price), 150, yPos, { align: 'right' });
       doc.text(formatCurrency(subtotal), 180, yPos, { align: 'right' });
       
-      // Ajustar yPos si el nombre del producto ocupa múltiples líneas
-      const itemHeight = doc.splitTextToSize(item.name, 70).length * 5; // 5 es un alto de línea aproximado
-      yPos += Math.max(10, itemHeight); // Usar al menos 10 o más si el texto es largo
+      const itemHeight = doc.splitTextToSize(item.name, 70).length * 5;
+      yPos += Math.max(10, itemHeight); 
       
-      // Añadir salto de página si es necesario
       if (yPos > 270) {
         doc.addPage();
-        yPos = 20; // Resetear posición en la nueva página
+        yPos = 20; 
       }
     });
 
@@ -86,8 +94,13 @@ const OrderPreviewPage = ({ onNavigate, cart, setCart, totalPrice }) => {
     doc.save(`presupuesto-${clientName}-${date}.pdf`);
   };
 
-  // Copiada de NewOrderPage: Lógica de Envío de Pedido
+  // Lógica de Envío de Pedido (CORREGIDA)
   const handleSubmitOrder = async (submissionType) => {
+    if (!currentUser) {
+      setError("Error de autenticación. Por favor, inicie sesión de nuevo.");
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitStatus(null);
     setSubmitMessage('');
@@ -111,8 +124,9 @@ const OrderPreviewPage = ({ onNavigate, cart, setCart, totalPrice }) => {
           price: item.price 
         })),
         total: totalPrice,
-        clientCode: 'CLIENTE-001', 
-        type: submissionType 
+        clientCode: currentUser?.a1_cod || 'CLIENTE-001', // (MODIFICADO) Usa el código real
+        type: submissionType,
+        userId: currentUser.id // (MODIFICADO) Envía el userId
       };
       
       if (orderData.items.some(item => !item.code)) {
@@ -132,10 +146,11 @@ const OrderPreviewPage = ({ onNavigate, cart, setCart, totalPrice }) => {
       
       setSubmitStatus('success');
       setSubmitMessage(submissionType === 'order' ? '¡Pedido Enviado!' : '¡Presupuesto Generado!');
-      setCart([]); // Limpiar el carrito (estado de App.jsx)
       
+      // (MODIFICADO) Usamos la función 'onCompleteOrder' de App.jsx
+      // que se encarga de limpiar el carrito y navegar.
       setTimeout(() => {
-        onNavigate('orderHistory'); 
+        onCompleteOrder(); 
         setSubmitStatus(null); 
         setSubmitMessage('');
       }, 3000);
@@ -149,18 +164,16 @@ const OrderPreviewPage = ({ onNavigate, cart, setCart, totalPrice }) => {
     }
   };
 
-  // Calculamos el total de items para mostrar en el resumen
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      <Header onNavigate={onNavigate} />
+      {/* (ELIMINADO) Header ya no se renderiza aquí */}
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         
-        {/* Encabezado con Botón de Volver y Título */}
         <div className="flex items-center mb-6">
           <button
-            onClick={() => onNavigate('newOrder')} // Vuelve a la página de nuevo pedido
+            onClick={() => onNavigate('new-order')} // (RUTA CORREGIDA)
             className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
             aria-label="Volver a editar pedido"
           >
@@ -169,33 +182,30 @@ const OrderPreviewPage = ({ onNavigate, cart, setCart, totalPrice }) => {
           <h1 className="text-2xl font-bold text-gray-800">Previsualización del Pedido</h1>
         </div>
 
-        {/* Contenido de la página */}
         <div className="bg-white rounded-lg shadow-md max-w-2xl mx-auto">
           
-          {/* Mensajes de Estado (Éxito o Error) */}
+          {/* Mensajes de Estado */}
           {submitStatus === 'success' && (
-            <div className="p-6 text-center bg-green-100 text-green-800">
+            <div className="p-6 text-center bg-green-100 text-green-800 rounded-t-lg">
               <CheckCircle className="w-12 h-12 mx-auto mb-3" />
               <p className="font-semibold text-lg">{submitMessage}</p>
               <p className="text-sm">Serás redirigido al Histórico.</p>
             </div>
           )}
           {submitStatus === 'error' && (
-            <div className="p-6 text-center bg-red-100 text-red-800">
+            <div className="p-6 text-center bg-red-100 text-red-800 rounded-t-lg">
               <AlertTriangle className="w-12 h-12 mx-auto mb-3" />
               <p className="font-semibold text-lg">{submitMessage}</p>
               <p className="text-sm">Inténtalo de nuevo más tarde.</p>
             </div>
           )}
 
-          {/* Mostrar el resumen solo si el pedido NO ha sido enviado */}
+          {/* Resumen del Pedido (se oculta si ya se envió) */}
           {submitStatus !== 'success' && (
             <>
-              {/* Resumen del Pedido con detalle */}
               <div className="p-6 space-y-4">
                 <p className="text-lg text-gray-700">Por favor, revisa tu pedido antes de confirmar.</p>
 
-                {/* Lista de productos en el modal */}
                 <div className="border border-gray-200 rounded-lg max-h-80 overflow-y-auto divide-y divide-gray-200">
                   {cart.length === 0 ? (
                       <p className="p-4 text-center text-gray-500">Tu carrito está vacío.</p>
@@ -231,9 +241,9 @@ const OrderPreviewPage = ({ onNavigate, cart, setCart, totalPrice }) => {
                 )}
               </div>
               
-              {/* Acciones Finales (Botones de Confirmación) */}
+              {/* Acciones Finales (Botones) */}
               {cart.length > 0 && (
-                <div className="p-6 bg-gray-50 border-t border-gray-200 space-y-3">
+                <div className="p-6 bg-gray-50 border-t border-gray-200 space-y-3 rounded-b-lg">
                   <button
                     onClick={() => handleSubmitOrder('quote')}
                     disabled={isSubmitting}

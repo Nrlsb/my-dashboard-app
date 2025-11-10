@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import Header from '../components/Header.jsx';
+// (ELIMINADO) Header ya no se importa
 import { ArrowLeft, User, Save, AlertTriangle, CheckCircle } from 'lucide-react';
 
 const API_URL = 'http://localhost:3001';
 
 // --- Componentes de Formulario Reutilizables ---
-// (Copiados de RegisterPage para mantener este archivo independiente)
 const FormInput = ({ label, id, value, onChange, required = false, disabled = false, type = "text", placeholder = "" }) => (
   <div>
     <label htmlFor={id} className="block text-sm font-medium text-gray-700">
@@ -45,8 +44,8 @@ const FormSelect = ({ label, id, value, onChange, required = false, disabled = f
 
 
 // --- Página de Perfil ---
-const ProfilePage = ({ onNavigate }) => {
-  // (ACTUALIZADO) Estado usa las claves de Protheus (A1_...)
+// (NUEVO) Acepta 'currentUser'
+const ProfilePage = ({ onNavigate, currentUser }) => {
   const [formData, setFormData] = useState({
     A1_COD: '',
     A1_LOJA: '',
@@ -75,13 +74,21 @@ const ProfilePage = ({ onNavigate }) => {
   // --- Cargar Datos del Perfil ---
   useEffect(() => {
     const fetchProfile = async () => {
+      if (!currentUser) {
+        setError("No se ha podido identificar al usuario.");
+        setIsLoading(false);
+        return;
+      }
+      
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${API_URL}/api/profile`);
+        // (MODIFICADO) Pasamos el ID del usuario como query param
+        const response = await fetch(`${API_URL}/api/profile?userId=${currentUser.id}`);
         if (!response.ok) throw new Error('No se pudieron cargar los datos del perfil.');
         const data = await response.json();
-        setFormData(data); // El backend ahora devuelve las claves A1_...
+        // (MODIFICADO) Combinamos datos de la BD con el email de login (que está en currentUser)
+        setFormData({ ...data, username: currentUser.email });
       } catch (err) {
         setError(err.message);
       } finally {
@@ -89,7 +96,7 @@ const ProfilePage = ({ onNavigate }) => {
       }
     };
     fetchProfile();
-  }, []);
+  }, [currentUser]); // (MODIFICADO) El efecto depende de 'currentUser'
 
   // --- Manejador de Cambios en Formulario ---
   const handleChange = (e) => {
@@ -100,17 +107,23 @@ const ProfilePage = ({ onNavigate }) => {
   // --- Enviar Actualización ---
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!currentUser) {
+      setError("Error de autenticación. Por favor, inicie sesión de nuevo.");
+      return;
+    }
+
     setIsSaving(true);
     setError(null);
     setSuccess(null);
 
     try {
-      const response = await fetch(`${API_URL}/api/profile`, {
+      // (MODIFICADO) Pasamos el ID del usuario como query param
+      const response = await fetch(`${API_URL}/api/profile?userId=${currentUser.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData), // (ACTUALIZADO) Envía A1_NOME, A1_COD, etc.
+        body: JSON.stringify(formData), 
       });
 
       const data = await response.json();
@@ -130,8 +143,6 @@ const ProfilePage = ({ onNavigate }) => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-100 font-sans">
-        {/* (ACTUALIZADO) Pasamos onNavigate al Header */}
-        <Header onNavigate={onNavigate} />
         <main className="p-4 md:p-8 max-w-7xl mx-auto text-center">
           <p className="text-gray-600">Cargando perfil...</p>
         </main>
@@ -141,8 +152,7 @@ const ProfilePage = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      {/* (ACTUALIZADO) Pasamos onNavigate al Header */}
-      <Header onNavigate={onNavigate} />
+      {/* (ELIMINADO) Header ya no se renderiza aquí */}
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         {/* Encabezado con Botón de Volver y Título */}
         <div className="flex items-center mb-6">
@@ -164,7 +174,6 @@ const ProfilePage = ({ onNavigate }) => {
           <form className="space-y-6" onSubmit={handleSubmit}>
             
             {/* --- GRILLA DE DATOS DEL CLIENTE --- */}
-            {/* (ACTUALIZADO) 'id' y 'value' usan claves A1_... 'label' incluye el * */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               
               {/* Columna 1 */}

@@ -1,22 +1,22 @@
 import React, { useState, useRef } from 'react';
-import Header from '/src/components/Header.jsx';
+// (ELIMINADO) Header ya no se importa
 import { ArrowLeft, UploadCloud, File as FileIcon, CheckCircle, AlertTriangle } from 'lucide-react';
 
-// (NUEVO) Definimos la URL de la API
 const API_URL = 'http://localhost:3001';
 
 // --- Página de Carga de Comprobantes ---
-const VoucherUploadPage = ({ onNavigate }) => {
+// (NUEVO) Acepta 'currentUser'
+const VoucherUploadPage = ({ onNavigate, currentUser }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploaded, setIsUploaded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // (NUEVO)
-  const [error, setError] = useState(null); // (NUEVO)
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
 
   const handleFileChange = (files) => {
     if (files && files[0]) {
-      // Validar tipo de archivo (opcional pero recomendado)
+      // Validar tipo de archivo
       const file = files[0];
       if (file.type === "image/png" || file.type === "image/jpeg" || file.type === "application/pdf") {
         setSelectedFile(file);
@@ -28,7 +28,6 @@ const VoucherUploadPage = ({ onNavigate }) => {
     }
   };
 
-  // ... (manejadores de drag and drop sin cambios) ...
   const handleDragOver = (e) => {
     e.preventDefault();
     setIsDragging(true);
@@ -56,14 +55,19 @@ const VoucherUploadPage = ({ onNavigate }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedFile) return;
+    if (!selectedFile || !currentUser) {
+      if (!currentUser) setError("Error de autenticación.");
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
 
-    // (NUEVO) Usamos FormData para enviar archivos
+    // Usamos FormData para enviar archivos
     const formData = new FormData();
     formData.append('voucherFile', selectedFile); // 'voucherFile' debe coincidir con upload.single() en server.js
+    // (MODIFICADO) Añadimos el userId al FormData
+    formData.append('userId', currentUser.id);
 
     try {
       const response = await fetch(`${API_URL}/api/upload-voucher`, {
@@ -72,9 +76,6 @@ const VoucherUploadPage = ({ onNavigate }) => {
       });
 
       if (!response.ok) throw new Error('Error al subir el archivo.');
-
-      // const result = await response.json();
-      // console.log('Archivo subido:', result);
 
       // Simulación de subida exitosa
       setIsUploaded(true);
@@ -95,8 +96,7 @@ const VoucherUploadPage = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      {/* (ACTUALIZADO) Pasamos onNavigate al Header */}
-      <Header onNavigate={onNavigate} />
+      {/* (ELIMINADO) Header ya no se renderiza aquí */}
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         {/* Encabezado con Botón de Volver y Título */}
         <div className="flex items-center mb-6">
@@ -172,7 +172,7 @@ const VoucherUploadPage = ({ onNavigate }) => {
                 </div>
               )}
               
-              {/* (NUEVO) Mensaje de error */}
+              {/* Mensaje de error */}
               {error && (
                 <div className="flex items-center p-3 bg-red-100 text-red-700 rounded-md">
                   <AlertTriangle className="w-5 h-5 mr-2 flex-shrink-0" />

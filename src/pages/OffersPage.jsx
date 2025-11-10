@@ -1,19 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import Header from '../components/Header.jsx';
+// (ELIMINADO) Header ya no se importa
 import { ArrowLeft } from 'lucide-react';
 
-// (NUEVO) Definimos la URL de la API
 const API_URL = 'http://localhost:3001';
 
 // --- Página de Ofertas ---
 const OffersPage = ({ onNavigate }) => {
 
-  // (NUEVO) Estados
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // (NUEVO) Cargar datos al montar
+  // Cargar datos al montar
   useEffect(() => {
     const fetchOffers = async () => {
       try {
@@ -35,7 +33,7 @@ const OffersPage = ({ onNavigate }) => {
     fetchOffers();
   }, []);
 
-  // (NUEVO) Renderizado condicional
+  // Renderizado condicional
   const renderContent = () => {
     if (loading) {
       return (
@@ -93,8 +91,7 @@ const OffersPage = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      {/* (ACTUALIZADO) Pasamos onNavigate al Header */}
-      <Header onNavigate={onNavigate} />
+      {/* (ELIMINADO) Header ya no se renderiza aquí */}
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         {/* Encabezado con Botón de Volver y Título */}
         <div className="flex items-center mb-6">

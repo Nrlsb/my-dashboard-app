@@ -1,24 +1,38 @@
 const express = require('express');
 const router = express.Router();
-const { upload } = require('./middleware/upload'); // (NUEVO) Importar config de Multer
-const controllers = require('./controllers'); // (NUEVO) Importar todos los controladores
+const { upload } = require('./middleware/upload'); // Importar config de Multer
+const controllers = require('./controllers'); // Importar todos los controladores
 
-// NOTA: En una app real, el userId vendría de un Token (JWT)
-// Por ahora, simulamos que es el 'user_id = 1'
-const MOCK_USER_ID = 1;
+// (NUEVO) Middleware simple para verificar userId
+// El frontend ahora debe enviar 'userId' en todas las peticiones protegidas
+const requireUserId = (req, res, next) => {
+  // Buscamos el userId en query params (para GET) o en el body (para POST/PUT)
+  const userId = req.query.userId || req.body.userId;
+  
+  if (!userId) {
+    // Si no hay userId, devolvemos un error de "Bad Request"
+    return res.status(400).json({ message: 'Falta el ID de usuario (userId).' });
+  }
+  
+  // Si existe, lo adjuntamos a 'req' para que los controladores lo usen
+  req.userId = userId;
+  next(); // Continúa a la siguiente función (el controlador)
+};
 
 // =================================================================
 // --- ENDPOINTS DE TU API ---
 // =================================================================
 
 // --- Autenticación ---
+// Estas rutas no usan 'requireUserId' porque el usuario aún no está logueado
 router.post('/login', async (req, res) => {
   console.log('POST /api/login -> Autenticando contra DB...');
   try {
     const { email, password } = req.body;
     const result = await controllers.authenticateProtheusUser(email, password);
     if (result.success) {
-      res.json(result);
+      // Devuelve el objeto { success: true, user: {...} }
+      res.json(result); 
     } else {
       res.status(401).json({ message: result.message });
     }
@@ -33,7 +47,6 @@ router.post('/register', async (req, res) => {
   try {
     const { nombre, email, password } = req.body;
 
-    // Validación simple de campos obligatorios
     if (!nombre || !email || !password) {
       return res.status(400).json({ message: 'Nombre, email y contraseña son obligatorios.' });
     }
@@ -43,7 +56,6 @@ router.post('/register', async (req, res) => {
 
   } catch (error) {
     console.error('Error en /api/register:', error);
-    // Manejar error de usuario duplicado
     if (error.message.includes('email ya está registrado')) {
       return res.status(409).json({ message: error.message }); // 409 Conflict
     }
@@ -56,11 +68,12 @@ router.post('/register', async (req, res) => {
 
 
 // --- Endpoints de Perfil ---
-router.get('/profile', async (req, res) => {
+// (MODIFICADO) Usamos el middleware 'requireUserId'
+router.get('/profile', requireUserId, async (req, res) => {
   console.log('GET /api/profile -> Consultando perfil de usuario en DB...');
   try {
-    // NOTA: Usamos MOCK_USER_ID (1)
-    const profileData = await controllers.getProfile(MOCK_USER_ID);
+    // (MODIFICADO) Obtenemos userId de req.userId (puesto por el middleware)
+    const profileData = await controllers.getProfile(req.userId);
     
     if (!profileData) {
       return res.status(404).json({ message: 'Usuario no encontrado.' });
@@ -74,11 +87,12 @@ router.get('/profile', async (req, res) => {
   }
 });
 
-router.put('/profile', async (req, res) => {
+// (MODIFICADO) Usamos el middleware 'requireUserId'
+router.put('/profile', requireUserId, async (req, res) => {
   console.log('PUT /api/profile -> Actualizando perfil en DB...');
   try {
-    // NOTA: Usamos MOCK_USER_ID (1)
-    const result = await controllers.updateProfile(MOCK_USER_ID, req.body);
+    // (MODIFICADO) Obtenemos userId de req.userId
+    const result = await controllers.updateProfile(req.userId, req.body);
     res.json(result);
 
   } catch (error) {
@@ -89,10 +103,12 @@ router.put('/profile', async (req, res) => {
 
 
 // --- Cuenta Corriente ---
-router.get('/balance', async (req, res) => {
+// (MODIFICADO) Usamos el middleware 'requireUserId'
+router.get('/balance', requireUserId, async (req, res) => {
   console.log('GET /api/balance -> Consultando saldo en DB...');
   try {
-    const balanceData = await controllers.fetchProtheusBalance(MOCK_USER_ID);
+    // (MODIFICADO) Obtenemos userId de req.userId
+    const balanceData = await controllers.fetchProtheusBalance(req.userId);
     res.json(balanceData);
   } catch (error) {
     console.error('Error en /api/balance:', error);
@@ -100,10 +116,12 @@ router.get('/balance', async (req, res) => {
   }
 });
 
-router.get('/movements', async (req, res) => {
+// (MODIFICADO) Usamos el middleware 'requireUserId'
+router.get('/movements', requireUserId, async (req, res) => {
   console.log('GET /api/movements -> Consultando movimientos en DB...');
   try {
-    const movementsData = await controllers.fetchProtheusMovements(MOCK_USER_ID);
+    // (MODIFICADO) Obtenemos userId de req.userId
+    const movementsData = await controllers.fetchProtheusMovements(req.userId);
     res.json(movementsData);
   } catch (error) {
     console.error('Error en /api/movements:', error);
@@ -112,10 +130,12 @@ router.get('/movements', async (req, res) => {
 });
 
 // --- Pedidos ---
-router.get('/orders', async (req, res) => {
+// (MODIFICADO) Usamos el middleware 'requireUserId'
+router.get('/orders', requireUserId, async (req, res) => {
   console.log('GET /api/orders -> Consultando pedidos en DB...');
   try {
-    const orders = await controllers.fetchProtheusOrders(MOCK_USER_ID);
+    // (MODIFICADO) Obtenemos userId de req.userId
+    const orders = await controllers.fetchProtheusOrders(req.userId);
     res.json(orders);
   } catch (error) {
     console.error('Error en /api/orders:', error);
@@ -123,11 +143,13 @@ router.get('/orders', async (req, res) => {
   }
 });
 
-router.get('/orders/:id', async (req, res) => {
+// (MODIFICADO) Usamos el middleware 'requireUserId'
+router.get('/orders/:id', requireUserId, async (req, res) => {
   console.log(`GET /api/orders/${req.params.id} -> Consultando detalles en DB...`);
   try {
     const orderId = req.params.id;
-    const orderDetails = await controllers.fetchProtheusOrderDetails(orderId, MOCK_USER_ID);
+    // (MODIFICADO) Obtenemos userId de req.userId
+    const orderDetails = await controllers.fetchProtheusOrderDetails(orderId, req.userId);
     if (orderDetails) {
       res.json(orderDetails);
     } else {
@@ -140,11 +162,14 @@ router.get('/orders/:id', async (req, res) => {
 });
 
 
-router.post('/orders', async (req, res) => {
+// (MODIFICADO) Usamos el middleware 'requireUserId'
+router.post('/orders', requireUserId, async (req, res) => {
   console.log('POST /api/orders -> Guardando nuevo pedido/presupuesto en DB...');
   try {
-    const orderData = req.body; // Esto ahora incluye { items, total, type }
-    const result = await controllers.saveProtheusOrder(orderData, MOCK_USER_ID);
+    // (MODIFICADO) Extraemos userId del body (ya no es necesario, usamos req.userId)
+    const { userId, ...orderData } = req.body;
+    // Usamos req.userId (del middleware) y el resto de req.body (orderData)
+    const result = await controllers.saveProtheusOrder(orderData, req.userId);
     res.json(result);
   } catch (error) {
     console.error('Error en POST /api/orders:', error);
@@ -153,6 +178,7 @@ router.post('/orders', async (req, res) => {
 });
 
 // --- Productos y Ofertas ---
+// (MODIFICADO) Estas rutas son públicas, no necesitan 'requireUserId'
 router.get('/products', async (req, res) => {
   console.log('GET /api/products -> Consultando productos en DB (paginado)...');
   try {
@@ -165,15 +191,8 @@ router.get('/products', async (req, res) => {
   }
 });
 
-// ======================================================
-// --- INICIO DE CORRECCIÓN ---
-// Se eliminó el prefijo duplicado '/api'
-// ======================================================
 router.get('/brands', async (req, res) => {
   console.log('GET /api/brands -> Consultando lista de marcas...');
-// ======================================================
-// --- FIN DE CORRECCIÓN ---
-// ======================================================
   try {
     const brands = await controllers.fetchProtheusBrands();
     res.json(brands);
@@ -195,11 +214,13 @@ router.get('/offers', async (req, res) => {
 });
 
 // --- Consultas y Carga de Archivos ---
-router.post('/queries', async (req, res) => {
+// (MODIFICADO) Usamos el middleware 'requireUserId'
+router.post('/queries', requireUserId, async (req, res) => {
   console.log('POST /api/queries -> Guardando consulta en DB...');
   try {
-    const queryData = req.body;
-    const result = await controllers.saveProtheusQuery(queryData, MOCK_USER_ID);
+    // (MODIFICADO) Extraemos userId del body (ya no es necesario)
+    const { userId, ...queryData } = req.body;
+    const result = await controllers.saveProtheusQuery(queryData, req.userId); // Usamos req.userId
     res.json(result);
   } catch (error) {
     console.error('Error en /api/queries:', error);
@@ -207,8 +228,10 @@ router.post('/queries', async (req, res) => {
   }
 });
 
-// (NUEVO) Usamos el middleware 'upload' importado
-router.post('/upload-voucher', upload.single('voucherFile'), async (req, res) => {
+// (MODIFICADO) Usamos el middleware 'upload' y 'requireUserId'
+// Nota: 'requireUserId' debe ir DESPUÉS de 'upload.single'
+// porque el 'userId' viene en el FormData (multipart/form-data)
+router.post('/upload-voucher', upload.single('voucherFile'), requireUserId, async (req, res) => {
   console.log('POST /api/upload-voucher -> Archivo recibido, guardando en DB...');
   try {
     if (!req.file) {
@@ -223,7 +246,8 @@ router.post('/upload-voucher', upload.single('voucherFile'), async (req, res) =>
       size: req.file.size
     };
     
-    const result = await controllers.saveProtheusVoucher(fileInfo, MOCK_USER_ID);
+    // (MODIFICADO) Obtenemos userId de req.userId (que el middleware 'requireUserId' extrajo del body)
+    const result = await controllers.saveProtheusVoucher(fileInfo, req.userId);
     res.json({ success: true, fileInfo: result });
 
   } catch (error) {
