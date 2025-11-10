@@ -1,60 +1,73 @@
-import React, { useState, useEffect } from 'react';
-// (ELIMINADO) Header ya no se importa
-import { ArrowLeft } from 'lucide-react';
+import React from 'react';
+import { Tag } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { fetchOffers } from '../api/apiService.js'; // <-- Corregido con .js
 
-const API_URL = 'http://localhost:3001';
+// Componente de UI para el estado de carga (Skeleton)
+const LoadingSkeleton = () => (
+  <div className="animate-pulse grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="bg-gray-200 h-48 rounded-lg"></div>
+    <div className="bg-gray-200 h-48 rounded-lg"></div>
+    <div className="bg-gray-200 h-48 rounded-lg"></div>
+  </div>
+);
 
-// --- Página de Ofertas ---
-const OffersPage = ({ onNavigate }) => {
+// Componente de UI para el estado de error
+const ErrorMessage = ({ message }) => (
+  <div className="flex flex-col items-center justify-center p-10 bg-white rounded-lg shadow-md">
+    <p className="text-red-500 font-semibold text-lg">Error al cargar las ofertas</p>
+    <p className="text-gray-600 mt-2">{message}</p>
+  </div>
+);
 
-  const [offers, setOffers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+// Componente para una tarjeta de oferta
+const OfferCard = ({ offer }) => (
+  <div className="bg-white rounded-lg shadow-lg overflow-hidden transform transition-transform hover:scale-105 duration-300">
+    <div className="p-6">
+      <div className="flex items-center mb-3">
+        <Tag className="w-5 h-5 text-blue-500 mr-2" />
+        <h3 className="text-lg font-semibold text-gray-800">{offer.titulo}</h3>
+      </div>
+      <p className="text-gray-600 text-sm mb-4">{offer.descripcion}</p>
+      <div className="text-sm text-gray-500">
+        <span className="font-medium">Válido hasta:</span> {new Date(offer.valido_hasta).toLocaleDateString('es-AR')}
+      </div>
+      <button className="mt-4 w-full bg-blue-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-600 transition-colors duration-200">
+        Ver productos
+      </button>
+    </div>
+  </div>
+);
 
-  // Cargar datos al montar
-  useEffect(() => {
-    const fetchOffers = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const response = await fetch(`${API_URL}/api/offers`);
-        if (!response.ok) throw new Error('No se pudo cargar las ofertas.');
-        const data = await response.json();
-        
-        setOffers(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchOffers();
-  }, []);
+export default function OffersPage() {
+  // 1. Reemplazamos useEffect y useState con useQuery
+  const { 
+    data: offers = [], // Valor por defecto
+    isLoading, 
+    isError, 
+    error 
+  } = useQuery({
+    queryKey: ['offers'], // Clave única
+    queryFn: fetchOffers, // Función de API
+    staleTime: 1000 * 60 * 15, // 15 minutos de caché
+  });
 
-  // Renderizado condicional
+  // 2. Renderizado condicional
   const renderContent = () => {
-    if (loading) {
-      return (
-        <div className="text-center p-10 text-gray-600">
-          Cargando ofertas...
-        </div>
-      );
+    if (isLoading) {
+      return <LoadingSkeleton />;
     }
-    
-    if (error) {
-      return (
-        <div className="text-center p-10 text-red-600">
-          {error}
-        </div>
-      );
+
+    if (isError) {
+      return <ErrorMessage message={error.message} />;
     }
 
     if (offers.length === 0) {
       return (
-        <div className="text-center p-10 text-gray-500">
-          No hay ofertas disponibles en este momento.
+        <div className="text-center py-20 bg-white rounded-lg shadow-md">
+          <Tag className="mx-auto w-16 h-16 text-gray-400" />
+          <h3 className="mt-4 text-lg font-medium text-gray-900">No hay ofertas disponibles</h3>
+          <p className="mt-1 text-sm text-gray-500">Vuelve a consultar más tarde para ver nuevas promociones.</p>
         </div>
       );
     }
@@ -62,55 +75,20 @@ const OffersPage = ({ onNavigate }) => {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {offers.map((offer) => (
-          <div key={offer.id} className="bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
-            <img 
-              src={offer.imageUrl} 
-              alt={offer.title} 
-              className="w-full h-48 object-cover"
-              onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/600x400/cccccc/white?text=Imagen+no+disponible'; }}
-            />
-            <div className="p-6 flex-1 flex flex-col">
-              <h3 className="text-xl font-bold text-gray-800 mb-2">{offer.title}</h3>
-              <p className="text-gray-600 text-sm mb-4 flex-1">{offer.description}</p>
-              <div className="flex items-baseline justify-between">
-                <span className="text-2xl font-extrabold text-red-600">{offer.price}</span>
-                {offer.oldPrice && (
-                  <span className="text-lg text-gray-500 line-through">{offer.oldPrice}</span>
-                )}
-              </div>
-              <button className="w-full px-4 py-2 mt-4 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors">
-                Ver Detalles
-              </button>
-            </div>
-          </div>
+          <OfferCard key={offer.id} offer={offer} />
         ))}
       </div>
     );
   };
 
-
   return (
-    <div className="min-h-screen bg-gray-100 font-sans">
-      {/* (ELIMINADO) Header ya no se renderiza aquí */}
-      <main className="p-4 md:p-8 max-w-7xl mx-auto">
-        {/* Encabezado con Botón de Volver y Título */}
-        <div className="flex items-center mb-6">
-          <button
-            onClick={() => onNavigate('dashboard')} // <-- Navega de vuelta al dashboard
-            className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
-            aria-label="Volver al dashboard"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-          <h1 className="text-2xl font-bold text-gray-800">Nuevas Ofertas</h1>
-        </div>
-
-        {/* Grid de Tarjetas de Ofertas */}
-        {renderContent()}
-
-      </main>
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <header className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-800">Ofertas y Promociones</h1>
+        <p className="text-gray-600">Descubre los descuentos vigentes que tenemos para ti.</p>
+      </header>
+      
+      {renderContent()}
     </div>
   );
-};
-
-export default OffersPage;
+}

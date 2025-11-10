@@ -1,166 +1,153 @@
-import React, { useState, useEffect } from 'react'; 
-// (ELIMINADO) Header ya no se importa
-import { ArrowLeft } from 'lucide-react';
+import React from 'react';
+import { DollarSign, ArrowDown, ArrowUp } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { fetchAccountBalance } from '../api/apiService';
 
-const API_URL = 'http://localhost:3001';
+// Componente de UI para el estado de carga
+const LoadingSkeleton = () => (
+  <div className="animate-pulse">
+    {/* Tarjetas de Saldo */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="bg-gray-200 h-32 rounded-lg"></div>
+      <div className="bg-gray-200 h-32 rounded-lg"></div>
+      <div className="bg-gray-200 h-32 rounded-lg"></div>
+    </div>
+    {/* Tabla de Movimientos */}
+    <div className="bg-gray-200 h-64 rounded-lg"></div>
+  </div>
+);
 
-// --- Página de Cuenta Corriente (Modificada para API) ---
-// (NUEVO) Acepta 'currentUser'
-const AccountBalancePage = ({ onNavigate, currentUser }) => {
+// Componente de UI para el estado de error
+const ErrorMessage = ({ message }) => (
+  <div className="flex flex-col items-center justify-center p-10 bg-white rounded-lg shadow-md">
+    <p className="text-red-500 font-semibold text-lg">Error al cargar el balance</p>
+    <p className="text-gray-600 mt-2">{message}</p>
+    <p className="text-gray-500 text-sm mt-4">Por favor, intente recargar la página o contacte a soporte.</p>
+  </div>
+);
 
-  const [balanceSummary, setBalanceSummary] = useState(null);
-  const [accountMovements, setAccountMovements] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+// Tarjeta para mostrar saldos
+const BalanceCard = ({ title, amount, bgColorClass }) => {
+  const formattedAmount = (amount || 0).toLocaleString('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+  });
 
-  // (PASO 3) Usar useEffect para cargar los datos
-  useEffect(() => {
-    // Definimos una función async dentro para poder usar await
-    const fetchData = async () => {
-      // Si no hay usuario, no hacemos nada
-      if (!currentUser) {
-        setError("No se ha podido identificar al usuario.");
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setError(null);
-
-        // (MODIFICADO) Pasamos el ID del usuario como query param
-        const balanceResponse = await fetch(`${API_URL}/api/balance?userId=${currentUser.id}`);
-        if (!balanceResponse.ok) throw new Error('No se pudo cargar el saldo.');
-        const balanceData = await balanceResponse.json();
-
-        const movementsResponse = await fetch(`${API_URL}/api/movements?userId=${currentUser.id}`);
-        if (!movementsResponse.ok) throw new Error('No se pudieron cargar los movimientos.');
-        const movementsData = await movementsResponse.json();
-
-        // Actualizamos los estados con los datos recibidos
-        setBalanceSummary(balanceData);
-        setAccountMovements(movementsData);
-
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        setError(err.message);
-      } finally {
-        // Marcamos que la carga ha terminado
-        setLoading(false);
-      }
-    };
-
-    fetchData(); // Ejecutamos la función de carga
-  }, [currentUser]); // (MODIFICADO) El efecto depende de 'currentUser'
-
-
-  // (PASO 4) Manejar los estados de Carga y Error en el render
-  
-  // Renderizado mientras carga
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-100 font-sans">
-        <main className="p-4 md:p-8 max-w-7xl mx-auto text-center">
-          <div className="p-10 bg-white rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold text-gray-700">Cargando datos...</h2>
-            <p className="text-gray-500">Consultando estado de cuenta.</p>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  // Renderizado si hay un error
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-100 font-sans">
-        <main className="p-4 md:p-8 max-w-7xl mx-auto text-center">
-          <div className="p-10 bg-white rounded-lg shadow-md border-l-4 border-red-500">
-            <h2 className="text-xl font-semibold text-red-600">Error</h2>
-            <p className="text-gray-600">{error}</p>
-            <button
-              onClick={() => onNavigate('dashboard')}
-              className="mt-6 px-4 py-2 bg-red-600 text-white rounded-md shadow hover:bg-red-700"
-            >
-              Volver al Inicio
-            </button>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  // (PASO 5) Renderizado normal
   return (
-    <div className="min-h-screen bg-gray-100 font-sans">
-      {/* (ELIMINADO) Header ya no se renderiza aquí */}
-      <main className="p-4 md:p-8 max-w-7xl mx-auto">
-        {/* Encabezado con Botón de Volver y Título */}
-        <div className="flex items-center mb-6">
-          <button
-            onClick={() => onNavigate('dashboard')}
-            className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
-            aria-label="Volver al dashboard"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-          <h1 className="text-2xl font-bold text-gray-800">Estado de Cuenta Corriente</h1>
-        </div>
-
-        {/* Resumen de Saldo (datos del estado) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="p-6 bg-white rounded-lg shadow-md">
-            <h3 className="text-sm font-medium text-gray-500 uppercase">Saldo Total</h3>
-            <p className="text-3xl font-bold text-gray-800 mt-2">{balanceSummary?.total}</p>
-          </div>
-          <div className="p-6 bg-white rounded-lg shadow-md">
-            <h3 className="text-sm font-medium text-gray-500 uppercase">Disponible</h3>
-            <p className="text-3xl font-bold text-green-600 mt-2">{balanceSummary?.available}</p>
-          </div>
-          <div className="p-6 bg-white rounded-lg shadow-md">
-            <h3 className="text-sm font-medium text-gray-500 uppercase">Saldo Pendiente</h3>
-            <p className="text-3xl font-bold text-red-600 mt-2">{balanceSummary?.pending}</p>
-          </div>
-        </div>
-        
-        {/* Tabla de Últimos Movimientos (datos del estado) */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <h2 className="text-lg font-semibold text-gray-800 p-6 border-b border-gray-200">Últimos Movimientos</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Fecha
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Descripción
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Débito
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Crédito
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {accountMovements.map((move) => (
-                  <tr key={move.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{move.date}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{move.description}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right">{move.debit}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 text-right">{move.credit}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-      </main>
+    <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">{title}</h3>
+        <DollarSign className="w-6 h-6 text-gray-400" />
+      </div>
+      <p className={`text-3xl font-bold ${bgColorClass}`}>{formattedAmount}</p>
     </div>
   );
 };
 
-export default AccountBalancePage;
+// Fila de la tabla de movimientos
+const MovementRow = ({ movement }) => {
+  const isPositive = movement.tipo === 'Pago'; // Asumiendo 'Pago' o 'Factura'
+  const formattedDate = new Date(movement.fecha).toLocaleDateString('es-AR');
+
+  return (
+    <tr className="border-b border-gray-200 hover:bg-gray-50">
+      <td className="py-3 px-4 text-sm text-gray-700">{formattedDate}</td>
+      <td className="py-3 px-4 text-sm text-gray-900 font-medium">{movement.tipo}</td>
+      <td className="py-3 px-4 text-sm text-gray-600">{movement.comprobante}</td>
+      <td className={`py-3 px-4 text-sm font-semibold text-right ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+        <span className="inline-flex items-center">
+          {isPositive ? (
+            <ArrowUp className="w-4 h-4 mr-1" />
+          ) : (
+            <ArrowDown className="w-4 h-4 mr-1" />
+          )}
+          {parseFloat(movement.importe).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
+        </span>
+      </td>
+    </tr>
+  );
+};
+
+
+export default function AccountBalancePage({ user }) {
+  
+  // 1. Reemplazamos useEffect y useState con useQuery
+  const { data, isLoading, isError, error } = useQuery({
+    // La clave de consulta incluye el user.id. 
+    // Si el user.id cambia, React Query automáticamente volverá a fetch.
+    queryKey: ['accountBalance', user?.id], 
+    
+    // La función de consulta ahora usa el servicio de API
+    queryFn: () => fetchAccountBalance(user?.id),
+    
+    // `enabled` previene que la consulta se ejecute si user.id es nulo o undefined
+    enabled: !!user?.id, 
+    
+    staleTime: 1000 * 60 * 2, // 2 minutos de caché
+  });
+
+  // 2. Extraemos los datos para el renderizado, con valores por defecto
+  const balance = data?.balance || { total: 0, disponible: 0, pendiente: 0 };
+  const movements = data?.movements || [];
+
+  // 3. Renderizado condicional
+  if (isLoading) {
+    return <LoadingSkeleton />;
+  }
+
+  if (isError) {
+    // Si el error es por falta de user.id, mostramos un mensaje amigable
+    const errorMessage = !user?.id 
+      ? "No se ha podido identificar al usuario." 
+      : error.message;
+    return <ErrorMessage message={errorMessage} />;
+  }
+
+  return (
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-800">Mi Cuenta Corriente</h1>
+        <p className="text-gray-600">Resumen de saldos y últimos movimientos.</p>
+      </header>
+
+      {/* Sección de Saldos */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <BalanceCard title="Saldo Total" amount={balance.total} bgColorClass="text-blue-600" />
+        <BalanceCard title="Disponible" amount={balance.disponible} bgColorClass="text-green-600" />
+        <BalanceCard title="Pendiente de Imputación" amount={balance.pendiente} bgColorClass="text-yellow-600" />
+      </div>
+
+      {/* Sección de Últimos Movimientos */}
+      <section>
+        <h2 className="text-2xl font-semibold text-gray-700 mb-4">Últimos Movimientos</h2>
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white">
+              <thead className="bg-gray-100 border-b border-gray-300">
+                <tr>
+                  <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha</th>
+                  <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tipo</th>
+                  <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Comprobante</th>
+                  <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">Importe</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {movements.length > 0 ? (
+                  movements.map((mov) => (
+                    <MovementRow key={mov.id} movement={mov} />
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="4" className="py-6 px-4 text-center text-gray-500">
+                      No se registraron movimientos recientes.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}

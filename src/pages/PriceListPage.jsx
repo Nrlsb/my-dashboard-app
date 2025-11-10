@@ -1,146 +1,135 @@
-import React, { useState, useEffect, useMemo } from 'react';
-// (ELIMINADO) Header ya no se importa
-import { ArrowLeft, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { fetchProducts } from '../api/apiService.js';
 
-// Definimos la URL de la API
-const API_URL = 'http://localhost:3001';
 const PRODUCTS_PER_PAGE = 20;
 
-// --- Página de Lista de Precios ---
-const PriceListPage = ({ onNavigate }) => {
+// Componente para una fila de la tabla
+// (CORREGIDO) Se usan los nombres de prop 'code', 'name', 'brand', 'capacity_description' y 'price'
+const ProductRow = React.memo(({ product }) => (
+  <tr className="border-b border-gray-200 hover:bg-gray-50">
+    <td className="py-3 px-4 text-sm text-gray-700">{product.code}</td>
+    <td className="py-3 px-4 text-sm text-gray-900 font-medium">{product.name}</td>
+    <td className="py-3 px-4 text-sm text-gray-600">{product.brand || 'N/A'}</td>
+    <td className="py-3 px-4 text-sm text-gray-600">{product.capacity_description || product.capacity || 'N/A'}</td>
+    <td className="py-3 px-4 text-sm text-gray-800 font-semibold text-right">
+      ${parseFloat(product.price).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+    </td>
+  </tr>
+));
 
-  // --- Estados ---
-  const [products, setProducts] = useState([]); // Almacena solo la página actual
-  const [brands, setBrands] = useState([]); // Almacena las marcas para el filtro
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  
+// Componente de UI para el estado de carga
+const LoadingSpinner = () => (
+  <div className="flex justify-center items-center py-20">
+    <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+  </div>
+);
+
+// Componente de UI para el estado de error
+const ErrorMessage = ({ message }) => (
+  <div className="text-center py-20">
+    <p className="text-red-500 font-semibold">Error al cargar los datos</p>
+    <p className="text-gray-600">{message}</p>
+  </div>
+);
+
+export default function PriceListPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedBrand, setSelectedBrand] = useState('');
+  const [selectedBrand, setSelectedBrand] = useState(''); // (NUEVO) Estado para la marca
+  const [currentPage, setCurrentPage] = useState(1); // (NUEVO) Estado para paginación
   
-  // Estados de Paginación
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalProducts, setTotalProducts] = useState(0);
+  // 1. (CORREGIDO) queryKey ahora incluye las dependencias
+  const queryKey = ['products', currentPage, searchTerm, selectedBrand];
 
-  // --- Carga de Datos ---
+  const { 
+    data, // 'data' será el objeto { products: [...], totalProducts: X }
+    isLoading, 
+    isError, 
+    error 
+  } = useQuery({
+    queryKey: queryKey,
+    // (CORREGIDO) queryFn ahora pasa los parámetros
+    queryFn: () => fetchProducts(currentPage, searchTerm, selectedBrand),
+    staleTime: 1000 * 60 * 5, // 5 minutos de caché
+    gcTime: 1000 * 60 * 30,
+    placeholderData: (prevData) => prevData, // Mantiene datos anteriores mientras carga
+  });
 
-  // Cargar marcas (solo una vez)
-  useEffect(() => {
-    const fetchBrands = async () => {
-      try {
-        const response = await fetch(`${API_URL}/api/brands`);
-        if (!response.ok) throw new Error('No se pudo cargar las marcas.');
-        const data = await response.json();
-        setBrands(data);
-      } catch (err) {
-        // No es un error crítico si las marcas no cargan, seteamos el error
-        setError(err.message);
-      }
-    };
-    fetchBrands();
-  }, []);
-
-  // Cargar productos (se ejecuta cada vez que cambian los filtros o la página)
-  useEffect(() => {
-    const fetchProducts = async () => {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        // Construir los parámetros de consulta para el backend
-        const params = new URLSearchParams({
-          page: currentPage,
-          limit: PRODUCTS_PER_PAGE,
-          search: searchTerm,
-          brand: selectedBrand,
-        });
-
-        // Hacer la solicitud con los parámetros
-        const response = await fetch(`${API_URL}/api/products?${params.toString()}`);
-        if (!response.ok) throw new Error('No se pudo cargar la lista de precios.');
-        
-        const data = await response.json(); // data ahora es { products: [...], totalProducts: X }
-
-        // Seteamos los productos y el total
-        setProducts(data.products);
-        setTotalProducts(data.totalProducts);
-
-      } catch (err) {
-        setError(err.message);
-        setProducts([]); // Limpiar productos en caso de error
-        setTotalProducts(0);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchProducts();
-  }, [currentPage, searchTerm, selectedBrand]); // Dependencias del useEffect
-
-  // --- Lógica de Paginación ---
+  // 2. (CORREGIDO) Extraemos 'products' y 'totalProducts' del 'data'
+  const products = data?.products || [];
+  const totalProducts = data?.totalProducts || 0;
   const totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
 
+  // 3. La lógica de filtrado ahora es manejada por el backend.
+  // Mantenemos el useMemo solo para el caso de que 'products' sea la lista.
+  // (CORREGIDO) El filtrado ya no es necesario aquí si el backend lo hace.
+  // 'products' ya viene filtrado.
+  const filteredProducts = products;
+
+  // --- (NUEVO) Lógica de Paginación ---
   const handleNextPage = () => {
     if (currentPage < totalPages) {
-      setCurrentPage(prev => prev + 1);
+      setCurrentPage(p => p + 1);
     }
   };
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
-      setCurrentPage(prev => prev - 1);
+      setCurrentPage(p => p - 1);
     }
   };
   
-  // Formateador de moneda
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency: 'ARS',
-    }).format(amount);
-  };
+  // (NUEVO) Cargar marcas para el dropdown (consulta separada)
+  const { data: brands = [] } = useQuery({
+    queryKey: ['brands'],
+    queryFn: async () => {
+      const res = await fetch('http://localhost:3001/api/brands');
+      if (!res.ok) throw new Error('No se pudieron cargar las marcas');
+      return res.json();
+    },
+    staleTime: Infinity, // Las marcas no cambian seguido
+    gcTime: Infinity,
+  });
 
-  // Renderizado condicional
+  // 4. El renderizado ahora usa isLoading, isError y los datos de useQuery
   const renderContent = () => {
-    if (loading) {
-      return <div className="p-6 text-center text-gray-600">Cargando productos...</div>;
+    if (isLoading) {
+      return <LoadingSpinner />;
     }
-    
-    if (error) {
-      return <div className="p-6 text-center text-red-600">{error}</div>;
+
+    if (isError) {
+      return <ErrorMessage message={error.message} />;
     }
-    
-    if (products.length === 0) {
-       return <div className="p-6 text-center text-gray-600">No se encontraron productos.</div>;
+
+    if (filteredProducts.length === 0) {
+      return (
+        <div className="text-center py-10">
+          <p className="text-gray-500">
+            {searchTerm 
+              ? "No se encontraron productos que coincidan con su búsqueda." 
+              : "No hay productos disponibles."}
+          </p>
+        </div>
+      );
     }
 
     return (
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="min-w-full bg-white rounded-lg shadow-md overflow-hidden">
+          <thead className="bg-gray-100 border-b border-gray-300">
             <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Código
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Descripción
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Marca
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Precio
-              </th>
+              <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Código</th>
+              <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Descripción</th>
+              <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Marca</th>
+              <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Capacidad</th>
+              <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">Precio</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {products.map((product) => (
-              <tr key={product.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.code}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.brand}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">{formatCurrency(product.price)}</td>
-              </tr>
+          <tbody className="divide-y divide-gray-200">
+            {/* (CORREGIDO) La key ahora es product.id */}
+            {filteredProducts.map(product => (
+              <ProductRow key={product.id} product={product} />
             ))}
           </tbody>
         </table>
@@ -149,105 +138,86 @@ const PriceListPage = ({ onNavigate }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 font-sans">
-      {/* (ELIMINADO) Header ya no se renderiza aquí */}
-      <main className="p-4 md:p-8 max-w-7xl mx-auto">
-        {/* Encabezado con Botón de Volver y Título */}
-        <div className="flex items-center mb-6">
-          <button
-            onClick={() => onNavigate('dashboard')}
-            className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
-            aria-label="Volver al dashboard"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-          <h1 className="text-2xl font-bold text-gray-800">Lista de Precios</h1>
-        </div>
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <header className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-800">Lista de Precios</h1>
+        <p className="text-gray-600">Consulte el precio de todos nuestros productos.</p>
+      </header>
 
-        {/* Controles de Filtro (Selector y Búsqueda) */}
-        <div className="p-6 bg-white rounded-lg shadow-md mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* Selector de Marca */}
-            <div>
-              <label htmlFor="brand-select" className="block text-sm font-medium text-gray-700 mb-2">
-                Filtrar por Marca
-              </label>
-              <select
-                id="brand-select"
-                className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
-                value={selectedBrand}
+      {/* (NUEVO) Controles de Filtro */}
+      <div className="p-6 bg-white rounded-lg shadow-md mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Selector de Marca */}
+          <div>
+            <label htmlFor="brand-select" className="block text-sm font-medium text-gray-700 mb-2">
+              Filtrar por Marca
+            </label>
+            <select
+              id="brand-select"
+              className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              value={selectedBrand}
+              onChange={(e) => {
+                setSelectedBrand(e.target.value);
+                setCurrentPage(1); // Resetear página
+              }}
+            >
+              <option value="">Todas las marcas</option>
+              {brands.map((brand) => (
+                <option key={brand} value={brand}>{brand}</option>
+              ))}
+            </select>
+          </div>
+          
+          {/* Barra de Búsqueda */}
+          <div>
+            <label htmlFor="search-product" className="block text-sm font-medium text-gray-700 mb-2">
+              Buscar Producto
+            </label>
+            <div className="relative mt-1">
+              <input
+                id="search-product"
+                type="text"
+                placeholder="Buscar por código, descripción o marca..."
+                className="w-full p-3 pl-10 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={searchTerm}
                 onChange={(e) => {
-                  setSelectedBrand(e.target.value);
-                  setCurrentPage(1); // Resetear a página 1 al cambiar filtro
+                  setSearchTerm(e.target.value)
+                  setCurrentPage(1); // Resetear página
                 }}
-              >
-                <option value="">Todas las marcas</option>
-                {brands.map((brand) => (
-                  <option key={brand} value={brand}>{brand}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Barra de Búsqueda */}
-            <div>
-              <label htmlFor="search-product" className="block text-sm font-medium text-gray-700 mb-2">
-                Buscar Producto
-              </label>
-              <div className="relative mt-1">
-                <input
-                  id="search-product"
-                  name="search-product"
-                  type="text"
-                  className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
-                  placeholder="Buscar por nombre, código..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1); // Resetear a página 1 al cambiar filtro
-                  }}
-                />
-                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                  <Search className="w-5 h-5 text-gray-400" />
-                </div>
-              </div>
+              />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Tabla de Lista de Precios */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          {renderContent()}
+
+      {renderContent()}
+      
+      {/* (NUEVO) Controles de Paginación */}
+      {totalPages > 1 && (
+        <div className="flex justify-between items-center mt-6 p-4 bg-white rounded-lg shadow-md">
+          <button
+            onClick={handlePrevPage}
+            disabled={currentPage === 1 || isLoading}
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+          >
+            <ChevronLeft className="w-5 h-5 mr-2" />
+            Anterior
+          </button>
+          <span className="text-sm text-gray-700">
+            Página {currentPage} de {totalPages}
+          </span>
+          <button
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages || isLoading}
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+          >
+            Siguiente
+            <ChevronRight className="w-5 h-5 ml-2" />
+          </button>
         </div>
-
-        {/* Controles de Paginación */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-6 px-6 py-4 bg-white rounded-lg shadow-md">
-            <button
-              onClick={handlePrevPage}
-              disabled={currentPage === 1 || loading}
-              className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="w-5 h-5 mr-1" />
-              Anterior
-            </button>
-            <span className="text-sm text-gray-700">
-              Página <span className="font-medium">{currentPage}</span> de <span className="font-medium">{totalPages}</span>
-            </span>
-            <button
-              onClick={handleNextPage}
-              disabled={currentPage === totalPages || loading}
-              className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Siguiente
-              <ChevronRight className="w-5 h-5 ml-1" />
-            </button>
-          </div>
-        )}
-
-      </main>
+      )}
     </div>
   );
-};
-
-export default PriceListPage;
+}

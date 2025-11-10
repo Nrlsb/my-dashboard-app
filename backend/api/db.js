@@ -1,5 +1,5 @@
-require('dotenv').config();
 const { Pool } = require('pg');
+require('dotenv').config();
 
 const pool = new Pool({
   user: process.env.DB_USER,
@@ -9,5 +9,7 @@ const pool = new Pool({
   port: process.env.DB_PORT,
 });
 
-// AÑADE ESTA LÍNEA AL FINAL:
-module.exports = { pool };
+// (LA SOLUCIÓN)
+// Esta línea faltaba. Exporta la instancia de 'pool'
+// para que otros archivos (como controllers.js) puedan importarla.
+module.exports = pool;

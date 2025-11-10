@@ -1,14 +1,13 @@
-const { pool } = require('./db'); // Importa nuestro GESTOR DE CONEXIÓN
-const bcrypt = require('bcryptjs'); // Para hashear contraseñas
+// (NUEVO) Se añaden los imports que faltaban en el diff
+const pool = require('./db');
+const bcrypt = require('bcryptjs');
 const { formatCurrency } = require('./utils/helpers'); // (NUEVO) Importar helper
 
 // =================================================================
-// --- LÓGICA DE BASE DE DATOS (Sincronizada con setup.sql) ---
+// --- Autenticación y Registro ---
 // =================================================================
 
-// --- Autenticación ---
 const authenticateProtheusUser = async (email, password) => {
-  // (ACTUALIZADO) Usa 'pool' y busca por 'email'
   const result = await pool.query(
     'SELECT * FROM users WHERE email = $1',
     [email]
@@ -16,19 +15,17 @@ const authenticateProtheusUser = async (email, password) => {
 
   if (result.rows.length === 0) {
     // Usuario no encontrado
-    return { success: false, message: 'Email o contraseña incorrectos.' };
+    throw new Error('Credenciales inválidas');
   }
   
   const user = result.rows[0];
 
-  // (ACTUALIZADO) Compara la contraseña enviada con el hash en la BD
   const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
   if (isPasswordValid) {
-    // (ACTUALIZADO) Devuelve 'full_name' de tu nueva tabla
     return { 
       success: true, 
-      user: { 
+      user: {
         name: user.full_name, // Mapeado desde 'full_name'
         code: user.a1_cod,   // Mapeado desde 'a1_cod'
         email: user.email,
@@ -37,7 +34,7 @@ const authenticateProtheusUser = async (email, password) => {
     };
   }
   
-  return { success: false, message: 'Email o contraseña incorrectos.' };
+  throw new Error('Credenciales inválidas');
 };
 
 // (ACTUALIZADO) --- Registro de Usuario ---
@@ -76,13 +73,12 @@ const registerProtheusUser = async (userData) => {
   ];
 
   const result = await pool.query(queryText, queryParams);
-
   return result.rows[0];
 };
 
 // (NUEVO) --- Perfil de Usuario ---
 const getProfile = async (userId) => {
-    const result = await pool.query(
+  const result = await pool.query(
       `SELECT 
         id, email, full_name,
         a1_cod AS "A1_COD",
@@ -93,13 +89,12 @@ const getProfile = async (userId) => {
         a1_endereco AS "A1_END",
         email AS "A1_EMAIL"
         -- Campos del frontend que NO ESTÁN en setup.sql:
-        -- A1_PESSOA, A1_NREDUZ, A1_MUN, A1_EST, A1_TIPO, A1_AFIP, estatus, di
       FROM users WHERE id = $1`, 
       [userId]
     );
     
     if (result.rows.length === 0) {
-      return null;
+      throw new Error('Perfil de usuario no encontrado.');
     }
     
     return result.rows[0];
@@ -151,9 +146,9 @@ const fetchProtheusBalance = async (userId) => {
 
   // Simulación de disponible y pendiente
   return {
-    total: formatCurrency(balance),
-    available: formatCurrency(balance * 0.33), // Simulación
-    pending: formatCurrency(balance * 0.67)  // Simulación
+    total: balance,     // (CORREGIDO) Devolvemos el número
+    available: balance * 0.33, // Simulación
+    pending: balance * 0.67  // Simulación
   };
 };
 
@@ -166,10 +161,10 @@ const fetchProtheusMovements = async (userId) => {
   // Formatear datos para el frontend
   return result.rows.map(row => ({
     id: row.id,
-    date: new Date(row.date).toLocaleDateString('es-AR'), // 'date' en lugar de 'move_date'
-    description: row.description,
-    debit: row.debit > 0 ? formatCurrency(row.debit) : '',
-    credit: row.credit > 0 ? formatCurrency(row.credit) : ''
+    fecha: row.date, // (Corregido) Devolvemos la fecha sin formatear
+    tipo: row.description.includes('Pedido') ? 'Factura' : 'Pago', // Simulación de tipo
+    comprobante: row.description,
+    importe: row.credit > 0 ? row.credit : -row.debit // (Corregido) Devolvemos el número
   }));
 };
 
@@ -182,8 +177,12 @@ const fetchProtheusOrders = async (userId) => {
   );
   return result.rows.map(row => ({
     id: row.id,
+    nro_pedido: row.id, // (NUEVO) Mapeo para el frontend
+    fecha: row.created_at, // (NUEVO) Devolvemos la fecha real
+    total: row.total, // (NUEVO) Devolvemos el número real
+    estado: row.status, // (NUEVO) Mapeo para el frontend
+    // 'date' y 'status' son para la versión anterior
     date: new Date(row.created_at).toLocaleDateString('es-AR'), // 'created_at' en lugar de 'order_date'
-    total: formatCurrency(row.total), // 'total' en lugar de 'total_amount'
     status: row.status
   }));
 };
@@ -291,7 +290,6 @@ const saveProtheusOrder = async (orderData, userId) => {
 // --- Productos y Ofertas ---
 // (NUEVO) fetchProtheusProducts ahora acepta paginación y filtros
 const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = '') => {
-  // Convertir a números para seguridad
   const numLimit = parseInt(limit, 10);
   const numPage = parseInt(page, 10);
   const offset = (numPage - 1) * numLimit;
@@ -313,7 +311,6 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
       const searchClauses = searchTerms.map(term => {
         params.push(`%${term}%`);
         const paramIndex = params.length;
-        // Buscamos en 'description' (nombre) y 'code' (código)
         // Usamos ILIKE para que sea insensible a mayúsculas/minúsculas
         return `(description ILIKE $${paramIndex} OR code ILIKE $${paramIndex})`;
       });
@@ -332,8 +329,9 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
   params.push(numLimit);
   params.push(offset);
   
+  // (CORREGIDO) Se añaden capacity y capacity_description
   const queryText = `
-    SELECT id, code, description, product_group, price, brand 
+    SELECT id, code, description, product_group, price, brand, capacity, capacity_description
     FROM products 
     WHERE ${whereString} 
     ORDER BY description
@@ -342,14 +340,16 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
 
   const result = await pool.query(queryText, params);
 
-  // (ACTUALIZADO) Mapeo para el frontend
+  // (CORREGIDO) Mapeo para el frontend
   const products = result.rows.map(row => ({ 
     id: row.id,
     code: row.code,
     name: row.description,
-    brand: row.brand, // <-- FIX: Ahora usamos la columna 'brand' (el nombre)
-    product_group: row.product_group, // Enviamos el código de grupo también
+    brand: row.brand,
+    product_group: row.product_group,
     price: Number(row.price),
+    capacity: row.capacity, // (NUEVO)
+    capacity_description: row.capacity_description, // (NUEVO)
     stock: 999 // MOCK
   }));
   
