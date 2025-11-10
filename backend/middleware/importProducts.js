@@ -23,6 +23,7 @@ console.log(`Iniciando la lectura del archivo CSV: ${filePath}`);
 fs.createReadStream(filePath)
   // Añadimos opciones para limpiar los encabezados y definir el separador
   .pipe(csv({ 
+    separator: ';', // <--- CAMBIO SOLICITADO: Se añade el separador por punto y coma
     bom: true, // Asegura que se elimine el BOM (Byte Order Mark)
     trim: true, // Elimina espacios en blanco de los encabezados
     
@@ -76,24 +77,49 @@ fs.createReadStream(filePath)
         
         rowCounter++; // Incrementamos el contador
 
+        // ======================================================
+        // --- INICIO DE MODIFICACIÓN 4: Omitir filas vacías ---
+        // ======================================================
+        // Si la fila está vacía (común en líneas en blanco al final del CSV),
+        // row['Codigo'] será undefined o null. La omitimos.
+        if (!row['Codigo'] || row['Codigo'].trim() === '') {
+          console.warn(`Fila ${rowCounter} omitida: El 'Codigo' está vacío. Datos:`, row);
+          continue; // Salta esta iteración y sigue con la próxima fila
+        }
+        // ======================================================
+        // --- FIN DE MODIFICACIÓN 4 ---
+        // ======================================================
+
+        // ======================================================
+        // --- INICIO DE MODIFICACIÓN 3: Consulta "UPSERT" ---
+        // ======================================================
+        // Cambiamos el query a un "INSERT ... ON CONFLICT ... DO UPDATE" (Upsert).
+        // Esto insertará la fila si el 'code' es nuevo.
+        // Si el 'code' ya existe, ejecutará el 'DO UPDATE SET' en su lugar.
         const query = `
-          INSERT INTO products (code, description, capacity, product_group, ts_standard, table_code, price, capacity_description) 
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          INSERT INTO products (
+            code, description, capacity, product_group, ts_standard
+          ) 
+          VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (code) DO UPDATE SET
+            description = EXCLUDED.description,
+            capacity = EXCLUDED.capacity,
+            product_group = EXCLUDED.product_group,
+            ts_standard = EXCLUDED.ts_standard
         `;
         
-        // Mapeo de columnas del CSV a la Base de Datos
-        // Las columnas que no existan en ListaDeProductos.csv (como 'Precio Venta')
-        // serán 'undefined' y se insertarán como NULL (lo cual está bien).
+        // Ajustamos los valores para que coincidan solo con las columnas
+        // que estamos insertando/actualizando desde ESTE archivo.
         const values = [
-          row['Codigo'],          // De ListaDeProductos.csv
-          row['Descripcion'],     // De ListaDeProductos.csv
-          row['Capacidad'],       // De ListaDeProductos.csv
-          row['Grupo'],           // De ListaDeProductos.csv
-          row['TS Estandar'],    // De ListaDeProductos.csv
-          row['Cod. Tabla'],     // (Será undefined, no está en este CSV)
-          row['Precio Venta'],    // (Será undefined, no está en este CSV)
-          row['Desc Capacid']     // (Será undefined, no está en este CSV)
+          row['Codigo'],          // $1
+          row['Descripcion'],     // $2
+          row['Capacidad'],       // $3
+          row['Grupo'],           // $4
+          row['TS Estandar']     // $5
         ];
+        // ======================================================
+        // --- FIN DE MODIFICACIÓN 3 ---
+        // ======================================================
         
         // Añadimos un try/catch INTERNO solo para el log
         try {
@@ -102,10 +128,10 @@ fs.createReadStream(filePath)
         
         } catch (insertError) {
           // ¡Aquí capturamos la fila exacta que falló!
-          console.error(`\n--- ERROR AL INSERTAR LA FILA N° ${rowCounter} DEL CSV ---`);
+          console.error(`\n--- ERROR AL INSERTAR/ACTUALIZAR LA FILA N° ${rowCounter} DEL CSV ---`);
           console.error("Datos de la fila del CSV que falló:");
           console.log(row);
-          console.error("Valores que se intentaron insertar (los 'undefined' son normales si la columna no existe en el CSV):");
+          console.error("Valores que se intentaron insertar/actualizar:");
           console.log(values);
           
           // Lanzamos el error de nuevo para que el catch exterior

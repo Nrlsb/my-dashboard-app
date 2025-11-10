@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import Header from '../components/Header.jsx';
+import Header from '/src/components/Header.jsx';
 import { ArrowLeft, Search } from 'lucide-react';
 
 // (NUEVO) Definimos la URL de la API
@@ -8,7 +8,7 @@ const API_URL = 'http://localhost:3001';
 // --- Página de Lista de Precios ---
 const PriceListPage = ({ onNavigate }) => {
 
-  // (NUEVO) Estados
+  // Estados
   const [allProducts, setAllProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -16,7 +16,7 @@ const PriceListPage = ({ onNavigate }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
   
-  // (NUEVO) Cargar datos al montar
+  // Cargar datos al montar
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -40,25 +40,36 @@ const PriceListPage = ({ onNavigate }) => {
 
   // (ACTUALIZADO) Lógica de filtrado con búsqueda inteligente
   const filteredProducts = useMemo(() => {
-    // (NUEVO) Lógica de búsqueda inteligente
+    // ======================================================
+    // --- INICIO DE CORRECCIÓN DE RUNTIME ERROR ---
+    // Nos aseguramos de que allProducts sea un array antes de filtrarlo.
+    if (!Array.isArray(allProducts)) {
+      return [];
+    }
+    // --- FIN DE CORRECCIÓN DE RUNTIME ERROR ---
+    // ======================================================
+
     // 1. Convertir el término de búsqueda en un array de palabras, en minúscula
-    const searchTerms = searchTerm.toLowerCase().split(' ').filter(t => t); // filter(t => t) elimina espacios vacíos
+    const searchTerms = searchTerm.toLowerCase().split(' ').filter(t => t); 
   
     return allProducts.filter(product => {
       const matchesBrand = selectedBrand ? product.brand === selectedBrand : true;
       
-      // 2. Convertir el nombre y código del producto a minúscula
-      const productName = product.name.toLowerCase();
-      
       // ======================================================
-      // --- INICIO DE CORRECCIÓN ---
-      // Convertimos product.id (que es un número) a un String antes de usar .toLowerCase()
-      const productCode = String(product.id).toLowerCase(); 
+      // --- INICIO DE CORRECCIÓN (de la respuesta anterior) ---
+      // 1. Aseguramos que 'name' y 'code' sean strings vacíos si son null/undefined
+      // 2. Usamos 'product.code' para la búsqueda, no 'product.id'.
+      const productName = (product.name || '').toLowerCase();
+      const productCode = (product.code || '').toLowerCase();
       // --- FIN DE CORRECCIÓN ---
       // ======================================================
 
+      // Si no hay término de búsqueda, solo filtrar por marca
+      if (searchTerms.length === 0) {
+        return matchesBrand;
+      }
+      
       // 3. Comprobar si *todos* los términos de búsqueda están en el nombre O el código
-      // Ej: "PAD" y "MIC" deben estar ambos.
       const matchesSearch = searchTerms.every(term => 
         productName.includes(term) || 
         productCode.includes(term)
@@ -70,6 +81,14 @@ const PriceListPage = ({ onNavigate }) => {
   
   // (ACTUALIZADO) Marcas se derivan de los productos cargados
   const brands = useMemo(() => {
+    // ======================================================
+    // --- INICIO DE CORRECCIÓN DE RUNTIME ERROR ---
+    // Añadimos la misma validación por si acaso.
+    if (!Array.isArray(allProducts)) {
+      return [];
+    }
+    // --- FIN DE CORRECCIÓN DE RUNTIME ERROR ---
+    // ======================================================
     return [...new Set(allProducts.map(p => p.brand))];
   }, [allProducts]);
 
@@ -81,7 +100,7 @@ const PriceListPage = ({ onNavigate }) => {
     }).format(amount);
   };
 
-  // (NUEVO) Renderizado condicional
+  // Renderizado condicional
   const renderContent = () => {
     if (loading) {
       return <div className="p-6 text-center text-gray-600">Cargando productos...</div>;
@@ -117,7 +136,11 @@ const PriceListPage = ({ onNavigate }) => {
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredProducts.map((product) => (
               <tr key={product.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.id}</td>
+                {/* ====================================================== */}
+                {/* --- INICIO DE CORRECCIÓN (de la respuesta anterior) --- */}
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.code}</td>
+                {/* --- FIN DE CORRECCIÓN --- */}
+                {/* ====================================================== */}
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.name}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.brand}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">{formatCurrency(product.price)}</td>

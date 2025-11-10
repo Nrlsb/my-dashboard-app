@@ -14,6 +14,7 @@ fs.createReadStream(filePath)
   .pipe(csv({
     bom: true,
     trim: true,
+    separator: ';', // <--- CAMBIO SOLICITADO
     
     // ======================================================
     // --- Configuración del Parser (reutilizada) ---

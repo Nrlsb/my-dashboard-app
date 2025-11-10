@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import Header from '../components/Header.jsx';
+import Header from '/src/components/Header.jsx';
 import { ArrowLeft, Search, ShoppingCart, Trash2, Package, CheckCircle, AlertTriangle, FileText } from 'lucide-react';
 
 // (NUEVO) Definimos la URL de la API
@@ -41,6 +41,15 @@ const NewOrderPage = ({ onNavigate }) => {
 
   // --- Lógica de Filtro ---
   const filteredProducts = useMemo(() => {
+    // ======================================================
+    // --- INICIO DE CORRECCIÓN DE RUNTIME ERROR ---
+    // Nos aseguramos de que allProducts sea un array antes de filtrarlo.
+    if (!Array.isArray(allProducts)) {
+      return [];
+    }
+    // --- FIN DE CORRECCIÓN DE RUNTIME ERROR ---
+    // ======================================================
+
     // (NUEVO) Lógica de búsqueda inteligente
     // 1. Convertir el término de búsqueda en un array de palabras, en minúscula
     const searchTerms = searchTerm.toLowerCase().split(' ').filter(t => t); // filter(t => t) elimina espacios vacíos
@@ -48,15 +57,19 @@ const NewOrderPage = ({ onNavigate }) => {
     return allProducts.filter(product => {
       const matchesBrand = selectedBrand ? product.brand === selectedBrand : true;
       
-      // 2. Convertir el nombre y código del producto a minúscula
-      const productName = product.name.toLowerCase();
-
       // ======================================================
-      // --- INICIO DE CORRECCIÓN ---
-      // Convertimos product.id (que es un número) a un String antes de usar .toLowerCase()
-      const productCode = String(product.id).toLowerCase(); 
+      // --- INICIO DE CORRECCIÓN (de la respuesta anterior) ---
+      // 1. Aseguramos que 'name' y 'code' sean strings vacíos si son null/undefined
+      // 2. Usamos 'product.code' para la búsqueda, no 'product.id'.
+      const productName = (product.name || '').toLowerCase();
+      const productCode = (product.code || '').toLowerCase();
       // --- FIN DE CORRECCIÓN ---
       // ======================================================
+
+      // Si no hay término de búsqueda, solo filtrar por marca
+      if (searchTerms.length === 0) {
+        return matchesBrand;
+      }
 
       // 3. Comprobar si *todos* los términos de búsqueda están en el nombre O el código
       // Ej: "PAD" y "MIC" deben estar ambos.
@@ -67,10 +80,20 @@ const NewOrderPage = ({ onNavigate }) => {
       
       return matchesBrand && matchesSearch;
     });
-  }, [searchTerm, selectedBrand, allProducts]);
+  }, [searchTerm, selectedBrand, allProducts]); // Esto recalculates when searchTerm changes. Correct.
 
   // Derivar marcas de productos cargados
-  const brands = useMemo(() => [...new Set(allProducts.map(p => p.brand))], [allProducts]);
+  const brands = useMemo(() => {
+    // ======================================================
+    // --- INICIO DE CORRECCIÓN DE RUNTIME ERROR ---
+    // Añadimos la misma validación por si acaso.
+    if (!Array.isArray(allProducts)) {
+      return [];
+    }
+    // --- FIN DE CORRECCIÓN DE RUNTIME ERROR ---
+    // ======================================================
+    return [...new Set(allProducts.map(p => p.brand))];
+  }, [allProducts]);
 
   // --- Lógica de Carrito (sin cambios) ---
   const addToCart = (product) => {
@@ -161,7 +184,7 @@ const NewOrderPage = ({ onNavigate }) => {
     // Items del carrito
     cart.forEach(item => {
       const subtotal = item.price * item.quantity;
-      doc.text(String(item.id), 20, yPos); // Convertido a String por si acaso
+      doc.text(String(item.code), 20, yPos); // (CORREGIDO) Usar code en lugar de id
       doc.text(doc.splitTextToSize(item.name, 70), 40, yPos); // Auto-ajuste de texto
       doc.text(item.quantity.toString(), 120, yPos, { align: 'right' });
       doc.text(formatCurrency(item.price), 150, yPos, { align: 'right' });

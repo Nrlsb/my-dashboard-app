@@ -12,6 +12,7 @@ console.log(`Iniciando la lectura de precios desde: ${filePath}`);
 
 fs.createReadStream(filePath)
   .pipe(csv({
+    separator: ';', // <--- CAMBIO 1: Se añade el separador
     bom: true,
     trim: true,
     
@@ -59,10 +60,23 @@ fs.createReadStream(filePath)
       for (const row of productsToUpdate) {
         rowCounter++;
         
+        // ======================================================
+        // --- INICIO DE MODIFICACIÓN 2: Omitir filas vacías y Corregir Columna ---
+        // ======================================================
+        // Se corrige `row['Codigo']` por `row['Cod.Producto']` para que coincida con ListaDeProductos2.csv
+        const code = row['Cod.Producto']; 
+
+        // Si la fila está vacía, el código será undefined. La omitimos.
+        if (!code || code.trim() === '') {
+          console.warn(`Fila ${rowCounter} omitida: El 'Cod.Producto' está vacío. Datos:`, row);
+          failedCount++; // Aumentamos failedCount para que el log final sea correcto
+          continue; // Salta esta iteración y sigue con la próxima fila
+        }
+        // ======================================================
+        // --- FIN DE MODIFICACIÓN 2 ---
+        // ======================================================
+
         // 2. Limpiar y preparar los datos
-        // (La limpieza de comillas ahora la hace 'mapValues',
-        // así que 'code' y 'tableCode' ya vendrán limpios)
-        const code = row['Codigo'];
         const tableCode = row['Cod. Tabla'];
         
         // Limpieza de precio:
@@ -72,10 +86,10 @@ fs.createReadStream(filePath)
         const priceString = row['Precio Venta'] ? row['Precio Venta'].replace(',', '.') : '0';
         const price = parseFloat(priceString);
 
-        if (!code) {
-          console.warn(`Fila ${rowCounter} omitida: El 'Codigo' está vacío o es nulo. Datos:`, row);
+        if (isNaN(price)) {
+          console.warn(`Fila ${rowCounter} (Cod: ${code}): Precio inválido "${row['Precio Venta']}". Omitiendo.`);
           failedCount++;
-          continue; // Omitir esta fila
+          continue;
         }
 
         // 3. Definir el query de ACTUALIZACIÓN (UPDATE)

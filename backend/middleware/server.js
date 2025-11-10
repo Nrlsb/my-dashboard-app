@@ -188,7 +188,8 @@ const fetchProtheusOrderDetails = async (orderId, userId) => {
       oi.unit_price, 
       p.id AS product_id, 
       p.code AS product_code,
-      p.description AS product_name
+      p.description AS product_name,
+      p.brand AS product_brand
     FROM order_items oi
     JOIN products p ON oi.product_id = p.id
     WHERE oi.order_id = $1
@@ -199,6 +200,7 @@ const fetchProtheusOrderDetails = async (orderId, userId) => {
   // 3. Formatear y devolver
   return {
     ...order,
+    total_amount: order.total, // Asegurarnos de que el frontend reciba lo que espera
     date: new Date(order.created_at).toLocaleDateString('es-AR'), // 'created_at'
     items: itemsResult.rows.map(item => ({
       ...item,
@@ -248,27 +250,86 @@ const saveProtheusOrder = async (orderData, userId) => {
 
 
 // --- Productos y Ofertas ---
-const fetchProtheusProducts = async () => {
-  // (ACTUALIZADO) Consulta alineada con setup.sql
-  // (MODIFICADO) Se añade WHERE para filtrar precios nulos o < 400
-  const queryText = `
-    SELECT id, code, description, product_group, price 
-    FROM products 
-    WHERE price IS NOT NULL AND price >= 400 
-    ORDER BY description
-  `;
-  const result = await pool.query(queryText);
+// (NUEVO) fetchProtheusProducts ahora acepta paginación y filtros
+const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = '') => {
+  // Convertir a números para seguridad
+  const numLimit = parseInt(limit, 10);
+  const numPage = parseInt(page, 10);
+  const offset = (numPage - 1) * numLimit;
+
+  // --- 1. Construir consulta dinámica ---
+  let whereClauses = ["price IS NOT NULL", "price >= $1"];
+  let params = [400]; // Empezamos con el precio base
+
+  // Añadir filtro de marca (brand) si existe
+  if (brand) {
+    params.push(brand);
+    whereClauses.push(`brand = $${params.length}`);
+  }
+
+  // Añadir filtro de búsqueda (search) si existe
+  if (search) {
+    const searchTerms = search.toLowerCase().split(' ').filter(t => t);
+    if (searchTerms.length > 0) {
+      const searchClauses = searchTerms.map(term => {
+        params.push(`%${term}%`);
+        const paramIndex = params.length;
+        // Buscamos en 'description' (nombre) y 'code' (código)
+        // Usamos ILIKE para que sea insensible a mayúsculas/minúsculas
+        return `(description ILIKE $${paramIndex} OR code ILIKE $${paramIndex})`;
+      });
+      whereClauses.push(`(${searchClauses.join(' AND ')})`);
+    }
+  }
+
+  const whereString = whereClauses.join(' AND ');
+
+  // --- 2. Consulta para obtener el TOTAL de productos (para paginación) ---
+  const totalQueryText = `SELECT COUNT(*) FROM products WHERE ${whereString}`;
+  const totalResult = await pool.query(totalQueryText, params);
+  const totalProducts = parseInt(totalResult.rows[0].count, 10);
+
+  // --- 3. Consulta para obtener los productos de la PÁGINA actual ---
+  params.push(numLimit);
+  params.push(offset);
   
-  // (ACTUALIZADO) Mapeo para el frontend (que espera 'name', 'brand', 'stock')
-  return result.rows.map(row => ({ 
+  const queryText = `
+    SELECT id, code, description, product_group, price, brand 
+    FROM products 
+    WHERE ${whereString} 
+    ORDER BY description
+    LIMIT $${params.length - 1} OFFSET $${params.length}
+  `;
+
+  const result = await pool.query(queryText, params);
+
+  // (ACTUALIZADO) Mapeo para el frontend
+  const products = result.rows.map(row => ({ 
     id: row.id,
     code: row.code,
-    name: row.description, // Mapeado
-    brand: row.product_group, // Mapeado
+    name: row.description,
+    brand: row.brand, // <-- FIX: Ahora usamos la columna 'brand' (el nombre)
+    product_group: row.product_group, // Enviamos el código de grupo también
     price: Number(row.price),
-    stock: 999 // MOCK: setup.sql no tiene columna 'stock'.
+    stock: 999 // MOCK
   }));
+  
+  // Devolvemos tanto los productos de esta página como el total
+  return { products, totalProducts };
 };
+
+// (NUEVO) Endpoint para obtener solo las marcas (para el dropdown)
+const fetchProtheusBrands = async () => {
+  const queryText = `
+    SELECT DISTINCT brand 
+    FROM products 
+    WHERE brand IS NOT NULL AND brand != '' 
+    ORDER BY brand ASC
+  `;
+  const result = await pool.query(queryText);
+  return result.rows.map(row => row.brand); // Devuelve un array de strings, ej: ['ALBA', 'NORTON', 'TERSUAVE']
+};
+
 
 const fetchProtheusOffers = async () => {
   // (ACTUALIZADO) MOCK: setup.sql no tiene tabla 'offers'
@@ -514,14 +575,29 @@ app.post('/api/orders', async (req, res) => {
 });
 
 // --- Productos y Ofertas ---
+// (ACTUALIZADO) Endpoint de Productos: ahora acepta paginación y filtros
 app.get('/api/products', async (req, res) => {
-  console.log('GET /api/products -> Consultando productos en DB...');
+  console.log('GET /api/products -> Consultando productos en DB (paginado)...');
   try {
-    const products = await fetchProtheusProducts();
-    res.json(products);
+    const { page = 1, limit = 20, search = '', brand = '' } = req.query;
+    // Pasamos los filtros del query a la función de lógica
+    const data = await fetchProtheusProducts(page, limit, search, brand);
+    res.json(data); // Devuelve { products: [...], totalProducts: X }
   } catch (error) {
     console.error('Error en /api/products:', error);
     res.status(500).json({ message: 'Error al obtener productos.' });
+  }
+});
+
+// (NUEVO) Endpoint de Marcas
+app.get('/api/brands', async (req, res) => {
+  console.log('GET /api/brands -> Consultando lista de marcas...');
+  try {
+    const brands = await fetchProtheusBrands();
+    res.json(brands);
+  } catch (error) {
+    console.error('Error en /api/brands:', error);
+    res.status(500).json({ message: 'Error al obtener marcas.' });
   }
 });
 
