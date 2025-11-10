@@ -8,12 +8,14 @@ const PRODUCTS_PER_PAGE = 20;
 
 // Componente para una fila de la tabla
 // (CORREGIDO) Se usan los nombres de prop 'code', 'name', 'brand', 'capacity_description' y 'price'
+// (MODIFICADO) Se elimina la columna de capacidad
 const ProductRow = React.memo(({ product }) => (
   <tr className="border-b border-gray-200 hover:bg-gray-50">
     <td className="py-3 px-4 text-sm text-gray-700">{product.code}</td>
     <td className="py-3 px-4 text-sm text-gray-900 font-medium">{product.name}</td>
     <td className="py-3 px-4 text-sm text-gray-600">{product.brand || 'N/A'}</td>
-    <td className="py-3 px-4 text-sm text-gray-600">{product.capacity_description || product.capacity || 'N/A'}</td>
+    {/* Columna Capacidad eliminada */}
+    {/* <td className="py-3 px-4 text-sm text-gray-600">{product.capacity_description || product.capacity || 'N/A'}</td> */}
     <td className="py-3 px-4 text-sm text-gray-800 font-semibold text-right">
       ${parseFloat(product.price).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
     </td>
@@ -123,7 +125,8 @@ export default function PriceListPage({ onNavigate }) { // (NUEVO) Recibe onNavi
               <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Código</th>
               <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Descripción</th>
               <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Marca</th>
-              <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Capacidad</th>
+              {/* Columna Capacidad eliminada */}
+              {/* <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Capacidad</th> */}
               <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">Precio</th>
             </tr>
           </thead>
