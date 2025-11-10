@@ -135,23 +135,7 @@ const updateProfile = async (userId, profileData) => {
 };
 
 
-// --- Cuenta Corriente ---
-const fetchProtheusBalance = async (userId) => {
-  // (ACTUALIZADO) Usa 'pool'. La lógica SQL era correcta.
-  const result = await pool.query(
-    'SELECT SUM(credit) - SUM(debit) as total FROM account_movements WHERE user_id = $1',
-    [userId]
-  );
-  const balance = result.rows[0].total || 0;
-
-  // Simulación de disponible y pendiente
-  return {
-    total: balance,     // (CORREGIDO) Devolvemos el número
-    available: balance * 0.33, // Simulación
-    pending: balance * 0.67  // Simulación
-  };
-};
-
+// (MODIFICADO) Esta función debe estar ANTES de fetchProtheusBalance
 const fetchProtheusMovements = async (userId) => {
   // (ACTUALIZADO) Usa 'pool' y la columna 'date' de setup.sql
   const result = await pool.query(
@@ -167,6 +151,34 @@ const fetchProtheusMovements = async (userId) => {
     importe: row.credit > 0 ? row.credit : -row.debit // (Corregido) Devolvemos el número
   }));
 };
+
+// --- Cuenta Corriente ---
+// (MODIFICADO) Ahora esta función busca balance Y movimientos
+const fetchProtheusBalance = async (userId) => {
+  
+  // 1. Obtener el balance (lógica existente)
+  const balanceResult = await pool.query(
+    'SELECT SUM(credit) - SUM(debit) as total FROM account_movements WHERE user_id = $1',
+    [userId]
+  );
+  const totalBalance = balanceResult.rows[0].total || 0;
+
+  const balance = {
+    total: Number(totalBalance),
+    available: Number(totalBalance) * 0.33, // Simulación
+    pending: Number(totalBalance) * 0.67  // Simulación
+  };
+
+  // 2. Obtener los movimientos (llamando a la otra función)
+  const movements = await fetchProtheusMovements(userId);
+  
+  // 3. Devolver el objeto combinado que espera el frontend
+  return {
+    balance: balance,
+    movements: movements
+  };
+};
+
 
 // --- Pedidos ---
 const fetchProtheusOrders = async (userId) => {
