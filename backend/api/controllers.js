@@ -9,6 +9,7 @@ const { formatCurrency } = require('./utils/helpers'); // (NUEVO) Importar helpe
 
 const authenticateProtheusUser = async (email, password) => {
   const result = await pool.query(
+    // (MODIFICADO) Seleccionamos el nuevo campo is_admin
     'SELECT * FROM users WHERE email = $1',
     [email]
   );
@@ -29,7 +30,8 @@ const authenticateProtheusUser = async (email, password) => {
         name: user.full_name, // Mapeado desde 'full_name'
         code: user.a1_cod,   // Mapeado desde 'a1_cod'
         email: user.email,
-        id: user.id 
+        id: user.id,
+        is_admin: user.is_admin // (*** ESTA ES LA LÍNEA NUEVA/CORREGIDA ***)
       } 
     };
   }
@@ -60,12 +62,13 @@ const registerProtheusUser = async (userData) => {
   const passwordHash = await bcrypt.hash(password, salt);
 
   // 3. Insertar el nuevo usuario (alineado con setup.sql)
+  // El campo 'is_admin' tomará su valor DEFAULT (false)
   const queryText = `
     INSERT INTO users (
       full_name, email, password_hash
     ) VALUES (
       $1, $2, $3
-    ) RETURNING id, email, full_name
+    ) RETURNING id, email, full_name, is_admin
   `;
   
   const queryParams = [
@@ -87,7 +90,8 @@ const getProfile = async (userId) => {
         a1_cgc AS "A1_CGC",
         a1_tel AS "A1_NUMBER",
         a1_endereco AS "A1_END",
-        email AS "A1_EMAIL"
+        email AS "A1_EMAIL",
+        is_admin -- (NUEVO)
         -- Campos del frontend que NO ESTÁN en setup.sql:
       FROM users WHERE id = $1`, 
       [userId]
@@ -111,6 +115,7 @@ const updateProfile = async (userId, profileData) => {
       A1_EMAIL // -> email
     } = profileData;
 
+    // (NOTA: No permitimos actualizar 'is_admin' desde esta función de perfil)
     const queryText = `
       UPDATE users SET
         full_name = $1,
@@ -146,7 +151,8 @@ const fetchProtheusMovements = async (userId) => {
   return result.rows.map(row => ({
     id: row.id,
     fecha: row.date, // (Corregido) Devolvemos la fecha sin formatear
-    tipo: row.description.includes('Pedido') ? 'Factura' : 'Pago', // Simulación de tipo
+    // (MODIFICADO) Lógica mejorada para tipo de movimiento
+    tipo: row.debit > 0 ? 'Factura' : (row.description.includes('NC a Cliente') ? 'Nota de Crédito' : 'Pago'), // Asume que debits son facturas, credits son pagos/NC
     comprobante: row.description,
     importe: row.credit > 0 ? row.credit : -row.debit // (Corregido) Devolvemos el número
   }));
@@ -163,10 +169,11 @@ const fetchProtheusBalance = async (userId) => {
   );
   const totalBalance = balanceResult.rows[0].total || 0;
 
+  // (MODIFICADO) Simulación de Disponible y Pendiente
   const balance = {
     total: Number(totalBalance),
-    available: Number(totalBalance) * 0.33, // Simulación
-    pending: Number(totalBalance) * 0.67  // Simulación
+    disponible: Number(totalBalance) > 0 ? Number(totalBalance) : 0, // Si el saldo es positivo, está disponible
+    pendiente: Number(totalBalance) < 0 ? 0 : 0  // El pendiente de imputación lo dejamos en 0 por ahora
   };
 
   // 2. Obtener los movimientos (llamando a la otra función)
@@ -178,6 +185,58 @@ const fetchProtheusBalance = async (userId) => {
     movements: movements
   };
 };
+
+// --- (NUEVA FUNCIÓN) ---
+// Controlador para crear la nota de crédito
+const createCreditNote = async (targetUserId, amount, reason, adminUserId) => {
+  const client = await pool.connect();
+  
+  try {
+    // Iniciar transacción
+    await client.query('BEGIN');
+
+    // 1. Validar que el targetUserId existe
+    const userResult = await client.query('SELECT id FROM users WHERE id = $1', [targetUserId]);
+    if (userResult.rows.length === 0) {
+      throw new Error('El ID de cliente especificado no existe.');
+    }
+
+    // 2. Crear el movimiento de CRÉDITO (positivo) para el cliente
+    const creditQuery = `
+      INSERT INTO account_movements (user_id, date, description, debit, credit)
+      VALUES ($1, CURRENT_DATE, $2, 0, $3)
+      RETURNING id
+    `;
+    // (MODIFICADO) Usamos CURRENT_DATE para que sea solo fecha, no timestamp
+    const creditParams = [targetUserId, reason, amount];
+    await client.query(creditQuery, creditParams);
+
+    // 3. (Opcional pero recomendado) Crear un movimiento de DÉBITO (negativo)
+    // en la cuenta del admin o una cuenta "maestra" para balancear.
+    // Usaremos la cuenta del admin que realiza la acción.
+    const debitQuery = `
+      INSERT INTO account_movements (user_id, date, description, debit, credit)
+      VALUES ($1, CURRENT_DATE, $2, $3, 0)
+    `;
+    const debitParams = [adminUserId, `NC a Cliente ID ${targetUserId}: ${reason}`, amount];
+    await client.query(debitQuery, debitParams);
+
+    // Confirmar transacción
+    await client.query('COMMIT');
+    
+    return { success: true, message: 'Nota de crédito creada exitosamente.' };
+
+  } catch (error) {
+    // Revertir en caso de error
+    await client.query('ROLLBACK');
+    console.error('Error en transacción de Nota de Crédito:', error.message);
+    // Devolvemos el error específico (ej. "El ID de cliente no existe")
+    throw new Error(error.message || 'Error al crear la nota de crédito.');
+  } finally {
+    client.release();
+  }
+};
+// --- (FIN NUEVA FUNCIÓN) ---
 
 
 // --- Pedidos ---
@@ -275,8 +334,9 @@ const saveProtheusOrder = async (orderData, userId) => {
       
       const movementQuery = `
         INSERT INTO account_movements (user_id, date, description, debit, credit, order_ref)
-        VALUES ($1, CURRENT_TIMESTAMP, $2, $3, 0, $4)
+        VALUES ($1, CURRENT_DATE, $2, $3, 0, $4)
       `;
+      // (MODIFICADO) Usamos CURRENT_DATE para que sea solo fecha, no timestamp
       const movementParams = [
         userId,
         `Pedido de Venta #${newOrderId}`, // Descripción del movimiento
@@ -460,6 +520,7 @@ module.exports = {
   updateProfile,
   fetchProtheusBalance,
   fetchProtheusMovements,
+  createCreditNote, // (NUEVO) Exportar la nueva función
   fetchProtheusOrders,
   fetchProtheusOrderDetails,
   saveProtheusOrder,

@@ -2,11 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { upload } = require('./middleware/upload'); // Importar config de Multer
 const controllers = require('./controllers'); // Importar todos los controladores
+const pool = require('./db'); // (NUEVO) Importamos pool para la db
 
 // (NUEVO) Middleware simple para verificar userId
 // El frontend ahora debe enviar 'userId' en todas las peticiones protegidas
 const requireUserId = (req, res, next) => {
   // Buscamos el userId en query params (para GET) o en el body (para POST/PUT)
+  // (MODIFICADO) Damos prioridad a query params, luego body.
   const userId = req.query.userId || req.body.userId;
   
   if (!userId) {
@@ -18,6 +20,36 @@ const requireUserId = (req, res, next) => {
   req.userId = userId;
   next(); // Continúa a la siguiente función (el controlador)
 };
+
+// --- (NUEVO) Middleware de Administrador ---
+// Verifica si el 'userId' proporcionado en la request corresponde a un admin
+// DEBE usarse SIEMPRE DESPUÉS de 'requireUserId'
+const requireAdmin = async (req, res, next) => {
+  try {
+    // req.userId fue establecido por el middleware 'requireUserId'
+    const userId = req.userId; 
+    
+    const result = await pool.query('SELECT is_admin FROM users WHERE id = $1', [userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(401).json({ message: 'Usuario no autenticado.' });
+    }
+    
+    const user = result.rows[0];
+    
+    if (user.is_admin) {
+      next(); // Es admin, continuar
+    } else {
+      // No es admin, denegar acceso
+      return res.status(403).json({ message: 'Acceso denegado. Requiere permisos de administrador.' });
+    }
+  } catch (error) {
+    console.error('Error en middleware requireAdmin:', error);
+    res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+};
+// --- (FIN NUEVO Middleware) ---
+
 
 // =================================================================
 // --- ENDPOINTS DE TU API ---
@@ -128,6 +160,34 @@ router.get('/movements', requireUserId, async (req, res) => {
     res.status(500).json({ message: 'Error interno del servidor.' });
   }
 });
+
+// --- (NUEVO ENDPOINT) Nota de Crédito ---
+// Protegido por requireUserId (para saber qué admin lo hace)
+// y requireAdmin (para asegurar que SÓLO un admin pueda hacerlo)
+router.post('/credit-note', requireUserId, requireAdmin, async (req, res) => {
+  console.log(`POST /api/credit-note -> Admin ${req.userId} creando NC...`);
+  try {
+    const { targetUserId, amount, reason } = req.body;
+    const adminUserId = req.userId; // El admin que está haciendo la solicitud
+
+    if (!targetUserId || !amount || !reason) {
+      return res.status(400).json({ message: 'Faltan campos: targetUserId, amount, y reason son obligatorios.' });
+    }
+    
+    if (parseFloat(amount) <= 0) {
+       return res.status(400).json({ message: 'El importe debe ser un número positivo.' });
+    }
+
+    const result = await controllers.createCreditNote(targetUserId, amount, reason, adminUserId);
+    res.json(result); // Devuelve { success: true, message: '...' }
+
+  } catch (error) {
+    console.error('Error en /api/credit-note:', error);
+    // Devolvemos el mensaje de error específico del controlador (ej. "Usuario no existe")
+    res.status(500).json({ message: error.message || 'Error interno del servidor.' });
+  }
+});
+
 
 // --- Pedidos ---
 // (MODIFICADO) Usamos el middleware 'requireUserId'

@@ -72,6 +72,31 @@ export const fetchAccountBalance = async (userId) => {
   return handleResponse(response);
 };
 
+// --- (NUEVA FUNCIÓN) ---
+/**
+ * Crea una nota de crédito (solo para Admins)
+ * @param {object} data - { targetUserId, amount, reason, adminUserId }
+ * @returns {Promise<object>} - Respuesta de éxito/error
+ */
+export const createCreditNoteApi = async ({ targetUserId, amount, reason, adminUserId }) => {
+  if (!adminUserId) {
+    throw new Error("El ID del administrador es requerido para esta acción.");
+  }
+  
+  // El adminUserId se envía como query param para los middlewares 'requireUserId' y 'requireAdmin'
+  const response = await fetch(`${API_BASE_URL}/credit-note?userId=${adminUserId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    // El targetUserId, amount y reason van en el body
+    body: JSON.stringify({ targetUserId, amount, reason }),
+  });
+  return handleResponse(response);
+};
+// --- (FIN NUEVA FUNCIÓN) ---
+
+
 // --- Agrega aquí otras funciones de API ---
 // Por ejemplo:
 
