@@ -161,26 +161,22 @@ router.get('/movements', requireUserId, async (req, res) => {
   }
 });
 
-// --- (NUEVO ENDPOINT) Nota de Crédito ---
+// --- (ENDPOINT MODIFICADO) Nota de Crédito ---
 // Protegido por requireUserId (para saber qué admin lo hace)
 // y requireAdmin (para asegurar que SÓLO un admin pueda hacerlo)
 router.post('/credit-note', requireUserId, requireAdmin, async (req, res) => {
   console.log(`POST /api/credit-note -> Admin ${req.userId} creando NC...`);
   try {
-    // (MODIFICADO) Ahora recibe targetUserCod
-    const { targetUserCod, amount, reason } = req.body; 
+    // (MODIFICADO) Ahora recibe 'items' y 'invoiceRefId' en lugar de 'amount'
+    const { targetUserCod, reason, items, invoiceRefId } = req.body; 
     const adminUserId = req.userId; // El admin que está haciendo la solicitud
 
-    if (!targetUserCod || !amount || !reason) { // Validar targetUserCod
-      return res.status(400).json({ message: 'Faltan campos: targetUserCod, amount, y reason son obligatorios.' });
+    if (!targetUserCod || !reason || !items || !invoiceRefId || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'Faltan campos: targetUserCod, reason, invoiceRefId, y un array de items son obligatorios.' });
     }
     
-    if (parseFloat(amount) <= 0) {
-       return res.status(400).json({ message: 'El importe debe ser un número positivo.' });
-    }
-
-    // (MODIFICADO) Pasar targetUserCod al controlador
-    const result = await controllers.createCreditNote(targetUserCod, amount, reason, adminUserId);
+    // (MODIFICADO) Pasar los nuevos argumentos al controlador
+    const result = await controllers.createCreditNote(targetUserCod, reason, items, invoiceRefId, adminUserId);
     res.json(result); // Devuelve { success: true, message: '...' }
 
   } catch (error) {
@@ -203,6 +199,24 @@ router.get('/customer-invoices/:cod', requireUserId, requireAdmin, async (req, r
     console.error('Error en /api/customer-invoices:', error);
     // Si el error es "no existe", devolvemos 404. Si no, 500.
     res.status(error.message.includes('no existe') ? 404 : 500).json({ message: error.message });
+  }
+});
+
+// --- (NUEVO ENDPOINT) Obtener detalles de un pedido (para Admin) ---
+// Esta ruta permite a un admin ver los items de CUALQUIER pedido
+router.get('/admin/order-details/:id', requireUserId, requireAdmin, async (req, res) => {
+  console.log(`GET /api/admin/order-details/${req.params.id} -> Admin ${req.userId} fetching details...`);
+  try {
+    const orderId = req.params.id;
+    const orderDetails = await controllers.fetchAdminOrderDetails(orderId);
+    if (orderDetails) {
+      res.json(orderDetails);
+    } else {
+      res.status(404).json({ message: 'Pedido no encontrado.' });
+    }
+  } catch (error) {
+    console.error(`Error en /api/admin/order-details/${req.params.id}:`, error);
+    res.status(500).json({ message: error.message || 'Error al obtener detalles del pedido.' });
   }
 });
 

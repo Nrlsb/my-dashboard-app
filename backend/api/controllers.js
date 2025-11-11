@@ -186,7 +186,7 @@ const fetchProtheusBalance = async (userId) => {
   };
 };
 
-// --- (NUEVA FUNCIÓN) ---
+// --- (MODIFICADA) ---
 // Controlador para buscar las facturas (débitos) de un cliente por su A1_COD
 const fetchCustomerInvoices = async (customerCod) => {
   // 1. Encontrar al usuario por A1_COD
@@ -197,11 +197,11 @@ const fetchCustomerInvoices = async (customerCod) => {
   const userId = userResult.rows[0].id;
 
   // 2. Buscar sus facturas (movimientos de débito)
-  // Seleccionamos la fecha, descripción (comprobante) y el débito (importe)
+  // (MODIFICADO) Seleccionamos también 'order_ref' para poder buscar los items
   const result = await pool.query(
-    `SELECT id, date, description AS comprobante, debit AS importe 
+    `SELECT id, date, description AS comprobante, debit AS importe, order_ref 
      FROM account_movements 
-     WHERE user_id = $1 AND debit > 0 
+     WHERE user_id = $1 AND debit > 0 AND order_ref IS NOT NULL
      ORDER BY date DESC`,
     [userId]
   );
@@ -209,15 +209,16 @@ const fetchCustomerInvoices = async (customerCod) => {
   // Devolvemos la lista de facturas
   return result.rows.map(row => ({
     ...row,
-    importe: Number(row.importe) // Asegurarse de que sea un número
+    importe: Number(row.importe),
+    order_ref: row.order_ref // (NUEVO) Devolvemos la referencia al pedido
   }));
 };
-// --- (FIN NUEVA FUNCIÓN) ---
+// --- (FIN MODIFICACIÓN) ---
 
 
 // --- (MODIFICADO) Controlador para crear la nota de crédito
-// Ahora usa targetUserCod en lugar de targetUserId
-const createCreditNote = async (targetUserCod, amount, reason, adminUserId) => {
+// Ahora acepta una lista de items y una referencia a la factura
+const createCreditNote = async (targetUserCod, reason, items, invoiceRefId, adminUserId) => {
   const client = await pool.connect();
   
   try {
@@ -231,25 +232,47 @@ const createCreditNote = async (targetUserCod, amount, reason, adminUserId) => {
     }
     const targetUserId = userResult.rows[0].id; // <-- Este es el ID interno del cliente
 
-    // 2. Crear el movimiento de CRÉDITO (positivo) para el cliente
+    // 2. Calcular el monto total basado en los items seleccionados
+    let totalAmount = 0;
+    if (!items || items.length === 0) {
+      throw new Error('No se seleccionaron productos para la nota de crédito.');
+    }
+    
+    for (const item of items) {
+      // Validaciones básicas
+      if (!item.product_id || !item.quantity || !item.unit_price) {
+        throw new Error('Datos de items incompletos.');
+      }
+      totalAmount += parseFloat(item.quantity) * parseFloat(item.unit_price);
+    }
+
+    if (totalAmount <= 0) {
+      throw new Error('El monto de la nota de crédito debe ser positivo.');
+    }
+    
+    // 3. Crear el movimiento de CRÉDITO (positivo) para el cliente
     const creditQuery = `
-      INSERT INTO account_movements (user_id, date, description, debit, credit)
-      VALUES ($1, CURRENT_DATE, $2, 0, $3)
+      INSERT INTO account_movements (user_id, date, description, debit, credit, order_ref)
+      VALUES ($1, CURRENT_DATE, $2, 0, $3, $4)
       RETURNING id
     `;
-    // (MODIFICADO) Usamos CURRENT_DATE para que sea solo fecha, no timestamp
-    const creditParams = [targetUserId, reason, amount]; // <-- Usamos el targetUserId encontrado
+    // Usamos el ID de la factura (account_movement.id) como referencia
+    const creditParams = [targetUserId, reason, totalAmount, invoiceRefId];
     await client.query(creditQuery, creditParams);
 
-    // 3. (Opcional pero recomendado) Crear un movimiento de DÉBITO (negativo)
+    // 4. (Opcional pero recomendado) Crear un movimiento de DÉBITO (negativo)
     // en la cuenta del admin o una cuenta "maestra" para balancear.
-    // Usaremos la cuenta del admin que realiza la acción.
     const debitQuery = `
       INSERT INTO account_movements (user_id, date, description, debit, credit)
       VALUES ($1, CURRENT_DATE, $2, $3, 0)
     `;
-    const debitParams = [adminUserId, `NC a Cliente ${targetUserCod}: ${reason}`, amount]; // (MODIFICADO) Usamos targetUserCod en la descripción
+    const debitParams = [adminUserId, `NC a Cliente ${targetUserCod}: ${reason}`, totalAmount];
     await client.query(debitQuery, debitParams);
+    
+    // NOTA: Un sistema completo aquí también debería:
+    // 1. Actualizar el stock (sumar 'item.quantity' a 'products.stock').
+    // 2. Registrar la devolución en una tabla 'credit_note_items'.
+    // Por ahora, solo afectamos la Cta. Cte. como en la lógica original.
 
     // Confirmar transacción
     await client.query('COMMIT');
@@ -260,13 +283,13 @@ const createCreditNote = async (targetUserCod, amount, reason, adminUserId) => {
     // Revertir en caso de error
     await client.query('ROLLBACK');
     console.error('Error en transacción de Nota de Crédito:', error.message);
-    // Devolvemos el error específico (ej. "El ID de cliente no existe")
+    // Devolvemos el error específico
     throw new Error(error.message || 'Error al crear la nota de crédito.');
   } finally {
     client.release();
   }
 };
-// --- (FIN NUEVA FUNCIÓN) ---
+// --- (FIN MODIFICACIÓN) ---
 
 
 // --- Pedidos ---
@@ -330,6 +353,55 @@ const fetchProtheusOrderDetails = async (orderId, userId) => {
     }))
   };
 };
+
+// --- (NUEVA FUNCIÓN) ---
+// Versión para Administradores de fetchProtheusOrderDetails
+// No comprueba el 'user_id' del pedido, solo el 'orderId'
+const fetchAdminOrderDetails = async (orderId) => {
+  // 1. Obtener la orden principal (sin filtro de usuario)
+  const orderResult = await pool.query(
+    'SELECT * FROM orders WHERE id = $1',
+    [orderId]
+  );
+
+  if (orderResult.rows.length === 0) {
+    throw new Error('Pedido no encontrado.');
+  }
+  
+  const order = orderResult.rows[0];
+
+  // 2. Obtener los items del pedido
+  const itemsQuery = `
+    SELECT 
+      oi.quantity, 
+      oi.unit_price, 
+      p.id AS product_id, 
+      p.code AS product_code,
+      p.description AS product_name,
+      p.brand AS product_brand
+    FROM order_items oi
+    JOIN products p ON oi.product_id = p.id
+    WHERE oi.order_id = $1
+    ORDER BY p.description;
+  `;
+  const itemsResult = await pool.query(itemsQuery, [orderId]);
+
+  // 3. Formatear y devolver
+  return {
+    ...order,
+    total_amount: order.total,
+    date: new Date(order.created_at).toLocaleDateString('es-AR'),
+    items: itemsResult.rows.map(item => ({
+      ...item,
+      product_name: item.product_name || 'Producto no encontrado', // Fallback
+      product_code: item.product_code || 'N/A',
+      product_brand: item.product_brand || 'N/A',
+      unit_price: Number(item.unit_price), // Asegurar que sea número
+      quantity: Number(item.quantity)
+    }))
+  };
+};
+// --- (FIN NUEVA FUNCIÓN) ---
 
 
 const saveProtheusOrder = async (orderData, userId) => {
@@ -550,9 +622,10 @@ module.exports = {
   updateProfile,
   fetchProtheusBalance,
   fetchProtheusMovements,
-  createCreditNote, // (NUEVO) Exportar la nueva función
+  createCreditNote, // (MODIFICADO) Exportar la nueva función
   fetchProtheusOrders,
   fetchProtheusOrderDetails,
+  fetchAdminOrderDetails, // (NUEVO) Exportar la función de admin
   saveProtheusOrder,
   fetchProtheusProducts,
   fetchProductDetails, // <-- Exportar la nueva función
@@ -560,5 +633,5 @@ module.exports = {
   fetchProtheusOffers,
   saveProtheusQuery,
   saveProtheusVoucher,
-  fetchCustomerInvoices // (NUEVO) Exportar la nueva función
+  fetchCustomerInvoices // (MODIFICADO) Exportar la nueva función
 };

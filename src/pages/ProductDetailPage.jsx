@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react'; // (CORREGIDO) Faltaba importar useState
 import { useQuery } from '@tanstack/react-query';
 import { fetchProductById } from '../api/apiService.js';
 import { useCart } from '../context/CartContext.jsx';

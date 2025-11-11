@@ -1,20 +1,34 @@
 import React, { useState, useMemo } from 'react';
-// (CORREGIDO) Se cambió 'Listbox' (que no existe) por 'List'
-import { DollarSign, ArrowDown, ArrowUp, ArrowLeft, FilePlus, X, Loader2, AlertTriangle, User, FileText, CheckCircle, Search, List } from 'lucide-react';
+// (MODIFICADO) Se importa Checkbox, Package
+import { DollarSign, ArrowDown, ArrowUp, ArrowLeft, FilePlus, X, Loader2, AlertTriangle, User, FileText, CheckCircle, Search, List, Package, Minus, Plus } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchAccountBalance, createCreditNoteApi, fetchCustomerInvoicesApi } from '../api/apiService.js';
+// (MODIFICADO) Importamos la nueva función 'fetchAdminOrderDetailApi'
+import { fetchAccountBalance, createCreditNoteApi, fetchCustomerInvoicesApi, fetchAdminOrderDetailApi } from '../api/apiService.js';
 
-// --- (NUEVO) Componente del Modal para Nota de Crédito ---
-// Lo definimos aquí mismo para mantener todo en un solo archivo
+// Formateador de moneda
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+  }).format(amount || 0);
+};
+
+// --- (NUEVO) Componente del Modal para Nota de Crédito (MODIFICADO) ---
 const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
-  // (MODIFICADO) Cambiamos el ID por el A1_COD
+  // Estados principales
   const [targetUserCod, setTargetUserCod] = useState('');
-  const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
-  // (NUEVO) Estados para la búsqueda de facturas
+  
+  // Estados para la búsqueda de facturas
   const [customerInvoices, setCustomerInvoices] = useState([]);
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState('');
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState(''); // Es el ID de account_movements
   const [invoiceError, setInvoiceError] = useState('');
+  
+  // (NUEVO) Estados para los items de la factura seleccionada
+  const [invoiceItems, setInvoiceItems] = useState([]);
+  const [itemFetchError, setItemFetchError] = useState('');
+  // Map<product_id, quantity>
+  const [selectedItems, setSelectedItems] = useState(new Map()); 
   
   const queryClient = useQueryClient();
 
@@ -23,7 +37,7 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
     mutationFn: fetchCustomerInvoicesApi,
     onSuccess: (data) => {
       if (data.length === 0) {
-        setInvoiceError('No se encontraron facturas (débitos) para este cliente.');
+        setInvoiceError('No se encontraron facturas (débitos) con pedidos asociados para este cliente.');
         setCustomerInvoices([]);
       } else {
         setCustomerInvoices(data);
@@ -35,24 +49,32 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
       setCustomerInvoices([]);
     }
   });
+  
+  // (NUEVO) Mutación para BUSCAR items de la factura (pedido) seleccionada
+  const itemFetchMutation = useMutation({
+    mutationFn: fetchAdminOrderDetailApi,
+    onSuccess: (data) => {
+      setInvoiceItems(data.items || []);
+      setItemFetchError('');
+      setSelectedItems(new Map()); // Resetear selección al cambiar de factura
+    },
+    onError: (error) => {
+      setItemFetchError(error.message || 'Error al cargar los items de la factura.');
+      setInvoiceItems([]);
+    }
+  });
 
   // (MODIFICADO) Mutación para CREAR la nota de crédito
   const creditNoteMutation = useMutation({
     mutationFn: createCreditNoteApi,
     onSuccess: (data) => {
-      // Éxito: Invalidamos el caché de la cta. cte. del cliente afectado
-      // y también la del admin (para ver su débito).
-      // Buscamos el ID interno del cliente en la DB (aunque ya lo tenemos, es buena práctica)
-      queryClient.invalidateQueries({ queryKey: ['accountBalanceByCod', targetUserCod] }); // Invalidar por COD
-      // Invalidamos la query de la página actual, que es la del admin.
+      queryClient.invalidateQueries({ queryKey: ['accountBalanceByCod', targetUserCod] });
       queryClient.invalidateQueries({ queryKey: ['accountBalance', adminUser.id] });
-      // Llamamos a la función onSuccess pasada por props (que cierra el modal y muestra msg)
       onSuccess(data.message || 'Nota de crédito creada con éxito.');
     },
-    // onError es manejado por el estado 'error' de la mutación
   });
 
-  // (NUEVO) Handler para el botón "Buscar Facturas"
+  // Handler para el botón "Buscar Facturas"
   const handleSearchInvoices = () => {
     if (!targetUserCod.trim()) {
       setInvoiceError('Debe ingresar un Nº de Cliente.');
@@ -60,78 +82,141 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
     }
     setInvoiceError('');
     setSelectedInvoiceId('');
-    setAmount('');
     setReason('');
+    setInvoiceItems([]);
+    setSelectedItems(new Map());
     invoiceSearchMutation.mutate({ customerCod: targetUserCod, adminUserId: adminUser.id });
   };
   
-  // (NUEVO) Handler para cuando se selecciona una factura del dropdown
+  // (MODIFICADO) Handler para cuando se selecciona una factura del dropdown
   const handleInvoiceSelect = (e) => {
     const invoiceId = e.target.value;
     setSelectedInvoiceId(invoiceId);
     
+    // Limpiar estados anteriores
+    setInvoiceItems([]);
+    setSelectedItems(new Map());
+    setItemFetchError('');
+
     if (invoiceId) {
       const selected = customerInvoices.find(inv => inv.id.toString() === invoiceId);
-      if (selected) {
-        // Auto-rellenar campos
-        setAmount(selected.importe.toString());
+      if (selected && selected.order_ref) {
+        // (NUEVO) Ahora busca los items de esa factura/pedido
+        itemFetchMutation.mutate({ orderId: selected.order_ref, adminUserId: adminUser.id });
+        // (MODIFICADO) Auto-rellenar solo el motivo
         setReason(`Devolución/Anulación ref. Factura: ${selected.comprobante}`);
       }
     } else {
       // Si des-selecciona, limpiar campos
-      setAmount('');
       setReason('');
     }
   };
 
+  // --- (NUEVO) Handlers para la selección de items ---
+  
+  /** Maneja el cambio de cantidad en el input numérico del item */
+  const handleItemQuantityChange = (item, newQuantityStr) => {
+    const newQuantity = parseInt(newQuantityStr, 10);
+    const newMap = new Map(selectedItems);
 
+    if (isNaN(newQuantity) || newQuantity <= 0) {
+      // Si la cantidad es inválida o 0, lo quitamos de la selección
+      newMap.delete(item.product_id);
+    } else {
+      // Si la cantidad supera la original, la topeamos
+      const finalQuantity = Math.min(newQuantity, item.quantity);
+      newMap.set(item.product_id, finalQuantity);
+    }
+    setSelectedItems(newMap);
+  };
+
+  /** Maneja el clic en el checkbox del item */
+  const handleItemToggle = (item, isChecked) => {
+    const newMap = new Map(selectedItems);
+    if (isChecked) {
+      // Si se marca, se añade con la cantidad MÁXIMA (la original de la factura)
+      newMap.set(item.product_id, item.quantity);
+    } else {
+      // Si se desmarca, se elimina
+      newMap.delete(item.product_id);
+    }
+    setSelectedItems(newMap);
+  };
+  
+  // Calcula el total de la NC basado en los items seleccionados
+  const calculatedTotal = useMemo(() => {
+    let total = 0;
+    for (const [productId, quantity] of selectedItems.entries()) {
+      const item = invoiceItems.find(i => i.product_id === productId);
+      if (item) {
+        total += item.unit_price * quantity;
+      }
+    }
+    return total;
+  }, [selectedItems, invoiceItems]);
+  // --- (FIN NUEVO Handlers) ---
+
+
+  // --- (MODIFICADO) Handler para enviar el formulario ---
   const handleSubmit = (e) => {
     e.preventDefault();
-    const numAmount = parseFloat(amount);
-
-    // Limpiamos errores viejos
     creditNoteMutation.reset(); 
     
     if (!targetUserCod.trim()) {
-      // Usamos .mutate para setear el error, pero no ejecutamos
-      creditNoteMutation.mutate(undefined, {
-        onError: () => {} // Evita que se lance un error de mutación
-      });
-      creditNoteMutation.error = new Error('El Nº de Cliente (A1_COD) es obligatorio.'); // Seteamos el error manualmente
+      creditNoteMutation.error = new Error('El Nº de Cliente (A1_COD) es obligatorio.');
       return;
     }
-    
-    if (isNaN(numAmount) || numAmount <= 0) {
-      creditNoteMutation.mutate(undefined, {
-        onError: () => {} 
-      });
-      creditNoteMutation.error = new Error('El importe debe ser un número positivo.');
+    if (!selectedInvoiceId) {
+      creditNoteMutation.error = new Error('Debe seleccionar una factura de referencia.');
       return;
     }
-
+    if (selectedItems.size === 0) {
+      creditNoteMutation.error = new Error('Debe seleccionar al menos un producto para la nota de crédito.');
+      return;
+    }
     if (!reason.trim()) {
-      creditNoteMutation.mutate(undefined, {
-        onError: () => {} 
-      });
       creditNoteMutation.error = new Error('Debe ingresar un concepto.');
       return;
     }
 
+    // Buscar el ID de la factura (account_movement)
+    const invoice = customerInvoices.find(inv => inv.id.toString() === selectedInvoiceId);
+    if (!invoice) {
+       creditNoteMutation.error = new Error('Error interno: No se encontró la factura seleccionada.');
+       return;
+    }
+
+    // Construir el array de items para enviar al backend
+    const itemsToCredit = [];
+    for (const [productId, quantity] of selectedItems.entries()) {
+      const originalItem = invoiceItems.find(i => i.product_id === productId);
+      if (originalItem) {
+        itemsToCredit.push({
+          product_id: originalItem.product_id,
+          quantity: quantity,
+          unit_price: originalItem.unit_price 
+        });
+      }
+    }
+
+    // Ejecutar la mutación con los datos correctos
     creditNoteMutation.mutate({
-      targetUserCod: targetUserCod.trim(), // (MODIFICADO)
-      amount: numAmount,
+      targetUserCod: targetUserCod.trim(),
       reason: reason.trim(),
+      items: itemsToCredit,
+      invoiceRefId: invoice.id, // ID del 'account_movement' de la factura
       adminUserId: adminUser.id
     });
   };
   
-  const isFormDisabled = creditNoteMutation.isPending || invoiceSearchMutation.isPending;
+  const isFormDisabled = creditNoteMutation.isPending || invoiceSearchMutation.isPending || itemFetchMutation.isPending;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-md m-4">
+      {/* (MODIFICADO) Aumentamos el ancho y alto máximo para que quepan los items */}
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl m-4 max-h-[90vh] flex flex-col">
         {/* Encabezado del Modal */}
-        <div className="flex items-center justify-between p-5 border-b border-gray-200">
+        <div className="flex-shrink-0 flex items-center justify-between p-5 border-b border-gray-200">
           <h3 className="text-xl font-semibold text-gray-800 flex items-center">
             <FilePlus className="w-6 h-6 mr-3 text-green-600" />
             Crear Nota de Crédito
@@ -146,8 +231,9 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
         </div>
 
         {/* Formulario */}
-        <form onSubmit={handleSubmit}>
-          <div className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+          {/* Cuerpo del modal (con scroll) */}
+          <div className="flex-1 p-6 space-y-5 overflow-y-auto">
             {/* Campo Nº Cliente (A1_COD) */}
             <div>
               <label htmlFor="targetUserCod" className="block text-sm font-medium text-gray-700 mb-1">
@@ -158,7 +244,7 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
                   <User className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     id="targetUserCod"
-                    type="text" // A1_COD puede ser alfanumérico
+                    type="text"
                     value={targetUserCod}
                     onChange={(e) => setTargetUserCod(e.target.value)}
                     placeholder="Ej: 000123"
@@ -182,14 +268,13 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
               </div>
             </div>
 
-            {/* (NUEVO) Dropdown de Facturas */}
+            {/* Dropdown de Facturas */}
             {(customerInvoices.length > 0 || invoiceError) && (
               <div>
                 <label htmlFor="invoiceSelect" className="block text-sm font-medium text-gray-700 mb-1">
-                  Seleccionar Factura (Opcional)
+                  Seleccionar Factura
                 </label>
                 <div className="relative">
-                  {/* (CORREGIDO) Icono 'List' en lugar de 'Listbox' */}
                   <List className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <select
                     id="invoiceSelect"
@@ -198,10 +283,10 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
                     className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
                     disabled={isFormDisabled}
                   >
-                    <option value="">-- Seleccionar una factura para auto-rellenar --</option>
+                    <option value="">-- Seleccionar una factura --</option>
                     {customerInvoices.map(invoice => (
                       <option key={invoice.id} value={invoice.id}>
-                        {`${new Date(invoice.date).toLocaleDateString('es-AR')} - ${invoice.comprobante} - ${parseFloat(invoice.importe).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}`}
+                        {`${new Date(invoice.date).toLocaleDateString('es-AR')} - ${invoice.comprobante} - ${formatCurrency(invoice.importe)}`}
                       </option>
                     ))}
                   </select>
@@ -212,26 +297,49 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
               </div>
             )}
 
-            {/* Campo Importe */}
-            <div>
-              <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
-                Importe (ARS)
-              </label>
-              <div className="relative">
-                <DollarSign className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  disabled={isFormDisabled}
-                />
+            {/* --- (NUEVO) Sección de Items de la Factura --- */}
+            {itemFetchMutation.isPending && (
+              <div className="flex justify-center items-center p-4">
+                <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                <span className="ml-2 text-gray-600">Cargando productos de la factura...</span>
               </div>
-            </div>
+            )}
+            {itemFetchError && (
+              <p className="mt-1 text-sm text-red-600">{itemFetchError}</p>
+            )}
+            {invoiceItems.length > 0 && (
+              <div className="space-y-3 border border-gray-200 rounded-lg p-4">
+                <h4 className="text-md font-semibold text-gray-800 mb-3">Productos en la Factura</h4>
+                <div className="max-h-48 overflow-y-auto space-y-3 pr-2">
+                  {invoiceItems.map(item => (
+                    <div key={item.product_id} className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        id={`item-${item.product_id}`}
+                        className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        checked={selectedItems.has(item.product_id)}
+                        onChange={(e) => handleItemToggle(item, e.target.checked)}
+                        disabled={isFormDisabled}
+                      />
+                      <label htmlFor={`item-${item.product_id}`} className="flex-1 text-sm text-gray-700">
+                        {item.product_name} ({formatCurrency(item.unit_price)})
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max={item.quantity} // Máximo es la cantidad facturada
+                        value={selectedItems.get(item.product_id) || ''}
+                        onChange={(e) => handleItemQuantityChange(item, e.target.value)}
+                        disabled={!selectedItems.has(item.product_id) || isFormDisabled}
+                        className="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm disabled:bg-gray-100 disabled:text-gray-400"
+                        placeholder={`Max: ${item.quantity}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* --- (FIN NUEVO) Sección de Items --- */}
 
             {/* Campo Concepto */}
             <div>
@@ -242,27 +350,36 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
                 <FileText className="w-5 h-5 text-gray-400 absolute left-3 top-3.5" />
                 <textarea
                   id="reason"
-                  rows="3"
+                  rows="2"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  placeholder="Ej: Devolución pedido #123"
+                  placeholder="Ej: Devolución por falla"
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                   disabled={isFormDisabled}
                 />
               </div>
             </div>
+            
+            {/* (NUEVO) Total Calculado */}
+            {calculatedTotal > 0 && (
+              <div className="flex justify-between items-center p-3 bg-gray-100 rounded-lg">
+                <span className="text-lg font-semibold text-gray-800">Total N/C:</span>
+                <span className="text-2xl font-bold text-green-600">{formatCurrency(calculatedTotal)}</span>
+              </div>
+            )}
 
             {/* Mensajes de Error de Creación */}
             {creditNoteMutation.isError && (
               <div className="flex items-center p-3 bg-red-100 text-red-700 rounded-lg">
                 <AlertTriangle className="w-5 h-5 mr-2 flex-shrink-0" />
+                {/* (MODIFICADO) Mostramos el error desde el estado de la mutación */}
                 <span className="text-sm">{creditNoteMutation.error.message}</span>
               </div>
             )}
           </div>
 
           {/* Pie del Modal (Acciones) */}
-          <div className="flex items-center justify-end p-5 border-t border-gray-200 bg-gray-50 rounded-b-lg space-x-3">
+          <div className="flex-shrink-0 flex items-center justify-end p-5 border-t border-gray-200 bg-gray-50 rounded-b-lg space-x-3">
             <button
               type="button"
               onClick={onClose}
@@ -273,7 +390,7 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
             </button>
             <button
               type="submit"
-              disabled={isFormDisabled}
+              disabled={isFormDisabled || calculatedTotal <= 0}
               className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-medium text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {creditNoteMutation.isPending ? (
@@ -293,7 +410,6 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
 
 
 // Componente de UI para el estado de carga
-// ... (código de LoadingSkeleton sin cambios) ...
 const LoadingSkeleton = () => (
   <div className="animate-pulse">
     {/* Tarjetas de Saldo */}
@@ -308,7 +424,6 @@ const LoadingSkeleton = () => (
 );
 
 // Componente de UI para el estado de error
-// ... (código de ErrorMessage sin cambios) ...
 const ErrorMessage = ({ message }) => (
   <div className="flex flex-col items-center justify-center p-10 bg-white rounded-lg shadow-md">
     <p className="text-red-500 font-semibold text-lg">Error al cargar el balance</p>
@@ -318,7 +433,6 @@ const ErrorMessage = ({ message }) => (
 );
 
 // Tarjeta para mostrar saldos
-// ... (código de BalanceCard sin cambios) ...
 const BalanceCard = ({ title, amount, bgColorClass }) => {
   const formattedAmount = (amount || 0).toLocaleString('es-AR', {
     style: 'currency',
@@ -337,7 +451,6 @@ const BalanceCard = ({ title, amount, bgColorClass }) => {
 };
 
 // Fila de la tabla de movimientos
-// ... (código de MovementRow sin cambios) ...
 const MovementRow = ({ movement }) => {
   const isPositive = movement.importe >= 0; // (MODIFICADO) Cualquier cosa >= 0 es positiva (Pago, NC)
   const formattedDate = new Date(movement.fecha).toLocaleDateString('es-AR');

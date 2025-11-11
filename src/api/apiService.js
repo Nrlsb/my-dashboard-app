@@ -38,6 +38,26 @@ export const fetchProducts = async (page, searchTerm, brand) => {
 };
 
 /**
+ * (NUEVA FUNCIÓN) Obtiene TODOS los productos que coinciden con el filtro para el PDF
+ * @param {string} searchTerm - Término de búsqueda
+ * @param {string} brand - Marca a filtrar
+ * @returns {Promise<Array<object>>} - Array de productos
+ */
+export const fetchAllProductsForPDF = async (searchTerm, brand) => {
+  const params = new URLSearchParams({
+    page: 1,
+    limit: 9999, // Un límite muy alto para traer todos los productos
+    search: searchTerm,
+    brand: brand,
+  });
+
+  const response = await fetch(`${API_BASE_URL}/products?${params.toString()}`);
+  const data = await handleResponse(response);
+  return data.products; // Solo devolvemos el array de productos
+};
+
+
+/**
  * (NUEVA FUNCIÓN) Obtiene un solo producto por su ID
  * @param {string} productId - El ID del producto
  * @returns {Promise<object>} - El objeto del producto
@@ -49,6 +69,17 @@ export const fetchProductById = async (productId) => {
   const response = await fetch(`${API_BASE_URL}/products/${productId}`);
   return handleResponse(response);
 };
+
+// --- (NUEVA FUNCIÓN AÑADIDA) ---
+/**
+ * Obtiene la lista de todas las marcas de productos
+ * @returns {Promise<Array<string>>} - Un array de strings de marcas
+ */
+export const fetchProtheusBrands = async () => {
+  const response = await fetch(`${API_BASE_URL}/brands`);
+  return handleResponse(response);
+};
+// --- (FIN NUEVA FUNCIÓN AÑADIDA) ---
 
 
 /**
@@ -72,13 +103,13 @@ export const fetchAccountBalance = async (userId) => {
   return handleResponse(response);
 };
 
-// --- (NUEVA FUNCIÓN) ---
+// --- (FUNCIÓN MODIFICADA) ---
 /**
  * Crea una nota de crédito (solo para Admins)
- * @param {object} data - { targetUserCod, amount, reason, adminUserId }
+ * @param {object} data - { targetUserCod, reason, items, invoiceRefId, adminUserId }
  * @returns {Promise<object>} - Respuesta de éxito/error
  */
-export const createCreditNoteApi = async ({ targetUserCod, amount, reason, adminUserId }) => {
+export const createCreditNoteApi = async ({ targetUserCod, reason, items, invoiceRefId, adminUserId }) => {
   if (!adminUserId) {
     throw new Error("El ID del administrador es requerido para esta acción.");
   }
@@ -89,18 +120,18 @@ export const createCreditNoteApi = async ({ targetUserCod, amount, reason, admin
     headers: {
       'Content-Type': 'application/json',
     },
-    // (MODIFICADO) El targetUserCod, amount y reason van en el body
-    body: JSON.stringify({ targetUserCod, amount, reason }),
+    // (MODIFICADO) El body ahora envía los items en lugar de un 'amount' total
+    body: JSON.stringify({ targetUserCod, reason, items, invoiceRefId }),
   });
   return handleResponse(response);
 };
-// --- (FIN NUEVA FUNCIÓN) ---
+// --- (FIN MODIFICACIÓN) ---
 
-// --- (NUEVA FUNCIÓN) ---
+// --- (FUNCIÓN MODIFICADA) ---
 /**
  * Busca las facturas (movimientos de débito) de un cliente por su A1_COD
  * @param {object} data - { customerCod, adminUserId }
- * @returns {Promise<Array<object>>} - Lista de facturas
+ * @returns {Promise<Array<object>>} - Lista de facturas (ahora con order_ref)
  */
 export const fetchCustomerInvoicesApi = async ({ customerCod, adminUserId }) => {
   if (!adminUserId || !customerCod) {
@@ -110,6 +141,22 @@ export const fetchCustomerInvoicesApi = async ({ customerCod, adminUserId }) => 
   // El adminUserId va en la query para la autenticación
   // El customerCod va en la URL (parámetro de ruta)
   const response = await fetch(`${API_BASE_URL}/customer-invoices/${customerCod}?userId=${adminUserId}`);
+  return handleResponse(response);
+};
+// --- (FIN MODIFICACIÓN) ---
+
+// --- (NUEVA FUNCIÓN) ---
+/**
+ * (Admin) Obtiene el detalle de UN pedido específico (incluyendo items)
+ * @param {string} orderId - El ID del pedido (de orders.id)
+ * @param {string} adminUserId - El ID del admin que solicita
+ * @returns {Promise<object>} - Detalles del pedido con su lista de items
+ */
+export const fetchAdminOrderDetailApi = async ({ orderId, adminUserId }) => {
+  if (!orderId || !adminUserId) throw new Error("ID de pedido y de admin requeridos");
+  
+  // Llama a la nueva ruta de admin
+  const response = await fetch(`${API_BASE_URL}/admin/order-details/${orderId}?userId=${adminUserId}`);
   return handleResponse(response);
 };
 // --- (FIN NUEVA FUNCIÓN) ---
