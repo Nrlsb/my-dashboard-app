@@ -19,6 +19,11 @@ const OrderPreviewPage = ({ onNavigate, onCompleteOrder, currentUser }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   const [submitMessage, setSubmitMessage] = useState('');
+  
+  // --- CAMBIO AÑADIDO ---
+  // Estado para la tienda seleccionada
+  const [selectedStore, setSelectedStore] = useState('01'); 
+  // --- FIN CAMBIO AÑADIDO ---
 
   // (NUEVO) Calculamos el total aquí, leyendo del contexto
   const totalPrice = useMemo(() => {
@@ -126,7 +131,10 @@ const OrderPreviewPage = ({ onNavigate, onCompleteOrder, currentUser }) => {
         total: totalPrice,
         clientCode: currentUser?.a1_cod || 'CLIENTE-001', // (MODIFICADO) Usa el código real
         type: submissionType,
-        userId: currentUser.id // (MODIFICADO) Envía el userId
+        userId: currentUser.id, // (MODIFICADO) Envía el userId
+        // --- CAMBIO AÑADIDO ---
+        tienda: selectedStore // Añadimos la tienda seleccionada al pedido
+        // --- FIN CAMBIO AÑADIDO ---
       };
       
       if (orderData.items.some(item => !item.code)) {
@@ -244,6 +252,24 @@ const OrderPreviewPage = ({ onNavigate, onCompleteOrder, currentUser }) => {
               {/* Acciones Finales (Botones) */}
               {cart.length > 0 && (
                 <div className="p-6 bg-gray-50 border-t border-gray-200 space-y-3 rounded-b-lg">
+                  
+                  {/* --- CAMBIO AÑADIDO --- */}
+                  <div className="mb-4">
+                    <label htmlFor="store-select" className="block text-sm font-medium text-gray-700 mb-1">
+                      Tienda:
+                    </label>
+                    <select
+                      id="store-select"
+                      value={selectedStore}
+                      onChange={(e) => setSelectedStore(e.target.value)}
+                      className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="01">01</option>
+                      <option value="02">02</option>
+                    </select>
+                  </div>
+                  {/* --- FIN CAMBIO AÑADIDO --- */}
+
                   <button
                     onClick={() => handleSubmitOrder('quote')}
                     disabled={isSubmitting}
