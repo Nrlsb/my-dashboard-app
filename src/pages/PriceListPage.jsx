@@ -478,7 +478,7 @@ export default function PriceListPage({ onNavigate }) {
             <p className="text-gray-500 text-sm">Fin de los resultados.</p>
           )}
           
-          {/* Elemento invisible que dispara la carga infinita */}
+          {/* Elemento  invisible que dispara la carga infinita */}
           <div ref={infiniteScrollRef} style={{ height: '10px' }} />
         </div>
       </div>
