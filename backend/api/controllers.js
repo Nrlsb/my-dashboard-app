@@ -4,6 +4,96 @@ const bcrypt = require('bcryptjs');
 const { formatCurrency } = require('./utils/helpers'); // (NUEVO) Importar helper
 
 // =================================================================
+// --- (MODIFICADO) GESTOR DE COTIZACIONES DE DÓLAR (OFICIAL Y MAYORISTA) ---
+// =================================================================
+
+// Variable para cachear AMBAS cotizaciones
+let cachedDollarRates = {
+  oficial: null,   // Para Moneda 2 (Billete)
+  mayorista: null  // Para Moneda 3 (Divisas)
+};
+// Timestamp de la última vez que se buscó
+let lastFetchTime = 0;
+// Duración del caché: 1 hora (en milisegundos)
+const CACHE_DURATION = 1000 * 60 * 60; 
+
+/**
+ * Obtiene las cotizaciones actuales del dólar (Oficial y Mayorista).
+ * Usa un caché de 1 hora.
+ * Si la API falla, devuelve los últimos valores cacheados o null.
+ */
+const getDollarRates = async () => {
+  const now = Date.now();
+  
+  // 1. Verificar si hay un valor cacheado y si aún es válido
+  // (Revisamos que ambos valores estén presentes)
+  if (cachedDollarRates.oficial && cachedDollarRates.mayorista && (now - lastFetchTime < CACHE_DURATION)) {
+    // console.log("Usando cotizaciones de dólar cacheadas:", cachedDollarRates);
+    return cachedDollarRates;
+  }
+
+  try {
+    // 2. Si no hay caché o está vencido, buscar ambas cotizaciones
+    // console.log("Buscando nuevas cotizaciones de dólar (Oficial y Mayorista)...");
+    
+    // Usamos Promise.all para buscarlas en paralelo
+    const [oficialResponse, mayoristaResponse] = await Promise.all([
+        fetch('https://dolarapi.com/v1/dolares/oficial'),   // BNA Billete (Venta)
+        fetch('https://dolarapi.com/v1/dolares/mayorista') // BCRA Mayorista (Venta)
+    ]);
+    
+    let rateOficial = null;
+    let rateMayorista = null;
+
+    // --- Procesar Oficial (Billete - Moneda 2) ---
+    if (oficialResponse.ok) {
+        const dataOficial = await oficialResponse.json();
+        if (dataOficial.venta) {
+            rateOficial = dataOficial.venta;
+        }
+    } else {
+        console.warn(`API de Dólar Oficial falló: ${oficialResponse.statusText}`);
+    }
+    
+    // --- Procesar Mayorista (Divisas - Moneda 3) ---
+    if (mayoristaResponse.ok) {
+        const dataMayorista = await mayoristaResponse.json();
+        // La API de mayorista también usa el campo 'venta' para el valor
+        if (dataMayorista.venta) {
+            rateMayorista = dataMayorista.venta;
+        }
+    } else {
+        console.warn(`API de Dólar Mayorista falló: ${mayoristaResponse.statusText}`);
+    }
+
+    // 3. Actualizar el caché:
+    // Si se obtuvo un nuevo valor, se usa.
+    // Si la API falló (rate es null), se mantiene el valor cacheado anterior (si existe).
+    cachedDollarRates = {
+        oficial: rateOficial || cachedDollarRates.oficial,
+        mayorista: rateMayorista || cachedDollarRates.mayorista
+    };
+    
+    lastFetchTime = now;
+    // console.log("Nuevas cotizaciones obtenidas:", cachedDollarRates);
+    
+    return cachedDollarRates;
+
+  } catch (error) {
+    console.error("Error grave al obtener cotizaciones del dólar:", error.message);
+    // 4. Fallback: Devolver el caché (incluso si está vencido) si existe.
+    if (cachedDollarRates.oficial && cachedDollarRates.mayorista) {
+      // console.warn("API de dólar falló. Usando último valor cacheado (vencido):", cachedDollarRates);
+      return cachedDollarRates;
+    }
+    
+    // Si la API falla y NUNCA tuvimos un valor, devolvemos nulls.
+    return { oficial: null, mayorista: null };
+  }
+};
+
+
+// =================================================================
 // --- Autenticación y Registro ---
 // =================================================================
 
@@ -464,6 +554,9 @@ const saveProtheusOrder = async (orderData, userId) => {
 // --- Productos y Ofertas ---
 // (NUEVO) fetchProtheusProducts ahora acepta paginación y filtros
 const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = '') => {
+  // --- (MODIFICADO) Obtener AMBAS cotizaciones ANTES de la consulta
+  const liveRates = await getDollarRates();
+  
   const numLimit = parseInt(limit, 10);
   const numPage = parseInt(page, 10);
   const offset = (numPage - 1) * numLimit;
@@ -503,9 +596,9 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
   params.push(numLimit);
   params.push(offset);
   
-  // (CORREGIDO) Se añaden capacity y capacity_description
+  // (MODIFICADO) Se añaden moneda y cotizacion (ya estaban desde el paso anterior)
   const queryText = `
-    SELECT id, code, description, product_group, price, brand, capacity, capacity_description
+    SELECT id, code, description, product_group, price, brand, capacity, capacity_description, moneda, cotizacion
     FROM products 
     WHERE ${whereString} 
     ORDER BY description
@@ -514,18 +607,42 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
 
   const result = await pool.query(queryText, params);
 
-  // (CORREGIDO) Mapeo para el frontend
-  const products = result.rows.map(row => ({ 
-    id: row.id,
-    code: row.code,
-    name: row.description,
-    brand: row.brand,
-    product_group: row.product_group,
-    price: Number(row.price),
-    capacity: row.capacity, // (NUEVO)
-    capacity_description: row.capacity_description, // (NUEVO)
-    stock: 999 // MOCK
-  }));
+  // --- (MODIFICADO) Lógica de cálculo de precio ---
+  const products = result.rows.map(row => { 
+    
+    let cotizacion;
+    const moneda = row.moneda;
+    const dbCotizacion = Number(row.cotizacion);
+    const originalPrice = Number(row.price); // <-- (NUEVO) Guardamos el precio original
+
+    if (moneda === 2) { // Moneda 2 (Billete)
+        // Usar la cotización 'oficial' en vivo. Si falló (es null), usar la de la BD.
+        cotizacion = liveRates.oficial || dbCotizacion;
+    } else if (moneda === 3) { // Moneda 3 (Divisas)
+        // Usar la cotización 'mayorista' en vivo. Si falló (es null), usar la de la BD.
+        cotizacion = liveRates.mayorista || dbCotizacion;
+    } else { // Moneda 1 (ARS) o cualquier otro caso
+        cotizacion = 1.00;
+    }
+    
+    // El precio de la BD (que puede ser ARS o USD) se multiplica por la cotización final.
+    const finalPrice = originalPrice * cotizacion;
+
+    return {
+      id: row.id,
+      code: row.code,
+      name: row.description,
+      brand: row.brand,
+      product_group: row.product_group,
+      price: finalPrice, // <-- Enviamos el PRECIO FINAL CALCULADO en ARS
+      originalPrice: originalPrice, // <-- (NUEVO) Enviamos el precio original de la BD
+      capacity: row.capacity,
+      capacity_description: row.capacity_description,
+      moneda: row.moneda,
+      cotizacion: cotizacion, // <-- Enviamos la COTIZACIÓN UTILIZADA
+      stock: 999 // MOCK
+    };
+  });
   
   // Devolvemos tanto los productos de esta página como el total
   return { products, totalProducts };
@@ -534,14 +651,18 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
 // --- (NUEVA FUNCIÓN) ---
 // Obtiene los detalles de un solo producto por su ID
 const fetchProductDetails = async (productId) => {
+  // --- (MODIFICADO) Obtener AMBAS cotizaciones ANTES de la consulta
+  const liveRates = await getDollarRates();
+
   // Asegurarnos de que el ID es un número para evitar inyección SQL
   const id = parseInt(productId, 10);
   if (isNaN(id)) {
     throw new Error('ID de producto inválido.');
   }
 
+  // (MODIFICADO) Se añaden moneda y cotizacion (ya estaba)
   const queryText = `
-    SELECT id, code, description, product_group, price, brand, capacity, capacity_description
+    SELECT id, code, description, product_group, price, brand, capacity, capacity_description, moneda, cotizacion
     FROM products 
     WHERE id = $1
   `;
@@ -552,16 +673,36 @@ const fetchProductDetails = async (productId) => {
   }
   
   // Mapeamos los nombres de columna a los nombres que espera el frontend
+  // --- (MODIFICADO) Lógica de cálculo de precio ---
   const row = result.rows[0];
+  
+  let cotizacion;
+  const moneda = row.moneda;
+  const dbCotizacion = Number(row.cotizacion);
+  const originalPrice = Number(row.price); // <-- (NUEVO) Guardamos el precio original
+
+  if (moneda === 2) { // Moneda 2 (Billete)
+      cotizacion = liveRates.oficial || dbCotizacion;
+  } else if (moneda === 3) { // Moneda 3 (Divisas)
+      cotizacion = liveRates.mayorista || dbCotizacion;
+  } else { // Moneda 1 (ARS)
+      cotizacion = 1.00;
+  }
+  
+  const finalPrice = originalPrice * cotizacion;
+  
   return {
     id: row.id,
     code: row.code,
     name: row.description,
     brand: row.brand,
     product_group: row.product_group,
-    price: Number(row.price),
+    price: finalPrice, // <-- Enviamos el PRECIO FINAL CALCULADO en ARS
+    originalPrice: originalPrice, // <-- (NUEVO) Enviamos el precio original de la BD
     capacity: row.capacity,
     capacity_description: row.capacity_description,
+    moneda: row.moneda,
+    cotizacion: cotizacion, // <-- Enviamos la COTIZACIÓN UTILIZADA
     stock: 999 // MOCK
   };
 };

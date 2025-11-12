@@ -14,24 +14,72 @@ const formatCurrency = (amount) => {
   }).format(amount || 0);
 };
 
+// (NUEVO) Formateador de moneda USD
+const formatUSD = (amount) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(amount || 0);
+};
+
+
+// (NUEVO) Formateador para la cotización (número decimal)
+const formatRate = (amount) => {
+  // Muestra 1.00 como '1,00', y 350.50 como '350,50'
+  return new Intl.NumberFormat('es-AR', {
+    style: 'decimal',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount || 0);
+};
+
+// (NUEVO) Formateador para el código de moneda (1 = ARS, 2 = USD)
+const formatMoneda = (moneda) => {
+  if (moneda === 2) {
+    return 'USD Billete';
+  }
+  if (moneda === 3) {
+    return 'USD Divisa';
+  }
+  // Asumimos ARS para 1 o cualquier otro valor
+  return 'ARS';
+};
+
+
 // --- Componentes de UI Internos ---
 
+// (MODIFICADO) Añadidas las nuevas columnas
 const ProductRow = ({ product }) => (
   <tr className="border-b border-gray-200 hover:bg-gray-50">
     <td className="py-3 px-4 text-sm text-gray-500 font-mono">{product.code}</td>
     <td className="py-3 px-4 text-sm text-gray-900 font-medium">{product.name}</td>
     <td className="py-3 px-4 text-sm text-gray-500">{product.brand}</td>
+    <td className="py-3 px-4 text-sm text-gray-500">{product.product_group}</td>
+    <td className="py-3 px-4 text-sm text-gray-500 text-right">{formatMoneda(product.moneda)}</td>
+    <td className="py-3 px-4 text-sm text-gray-500 text-right">{formatRate(product.cotizacion)}</td>
+    {/* --- (NUEVA COLUMNA) --- */}
+    <td className="py-3 px-4 text-sm text-gray-600 font-medium text-right">
+      {(product.moneda === 2 || product.moneda === 3)
+        ? formatUSD(product.originalPrice)
+        : '-'}
+    </td>
+    {/* --- (FIN NUEVA COLUMNA) --- */}
     <td className="py-3 px-4 text-sm text-gray-900 font-semibold text-right">
       {formatCurrency(product.price)}
     </td>
   </tr>
 );
 
+// (MODIFICADO) Añadidos 4 esqueletos de columna (1 más)
 const ProductRowSkeleton = () => (
   <tr className="border-b border-gray-200 animate-pulse">
     <td className="py-3 px-4"><div className="h-4 bg-gray-200 rounded w-20"></div></td>
     <td className="py-3 px-4"><div className="h-4 bg-gray-200 rounded w-48"></div></td>
     <td className="py-3 px-4"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
+    <td className="py-3 px-4"><div className="h-4 bg-gray-200 rounded w-16"></div></td>
+    <td className="py-3 px-4"><div className="h-4 bg-gray-200 rounded w-10 ml-auto"></div></td>
+    <td className="py-3 px-4"><div className="h-4 bg-gray-200 rounded w-16 ml-auto"></div></td>
+    <td className="py-3 px-4"><div className="h-4 bg-gray-200 rounded w-16 ml-auto"></div></td>
     <td className="py-3 px-4"><div className="h-4 bg-gray-200 rounded w-16 ml-auto"></div></td>
   </tr>
 );
@@ -82,11 +130,16 @@ export default function PriceListPage({ onNavigate }) {
       const dateStr = `Fecha: ${new Date().toLocaleDateString('es-AR')}`;
       doc.text(dateStr, doc.internal.pageSize.getWidth() - 14, 28, { align: 'right' });
 
-      const columns = ["Código", "Descripción", "Marca", "Precio"];
+      // (MODIFICADO) Añadidas columnas al PDF
+      const columns = ["Código", "Descripción", "Marca", "Grupo", "Mon", "Cotiz", "Precio USD", "Precio ARS"];
       const rows = products.map(p => [
         p.code,
         p.name,
         p.brand,
+        p.product_group, // <-- AÑADIDO
+        formatMoneda(p.moneda), // <-- AÑADIDO
+        formatRate(p.cotizacion), // <-- AÑADIDO
+        (p.moneda === 2 || p.moneda === 3) ? formatUSD(p.originalPrice) : '-', // <-- NUEVA COLUMNA PDF
         formatCurrency(p.price)
       ]);
 
@@ -97,8 +150,12 @@ export default function PriceListPage({ onNavigate }) {
         theme: 'striped',
         headStyles: { fillColor: [40, 58, 90] }, // Color oscuro para el encabezado
         styles: { fontSize: 8 },
+        // (MODIFICADO) Ajuste de alineación de columnas
         columnStyles: {
-          3: { halign: 'right' } // Alinear precios a la derecha
+          4: { halign: 'right' }, // Moneda
+          5: { halign: 'right' }, // Cotización
+          6: { halign: 'right' }, // Precio USD
+          7: { halign: 'right' }  // Precio ARS
         }
       });
 
@@ -273,12 +330,17 @@ export default function PriceListPage({ onNavigate }) {
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full bg-white">
+            {/* (MODIFICADO) Encabezado de tabla actualizado */}
             <thead className="bg-gray-100 border-b border-gray-300">
               <tr>
                 <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Código</th>
                 <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Descripción</th>
                 <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Marca</th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">Precio</th>
+                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Grupo</th>
+                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">Moneda</th>
+                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">Cotización</th>
+                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">Precio (USD)</th>
+                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">Precio Final (ARS)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -288,9 +350,9 @@ export default function PriceListPage({ onNavigate }) {
               )}
               
               {isError && (
-                // Error principal
+                // Error principal (MODIFICADO) colSpan="8"
                 <tr>
-                  <td colSpan="4">
+                  <td colSpan="8">
                     <ErrorMessage message={error.message} onRetry={() => window.location.reload()} />
                   </td>
                 </tr>
