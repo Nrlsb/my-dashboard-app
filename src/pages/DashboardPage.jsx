@@ -7,9 +7,8 @@ import {
   DollarSign,
   Gift,
   Banknote,
-  FileText,
   HelpCircle,
-  UploadCloud,
+  // (ELIMINADO) FileText y UploadCloud ya no se usan
 } from 'lucide-react';
 
 // El Contenido del Dashboard
@@ -51,13 +50,14 @@ const Dashboard = ({ onNavigate }) => {
       bgColor: 'bg-gray-700',
       action: () => onNavigate('account-balance') // (RUTA CORREGIDA)
     },
-    { 
-      title: 'Información Importante', 
-      subTitle: 'Información', 
-      icon: FileText, 
-      bgColor: 'bg-gray-700',
-      action: () => {} // Sin acción por ahora
-    },
+    // --- (ELIMINADO) Objeto de 'Información Importante' ---
+    // { 
+    //   title: 'Información Importante', 
+    //   subTitle: 'Información', 
+    //   icon: FileText, 
+    //   bgColor: 'bg-gray-700',
+    //   action: () => {}
+    // },
     { 
       title: 'Consultas', 
       subTitle: 'Envío de Consultas', 
@@ -65,13 +65,14 @@ const Dashboard = ({ onNavigate }) => {
       bgColor: 'bg-gray-700',
       action: () => onNavigate('queries')
     },
-    { 
-      title: 'Cupones Tarjeta', 
-      subTitle: 'Carga Comprobantes', 
-      icon: UploadCloud, 
-      bgColor: 'bg-gray-700',
-      action: () => onNavigate('voucher-upload') // (RUTA CORREGIDA)
-    },
+    // --- (ELIMINADO) Objeto de 'Carga Comprobantes' ---
+    // { 
+    //   title: 'Cupones Tarjeta', 
+    //   subTitle: 'Carga Comprobantes', 
+    //   icon: UploadCloud, 
+    //   bgColor: 'bg-gray-700',
+    //   action: () => onNavigate('voucher-upload')
+    // },
   ];
 
   return (
