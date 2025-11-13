@@ -1,298 +1,185 @@
 import React, { useState, useMemo } from 'react';
-// (NUEVO) Importamos el hook useCart
-import { useCart } from '../context/CartContext.jsx';
-// (ELIMINADO) Header no se importa
-import { ArrowLeft, ShoppingCart, FileText, CheckCircle, AlertTriangle, Package, X } from 'lucide-react';
+// (MODIFICADO) Se corrige la ruta de importación añadiendo la extensión
+import { useCart } from '../context/CartContext.jsx'; 
+import { AlertCircle, CheckCircle } from 'lucide-react';
 
-const API_URL = 'http://localhost:3001';
+// (NUEVO) API de envío de pedidos
+const API_BASE_URL = 'http://localhost:3001/api';
 
-/**
- * Página de Previsualización y Confirmación del Pedido.
- * (MODIFICADO) Acepta 'currentUser' y 'onCompleteOrder'
- */
-const OrderPreviewPage = ({ onNavigate, onCompleteOrder, currentUser }) => {
-  
-  // (NUEVO) Obtenemos el carrito y funciones del contexto
-  const { cart, clearCart } = useCart();
-  
-  // Estados para manejar el envío
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState(null);
-  const [submitMessage, setSubmitMessage] = useState('');
-  
-  // --- CAMBIO AÑADIDO ---
-  // Estado para la tienda seleccionada
-  const [selectedStore, setSelectedStore] = useState('01'); 
-  // --- FIN CAMBIO AÑADIDO ---
-
-  // (NUEVO) Calculamos el total aquí, leyendo del contexto
-  const totalPrice = useMemo(() => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-  }, [cart]);
-
-  // Formateador de moneda
-  const formatCurrency = (amount) => {
+// (NUEVO) Helper simple de formato de moneda (si no se importa)
+const formatCurrency = (value) => {
+  // (MODIFICADO) Asegurarnos de que el valor sea un número
+  const numberValue = Number(value);
+  if (isNaN(numberValue)) {
+    // Si sigue siendo NaN, formatear 0 para evitar errores
     return new Intl.NumberFormat('es-AR', {
       style: 'currency',
       currency: 'ARS',
-    }).format(amount);
-  };
+    }).format(0);
+  }
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+  }).format(numberValue);
+};
 
-  // Lógica para Generar PDF (usa 'cart' y 'totalPrice' de este scope)
-  const generateQuotePDF = () => {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const clientName = currentUser?.full_name || "CLIENTE-001"; // Simulado
-    const companyName = "Pintureria Mercurio";
-    const date = new Date().toLocaleDateString('es-AR');
-    let yPos = 20;
+const OrderPreviewPage = ({ onNavigate, onCompleteOrder, currentUser }) => {
+  // (MODIFICADO) Ya no traemos 'cartTotal', solo 'cart'
+  const { cart } = useCart();
+  
+  // El tipo de entrega ahora es 'shipping' por defecto
+  const [deliveryType, setDeliveryType] = useState('shipping');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
 
-    doc.setFontSize(20);
-    doc.text("PRESUPUESTO", 105, yPos, { align: 'center' });
-    yPos += 10;
-    doc.setFontSize(12);
-    doc.text(`${companyName}`, 20, yPos);
-    doc.text(`Fecha: ${date}`, 180, yPos, { align: 'right' });
-    yPos += 7;
-    doc.text(`Cliente: ${clientName}`, 20, yPos);
-    yPos += 10;
-    doc.setLineWidth(0.5);
-    doc.line(20, yPos, 190, yPos);
-    yPos += 10;
+  // --- (NUEVA SOLUCIÓN PARA EL TOTAL) ---
+  // Calculamos el total localmente en esta página usando 'useMemo'.
+  // Esto asegura que el total siempre esté sincronizado con el 'cart'
+  // que estamos mostrando en la lista.
+  const localCartTotal = useMemo(() => {
+    return cart.reduce((total, item) => {
+      const price = Number(item.price) || 0;
+      const quantity = Number(item.quantity) || 0;
+      return total + (price * quantity);
+    }, 0);
+  }, [cart]); // Se recalcula solo si el 'cart' cambia
+  // --- (FIN DE LA SOLUCIÓN) ---
 
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'bold');
-    doc.text("Cód.", 20, yPos);
-    doc.text("Descripción", 40, yPos);
-    doc.text("Cant.", 120, yPos, { align: 'right' });
-    doc.text("Precio Unit.", 150, yPos, { align: 'right' });
-    doc.text("Subtotal", 180, yPos, { align: 'right' });
-    doc.setFont(undefined, 'normal');
-    yPos += 7;
 
-    cart.forEach(item => {
-      const subtotal = item.price * item.quantity;
-      doc.text(String(item.code), 20, yPos);
-      doc.text(doc.splitTextToSize(item.name, 70), 40, yPos);
-      doc.text(item.quantity.toString(), 120, yPos, { align: 'right' });
-      doc.text(formatCurrency(item.price), 150, yPos, { align: 'right' });
-      doc.text(formatCurrency(subtotal), 180, yPos, { align: 'right' });
-      
-      const itemHeight = doc.splitTextToSize(item.name, 70).length * 5;
-      yPos += Math.max(10, itemHeight); 
-      
-      if (yPos > 270) {
-        doc.addPage();
-        yPos = 20; 
+  if (cart.length === 0) {
+    return (
+      <div className="p-4 max-w-lg mx-auto text-center">
+        <h2 className="text-2xl font-bold mb-4">Tu carrito está vacío</h2>
+        <button
+          onClick={() => onNavigate('new-order')}
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+        >
+          Volver a "Nuevo Pedido"
+        </button>
+      </div>
+    );
+  }
+
+  // Manejador para enviar el pedido/presupuesto al backend
+  const handleSendOrder = async (orderType) => {
+    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    const orderData = {
+      items: cart.map(item => ({
+        id: item.id,
+        code: item.code,
+        quantity: item.quantity,
+        price: item.price
+      })),
+      // (MODIFICADO) Usamos nuestro 'localCartTotal'
+      total: Number(localCartTotal) || 0,
+      type: orderType, 
+      deliveryInfo: {
+        type: deliveryType,
+        address: 'Dirección del cliente'
       }
-    });
+    };
 
-    doc.setLineWidth(0.5);
-    doc.line(20, yPos, 190, yPos);
-    yPos += 10;
-    
-    doc.setFontSize(14);
-    doc.setFont(undefined, 'bold');
-    doc.text("TOTAL:", 140, yPos);
-    doc.text(formatCurrency(totalPrice), 180, yPos, { align: 'right' });
-
-    doc.save(`presupuesto-${clientName}-${date}.pdf`);
-  };
-
-  // Lógica de Envío de Pedido (CORREGIDA)
-  const handleSubmitOrder = async (submissionType) => {
-    if (!currentUser) {
-      setError("Error de autenticación. Por favor, inicie sesión de nuevo.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    setSubmitStatus(null);
-    setSubmitMessage('');
-    
-    if (submissionType === 'quote') {
-      try {
-        generateQuotePDF();
-      } catch (pdfError) {
-        console.error("Error al generar PDF:", pdfError);
-        setSubmitStatus('error'); 
-        setSubmitMessage("Error al generar el PDF. El presupuesto se guardará de todas formas.");
-      }
-    }
-    
     try {
-      const orderData = {
-        items: cart.map(item => ({ 
-          id: item.id, 
-          code: item.code, 
-          quantity: item.quantity, 
-          price: item.price 
-        })),
-        total: totalPrice,
-        clientCode: currentUser?.a1_cod || 'CLIENTE-001', // (MODIFICADO) Usa el código real
-        type: submissionType,
-        userId: currentUser.id, // (MODIFICADO) Envía el userId
-        // --- CAMBIO AÑADIDO ---
-        tienda: selectedStore // Añadimos la tienda seleccionada al pedido
-        // --- FIN CAMBIO AÑADIDO ---
-      };
-      
-      if (orderData.items.some(item => !item.code)) {
-        throw new Error("Error interno: los items del carrito no tienen código.");
-      }
-
-      const response = await fetch(`${API_URL}/api/orders`, {
+      // El 'userId' ahora se envía en la query para el middleware
+      const response = await fetch(`${API_BASE_URL}/orders?userId=${currentUser.id}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(orderData),
       });
-      
-      if (!response.ok) throw new Error('Error al enviar la solicitud.');
-      
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al enviar el pedido');
+      }
+
       const result = await response.json();
-      console.log('Solicitud exitosa:', result);
       
-      setSubmitStatus('success');
-      setSubmitMessage(submissionType === 'order' ? '¡Pedido Enviado!' : '¡Presupuesto Generado!');
+      setSuccess(`¡${orderType === 'quote' ? 'Presupuesto' : 'Pedido'} enviado con éxito! ID: ${result.orderId}`);
       
-      // (MODIFICADO) Usamos la función 'onCompleteOrder' de App.jsx
-      // que se encarga de limpiar el carrito y navegar.
       setTimeout(() => {
-        onCompleteOrder(); 
-        setSubmitStatus(null); 
-        setSubmitMessage('');
-      }, 3000);
+        onCompleteOrder();
+      }, 2000);
 
     } catch (err) {
-      console.error(err);
-      setSubmitStatus('error');
-      setSubmitMessage(submissionType === 'order' ? 'Error al enviar el pedido.' : 'Error al generar el presupuesto.');
-    } finally {
-      setIsSubmitting(false);
+      setError(err.message);
+      setIsLoading(false);
     }
   };
 
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div className="min-h-screen bg-gray-100 font-sans">
-      {/* (ELIMINADO) Header ya no se renderiza aquí */}
-      <main className="p-4 md:p-8 max-w-7xl mx-auto">
-        
-        <div className="flex items-center mb-6">
-          <button
-            onClick={() => onNavigate('new-order')} // (RUTA CORREGIDA)
-            className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
-            aria-label="Volver a editar pedido"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-          <h1 className="text-2xl font-bold text-gray-800">Previsualización del Pedido</h1>
-        </div>
+    <div className="container mx-auto p-4 max-w-4xl">
+      <h1 className="text-3xl font-bold mb-6 text-gray-800">Revisar Pedido</h1>
 
-        <div className="bg-white rounded-lg shadow-md max-w-2xl mx-auto">
-          
-          {/* Mensajes de Estado */}
-          {submitStatus === 'success' && (
-            <div className="p-6 text-center bg-green-100 text-green-800 rounded-t-lg">
-              <CheckCircle className="w-12 h-12 mx-auto mb-3" />
-              <p className="font-semibold text-lg">{submitMessage}</p>
-              <p className="text-sm">Serás redirigido al Histórico.</p>
-            </div>
-          )}
-          {submitStatus === 'error' && (
-            <div className="p-6 text-center bg-red-100 text-red-800 rounded-t-lg">
-              <AlertTriangle className="w-12 h-12 mx-auto mb-3" />
-              <p className="font-semibold text-lg">{submitMessage}</p>
-              <p className="text-sm">Inténtalo de nuevo más tarde.</p>
-            </div>
-          )}
-
-          {/* Resumen del Pedido (se oculta si ya se envió) */}
-          {submitStatus !== 'success' && (
-            <>
-              <div className="p-6 space-y-4">
-                <p className="text-lg text-gray-700">Por favor, revisa tu pedido antes de confirmar.</p>
-
-                <div className="border border-gray-200 rounded-lg max-h-80 overflow-y-auto divide-y divide-gray-200">
-                  {cart.length === 0 ? (
-                      <p className="p-4 text-center text-gray-500">Tu carrito está vacío.</p>
-                  ) : (
-                    cart.map(item => (
-                      <div key={item.id} className="flex justify-between items-center p-4">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{item.name}</p>
-                          <p className="text-sm text-gray-500">
-                            {item.quantity} x {formatCurrency(item.price)}
-                          </p>
-                        </div>
-                        <p className="text-base font-semibold text-gray-800">
-                          {formatCurrency(item.price * item.quantity)}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {/* Resumen de Totales */}
-                {cart.length > 0 && (
-                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-medium text-gray-800">Total de Productos:</span>
-                      <span className="text-lg font-bold text-gray-900">{totalItems}</span>
-                    </div>
-                    <div className="flex justify-between items-center mt-2 pt-3 border-t">
-                      <span className="text-xl font-medium text-gray-800">Total a Pagar:</span>
-                      <span className="text-2xl font-bold text-red-600">{formatCurrency(totalPrice)}</span>
-                    </div>
-                  </div>
-                )}
+      {/* Resumen del Carrito */}
+      <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
+        <h2 className="text-2xl font-semibold mb-4 border-b pb-2">Resumen de Productos</h2>
+        <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
+          {cart.map(item => (
+            <div key={item.id} className="flex justify-between items-center">
+              <div>
+                <p className="font-semibold text-gray-700">{item.name}</p>
+                <p className="text-sm text-gray-500">{item.quantity} x {formatCurrency(Number(item.price) || 0)}</p>
               </div>
-              
-              {/* Acciones Finales (Botones) */}
-              {cart.length > 0 && (
-                <div className="p-6 bg-gray-50 border-t border-gray-200 space-y-3 rounded-b-lg">
-                  
-                  {/* --- CAMBIO AÑADIDO --- */}
-                  <div className="mb-4">
-                    <label htmlFor="store-select" className="block text-sm font-medium text-gray-700 mb-1">
-                      Tienda:
-                    </label>
-                    <select
-                      id="store-select"
-                      value={selectedStore}
-                      onChange={(e) => setSelectedStore(e.target.value)}
-                      className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="01">01</option>
-                      <option value="02">02</option>
-                    </select>
-                  </div>
-                  {/* --- FIN CAMBIO AÑADIDO --- */}
-
-                  <button
-                    onClick={() => handleSubmitOrder('quote')}
-                    disabled={isSubmitting}
-                    className="w-full inline-flex items-center justify-center px-6 py-3 font-semibold text-white bg-blue-600 rounded-md shadow-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <FileText className="w-5 h-5 mr-2" />
-                    {isSubmitting ? 'Generando...' : 'Confirmar y Generar Presupuesto'}
-                  </button>
-                  <button
-                    onClick={() => handleSubmitOrder('order')}
-                    disabled={isSubmitting}
-                    className="w-full inline-flex items-center justify-center px-6 py-3 font-semibold text-white bg-green-600 rounded-md shadow-sm hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ShoppingCart className="w-5 h-5 mr-2" />
-                    {isSubmitting ? 'Enviando...' : 'Confirmar y Enviar Pedido de Venta'}
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-
+              <p className="font-semibold text-gray-800">{formatCurrency((Number(item.quantity) || 0) * (Number(item.price) || 0))}</p>
+            </div>
+          ))}
         </div>
-      </main>
+        <div className="mt-4 pt-4 border-t-2 border-dashed">
+          <div className="flex justify-between items-center text-xl font-bold">
+            <span>Total:</span>
+            {/* (MODIFICADO) Usamos nuestro 'localCartTotal' */}
+            <span>{formatCurrency(Number(localCartTotal) || 0)}</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Mensajes de estado y Botones de Acción */}
+      <div className="mt-6">
+        {/* Mensajes de Estado */}
+        {error && (
+          <div className="flex items-center bg-red-100 text-red-700 p-4 rounded-lg mb-4">
+            <AlertCircle className="h-5 w-5 mr-3" />
+            <strong>Error:</strong> {error}
+          </div>
+        )}
+        {success && (
+          <div className="flex items-center bg-green-100 text-green-700 p-4 rounded-lg mb-4">
+            <CheckCircle className="h-5 w-5 mr-3" />
+            {success}
+          </div>
+        )}
+
+        {/* Botones de Acción */}
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          <button
+            onClick={() => onNavigate('new-order')}
+            disabled={isLoading}
+            className="text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-200 disabled:opacity-50"
+          >
+            Volver y editar
+          </button>
+          
+          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+            
+            {/* Botón de Pedido (ahora es el único) */}
+            <button
+              onClick={() => handleSendOrder('order')}
+              disabled={isLoading || success}
+              className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <CheckCircle className="h-5 w-5 inline-block mr-2" />
+              Confirmar Pedido
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
