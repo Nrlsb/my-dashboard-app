@@ -104,7 +104,7 @@ export default function OrderDetailPage({ user, orderId, onNavigate }) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <InfoCard icon={Hash} title="Nro. Pedido" value={order.id} />
             <InfoCard icon={Calendar} title="Fecha" value={formattedDate} />
-            <InfoCard icon={DollarSign} title="Total" value={formatCurrency(order.total_amount)} />
+            <InfoCard icon={DollarSign} title="Total" value={formatCurrency(order.total)} />
             <div>
               <h4 className="text-sm font-medium text-gray-600 uppercase tracking-wider mb-2">Estado</h4>
               <StatusChip status={order.status} />

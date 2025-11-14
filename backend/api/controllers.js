@@ -354,7 +354,7 @@ const fetchAdminOrderDetails = async (orderId) => {
         ...item,
         formattedPrice: formatCurrency(item.unit_price)
       })),
-      formattedTotal: formatCurrency(orderResult.rows[0].total_amount)
+      formattedTotal: formatCurrency(orderResult.rows[0].total)
     };
     
     return orderDetails;
@@ -377,9 +377,9 @@ const fetchAdminOrderDetails = async (orderId) => {
 const fetchProtheusOrders = async (userId) => {
   try {
     const query = `
-      SELECT id, total_amount, status, payment_method, 
+      SELECT id, total, status, 
              TO_CHAR(created_at, 'DD/MM/YYYY') as formatted_date,
-             (SELECT COUNT(*) FROM order_items WHERE order_id = orders.id) as item_count
+             (SELECT COUNT(*) FROM protheus_order_items WHERE order_id = orders.id) as item_count
       FROM orders
       WHERE user_id = $1
       ORDER BY created_at DESC;
@@ -389,7 +389,7 @@ const fetchProtheusOrders = async (userId) => {
     // Formatear los datos antes de enviarlos
     const formattedOrders = result.rows.map(order => ({
       ...order,
-      formattedTotal: formatCurrency(order.total_amount)
+      formattedTotal: formatCurrency(order.total)
     }));
     
     return formattedOrders;
@@ -420,7 +420,7 @@ const fetchProtheusOrderDetails = async (orderId, userId) => {
     
     // 2. Obtener items del pedido
     const itemsQuery = `
-      SELECT * FROM order_items
+      SELECT * FROM protheus_order_items
       WHERE order_id = $1;
     `;
     const itemsResult = await pool.query(itemsQuery, [orderId]);
@@ -432,7 +432,7 @@ const fetchProtheusOrderDetails = async (orderId, userId) => {
         ...item,
         formattedPrice: formatCurrency(item.unit_price)
       })),
-      formattedTotal: formatCurrency(orderResult.rows[0].total_amount)
+      formattedTotal: formatCurrency(orderResult.rows[0].total)
     };
     
     return orderDetails;
@@ -448,7 +448,7 @@ const fetchProtheusOrderDetails = async (orderId, userId) => {
  * Guarda un nuevo pedido (y sus items) en la base de datos
  */
 const saveProtheusOrder = async (orderData, userId) => {
-  const { items, total, paymentMethod, observations } = orderData;
+  const { items, total, paymentMethod } = orderData;
   
   // --- (NUEVO) 1. Obtener datos del usuario para el email y el pedido ---
   let user;
@@ -473,19 +473,19 @@ const saveProtheusOrder = async (orderData, userId) => {
     
     // 1. Insertar el pedido principal (orders)
     const orderInsertQuery = `
-      INSERT INTO orders (user_id, total_amount, payment_method, observations, status, a1_cod)
+      INSERT INTO orders (user_id, total, status )
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING id, created_at;
     `;
     // (MODIFICADO) Guardamos el a1_cod del usuario en el pedido
-    const orderValues = [userId, total, paymentMethod, observations || null, 'Pendiente', user.a1_cod];
+    const orderValues = [userId, total, paymentMethod || null, 'Pendiente', user.a1_cod];
     const orderResult = await client.query(orderInsertQuery, orderValues);
     const newOrder = orderResult.rows[0];
     const newOrderId = newOrder.id;
 
     // 2. Insertar los items del pedido (order_items)
     const itemInsertQuery = `
-      INSERT INTO order_items (order_id, product_id, quantity, unit_price, product_name, product_code)
+      INSERT INTO protheus_order_items (order_id, product_id, quantity, unit_price, product_name, product_code)
       VALUES ($1, $2, $3, $4, $5, $6);
     `;
     
