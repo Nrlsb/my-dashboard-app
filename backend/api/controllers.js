@@ -341,9 +341,17 @@ const fetchAdminOrderDetails = async (orderId) => {
     }
     
     // 2. Obtener items del pedido
+    // ========================================================
+    // --- INICIO DE LA CORRECCIÓN (ADMIN) ---
+    // ========================================================
+    // Se hace JOIN con 'products' para obtener la descripción/nombre real
     const itemsQuery = `
-      SELECT * FROM order_items
-      WHERE order_id = $1;
+      SELECT 
+        oi.*, 
+        p.description as product_name_from_products
+      FROM order_items oi
+      LEFT JOIN products p ON oi.product_id = p.id
+      WHERE oi.order_id = $1;
     `;
     const itemsResult = await pool.query(itemsQuery, [orderId]);
     
@@ -352,10 +360,15 @@ const fetchAdminOrderDetails = async (orderId) => {
       ...orderResult.rows[0],
       items: itemsResult.rows.map(item => ({
         ...item,
+        // Usamos la descripción de la tabla 'products' como fuente principal
+        product_name: item.product_name_from_products || item.product_name,
         formattedPrice: formatCurrency(item.unit_price)
       })),
       formattedTotal: formatCurrency(orderResult.rows[0].total)
     };
+    // ========================================================
+    // --- FIN DE LA CORRECCIÓN (ADMIN) ---
+    // ========================================================
     
     return orderDetails;
     
@@ -379,7 +392,7 @@ const fetchProtheusOrders = async (userId) => {
     const query = `
       SELECT id, total, status, 
              TO_CHAR(created_at, 'DD/MM/YYYY') as formatted_date,
-             (SELECT COUNT(*) FROM protheus_order_items WHERE order_id = orders.id) as item_count
+             (SELECT COUNT(*) FROM order_items WHERE order_id = orders.id) as item_count
       FROM orders
       WHERE user_id = $1
       ORDER BY created_at DESC;
@@ -418,10 +431,19 @@ const fetchProtheusOrderDetails = async (orderId, userId) => {
       return null; // Pedido no encontrado o no pertenece al usuario
     }
     
-    // 2. Obtener items del pedido
+    // ========================================================
+    // --- INICIO DE LA CORRECCIÓN ---
+    // ========================================================
+    // 2. Obtener items del pedido (CORREGIDO: Se hace JOIN con 'products')
+    // Esto asegura que SIEMPRE tengamos la descripción,
+    // incluso si falló al guardarse en 'order_items.product_name'
     const itemsQuery = `
-      SELECT * FROM protheus_order_items
-      WHERE order_id = $1;
+      SELECT 
+        oi.*, 
+        p.description as product_name_from_products
+      FROM order_items oi
+      LEFT JOIN products p ON oi.product_id = p.id
+      WHERE oi.order_id = $1;
     `;
     const itemsResult = await pool.query(itemsQuery, [orderId]);
     
@@ -430,10 +452,17 @@ const fetchProtheusOrderDetails = async (orderId, userId) => {
       ...orderResult.rows[0],
       items: itemsResult.rows.map(item => ({
         ...item,
+        // (NUEVO) Usamos la descripción de la tabla 'products'
+        // y si no existe (producto borrado?), usamos la que estaba guardada.
+        // Esto soluciona el problema visual en el frontend.
+        product_name: item.product_name_from_products || item.product_name,
         formattedPrice: formatCurrency(item.unit_price)
       })),
       formattedTotal: formatCurrency(orderResult.rows[0].total)
     };
+    // ========================================================
+    // --- FIN DE LA CORRECCIÓN ---
+    // ========================================================
     
     return orderDetails;
     
@@ -472,20 +501,27 @@ const saveProtheusOrder = async (orderData, userId) => {
     await client.query('BEGIN');
     
     // 1. Insertar el pedido principal (orders)
+    // (CORREGIDO) La query DEBE coincidir con las columnas y los valores.
+    // Se añaden 'payment_method' y 'a1_cod' a las columnas.
+    // Se ajustan los placeholders para que sean 5 (coincidiendo con los 5 valores).
     const orderInsertQuery = `
-      INSERT INTO orders (user_id, total, status )
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO orders (user_id, total, payment_method, status, a1_cod)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING id, created_at;
     `;
-    // (MODIFICADO) Guardamos el a1_cod del usuario en el pedido
+    
+    // Los valores (5) ahora coinciden con la query:
+    // $1 = userId, $2 = total, $3 = paymentMethod, $4 = 'Pendiente', $5 = user.a1_cod
     const orderValues = [userId, total, paymentMethod || null, 'Pendiente', user.a1_cod];
+    
+    // Esta línea (482) era la que fallaba. Ahora es correcta.
     const orderResult = await client.query(orderInsertQuery, orderValues);
     const newOrder = orderResult.rows[0];
     const newOrderId = newOrder.id;
 
     // 2. Insertar los items del pedido (order_items)
     const itemInsertQuery = `
-      INSERT INTO protheus_order_items (order_id, product_id, quantity, unit_price, product_name, product_code)
+      INSERT INTO order_items (order_id, product_id, quantity, unit_price, product_name, product_code)
       VALUES ($1, $2, $3, $4, $5, $6);
     `;
     

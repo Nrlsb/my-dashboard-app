@@ -4,6 +4,9 @@ import App from './App.jsx';
 import { CartProvider } from './context/CartContext.jsx';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+// (NUEVO) Importar los estilos globales
+import './App.css';
+
 // 1. Crear una instancia de QueryClient
 const queryClient = new QueryClient();
 
