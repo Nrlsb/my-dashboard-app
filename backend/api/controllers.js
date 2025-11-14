@@ -1,761 +1,819 @@
-// (NUEVO) Se añaden los imports que faltaban en el diff
-const pool = require('./db');
-const bcrypt = require('bcryptjs');
-const { formatCurrency } = require('./utils/helpers'); // (NUEVO) Importar helper
+/*
+* =================================================================
+* CONTROLADORES (Lógica de Negocio)
+* =================================================================
+*
+* Conecta la lógica de la API (rutas) con la base de datos (db).
+*
+* =================================================================
+*/
+
+const pool = require('./db'); // Importar el pool de conexiones
+const bcrypt = require('bcryptjs'); // (NUEVO) Para hashear contraseñas
+const { formatCurrency, formatMovementType } = require('./utils/helpers'); // Importar helpers
+
+// (NUEVO) Importar el servicio de email
+const { sendOrderConfirmationEmail, sendNewOrderNotificationEmail } = require('./emailService');
+
 
 // =================================================================
-// --- (MODIFICADO) GESTOR DE COTIZACIONES DE DÓLAR (OFICIAL Y MAYORISTA) ---
+// --- (NUEVO) Autenticación y Perfil (Users Table) ---
 // =================================================================
-
-// Variable para cachear AMBAS cotizaciones
-let cachedDollarRates = {
-  oficial: null,   // Para Moneda 2 (Billete)
-  mayorista: null  // Para Moneda 3 (Divisas)
-};
-// Timestamp de la última vez que se buscó
-let lastFetchTime = 0;
-// Duración del caché: 1 hora (en milisegundos)
-const CACHE_DURATION = 1000 * 60 * 60; 
 
 /**
- * Obtiene las cotizaciones actuales del dólar (Oficial y Mayorista).
- * Usa un caché de 1 hora.
- * Si la API falla, devuelve los últimos valores cacheados o null.
+ * Autentica un usuario contra la tabla 'users'
  */
-const getDollarRates = async () => {
-  const now = Date.now();
-  
-  // 1. Verificar si hay un valor cacheado y si aún es válido
-  // (Revisamos que ambos valores estén presentes)
-  if (cachedDollarRates.oficial && cachedDollarRates.mayorista && (now - lastFetchTime < CACHE_DURATION)) {
-    // console.log("Usando cotizaciones de dólar cacheadas:", cachedDollarRates);
-    return cachedDollarRates;
-  }
-
-  try {
-    // 2. Si no hay caché o está vencido, buscar ambas cotizaciones
-    // console.log("Buscando nuevas cotizaciones de dólar (Oficial y Mayorista)...");
-    
-    // Usamos Promise.all para buscarlas en paralelo
-    const [oficialResponse, mayoristaResponse] = await Promise.all([
-        fetch('https://dolarapi.com/v1/dolares/oficial'),   // BNA Billete (Venta)
-        fetch('https://dolarapi.com/v1/dolares/mayorista') // BCRA Mayorista (Venta)
-    ]);
-    
-    let rateOficial = null;
-    let rateMayorista = null;
-
-    // --- Procesar Oficial (Billete - Moneda 2) ---
-    if (oficialResponse.ok) {
-        const dataOficial = await oficialResponse.json();
-        if (dataOficial.venta) {
-            rateOficial = dataOficial.venta;
-        }
-    } else {
-        console.warn(`API de Dólar Oficial falló: ${oficialResponse.statusText}`);
-    }
-    
-    // --- Procesar Mayorista (Divisas - Moneda 3) ---
-    if (mayoristaResponse.ok) {
-        const dataMayorista = await mayoristaResponse.json();
-        // La API de mayorista también usa el campo 'venta' para el valor
-        if (dataMayorista.venta) {
-            rateMayorista = dataMayorista.venta;
-        }
-    } else {
-        console.warn(`API de Dólar Mayorista falló: ${mayoristaResponse.statusText}`);
-    }
-
-    // 3. Actualizar el caché:
-    // Si se obtuvo un nuevo valor, se usa.
-    // Si la API falló (rate es null), se mantiene el valor cacheado anterior (si existe).
-    cachedDollarRates = {
-        oficial: rateOficial || cachedDollarRates.oficial,
-        mayorista: rateMayorista || cachedDollarRates.mayorista
-    };
-    
-    lastFetchTime = now;
-    // console.log("Nuevas cotizaciones obtenidas:", cachedDollarRates);
-    
-    return cachedDollarRates;
-
-  } catch (error) {
-    console.error("Error grave al obtener cotizaciones del dólar:", error.message);
-    // 4. Fallback: Devolver el caché (incluso si está vencido) si existe.
-    if (cachedDollarRates.oficial && cachedDollarRates.mayorista) {
-      // console.warn("API de dólar falló. Usando último valor cacheado (vencido):", cachedDollarRates);
-      return cachedDollarRates;
-    }
-    
-    // Si la API falla y NUNCA tuvimos un valor, devolvemos nulls.
-    return { oficial: null, mayorista: null };
-  }
-};
-
-
-// =================================================================
-// --- Autenticación y Registro ---
-// =================================================================
-
 const authenticateProtheusUser = async (email, password) => {
-  const result = await pool.query(
-    // (MODIFICADO) Seleccionamos el nuevo campo is_admin
-    'SELECT * FROM users WHERE email = $1',
-    [email]
-  );
-
-  if (result.rows.length === 0) {
-    // Usuario no encontrado
-    throw new Error('Credenciales inválidas');
-  }
-  
-  const user = result.rows[0];
-
-  const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-
-  if (isPasswordValid) {
-    return { 
-      success: true, 
-      user: {
-        name: user.full_name, // Mapeado desde 'full_name'
-        code: user.a1_cod,   // Mapeado desde 'a1_cod'
-        email: user.email,
-        id: user.id,
-        is_admin: user.is_admin // (*** ESTA ES LA LÍNEA NUEVA/CORREGIDA ***)
-      } 
-    };
-  }
-  
-  throw new Error('Credenciales inválidas');
-};
-
-// (ACTUALIZADO) --- Registro de Usuario ---
-const registerProtheusUser = async (userData) => {
-  const {
-    nombre, // El frontend debe enviar 'nombre'
-    email, 
-    password
-  } = userData;
-
-  // 1. Verificar si el email ya existe
-  const existingUser = await pool.query(
-    'SELECT * FROM users WHERE email = $1',
-    [email]
-  );
-  
-  if (existingUser.rows.length > 0) {
-    throw new Error('El email ya está registrado.');
-  }
-
-  // 2. Hashear la contraseña
-  const salt = await bcrypt.genSalt(10);
-  const passwordHash = await bcrypt.hash(password, salt);
-
-  // 3. Insertar el nuevo usuario (alineado con setup.sql)
-  // El campo 'is_admin' tomará su valor DEFAULT (false)
-  const queryText = `
-    INSERT INTO users (
-      full_name, email, password_hash
-    ) VALUES (
-      $1, $2, $3
-    ) RETURNING id, email, full_name, is_admin
-  `;
-  
-  const queryParams = [
-    nombre, email, passwordHash
-  ];
-
-  const result = await pool.query(queryText, queryParams);
-  return result.rows[0];
-};
-
-// (NUEVO) --- Perfil de Usuario ---
-const getProfile = async (userId) => {
-  const result = await pool.query(
-      `SELECT 
-        id, email, full_name,
-        a1_cod AS "A1_COD",
-        a1_loja AS "A1_LOJA",
-        full_name AS "A1_NOME",
-        a1_cgc AS "A1_CGC",
-        a1_tel AS "A1_NUMBER",
-        a1_endereco AS "A1_END",
-        email AS "A1_EMAIL",
-        is_admin -- (NUEVO)
-        -- Campos del frontend que NO ESTÁN en setup.sql:
-      FROM users WHERE id = $1`, 
-      [userId]
-    );
+  try {
+    console.log(`Buscando usuario con email: ${email}`);
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     
     if (result.rows.length === 0) {
-      throw new Error('Perfil de usuario no encontrado.');
+      console.log('Usuario no encontrado.');
+      return { success: false, message: 'Usuario o contraseña incorrectos.' };
     }
     
-    return result.rows[0];
-};
-
-const updateProfile = async (userId, profileData) => {
-    const {
-      A1_NOME, // -> full_name
-      A1_COD,  // -> a1_cod
-      A1_LOJA, // -> a1_loja
-      A1_CGC,  // -> a1_cgc
-      A1_NUMBER, // -> a1_tel
-      A1_END,  // -> a1_endereco
-      A1_EMAIL // -> email
-    } = profileData;
-
-    // (NOTA: No permitimos actualizar 'is_admin' desde esta función de perfil)
-    const queryText = `
-      UPDATE users SET
-        full_name = $1,
-        a1_cod = $2,
-        a1_loja = $3,
-        a1_cgc = $4,
-        a1_tel = $5,
-        a1_endereco = $6,
-        email = $7
-      WHERE id = $8
-    `;
+    const user = result.rows[0];
     
-    const queryParams = [
-      A1_NOME, A1_COD, A1_LOJA, A1_CGC, A1_NUMBER, 
-      A1_END, A1_EMAIL,
-      userId // El ID del usuario a actualizar
-    ];
-
-    await pool.query(queryText, queryParams);
+    // (NUEVO) Comparamos la contraseña hasheada
+    const isMatch = await bcrypt.compare(password, user.password_hash);
     
-    return { success: true, message: 'Perfil actualizado correctamente.' };
-};
+    if (!isMatch) {
+      console.log('Contraseña incorrecta.');
+      return { success: false, message: 'Usuario o contraseña incorrectos.' };
+    }
 
-
-// (MODIFICADO) Esta función debe estar ANTES de fetchProtheusBalance
-const fetchProtheusMovements = async (userId) => {
-  // (ACTUALIZADO) Usa 'pool' y la columna 'date' de setup.sql
-  const result = await pool.query(
-    'SELECT id, date, description, debit, credit FROM account_movements WHERE user_id = $1 ORDER BY date DESC',
-    [userId]
-  );
-  // Formatear datos para el frontend
-  return result.rows.map(row => ({
-    id: row.id,
-    fecha: row.date, // (Corregido) Devolvemos la fecha sin formatear
-    // (MODIFICADO) Lógica mejorada para tipo de movimiento
-    tipo: row.debit > 0 ? 'Factura' : (row.description.includes('NC a Cliente') ? 'Nota de Crédito' : 'Pago'), // Asume que debits son facturas, credits son pagos/NC
-    comprobante: row.description,
-    importe: row.credit > 0 ? row.credit : -row.debit // (Corregido) Devolvemos el número
-  }));
-};
-
-// --- Cuenta Corriente ---
-// (MODIFICADO) Ahora esta función busca balance Y movimientos
-const fetchProtheusBalance = async (userId) => {
-  
-  // 1. Obtener el balance (lógica existente)
-  const balanceResult = await pool.query(
-    'SELECT SUM(credit) - SUM(debit) as total FROM account_movements WHERE user_id = $1',
-    [userId]
-  );
-  const totalBalance = balanceResult.rows[0].total || 0;
-
-  // (MODIFICADO) Simulación de Disponible y Pendiente
-  const balance = {
-    total: Number(totalBalance),
-    disponible: Number(totalBalance) > 0 ? Number(totalBalance) : 0, // Si el saldo es positivo, está disponible
-    pendiente: Number(totalBalance) < 0 ? 0 : 0  // El pendiente de imputación lo dejamos en 0 por ahora
-  };
-
-  // 2. Obtener los movimientos (llamando a la otra función)
-  const movements = await fetchProtheusMovements(userId);
-  
-  // 3. Devolver el objeto combinado que espera el frontend
-  return {
-    balance: balance,
-    movements: movements
-  };
-};
-
-// --- (MODIFICADA) ---
-// Controlador para buscar las facturas (débitos) de un cliente por su A1_COD
-const fetchCustomerInvoices = async (customerCod) => {
-  // 1. Encontrar al usuario por A1_COD
-  const userResult = await pool.query('SELECT id FROM users WHERE a1_cod = $1', [customerCod]);
-  if (userResult.rows.length === 0) {
-    throw new Error('El Nº de Cliente (A1_COD) no existe.');
+    // Si la contraseña es correcta, devolvemos el usuario (sin el hash)
+    console.log(`Usuario ${user.id} autenticado.`);
+    const { password_hash, ...userWithoutPassword } = user;
+    
+    return { success: true, user: userWithoutPassword };
+    
+  } catch (error) {
+    console.error('Error en authenticateProtheusUser:', error);
+    throw error; // Lanza el error para que la ruta lo maneje
   }
-  const userId = userResult.rows[0].id;
-
-  // 2. Buscar sus facturas (movimientos de débito)
-  // (MODIFICADO) Seleccionamos también 'order_ref' para poder buscar los items
-  const result = await pool.query(
-    `SELECT id, date, description AS comprobante, debit AS importe, order_ref 
-     FROM account_movements 
-     WHERE user_id = $1 AND debit > 0 AND order_ref IS NOT NULL
-     ORDER BY date DESC`,
-    [userId]
-  );
-  
-  // Devolvemos la lista de facturas
-  return result.rows.map(row => ({
-    ...row,
-    importe: Number(row.importe),
-    order_ref: row.order_ref // (NUEVO) Devolvemos la referencia al pedido
-  }));
 };
-// --- (FIN MODIFICACIÓN) ---
 
-
-// --- (MODIFICADO) Controlador para crear la nota de crédito
-// Ahora acepta una lista de items y una referencia a la factura
-const createCreditNote = async (targetUserCod, reason, items, invoiceRefId, adminUserId) => {
-  const client = await pool.connect();
+/**
+ * Registra un nuevo usuario en la tabla 'users'
+ */
+const registerProtheusUser = async (userData) => {
+  // (CORREGIDO) El frontend envía 'nombre', pero la BD espera 'full_name'
+  const { nombre, email, password, a1_cod, a1_loja, a1_cgc, a1_tel, a1_email } = userData;
   
   try {
-    // Iniciar transacción
-    await client.query('BEGIN');
-
-    // 1. Validar que el targetUserCod existe y obtener su ID
-    const userResult = await client.query('SELECT id FROM users WHERE a1_cod = $1', [targetUserCod]);
-    if (userResult.rows.length === 0) {
-      throw new Error('El Nº de Cliente (A1_COD) especificado no existe.');
-    }
-    const targetUserId = userResult.rows[0].id; // <-- Este es el ID interno del cliente
-
-    // 2. Calcular el monto total basado en los items seleccionados
-    let totalAmount = 0;
-    if (!items || items.length === 0) {
-      throw new Error('No se seleccionaron productos para la nota de crédito.');
+    // Verificar si el email ya existe
+    const existingUser = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (existingUser.rows.length > 0) {
+      throw new Error('El email ya está registrado.');
     }
     
-    for (const item of items) {
-      // Validaciones básicas
-      if (!item.product_id || !item.quantity || !item.unit_price) {
-        throw new Error('Datos de items incompletos.');
-      }
-      totalAmount += parseFloat(item.quantity) * parseFloat(item.unit_price);
+    // (NUEVO) Hashear la contraseña
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+    
+    // (CORREGIDO) Se inserta en 'full_name' (el script no tiene 'a1_email')
+    const query = `
+      INSERT INTO users 
+        (full_name, email, password_hash, a1_cod, a1_loja, a1_cgc, a1_tel, is_admin)
+      VALUES 
+        ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *;
+    `;
+    // Por defecto, is_admin = false
+    // (CORREGIDO) Se usa 'nombre' (del form) para 'full_name' (de la BD)
+    const values = [nombre, email, passwordHash, a1_cod, a1_loja, a1_cgc, a1_tel, false];
+    
+    const result = await pool.query(query, values);
+    const newUser = result.rows[0];
+    
+    // No devolver el hash
+    const { password_hash, ...userToReturn } = newUser;
+    console.log(`Nuevo usuario registrado: ${userToReturn.email}`);
+    
+    return userToReturn;
+    
+  } catch (error) {
+    console.error('Error en registerProtheusUser:', error);
+    throw error; // Lanza el error para que la ruta lo maneje
+  }
+};
+
+
+/**
+ * Obtiene los datos del perfil de un usuario
+ */
+const getProfile = async (userId) => {
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+    
+    if (result.rows.length === 0) {
+      return null; // Usuario no encontrado
+    }
+    
+    const { password_hash, ...profileData } = result.rows[0];
+    return profileData;
+    
+  } catch (error) {
+    console.error('Error en getProfile:', error);
+    throw error;
+  }
+};
+
+/**
+ * Actualiza los datos del perfil de un usuario
+ */
+const updateProfile = async (userId, profileData) => {
+  // (CORREGIDO) El frontend envía 'nombre', la BD espera 'full_name'
+  const { nombre, a1_tel, a1_email, a1_endereco } = profileData;
+  // (Opcional: incluir cambio de contraseña aquí, verificando la actual)
+  
+  try {
+    // (CORREGIDO) Se actualiza 'full_name' y 'a1_endereco'. Se quita 'a1_email' (no existe)
+    const query = `
+      UPDATE users
+      SET full_name = $1, a1_tel = $2, a1_endereco = $3
+      WHERE id = $4
+      RETURNING *;
+    `;
+    const values = [nombre, a1_tel, a1_endereco || null, userId];
+    
+    const result = await pool.query(query, values);
+    
+    if (result.rows.length === 0) {
+      throw new Error('Usuario no encontrado al actualizar.');
+    }
+    
+    const { password_hash, ...updatedUser } = result.rows[0];
+    console.log(`Perfil actualizado para usuario: ${updatedUser.email}`);
+    
+    return { success: true, message: 'Perfil actualizado.', user: updatedUser };
+    
+  } catch (error) {
+    console.error('Error en updateProfile:', error);
+    throw error;
+  }
+};
+
+
+// =================================================================
+// --- Cuenta Corriente (Movements Table) ---
+// =================================================================
+
+/**
+ * Obtiene el saldo total (SUMA) de los movimientos de un usuario
+ */
+const fetchProtheusBalance = async (userId) => {
+  try {
+    // (NUEVO) Buscamos el A1_COD del usuario
+    const user = await getProfile(userId);
+    if (!user || !user.a1_cod) {
+      throw new Error('Código de cliente no encontrado para el usuario.');
+    }
+    
+    // (MODIFICADO) Sumamos por A1_COD en lugar de user_id
+    const query = `
+      SELECT COALESCE(SUM(amount), 0) AS total_balance
+      FROM protheus_movements
+      WHERE a1_cod = $1;
+    `;
+    const result = await pool.query(query, [user.a1_cod]);
+    
+    const balance = parseFloat(result.rows[0].total_balance);
+    
+    return {
+      balance: balance,
+      formattedBalance: formatCurrency(balance) // Usar el helper
+    };
+    
+  } catch (error) {
+    console.error('Error en fetchProtheusBalance:', error);
+    throw error;
+  }
+};
+
+
+/**
+ * Obtiene el historial de movimientos de un usuario
+ */
+const fetchProtheusMovements = async (userId) => {
+  try {
+    // (NUEVO) Buscamos el A1_COD del usuario
+    const user = await getProfile(userId);
+    if (!user || !user.a1_cod) {
+      throw new Error('Código de cliente no encontrado para el usuario.');
     }
 
-    if (totalAmount <= 0) {
+    // (MODIFICADO) Buscamos por A1_COD
+    const query = `
+      SELECT *, 
+             TO_CHAR(created_at, 'DD/MM/YYYY') as formatted_date
+      FROM protheus_movements
+      WHERE a1_cod = $1
+      ORDER BY created_at DESC;
+    `;
+    const result = await pool.query(query, [user.a1_cod]);
+    
+    // Formatear los datos antes de enviarlos
+    const formattedMovements = result.rows.map(mov => ({
+      ...mov,
+      formattedAmount: formatCurrency(mov.amount),
+      formattedType: formatMovementType(mov.type) // Usar el helper
+    }));
+    
+    return formattedMovements;
+    
+  } catch (error) {
+    console.error('Error en fetchProtheusMovements:', error);
+    throw error;
+  }
+};
+
+// =================================================================
+// --- (NUEVO) Administración de Cuenta Corriente ---
+// =================================================================
+
+/**
+ * (Admin) Crea una Nota de Crédito (NC) para un cliente
+ */
+const createCreditNote = async (targetUserCod, reason, items, invoiceRefId, adminUserId) => {
+  try {
+    // 1. Verificar que el cliente (targetUserCod) existe
+    const userResult = await pool.query('SELECT id, a1_cod FROM users WHERE a1_cod = $1', [targetUserCod]);
+    if (userResult.rows.length === 0) {
+      throw new Error(`El cliente con código ${targetUserCod} no existe en la base de datos.`);
+    }
+    const targetUserId = userResult.rows[0].id;
+
+    // 2. Calcular el total de la NC basado en los items
+    let totalCreditAmount = 0;
+    for (const item of items) {
+      totalCreditAmount += item.quantity * item.unit_price;
+    }
+
+    if (totalCreditAmount <= 0) {
       throw new Error('El monto de la nota de crédito debe ser positivo.');
     }
-    
-    // 3. Crear el movimiento de CRÉDITO (positivo) para el cliente
-    const creditQuery = `
-      INSERT INTO account_movements (user_id, date, description, debit, credit, order_ref)
-      VALUES ($1, CURRENT_DATE, $2, 0, $3, $4)
-      RETURNING id
-    `;
-    // Usamos el ID de la factura (account_movement.id) como referencia
-    const creditParams = [targetUserId, reason, totalAmount, invoiceRefId];
-    await client.query(creditQuery, creditParams);
 
-    // 4. (Opcional pero recomendado) Crear un movimiento de DÉBITO (negativo)
-    // en la cuenta del admin o una cuenta "maestra" para balancear.
-    const debitQuery = `
-      INSERT INTO account_movements (user_id, date, description, debit, credit)
-      VALUES ($1, CURRENT_DATE, $2, $3, 0)
+    // 3. Insertar el movimiento de "Crédito (NC)"
+    // (Importante: El 'amount' para créditos es POSITIVO)
+    const query = `
+      INSERT INTO protheus_movements 
+        (user_id, type, amount, description, a1_cod, related_invoice_id, admin_id)
+      VALUES 
+        ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *;
     `;
-    const debitParams = [adminUserId, `NC a Cliente ${targetUserCod}: ${reason}`, totalAmount];
-    await client.query(debitQuery, debitParams);
+    const description = `NC (Admin): ${reason}. Ref Fact: ${invoiceRefId}.`;
+    const values = [targetUserId, 'Crédito (NC)', totalCreditAmount, description, targetUserCod, invoiceRefId, adminUserId];
     
-    // NOTA: Un sistema completo aquí también debería:
-    // 1. Actualizar el stock (sumar 'item.quantity' a 'products.stock').
-    // 2. Registrar la devolución en una tabla 'credit_note_items'.
-    // Por ahora, solo afectamos la Cta. Cte. como en la lógica original.
-
-    // Confirmar transacción
-    await client.query('COMMIT');
+    const result = await pool.query(query, values);
     
-    return { success: true, message: 'Nota de crédito creada exitosamente.' };
+    console.log(`Nota de Crédito creada por Admin ${adminUserId} para Cliente ${targetUserCod}. Monto: ${totalCreditAmount}`);
+    
+    return { success: true, message: 'Nota de crédito creada exitosamente.', movement: result.rows[0] };
 
   } catch (error) {
-    // Revertir en caso de error
-    await client.query('ROLLBACK');
-    console.error('Error en transacción de Nota de Crédito:', error.message);
-    // Devolvemos el error específico
-    throw new Error(error.message || 'Error al crear la nota de crédito.');
-  } finally {
-    client.release();
+    console.error('Error en createCreditNote:', error);
+    throw error; // Lanza el error para que la ruta lo maneje
   }
 };
-// --- (FIN MODIFICACIÓN) ---
 
-
-// --- Pedidos ---
-const fetchProtheusOrders = async (userId) => {
-  // (ACTUALIZADO) Usa 'pool' y columnas 'created_at', 'total'
-  const result = await pool.query(
-    'SELECT id, created_at, total, status FROM orders WHERE user_id = $1 ORDER BY created_at DESC',
-    [userId]
-  );
-  return result.rows.map(row => ({
-    id: row.id,
-    nro_pedido: row.id, // (NUEVO) Mapeo para el frontend
-    fecha: row.created_at, // (NUEVO) Devolvemos la fecha real
-    total: row.total, // (NUEVO) Devolvemos el número real
-    estado: row.status, // (NUEVO) Mapeo para el frontend
-    // 'date' y 'status' son para la versión anterior
-    date: new Date(row.created_at).toLocaleDateString('es-AR'), // 'created_at' en lugar de 'order_date'
-    status: row.status
-  }));
-};
-
-// (ACTUALIZADO) --- Lógica para buscar detalles de UN pedido ---
-const fetchProtheusOrderDetails = async (orderId, userId) => {
-  // 1. Obtener la orden principal
-  const orderResult = await pool.query(
-    'SELECT * FROM orders WHERE id = $1 AND user_id = $2',
-    [orderId, userId]
-  );
-
-  if (orderResult.rows.length === 0) {
-    throw new Error('Pedido no encontrado o no pertenece al usuario.');
+/**
+ * (Admin) Busca facturas de un cliente (para referencia de NC)
+ */
+const fetchCustomerInvoices = async (customerCod) => {
+  try {
+    // Busca movimientos de tipo 'Factura' (que son débitos)
+    const query = `
+      SELECT id, created_at, amount, description, 
+             TO_CHAR(created_at, 'DD/MM/YYYY') as formatted_date
+      FROM protheus_movements
+      WHERE a1_cod = $1 
+        AND type = 'Factura'
+        AND amount < 0 -- Las facturas son débitos
+      ORDER BY created_at DESC;
+    `;
+    
+    const result = await pool.query(query, [customerCod]);
+    
+    if (result.rows.length === 0) {
+      // (NUEVO) No es un error si no tiene facturas, solo devolvemos array vacío
+      console.log(`No se encontraron facturas para el código: ${customerCod}`);
+      return []; 
+    }
+    
+    // Formatear antes de devolver
+    return result.rows.map(inv => ({
+      ...inv,
+      formattedAmount: formatCurrency(inv.amount),
+      // Extraer el ID de la factura de la descripción, ej: "Factura #F12345"
+      invoiceId: inv.description.split('#')[1] || inv.id 
+    }));
+    
+  } catch (error) {
+    console.error(`Error en fetchCustomerInvoices para ${customerCod}:`, error);
+    throw error;
   }
-  
-  const order = orderResult.rows[0];
-
-  // 2. Obtener los items del pedido (uniendo con products para obtener el nombre)
-  const itemsQuery = `
-    SELECT 
-      oi.quantity, 
-      oi.unit_price, 
-      p.id AS product_id, 
-      p.code AS product_code,
-      p.description AS product_name,
-      p.brand AS product_brand
-    FROM order_items oi
-    JOIN products p ON oi.product_id = p.id
-    WHERE oi.order_id = $1
-    ORDER BY p.description;
-  `;
-  const itemsResult = await pool.query(itemsQuery, [orderId]);
-
-  // 3. Formatear y devolver
-  return {
-    ...order,
-    total_amount: order.total, // Asegurarnos de que el frontend reciba lo que espera
-    date: new Date(order.created_at).toLocaleDateString('es-AR'), // 'created_at'
-    items: itemsResult.rows.map(item => ({
-      ...item,
-      price: Number(item.unit_price), // 'unit_price'
-      quantity: Number(item.quantity)
-    }))
-  };
 };
 
-// --- (NUEVA FUNCIÓN) ---
-// Versión para Administradores de fetchProtheusOrderDetails
-// No comprueba el 'user_id' del pedido, solo el 'orderId'
+/**
+ * (Admin) Obtiene detalles de CUALQUIER pedido (para NC)
+ */
 const fetchAdminOrderDetails = async (orderId) => {
-  // 1. Obtener la orden principal (sin filtro de usuario)
-  const orderResult = await pool.query(
-    'SELECT * FROM orders WHERE id = $1',
-    [orderId]
-  );
-
-  if (orderResult.rows.length === 0) {
-    throw new Error('Pedido no encontrado.');
+  try {
+    // 1. Obtener datos del pedido
+    // (CORREGIDO) Se cambió 'u.nombre' por 'u.full_name'
+    const orderQuery = `
+      SELECT p.*, 
+             u.full_name as user_nombre, 
+             u.email as user_email,
+             TO_CHAR(p.created_at, 'DD/MM/YYYY HH24:MI') as formatted_date
+      FROM protheus_orders p
+      JOIN users u ON p.user_id = u.id
+      WHERE p.id = $1;
+    `;
+    const orderResult = await pool.query(orderQuery, [orderId]);
+    
+    if (orderResult.rows.length === 0) {
+      return null; // Pedido no encontrado
+    }
+    
+    // 2. Obtener items del pedido
+    const itemsQuery = `
+      SELECT * FROM protheus_order_items
+      WHERE order_id = $1;
+    `;
+    const itemsResult = await pool.query(itemsQuery, [orderId]);
+    
+    // 3. Combinar y formatear
+    const orderDetails = {
+      ...orderResult.rows[0],
+      items: itemsResult.rows.map(item => ({
+        ...item,
+        formattedPrice: formatCurrency(item.unit_price)
+      })),
+      formattedTotal: formatCurrency(orderResult.rows[0].total_amount)
+    };
+    
+    return orderDetails;
+    
+  } catch (error)
+ {
+    console.error(`Error en fetchAdminOrderDetails (Admin) para ID ${orderId}:`, error);
+    throw error;
   }
-  
-  const order = orderResult.rows[0];
-
-  // 2. Obtener los items del pedido
-  const itemsQuery = `
-    SELECT 
-      oi.quantity, 
-      oi.unit_price, 
-      p.id AS product_id, 
-      p.code AS product_code,
-      p.description AS product_name,
-      p.brand AS product_brand
-    FROM order_items oi
-    JOIN products p ON oi.product_id = p.id
-    WHERE oi.order_id = $1
-    ORDER BY p.description;
-  `;
-  const itemsResult = await pool.query(itemsQuery, [orderId]);
-
-  // 3. Formatear y devolver
-  return {
-    ...order,
-    total_amount: order.total,
-    date: new Date(order.created_at).toLocaleDateString('es-AR'),
-    items: itemsResult.rows.map(item => ({
-      ...item,
-      product_name: item.product_name || 'Producto no encontrado', // Fallback
-      product_code: item.product_code || 'N/A',
-      product_brand: item.product_brand || 'N/A',
-      unit_price: Number(item.unit_price), // Asegurar que sea número
-      quantity: Number(item.quantity)
-    }))
-  };
 };
-// --- (FIN NUEVA FUNCIÓN) ---
 
 
+// =================================================================
+// --- Pedidos (Orders Tables) ---
+// =================================================================
+
+/**
+ * Obtiene el historial de pedidos de un usuario
+ */
+const fetchProtheusOrders = async (userId) => {
+  try {
+    const query = `
+      SELECT id, total_amount, status, payment_method, 
+             TO_CHAR(created_at, 'DD/MM/YYYY') as formatted_date,
+             (SELECT COUNT(*) FROM protheus_order_items WHERE order_id = protheus_orders.id) as item_count
+      FROM protheus_orders
+      WHERE user_id = $1
+      ORDER BY created_at DESC;
+    `;
+    const result = await pool.query(query, [userId]);
+    
+    // Formatear los datos antes de enviarlos
+    const formattedOrders = result.rows.map(order => ({
+      ...order,
+      formattedTotal: formatCurrency(order.total_amount)
+    }));
+    
+    return formattedOrders;
+    
+  } catch (error) {
+    console.error('Error en fetchProtheusOrders:', error);
+    throw error;
+  }
+};
+
+/**
+ * Obtiene los detalles (incluyendo items) de un pedido específico de un usuario
+ */
+const fetchProtheusOrderDetails = async (orderId, userId) => {
+  try {
+    // 1. Obtener datos del pedido (y verificar que pertenece al usuario)
+    const orderQuery = `
+      SELECT *, 
+             TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') as formatted_date
+      FROM protheus_orders
+      WHERE id = $1 AND user_id = $2;
+    `;
+    const orderResult = await pool.query(orderQuery, [orderId, userId]);
+    
+    if (orderResult.rows.length === 0) {
+      return null; // Pedido no encontrado o no pertenece al usuario
+    }
+    
+    // 2. Obtener items del pedido
+    const itemsQuery = `
+      SELECT * FROM protheus_order_items
+      WHERE order_id = $1;
+    `;
+    const itemsResult = await pool.query(itemsQuery, [orderId]);
+    
+    // 3. Combinar y formatear
+    const orderDetails = {
+      ...orderResult.rows[0],
+      items: itemsResult.rows.map(item => ({
+        ...item,
+        formattedPrice: formatCurrency(item.unit_price)
+      })),
+      formattedTotal: formatCurrency(orderResult.rows[0].total_amount)
+    };
+    
+    return orderDetails;
+    
+  } catch (error) {
+    console.error(`Error en fetchProtheusOrderDetails para ID ${orderId} y User ${userId}:`, error);
+    throw error;
+  }
+};
+
+
+/**
+ * Guarda un nuevo pedido (y sus items) en la base de datos
+ */
 const saveProtheusOrder = async (orderData, userId) => {
-  // (ACTUALIZADO) Esta función ahora debe ser una TRANSACCIÓN
+  const { items, total, paymentMethod, observations } = orderData;
+  
+  // --- (NUEVO) 1. Obtener datos del usuario para el email y el pedido ---
+  let user;
+  try {
+    // (CORREGIDO) Se cambió 'nombre' por 'full_name'
+    const userResult = await pool.query('SELECT full_name, email, a1_cod FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      throw new Error(`Usuario con ID ${userId} no encontrado.`);
+    }
+    user = userResult.rows[0];
+  } catch (error) {
+    console.error('Error al buscar usuario en saveProtheusOrder:', error);
+    throw error; // Detener la ejecución si no encontramos al usuario
+  }
+
+  // (MODIFICADO) Conectamos un cliente para la transacción
   const client = await pool.connect();
   
   try {
+    // Iniciar Transacción
     await client.query('BEGIN');
-
-    // (ACTUALIZADO) Determinar el estado basado en el tipo de solicitud
-    const orderStatus = orderData.type === 'quote' ? 'Cotizado' : 'Pendiente';
-
-    // 1. Insertar en 'orders' (usando 'total')
-    const orderResult = await client.query(
-      'INSERT INTO orders (user_id, total, status) VALUES ($1, $2, $3) RETURNING id',
-      [userId, orderData.total, orderStatus]
-    );
-    const newOrderId = orderResult.rows[0].id;
-
-    // 2. Insertar cada item en 'order_items' (usando 'unit_price' y 'product_code')
-    for (const item of orderData.items) {
-      // Asumimos que el frontend envía 'id', 'code', 'quantity' y 'price'
-      await client.query(
-        'INSERT INTO order_items (order_id, product_id, product_code, quantity, unit_price) VALUES ($1, $2, $3, $4, $5)',
-        [newOrderId, item.id, item.code, item.quantity, item.price]
-      );
-    }
     
-    // (NUEVO) 3. Si es un pedido de venta (no un presupuesto), reflejar en la cuenta corriente
-    if (orderData.type === 'order') {
-      console.log(`Reflejando Pedido #${newOrderId} en Cta. Cte. (Débito: ${orderData.total})`);
-      
-      const movementQuery = `
-        INSERT INTO account_movements (user_id, date, description, debit, credit, order_ref)
-        VALUES ($1, CURRENT_DATE, $2, $3, 0, $4)
-      `;
-      // (MODIFICADO) Usamos CURRENT_DATE para que sea solo fecha, no timestamp
-      const movementParams = [
-        userId,
-        `Pedido de Venta #${newOrderId}`, // Descripción del movimiento
-        orderData.total, // El total del pedido va como un débito
-        newOrderId       // Referencia al pedido que lo generó
+    // 1. Insertar el pedido principal (protheus_orders)
+    const orderInsertQuery = `
+      INSERT INTO protheus_orders (user_id, total_amount, payment_method, observations, status, a1_cod)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING id, created_at;
+    `;
+    // (MODIFICADO) Guardamos el a1_cod del usuario en el pedido
+    const orderValues = [userId, total, paymentMethod, observations || null, 'Pendiente', user.a1_cod];
+    const orderResult = await client.query(orderInsertQuery, orderValues);
+    const newOrder = orderResult.rows[0];
+    const newOrderId = newOrder.id;
+
+    // 2. Insertar los items del pedido (protheus_order_items)
+    const itemInsertQuery = `
+      INSERT INTO protheus_order_items (order_id, product_id, quantity, unit_price, product_name, product_code)
+      VALUES ($1, $2, $3, $4, $5, $6);
+    `;
+    
+    // (MODIFICADO) Usamos un bucle 'for...of' para 'await' dentro
+    for (const item of items) {
+      // (NOTA) Asumimos que el frontend envía 'id', 'quantity', 'price',
+      // 'name' (que mapea a 'description'), y 'code'.
+      const itemValues = [
+        newOrderId,
+        item.id,       // 'id' del producto
+        item.quantity,
+        item.price,    // 'price' del producto
+        item.name,     // 'name' del producto (que debe ser la 'description' de la tabla products)
+        item.code      // 'code' del producto
       ];
-      
-      await client.query(movementQuery, movementParams);
+      await client.query(itemInsertQuery, itemValues);
     }
     
+    // (NUEVO) 3. Si paga con 'Cuenta Corriente', registrar el débito
+    if (paymentMethod === 'Cuenta Corriente') {
+      const updateBalanceQuery = `
+        INSERT INTO protheus_movements (user_id, type, amount, description, a1_cod)
+        VALUES ($1, $2, $3, $4, $5);
+      `;
+      // Insertamos un movimiento de 'débito' (negativo) por el total del pedido
+      await client.query(updateBalanceQuery, [userId, 'Débito (Pedido)', -total, `Pedido #${newOrderId}`, user.a1_cod]);
+    }
+
+    // Terminar Transacción
     await client.query('COMMIT');
-    return { success: true, orderId: newOrderId };
+    
+    // --- (NUEVO) 4. Enviar correos después de confirmar la transacción ---
+    try {
+      const sellerEmail = process.env.SELLER_EMAIL;
+      const fromEmail = process.env.EMAIL_FROM;
+
+      if (!sellerEmail || !fromEmail || !process.env.RESEND_API_KEY) {
+        console.warn(`[Pedido #${newOrderId}] Faltan variables .env (RESEND_API_KEY, SELLER_EMAIL o EMAIL_FROM). No se enviarán correos.`);
+      } else {
+        console.log(`[Pedido #${newOrderId}] Enviando correos a ${user.email} y ${sellerEmail}...`);
+        
+        // Enviar al comprador
+        // (CORREGIDO) Se pasa 'user.full_name' como 'customerName'
+        await sendOrderConfirmationEmail(
+          user.email,       // to
+          fromEmail,        // from
+          newOrderId,
+          items,
+          total,
+          user.full_name
+        );
+
+        // Enviar al vendedor
+        await sendNewOrderNotificationEmail(
+          sellerEmail,      // to
+          fromEmail,        // from
+          newOrderId,
+          items,
+          total,
+          user // Pasamos el objeto de usuario completo (full_name, email, a1_cod)
+        );
+        
+        console.log(`[Pedido #${newOrderId}] Correos enviados con éxito.`);
+      }
+
+    } catch (emailError) {
+      // Si falla el email, NO detenemos la operación. Solo lo logueamos.
+      // El pedido ya se guardó y la transacción se completó.
+      console.error(`[Pedido #${newOrderId}] El pedido se guardó, pero falló el envío de correos:`, emailError);
+    }
+    // --- (FIN NUEVO) ---
+
+    // Devolver éxito (el pedido se guardó)
+    return { success: true, message: 'Pedido guardado con éxito.', orderId: newOrderId };
 
   } catch (error) {
+    // Si algo falla ANTES del COMMIT, hacer rollback
     await client.query('ROLLBACK');
-    throw error; // Propagar el error
+    console.error('Error en la transacción de guardado de pedido:', error);
+    throw error; // Lanza el error para que la ruta lo maneje
   } finally {
-    client.release();
+    client.release(); // (NUEVO) Liberar el cliente de vuelta al pool
   }
 };
 
+// =================================================================
+// --- Productos y Ofertas (Products Table) ---
+// =================================================================
 
-// --- Productos y Ofertas ---
-// (NUEVO) fetchProtheusProducts ahora acepta paginación y filtros
+/**
+ * Obtiene la lista de productos (paginada y con búsqueda)
+ */
 const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = '') => {
-  // --- (MODIFICADO) Obtener AMBAS cotizaciones ANTES de la consulta
-  const liveRates = await getDollarRates();
-  
-  const numLimit = parseInt(limit, 10);
-  const numPage = parseInt(page, 10);
-  const offset = (numPage - 1) * numLimit;
-
-  // --- 1. Construir consulta dinámica ---
-  let whereClauses = ["price IS NOT NULL", "price >= $1"];
-  let params = [400]; // Empezamos con el precio base
-
-  // Añadir filtro de marca (brand) si existe
-  if (brand) {
-    params.push(brand);
-    whereClauses.push(`brand = $${params.length}`);
-  }
-
-  // Añadir filtro de búsqueda (search) si existe
-  if (search) {
-    const searchTerms = search.toLowerCase().split(' ').filter(t => t);
-    if (searchTerms.length > 0) {
-      const searchClauses = searchTerms.map(term => {
-        params.push(`%${term}%`);
-        const paramIndex = params.length;
-        // Usamos ILIKE para que sea insensible a mayúsculas/minúsculas
-        return `(description ILIKE $${paramIndex} OR code ILIKE $${paramIndex})`;
-      });
-      whereClauses.push(`(${searchClauses.join(' AND ')})`);
-    }
-  }
-
-  const whereString = whereClauses.join(' AND ');
-
-  // --- 2. Consulta para obtener el TOTAL de productos (para paginación) ---
-  const totalQueryText = `SELECT COUNT(*) FROM products WHERE ${whereString}`;
-  const totalResult = await pool.query(totalQueryText, params);
-  const totalProducts = parseInt(totalResult.rows[0].count, 10);
-
-  // --- 3. Consulta para obtener los productos de la PÁGINA actual ---
-  params.push(numLimit);
-  params.push(offset);
-  
-  // (MODIFICADO) Se añaden moneda y cotizacion (ya estaban desde el paso anterior)
-  const queryText = `
-    SELECT id, code, description, product_group, price, brand, capacity, capacity_description, moneda, cotizacion
-    FROM products 
-    WHERE ${whereString} 
-    ORDER BY description
-    LIMIT $${params.length - 1} OFFSET $${params.length}
-  `;
-
-  const result = await pool.query(queryText, params);
-
-  // --- (MODIFICADO) Lógica de cálculo de precio ---
-  const products = result.rows.map(row => { 
+  try {
+    const offset = (page - 1) * limit;
+    let queryParams = [];
     
-    let cotizacion;
-    const moneda = row.moneda;
-    const dbCotizacion = Number(row.cotizacion);
-    const originalPrice = Number(row.price); // <-- (NUEVO) Guardamos el precio original
-
-    if (moneda === 2) { // Moneda 2 (Billete)
-        // Usar la cotización 'oficial' en vivo. Si falló (es null), usar la de la BD.
-        cotizacion = liveRates.oficial || dbCotizacion;
-    } else if (moneda === 3) { // Moneda 3 (Divisas)
-        // Usar la cotización 'mayorista' en vivo. Si falló (es null), usar la de la BD.
-        cotizacion = liveRates.mayorista || dbCotizacion;
-    } else { // Moneda 1 (ARS) o cualquier otro caso
-        cotizacion = 1.00;
+    // --- Query para Contar Total ---
+    // (CORREGIDO) Apunta a 'products' y usa 'price' y 'description' (en lugar de 'name')
+    let countQuery = 'SELECT COUNT(*) FROM products WHERE price > 0 AND description IS NOT NULL';
+    
+    // --- Query para Obtener Productos ---
+    // (CORREGIDO) Nombres de columnas actualizados según script.sql
+    let dataQuery = `
+      SELECT 
+        id, code, description, price, brand, 
+        capacity_description
+      FROM products
+      WHERE price > 0 AND description IS NOT NULL
+    `;
+    
+    // --- Aplicar Filtros ---
+    let paramIndex = 1;
+    
+    if (search) {
+      // (CORREGIDO) Buscamos en 'description' (nombre) O 'code' (código)
+      const searchQuery = ` (description ILIKE $${paramIndex} OR code ILIKE $${paramIndex}) `;
+      countQuery += ` AND ${searchQuery}`;
+      dataQuery += ` AND ${searchQuery}`;
+      queryParams.push(`%${search}%`);
+      paramIndex++;
     }
     
-    // El precio de la BD (que puede ser ARS o USD) se multiplica por la cotización final.
-    const finalPrice = originalPrice * cotizacion;
-
+    if (brand) {
+      // (CORREGIDO) Buscamos en 'brand'
+      const brandQuery = ` brand = $${paramIndex} `;
+      countQuery += ` AND ${brandQuery}`;
+      dataQuery += ` AND ${brandQuery}`;
+      queryParams.push(brand);
+      paramIndex++;
+    }
+    
+    // --- Ordenar y Paginar (Solo para dataQuery) ---
+    // (CORREGIDO) Ordenar por 'description'
+    dataQuery += ` ORDER BY description ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    
+    // --- Ejecutar Queries ---
+    const countResult = await pool.query(countQuery, queryParams);
+    const totalProducts = parseInt(countResult.rows[0].count, 10);
+    
+    const dataResult = await pool.query(dataQuery, [...queryParams, limit, offset]);
+    
+    // (CORREGIDO) Mapeo actualizado a los nuevos nombres de columna
+    // El frontend recibirá 'name' pero con el valor de 'description'
+    const products = dataResult.rows.map(prod => ({
+      id: prod.id,
+      code: prod.code,
+      name: prod.description, // Mapea 'description' de la BD a 'name' para el frontend
+      price: prod.price,
+      formattedPrice: formatCurrency(prod.price),
+      brand: prod.brand,
+      imageUrl: null, 
+      capacityDesc: prod.capacity_description, // Mapea 'capacity_description'
+      capacityValue: null 
+    }));
+    
     return {
-      id: row.id,
-      code: row.code,
-      name: row.description,
-      brand: row.brand,
-      product_group: row.product_group,
-      price: finalPrice, // <-- Enviamos el PRECIO FINAL CALCULADO en ARS
-      originalPrice: originalPrice, // <-- (NUEVO) Enviamos el precio original de la BD
-      capacity: row.capacity,
-      capacity_description: row.capacity_description,
-      moneda: row.moneda,
-      cotizacion: cotizacion, // <-- Enviamos la COTIZACIÓN UTILIZADA
-      stock: 999 // MOCK
+      products,
+      totalProducts
     };
-  });
-  
-  // Devolvemos tanto los productos de esta página como el total
-  return { products, totalProducts };
+    
+  } catch (error) {
+    console.error('Error en fetchProtheusProducts:', error);
+    throw error;
+  }
 };
 
-// --- (NUEVA FUNCIÓN) ---
-// Obtiene los detalles de un solo producto por su ID
+/**
+ * (NUEVO) Obtiene el detalle de un solo producto
+ */
 const fetchProductDetails = async (productId) => {
-  // --- (MODIFICADO) Obtener AMBAS cotizaciones ANTES de la consulta
-  const liveRates = await getDollarRates();
+  try {
+    // (CORREGIDO) Nombres de columnas actualizados según script.sql
+    const query = `
+      SELECT 
+        id, code, description, price, brand, 
+        capacity_description
+      FROM products
+      WHERE id = $1 AND price > 0 AND description IS NOT NULL;
+    `;
+    
+    const result = await pool.query(query, [productId]);
+    
+    if (result.rows.length === 0) {
+      return null; // Producto no encontrado
+    }
+    
+    // (CORREGIDO) Mapeo actualizado
+    const prod = result.rows[0];
+    const productDetails = {
+      id: prod.id,
+      code: prod.code,
+      name: prod.description, // Mapea 'description' de la BD a 'name' para el frontend
+      price: prod.price,
+      formattedPrice: formatCurrency(prod.price),
+      brand: prod.brand,
+      imageUrl: null, 
+      capacityDesc: prod.capacity_description, // Mapea 'capacity_description'
+      capacityValue: null, 
+      additionalInfo: {} 
+    };
+    
+    return productDetails;
 
-  // Asegurarnos de que el ID es un número para evitar inyección SQL
-  const id = parseInt(productId, 10);
-  if (isNaN(id)) {
-    throw new Error('ID de producto inválido.');
+  } catch (error) {
+    console.error(`Error en fetchProductDetails para ID ${productId}:`, error);
+    throw error;
   }
-
-  // (MODIFICADO) Se añaden moneda y cotizacion (ya estaba)
-  const queryText = `
-    SELECT id, code, description, product_group, price, brand, capacity, capacity_description, moneda, cotizacion
-    FROM products 
-    WHERE id = $1
-  `;
-  const result = await pool.query(queryText, [id]);
-
-  if (result.rows.length === 0) {
-    return null; // Opcionalmente: throw new Error('Producto no encontrado');
-  }
-  
-  // Mapeamos los nombres de columna a los nombres que espera el frontend
-  // --- (MODIFICADO) Lógica de cálculo de precio ---
-  const row = result.rows[0];
-  
-  let cotizacion;
-  const moneda = row.moneda;
-  const dbCotizacion = Number(row.cotizacion);
-  const originalPrice = Number(row.price); // <-- (NUEVO) Guardamos el precio original
-
-  if (moneda === 2) { // Moneda 2 (Billete)
-      cotizacion = liveRates.oficial || dbCotizacion;
-  } else if (moneda === 3) { // Moneda 3 (Divisas)
-      cotizacion = liveRates.mayorista || dbCotizacion;
-  } else { // Moneda 1 (ARS)
-      cotizacion = 1.00;
-  }
-  
-  const finalPrice = originalPrice * cotizacion;
-  
-  return {
-    id: row.id,
-    code: row.code,
-    name: row.description,
-    brand: row.brand,
-    product_group: row.product_group,
-    price: finalPrice, // <-- Enviamos el PRECIO FINAL CALCULADO en ARS
-    originalPrice: originalPrice, // <-- (NUEVO) Enviamos el precio original de la BD
-    capacity: row.capacity,
-    capacity_description: row.capacity_description,
-    moneda: row.moneda,
-    cotizacion: cotizacion, // <-- Enviamos la COTIZACIÓN UTILIZADA
-    stock: 999 // MOCK
-  };
 };
-// --- (FIN NUEVA FUNCIÓN) ---
 
 
-// (NUEVO) Endpoint para obtener solo las marcas (para el dropdown)
+/**
+ * Obtiene la lista de marcas únicas
+ */
 const fetchProtheusBrands = async () => {
-  const queryText = `
-    SELECT DISTINCT brand 
-    FROM products 
-    WHERE brand IS NOT NULL AND brand != '' 
-    ORDER BY brand ASC
-  `;
-  const result = await pool.query(queryText);
-  return result.rows.map(row => row.brand); // Devuelve un array de strings, ej: ['ALBA', 'NORTON', 'TERSUAVE']
+  try {
+    // (CORREGIDO) Apunta a 'brand' en 'products'
+    const query = `
+      SELECT DISTINCT brand 
+      FROM products 
+      WHERE brand IS NOT NULL AND brand != ''
+      ORDER BY brand ASC;
+    `;
+    const result = await pool.query(query);
+    
+    // (CORREGIDO) Mapea 'brand'
+    return result.rows.map(row => row.brand);
+    
+  } catch (error) {
+    console.error('Error en fetchProtheusBrands:', error);
+    throw error;
+  }
 };
 
-
+/**
+ * Obtiene la lista de ofertas (ej. productos con descuento)
+ */
 const fetchProtheusOffers = async () => {
-  // (ACTUALIZADO) MOCK: setup.sql no tiene tabla 'offers'
-  console.warn("fetchProtheusOffers: No hay tabla 'offers' en setup.sql. Devolviendo array vacío.");
-  return []; 
+  try {
+    // (PENDIENTE) La columna 'b1_oferta' o similar no existe en el script.sql.
+    // Se debe definir una nueva lógica para determinar qué productos son "ofertas".
+    // Devolviendo un array vacío por ahora.
+    console.warn("fetchProtheusOffers: No hay lógica de ofertas definida.");
+    return [];
+    
+  } catch (error) {
+    console.error('Error en fetchProtheusOffers:', error);
+    throw error;
+  }
 };
 
+
+// =================================================================
 // --- Consultas y Carga de Archivos ---
+// =================================================================
+
+/**
+ * Guarda una nueva consulta de un usuario
+ */
 const saveProtheusQuery = async (queryData, userId) => {
-  // (ACTUALIZADO) Usa 'pool'. La consulta es correcta.
-  const result = await pool.query(
-    'INSERT INTO queries (user_id, subject, message) VALUES ($1, $2, $3) RETURNING id',
-    [userId, queryData.subject, queryData.message]
-  );
-  return { success: true, ticketId: result.rows[0].id };
+  const { subject, message } = queryData;
+  
+  try {
+    // Buscamos el A1_COD del usuario
+    const user = await getProfile(userId);
+    if (!user || !user.a1_cod) {
+      throw new Error('Código de cliente no encontrado para el usuario.');
+    }
+    
+    // (CORREGIDO) Inserta en la tabla 'queries' (no 'protheus_queries')
+    const query = `
+      INSERT INTO queries (user_id, subject, message, status, a1_cod)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *;
+    `;
+    const values = [userId, subject, message, 'Abierta', user.a1_cod];
+    
+    const result = await pool.query(query, values);
+    
+    console.log(`Consulta guardada para usuario ${userId} (Cliente ${user.a1_cod})`);
+    
+    // (PENDIENTE) Aquí se podría enviar un email de notificación al administrador
+    
+    return { success: true, message: 'Consulta enviada con éxito.', query: result.rows[0] };
+    
+  } catch (error) {
+    console.error('Error en saveProtheusQuery:', error);
+    throw error;
+  }
 };
 
+
+/**
+ * Guarda la información de un comprobante subido
+ */
 const saveProtheusVoucher = async (fileInfo, userId) => {
-  // (ACTUALIZADO) Usa 'pool' e inserta todos los datos de setup.sql
-  const queryText = `
-    INSERT INTO vouchers (user_id, file_path, original_name, mime_type, file_size) 
-    VALUES ($1, $2, $3, $4, $5) RETURNING id
-  `;
-  const queryParams = [
-    userId, 
-    fileInfo.path, 
-    fileInfo.originalName, 
-    fileInfo.mimeType, // Nuevo
-    fileInfo.size      // Nuevo
-  ];
-  const result = await pool.query(queryText, queryParams);
-  return { success: true, fileRef: result.rows[0].id };
+  // Extraemos los datos de fileInfo que SÍ existen en la BD
+  const { originalName, path, mimeType, size } = fileInfo;
+  
+  try {
+    // (CORREGIDO) Inserta en la tabla 'vouchers' (no 'protheus_vouchers')
+    // (CORREGIDO) Se eliminaron las columnas 'filename', 'status', 'a1_cod' que NO existen en la tabla.
+    // (CORREGIDO) Se cambió 'size' por 'file_size' para que coincida con la BD.
+    const query = `
+      INSERT INTO vouchers 
+        (user_id, original_name, file_path, mime_type, file_size)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *;
+    `;
+    const values = [userId, originalName, path, mimeType, size];
+    
+    const result = await pool.query(query, values);
+    
+    console.log(`Comprobante subido por usuario ${userId}: ${originalName}`);
+    
+    // (PENDIENTE) Aquí se podría enviar un email de notificación al administrador
+    
+    return result.rows[0]; // Devuelve la info guardada en la BD
+    
+  } catch (error) {
+    console.error('Error en saveProtheusVoucher:', error);
+    throw error;
+  }
 };
 
-// (NUEVO) Exportar todas las funciones
+
+
+// Exportar todos los controladores
 module.exports = {
   authenticateProtheusUser,
   registerProtheusUser,
@@ -763,16 +821,16 @@ module.exports = {
   updateProfile,
   fetchProtheusBalance,
   fetchProtheusMovements,
-  createCreditNote, // (MODIFICADO) Exportar la nueva función
+  createCreditNote,
+  fetchCustomerInvoices,
+  fetchAdminOrderDetails,
   fetchProtheusOrders,
   fetchProtheusOrderDetails,
-  fetchAdminOrderDetails, // (NUEVO) Exportar la función de admin
   saveProtheusOrder,
   fetchProtheusProducts,
-  fetchProductDetails, // <-- Exportar la nueva función
+  fetchProductDetails,
   fetchProtheusBrands,
   fetchProtheusOffers,
   saveProtheusQuery,
   saveProtheusVoucher,
-  fetchCustomerInvoices // (MODIFICADO) Exportar la nueva función
 };
