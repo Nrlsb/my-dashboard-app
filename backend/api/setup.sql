@@ -32,14 +32,7 @@ ALTER TABLE IF EXISTS public.products
 CREATE INDEX IF NOT EXISTS idx_products_brand
     ON public.products USING btree
     (brand COLLATE pg_catalog."default" ASC NULLS LAST)
-    TABLESPACE pg_default;
--- Index: idx_products_code
-
--- DROP INDEX IF EXISTS public.idx_products_code;
-
-CREATE INDEX IF NOT EXISTS idx_products_code
-    ON public.products USING btree
-    (code COLLATE pg_catalog."default" ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;
 -- Index: idx_products_description
 
@@ -48,6 +41,16 @@ CREATE INDEX IF NOT EXISTS idx_products_code
 CREATE INDEX IF NOT EXISTS idx_products_description
     ON public.products USING btree
     (description COLLATE pg_catalog."default" ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
+-- Index: idx_products_group
+
+-- DROP INDEX IF EXISTS public.idx_products_group;
+
+CREATE INDEX IF NOT EXISTS idx_products_group
+    ON public.products USING btree
+    (product_group COLLATE pg_catalog."default" ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;
 -- Index: idx_products_price
 
@@ -56,37 +59,32 @@ CREATE INDEX IF NOT EXISTS idx_products_description
 CREATE INDEX IF NOT EXISTS idx_products_price
     ON public.products USING btree
     (price ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;
--- Index: idx_products_product_group
 
--- DROP INDEX IF EXISTS public.idx_products_product_group;
 
-CREATE INDEX IF NOT EXISTS idx_products_product_group
-    ON public.products USING btree
-    (product_group COLLATE pg_catalog."default" ASC NULLS LAST)
-    TABLESPACE pg_default;
-    
--- Table: public.protheus_movements
 
--- DROP TABLE IF EXISTS public.protheus_movements;
+-- Table: public.account_movements
 
-CREATE TABLE IF NOT EXISTS public.protheus_movements
+-- DROP TABLE IF EXISTS public.account_movements;
+
+CREATE TABLE IF NOT EXISTS public.account_movements
 (
-    id integer NOT NULL DEFAULT nextval('protheus_movements_id_seq'::regclass),
+    id integer NOT NULL DEFAULT nextval('account_movements_id_seq'::regclass),
     user_id integer NOT NULL,
-    type character varying(50) COLLATE pg_catalog."default" NOT NULL,
-    amount numeric(12,2) NOT NULL,
+    date date NOT NULL,
     description text COLLATE pg_catalog."default",
+    debit numeric(12,2) DEFAULT 0,
+    credit numeric(12,2) DEFAULT 0,
+    balance numeric(12,2) DEFAULT 0,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    a1_cod character varying(20) COLLATE pg_catalog."default",
-    related_invoice_id character varying(100) COLLATE pg_catalog."default",
-    admin_id integer,
-    CONSTRAINT protheus_movements_pkey PRIMARY KEY (id),
-    CONSTRAINT protheus_movements_admin_id_fkey FOREIGN KEY (admin_id)
-        REFERENCES public.users (id) MATCH SIMPLE
+    order_ref integer,
+    CONSTRAINT account_movements_pkey PRIMARY KEY (id),
+    CONSTRAINT account_movements_order_ref_fkey FOREIGN KEY (order_ref)
+        REFERENCES public.orders (id) MATCH SIMPLE
         ON UPDATE NO ACTION
-        ON DELETE SET NULL,
-    CONSTRAINT protheus_movements_user_id_fkey FOREIGN KEY (user_id)
+        ON DELETE NO ACTION,
+    CONSTRAINT account_movements_user_id_fkey FOREIGN KEY (user_id)
         REFERENCES public.users (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE CASCADE
@@ -94,94 +92,101 @@ CREATE TABLE IF NOT EXISTS public.protheus_movements
 
 TABLESPACE pg_default;
 
-ALTER TABLE IF EXISTS public.protheus_movements
+ALTER TABLE IF EXISTS public.account_movements
     OWNER to postgres;
--- Index: idx_movements_a1_cod
+-- Index: idx_account_movements_user_id_date
 
--- DROP INDEX IF EXISTS public.idx_movements_a1_cod;
+-- DROP INDEX IF EXISTS public.idx_account_movements_user_id_date;
 
-CREATE INDEX IF NOT EXISTS idx_movements_a1_cod
-    ON public.protheus_movements USING btree
-    (a1_cod COLLATE pg_catalog."default" ASC NULLS LAST)
+CREATE INDEX IF NOT EXISTS idx_account_movements_user_id_date
+    ON public.account_movements USING btree
+    (user_id ASC NULLS LAST, date DESC NULLS FIRST)
+    WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;
--- Index: idx_movements_type
 
--- DROP INDEX IF EXISTS public.idx_movements_type;
 
-CREATE INDEX IF NOT EXISTS idx_movements_type
-    ON public.protheus_movements USING btree
-    (type COLLATE pg_catalog."default" ASC NULLS LAST)
-    TABLESPACE pg_default;
--- Index: idx_movements_user_id
+-- Table: public.offers
 
--- DROP INDEX IF EXISTS public.idx_movements_user_id;
+-- DROP TABLE IF EXISTS public.offers;
 
-CREATE INDEX IF NOT EXISTS idx_movements_user_id
-    ON public.protheus_movements USING btree
-    (user_id ASC NULLS LAST)
-    TABLESPACE pg_default;
-    
--- Table: public.protheus_order_items
-
--- DROP TABLE IF EXISTS public.protheus_order_items;
-
-CREATE TABLE IF NOT EXISTS public.protheus_order_items
+CREATE TABLE IF NOT EXISTS public.offers
 (
-    id integer NOT NULL DEFAULT nextval('protheus_order_items_id_seq'::regclass),
-    order_id integer NOT NULL,
-    product_id integer NOT NULL,
-    quantity integer NOT NULL,
-    unit_price numeric(10,2) NOT NULL,
-    product_name character varying(255) COLLATE pg_catalog."default",
-    product_code character varying(50) COLLATE pg_catalog."default",
-    CONSTRAINT protheus_order_items_pkey PRIMARY KEY (id),
-    CONSTRAINT protheus_order_items_order_id_fkey FOREIGN KEY (order_id)
-        REFERENCES public.protheus_orders (id) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE CASCADE,
-    CONSTRAINT protheus_order_items_product_id_fkey FOREIGN KEY (product_id)
-        REFERENCES public.products (id) MATCH SIMPLE
-        ON UPDATE NO ACTION
-        ON DELETE RESTRICT
+    id integer NOT NULL DEFAULT nextval('offers_id_seq'::regclass),
+    title text COLLATE pg_catalog."default" NOT NULL,
+    description text COLLATE pg_catalog."default",
+    price text COLLATE pg_catalog."default",
+    old_price text COLLATE pg_catalog."default",
+    image_url text COLLATE pg_catalog."default",
+    CONSTRAINT offers_pkey PRIMARY KEY (id)
 )
 
 TABLESPACE pg_default;
 
-ALTER TABLE IF EXISTS public.protheus_order_items
+ALTER TABLE IF EXISTS public.offers
+    OWNER to postgres;
+
+
+-- Table: public.order_items
+
+-- DROP TABLE IF EXISTS public.order_items;
+
+CREATE TABLE IF NOT EXISTS public.order_items
+(
+    id integer NOT NULL DEFAULT nextval('order_items_id_seq'::regclass),
+    order_id integer NOT NULL,
+    product_id integer,
+    product_code character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    quantity integer NOT NULL,
+    unit_price numeric(12,2) NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT order_items_pkey PRIMARY KEY (id),
+    CONSTRAINT order_items_order_id_fkey FOREIGN KEY (order_id)
+        REFERENCES public.orders (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT order_items_product_id_fkey FOREIGN KEY (product_id)
+        REFERENCES public.products (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE SET NULL
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.order_items
     OWNER to postgres;
 -- Index: idx_order_items_order_id
 
 -- DROP INDEX IF EXISTS public.idx_order_items_order_id;
 
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id
-    ON public.protheus_order_items USING btree
+    ON public.order_items USING btree
     (order_id ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;
 -- Index: idx_order_items_product_id
 
 -- DROP INDEX IF EXISTS public.idx_order_items_product_id;
 
 CREATE INDEX IF NOT EXISTS idx_order_items_product_id
-    ON public.protheus_order_items USING btree
+    ON public.order_items USING btree
     (product_id ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;
-    
--- Table: public.protheus_orders
 
--- DROP TABLE IF EXISTS public.protheus_orders;
 
-CREATE TABLE IF NOT EXISTS public.protheus_orders
+-- Table: public.orders
+
+-- DROP TABLE IF EXISTS public.orders;
+
+CREATE TABLE IF NOT EXISTS public.orders
 (
-    id integer NOT NULL DEFAULT nextval('protheus_orders_id_seq'::regclass),
+    id integer NOT NULL DEFAULT nextval('orders_id_seq'::regclass),
     user_id integer NOT NULL,
-    total_amount numeric(12,2) NOT NULL,
-    status character varying(50) COLLATE pg_catalog."default" NOT NULL,
-    payment_method character varying(50) COLLATE pg_catalog."default",
-    observations text COLLATE pg_catalog."default",
+    status character varying(50) COLLATE pg_catalog."default" DEFAULT 'Pendiente'::character varying,
+    total numeric(12,2) DEFAULT 0.00,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    a1_cod character varying(20) COLLATE pg_catalog."default",
-    CONSTRAINT protheus_orders_pkey PRIMARY KEY (id),
-    CONSTRAINT protheus_orders_user_id_fkey FOREIGN KEY (user_id)
+    CONSTRAINT orders_pkey PRIMARY KEY (id),
+    CONSTRAINT orders_user_id_fkey FOREIGN KEY (user_id)
         REFERENCES public.users (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE CASCADE
@@ -189,33 +194,19 @@ CREATE TABLE IF NOT EXISTS public.protheus_orders
 
 TABLESPACE pg_default;
 
-ALTER TABLE IF EXISTS public.protheus_orders
+ALTER TABLE IF EXISTS public.orders
     OWNER to postgres;
--- Index: idx_orders_a1_cod
+-- Index: idx_orders_user_id_created_at
 
--- DROP INDEX IF EXISTS public.idx_orders_a1_cod;
+-- DROP INDEX IF EXISTS public.idx_orders_user_id_created_at;
 
-CREATE INDEX IF NOT EXISTS idx_orders_a1_cod
-    ON public.protheus_orders USING btree
-    (a1_cod COLLATE pg_catalog."default" ASC NULLS LAST)
+CREATE INDEX IF NOT EXISTS idx_orders_user_id_created_at
+    ON public.orders USING btree
+    (user_id ASC NULLS LAST, created_at DESC NULLS FIRST)
+    WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;
--- Index: idx_orders_status
 
--- DROP INDEX IF EXISTS public.idx_orders_status;
 
-CREATE INDEX IF NOT EXISTS idx_orders_status
-    ON public.protheus_orders USING btree
-    (status COLLATE pg_catalog."default" ASC NULLS LAST)
-    TABLESPACE pg_default;
--- Index: idx_orders_user_id
-
--- DROP INDEX IF EXISTS public.idx_orders_user_id;
-
-CREATE INDEX IF NOT EXISTS idx_orders_user_id
-    ON public.protheus_orders USING btree
-    (user_id ASC NULLS LAST)
-    TABLESPACE pg_default;
-    
 -- Table: public.queries
 
 -- DROP TABLE IF EXISTS public.queries;
@@ -226,9 +217,8 @@ CREATE TABLE IF NOT EXISTS public.queries
     user_id integer NOT NULL,
     subject character varying(255) COLLATE pg_catalog."default" NOT NULL,
     message text COLLATE pg_catalog."default" NOT NULL,
-    status character varying(50) COLLATE pg_catalog."default" DEFAULT 'Abierta'::character varying,
+    status character varying(50) COLLATE pg_catalog."default" DEFAULT 'Recibida'::character varying,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    a1_cod character varying(20) COLLATE pg_catalog."default",
     CONSTRAINT queries_pkey PRIMARY KEY (id),
     CONSTRAINT queries_user_id_fkey FOREIGN KEY (user_id)
         REFERENCES public.users (id) MATCH SIMPLE
@@ -240,22 +230,6 @@ TABLESPACE pg_default;
 
 ALTER TABLE IF EXISTS public.queries
     OWNER to postgres;
--- Index: idx_queries_a1_cod
-
--- DROP INDEX IF EXISTS public.idx_queries_a1_cod;
-
-CREATE INDEX IF NOT EXISTS idx_queries_a1_cod
-    ON public.queries USING btree
-    (a1_cod COLLATE pg_catalog."default" ASC NULLS LAST)
-    TABLESPACE pg_default;
--- Index: idx_queries_status
-
--- DROP INDEX IF EXISTS public.idx_queries_status;
-
-CREATE INDEX IF NOT EXISTS idx_queries_status
-    ON public.queries USING btree
-    (status COLLATE pg_catalog."default" ASC NULLS LAST)
-    TABLESPACE pg_default;
 -- Index: idx_queries_user_id
 
 -- DROP INDEX IF EXISTS public.idx_queries_user_id;
@@ -263,13 +237,14 @@ CREATE INDEX IF NOT EXISTS idx_queries_status
 CREATE INDEX IF NOT EXISTS idx_queries_user_id
     ON public.queries USING btree
     (user_id ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;
-    
+
+
 -- Table: public.users
 
 -- DROP TABLE IF EXISTS public.users;
 
--- (CORREGIDO) Este es el script de la tabla 'users' que me pasaste en el chat.
 CREATE TABLE IF NOT EXISTS public.users
 (
     id integer NOT NULL DEFAULT nextval('users_id_seq'::regclass),
@@ -292,8 +267,9 @@ CREATE TABLE IF NOT EXISTS public.users
 TABLESPACE pg_default;
 
 ALTER TABLE IF EXISTS public.users
-    OWNER to postgres;
-    
+    OWNER to postgres;        
+
+
 -- Table: public.vouchers
 
 -- DROP TABLE IF EXISTS public.vouchers;
@@ -325,4 +301,5 @@ ALTER TABLE IF EXISTS public.vouchers
 CREATE INDEX IF NOT EXISTS idx_vouchers_user_id
     ON public.vouchers USING btree
     (user_id ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;

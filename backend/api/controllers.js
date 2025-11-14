@@ -330,7 +330,7 @@ const fetchAdminOrderDetails = async (orderId) => {
              u.full_name as user_nombre, 
              u.email as user_email,
              TO_CHAR(p.created_at, 'DD/MM/YYYY HH24:MI') as formatted_date
-      FROM protheus_orders p
+      FROM orders p
       JOIN users u ON p.user_id = u.id
       WHERE p.id = $1;
     `;
@@ -342,7 +342,7 @@ const fetchAdminOrderDetails = async (orderId) => {
     
     // 2. Obtener items del pedido
     const itemsQuery = `
-      SELECT * FROM protheus_order_items
+      SELECT * FROM order_items
       WHERE order_id = $1;
     `;
     const itemsResult = await pool.query(itemsQuery, [orderId]);
@@ -379,8 +379,8 @@ const fetchProtheusOrders = async (userId) => {
     const query = `
       SELECT id, total_amount, status, payment_method, 
              TO_CHAR(created_at, 'DD/MM/YYYY') as formatted_date,
-             (SELECT COUNT(*) FROM protheus_order_items WHERE order_id = protheus_orders.id) as item_count
-      FROM protheus_orders
+             (SELECT COUNT(*) FROM order_items WHERE order_id = orders.id) as item_count
+      FROM orders
       WHERE user_id = $1
       ORDER BY created_at DESC;
     `;
@@ -409,7 +409,7 @@ const fetchProtheusOrderDetails = async (orderId, userId) => {
     const orderQuery = `
       SELECT *, 
              TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') as formatted_date
-      FROM protheus_orders
+      FROM orders
       WHERE id = $1 AND user_id = $2;
     `;
     const orderResult = await pool.query(orderQuery, [orderId, userId]);
@@ -420,7 +420,7 @@ const fetchProtheusOrderDetails = async (orderId, userId) => {
     
     // 2. Obtener items del pedido
     const itemsQuery = `
-      SELECT * FROM protheus_order_items
+      SELECT * FROM order_items
       WHERE order_id = $1;
     `;
     const itemsResult = await pool.query(itemsQuery, [orderId]);
@@ -471,9 +471,9 @@ const saveProtheusOrder = async (orderData, userId) => {
     // Iniciar Transacción
     await client.query('BEGIN');
     
-    // 1. Insertar el pedido principal (protheus_orders)
+    // 1. Insertar el pedido principal (orders)
     const orderInsertQuery = `
-      INSERT INTO protheus_orders (user_id, total_amount, payment_method, observations, status, a1_cod)
+      INSERT INTO orders (user_id, total_amount, payment_method, observations, status, a1_cod)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING id, created_at;
     `;
@@ -483,9 +483,9 @@ const saveProtheusOrder = async (orderData, userId) => {
     const newOrder = orderResult.rows[0];
     const newOrderId = newOrder.id;
 
-    // 2. Insertar los items del pedido (protheus_order_items)
+    // 2. Insertar los items del pedido (order_items)
     const itemInsertQuery = `
-      INSERT INTO protheus_order_items (order_id, product_id, quantity, unit_price, product_name, product_code)
+      INSERT INTO order_items (order_id, product_id, quantity, unit_price, product_name, product_code)
       VALUES ($1, $2, $3, $4, $5, $6);
     `;
     
