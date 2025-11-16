@@ -166,19 +166,14 @@ const updateProfile = async (userId, profileData) => {
  */
 const fetchProtheusBalance = async (userId) => {
   try {
-    // (NUEVO) Buscamos el A1_COD del usuario
-    const user = await getProfile(userId);
-    if (!user || !user.a1_cod) {
-      throw new Error('Código de cliente no encontrado para el usuario.');
-    }
-    
-    // (MODIFICADO) Sumamos por A1_COD en lugar de user_id
+    // Adaptado a la tabla 'account_movements'
     const query = `
-      SELECT COALESCE(SUM(amount), 0) AS total_balance
-      FROM protheus_movements
-      WHERE a1_cod = $1;
+      SELECT 
+        COALESCE(SUM(credit), 0) - COALESCE(SUM(debit), 0) AS total_balance
+      FROM account_movements
+      WHERE user_id = $1;
     `;
-    const result = await pool.query(query, [user.a1_cod]);
+    const result = await pool.query(query, [userId]);
     
     const balance = parseFloat(result.rows[0].total_balance);
     
@@ -199,28 +194,27 @@ const fetchProtheusBalance = async (userId) => {
  */
 const fetchProtheusMovements = async (userId) => {
   try {
-    // (NUEVO) Buscamos el A1_COD del usuario
-    const user = await getProfile(userId);
-    if (!user || !user.a1_cod) {
-      throw new Error('Código de cliente no encontrado para el usuario.');
-    }
-
-    // (MODIFICADO) Buscamos por A1_COD
+    // Adaptado a la tabla 'account_movements'
     const query = `
       SELECT *, 
-             TO_CHAR(created_at, 'DD/MM/YYYY') as formatted_date
-      FROM protheus_movements
-      WHERE a1_cod = $1
-      ORDER BY created_at DESC;
+             TO_CHAR(date, 'DD/MM/YYYY') as formatted_date
+      FROM account_movements
+      WHERE user_id = $1
+      ORDER BY date DESC, created_at DESC;
     `;
-    const result = await pool.query(query, [user.a1_cod]);
+    const result = await pool.query(query, [userId]);
     
     // Formatear los datos antes de enviarlos
-    const formattedMovements = result.rows.map(mov => ({
-      ...mov,
-      formattedAmount: formatCurrency(mov.amount),
-      formattedType: formatMovementType(mov.type) // Usar el helper
-    }));
+    const formattedMovements = result.rows.map(mov => {
+      // La tabla tiene 'debit' y 'credit', no 'amount'. Creamos un valor unificado.
+      const amount = mov.credit - mov.debit;
+      return {
+        ...mov,
+        amount: amount, // Añadimos el campo 'amount' calculado
+        formattedAmount: formatCurrency(amount),
+        // La columna 'type' no existe, se elimina 'formattedType'
+      };
+    });
     
     return formattedMovements;
     
@@ -240,7 +234,7 @@ const fetchProtheusMovements = async (userId) => {
 const createCreditNote = async (targetUserCod, reason, items, invoiceRefId, adminUserId) => {
   try {
     // 1. Verificar que el cliente (targetUserCod) existe
-    const userResult = await pool.query('SELECT id, a1_cod FROM users WHERE a1_cod = $1', [targetUserCod]);
+    const userResult = await pool.query('SELECT id FROM users WHERE a1_cod = $1', [targetUserCod]);
     if (userResult.rows.length === 0) {
       throw new Error(`El cliente con código ${targetUserCod} no existe en la base de datos.`);
     }
@@ -256,17 +250,18 @@ const createCreditNote = async (targetUserCod, reason, items, invoiceRefId, admi
       throw new Error('El monto de la nota de crédito debe ser positivo.');
     }
 
-    // 3. Insertar el movimiento de "Crédito (NC)"
-    // (Importante: El 'amount' para créditos es POSITIVO)
+    // 3. Insertar el movimiento en 'account_movements'
+    // Adaptado a script.sql: Se usa la columna 'credit'.
     const query = `
-      INSERT INTO protheus_movements 
-        (user_id, type, amount, description, a1_cod, related_invoice_id, admin_id)
+      INSERT INTO account_movements 
+        (user_id, credit, description, date)
       VALUES 
-        ($1, $2, $3, $4, $5, $6, $7)
+        ($1, $2, $3, CURRENT_DATE)
       RETURNING *;
     `;
-    const description = `NC (Admin): ${reason}. Ref Fact: ${invoiceRefId}.`;
-    const values = [targetUserId, 'Crédito (NC)', totalCreditAmount, description, targetUserCod, invoiceRefId, adminUserId];
+    // La info extra (admin, reason) va en la descripción.
+    const description = `Nota de Crédito (Admin: ${adminUserId}): ${reason}. Ref Fact: ${invoiceRefId}.`;
+    const values = [targetUserId, totalCreditAmount, description];
     
     const result = await pool.query(query, values);
     
@@ -276,7 +271,7 @@ const createCreditNote = async (targetUserCod, reason, items, invoiceRefId, admi
 
   } catch (error) {
     console.error('Error en createCreditNote:', error);
-    throw error; // Lanza el error para que la ruta lo maneje
+    throw error;
   }
 };
 
@@ -285,31 +280,35 @@ const createCreditNote = async (targetUserCod, reason, items, invoiceRefId, admi
  */
 const fetchCustomerInvoices = async (customerCod) => {
   try {
-    // Busca movimientos de tipo 'Factura' (que son débitos)
+    // Adaptado a 'account_movements': Una factura es un débito con referencia a un pedido.
     const query = `
-      SELECT id, created_at, amount, description, 
-             TO_CHAR(created_at, 'DD/MM/YYYY') as formatted_date
-      FROM protheus_movements
-      WHERE a1_cod = $1 
-        AND type = 'Factura'
-        AND amount < 0 -- Las facturas son débitos
-      ORDER BY created_at DESC;
+      SELECT 
+        am.id, am.date, am.debit, am.description, am.order_ref,
+        TO_CHAR(am.date, 'DD/MM/YYYY') as formatted_date
+      FROM account_movements am
+      JOIN users u ON am.user_id = u.id
+      WHERE u.a1_cod = $1 
+        AND am.debit > 0
+        AND am.order_ref IS NOT NULL
+      ORDER BY am.date DESC;
     `;
     
     const result = await pool.query(query, [customerCod]);
     
     if (result.rows.length === 0) {
-      // (NUEVO) No es un error si no tiene facturas, solo devolvemos array vacío
       console.log(`No se encontraron facturas para el código: ${customerCod}`);
       return []; 
     }
     
-    // Formatear antes de devolver
+    // Formatear para que coincida con lo que el frontend podría esperar
     return result.rows.map(inv => ({
-      ...inv,
-      formattedAmount: formatCurrency(inv.amount),
-      // Extraer el ID de la factura de la descripción, ej: "Factura #F12345"
-      invoiceId: inv.description.split('#')[1] || inv.id 
+      id: inv.id,
+      created_at: inv.date, // Mapear 'date' a 'created_at'
+      amount: -inv.debit, // Frontend esperaba un débito como negativo
+      formattedAmount: formatCurrency(-inv.debit),
+      description: inv.description,
+      formatted_date: inv.formatted_date,
+      invoiceId: inv.order_ref // El ID de la factura es la referencia del pedido
     }));
     
   } catch (error) {
@@ -361,7 +360,7 @@ const fetchAdminOrderDetails = async (orderId) => {
       items: itemsResult.rows.map(item => ({
         ...item,
         // Usamos la descripción de la tabla 'products' como fuente principal
-        product_name: item.product_name_from_products || item.product_name,
+        product_name: item.product_name_from_products,
         formattedPrice: formatCurrency(item.unit_price)
       })),
       formattedTotal: formatCurrency(orderResult.rows[0].total)
@@ -452,10 +451,7 @@ const fetchProtheusOrderDetails = async (orderId, userId) => {
       ...orderResult.rows[0],
       items: itemsResult.rows.map(item => ({
         ...item,
-        // (NUEVO) Usamos la descripción de la tabla 'products'
-        // y si no existe (producto borrado?), usamos la que estaba guardada.
-        // Esto soluciona el problema visual en el frontend.
-        product_name: item.product_name_from_products || item.product_name,
+        product_name: item.product_name_from_products,
         formattedPrice: formatCurrency(item.unit_price)
       })),
       formattedTotal: formatCurrency(orderResult.rows[0].total)
@@ -479,7 +475,7 @@ const fetchProtheusOrderDetails = async (orderId, userId) => {
 const saveProtheusOrder = async (orderData, userId) => {
   const { items, total, paymentMethod } = orderData;
   
-  // --- (NUEVO) 1. Obtener datos del usuario para el email y el pedido ---
+  // --- 1. Obtener datos del usuario para el email ---
   let user;
   try {
     // (CORREGIDO) Se cambió 'nombre' por 'full_name'
@@ -501,53 +497,46 @@ const saveProtheusOrder = async (orderData, userId) => {
     await client.query('BEGIN');
     
     // 1. Insertar el pedido principal (orders)
-    // (CORREGIDO) La query DEBE coincidir con las columnas y los valores.
-    // Se añaden 'payment_method' y 'a1_cod' a las columnas.
-    // Se ajustan los placeholders para que sean 5 (coincidiendo con los 5 valores).
+    // Adaptado a script.sql: Se quitan 'payment_method' y 'a1_cod'.
     const orderInsertQuery = `
-      INSERT INTO orders (user_id, total, payment_method, status, a1_cod)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO orders (user_id, total, status)
+      VALUES ($1, $2, $3)
       RETURNING id, created_at;
     `;
+    const orderValues = [userId, total, 'Pendiente'];
     
-    // Los valores (5) ahora coinciden con la query:
-    // $1 = userId, $2 = total, $3 = paymentMethod, $4 = 'Pendiente', $5 = user.a1_cod
-    const orderValues = [userId, total, paymentMethod || null, 'Pendiente', user.a1_cod];
-    
-    // Esta línea (482) era la que fallaba. Ahora es correcta.
     const orderResult = await client.query(orderInsertQuery, orderValues);
     const newOrder = orderResult.rows[0];
     const newOrderId = newOrder.id;
 
     // 2. Insertar los items del pedido (order_items)
+    // Adaptado a script.sql: Se quita 'product_name'.
     const itemInsertQuery = `
-      INSERT INTO order_items (order_id, product_id, quantity, unit_price, product_name, product_code)
-      VALUES ($1, $2, $3, $4, $5, $6);
+      INSERT INTO order_items (order_id, product_id, quantity, unit_price, product_code)
+      VALUES ($1, $2, $3, $4, $5);
     `;
     
     // (MODIFICADO) Usamos un bucle 'for...of' para 'await' dentro
     for (const item of items) {
-      // (NOTA) Asumimos que el frontend envía 'id', 'quantity', 'price',
-      // 'name' (que mapea a 'description'), y 'code'.
       const itemValues = [
         newOrderId,
         item.id,       // 'id' del producto
         item.quantity,
         item.price,    // 'price' del producto
-        item.name,     // 'name' del producto (que debe ser la 'description' de la tabla products)
         item.code      // 'code' del producto
       ];
       await client.query(itemInsertQuery, itemValues);
     }
     
-    // (NUEVO) 3. Si paga con 'Cuenta Corriente', registrar el débito
+    // 3. Si paga con 'Cuenta Corriente', registrar el débito
+    // Adaptado a la tabla 'account_movements'.
     if (paymentMethod === 'Cuenta Corriente') {
       const updateBalanceQuery = `
-        INSERT INTO protheus_movements (user_id, type, amount, description, a1_cod)
-        VALUES ($1, $2, $3, $4, $5);
+        INSERT INTO account_movements (user_id, debit, description, order_ref, date)
+        VALUES ($1, $2, $3, $4, CURRENT_DATE);
       `;
-      // Insertamos un movimiento de 'débito' (negativo) por el total del pedido
-      await client.query(updateBalanceQuery, [userId, 'Débito (Pedido)', -total, `Pedido #${newOrderId}`, user.a1_cod]);
+      // Insertamos un movimiento de 'débito' (positivo en su columna) por el total del pedido.
+      await client.query(updateBalanceQuery, [userId, total, `Débito por Pedido #${newOrderId}`, newOrderId]);
     }
 
     // Terminar Transacción
@@ -785,23 +774,17 @@ const saveProtheusQuery = async (queryData, userId) => {
   const { subject, message } = queryData;
   
   try {
-    // Buscamos el A1_COD del usuario
-    const user = await getProfile(userId);
-    if (!user || !user.a1_cod) {
-      throw new Error('Código de cliente no encontrado para el usuario.');
-    }
-    
-    // (CORREGIDO) Inserta en la tabla 'queries' (no 'protheus_queries')
+    // Adaptado a script.sql: Se quita la dependencia de 'a1_cod'.
     const query = `
-      INSERT INTO queries (user_id, subject, message, status, a1_cod)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO queries (user_id, subject, message, status)
+      VALUES ($1, $2, $3, $4)
       RETURNING *;
     `;
-    const values = [userId, subject, message, 'Abierta', user.a1_cod];
+    const values = [userId, subject, message, 'Recibida']; // 'Recibida' es el default en el script
     
     const result = await pool.query(query, values);
     
-    console.log(`Consulta guardada para usuario ${userId} (Cliente ${user.a1_cod})`);
+    console.log(`Consulta guardada para usuario ${userId}`);
     
     // (PENDIENTE) Aquí se podría enviar un email de notificación al administrador
     
