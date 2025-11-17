@@ -11,6 +11,7 @@
 const pool = require('./db'); // Importar el pool de conexiones
 const bcrypt = require('bcryptjs'); // (NUEVO) Para hashear contraseñas
 const { formatCurrency, formatMovementType } = require('./utils/helpers'); // Importar helpers
+const { getExchangeRates } = require('./utils/exchangeRateService'); // (NUEVO) Importar servicio de cotizaciones
 
 // (NUEVO) Importar el servicio de email
 const { sendOrderConfirmationEmail, sendNewOrderNotificationEmail } = require('./emailService');
@@ -19,6 +20,19 @@ const { sendOrderConfirmationEmail, sendNewOrderNotificationEmail } = require('.
 // =================================================================
 // --- (NUEVO) Autenticación y Perfil (Users Table) ---
 // =================================================================
+
+/**
+ * (NUEVO) Obtiene las cotizaciones del dólar (billete y divisa)
+ */
+const getExchangeRatesController = async (req, res) => {
+  try {
+    const rates = await getExchangeRates();
+    return rates;
+  } catch (error) {
+    console.error('Error en getExchangeRatesController:', error);
+    throw error;
+  }
+};
 
 /**
  * Autentica un usuario contra la tabla 'users'
@@ -605,6 +619,11 @@ const saveProtheusOrder = async (orderData, userId) => {
  */
 const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = '', moneda = '1') => {
   try {
+    // (NUEVO) Obtener las cotizaciones del dólar
+    const exchangeRates = await getExchangeRates();
+    const ventaBillete = exchangeRates.venta_billete;
+    const ventaDivisa = exchangeRates.venta_divisa;
+
     const offset = (page - 1) * limit;
     let queryParams = [];
     
@@ -657,12 +676,14 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
     const dataResult = await pool.query(dataQuery, [...queryParams, limit, offset]);
     
     const products = dataResult.rows.map(prod => {
-      let originalPrice = null;
+      let originalPrice = prod.price; // El precio base del producto
       let finalPrice = prod.price;
 
-      if (prod.moneda === 2 || prod.moneda === 3) {
-        originalPrice = prod.price;
-        finalPrice = prod.price * prod.cotizacion;
+      // (MODIFICADO) Aplicar cotización según el tipo de moneda
+      if (prod.moneda === 2) { // Dólar Billete
+        finalPrice = originalPrice * ventaBillete;
+      } else if (prod.moneda === 3) { // Dólar Divisa
+        finalPrice = originalPrice * ventaDivisa;
       }
 
       return {
@@ -676,7 +697,8 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
         capacityDesc: prod.capacity_description,
         capacityValue: null,
         moneda: prod.moneda,
-        cotizacion: prod.cotizacion,
+        // (MODIFICADO) La cotización ahora refleja la que se usó
+        cotizacion: prod.moneda === 2 ? ventaBillete : (prod.moneda === 3 ? ventaDivisa : 1),
         originalPrice: originalPrice
       };
     });
@@ -866,4 +888,5 @@ module.exports = {
   fetchProtheusOffers,
   saveProtheusQuery,
   saveProtheusVoucher,
+  getExchangeRatesController, // (NUEVO) Exportar el controlador de cotizaciones
 };

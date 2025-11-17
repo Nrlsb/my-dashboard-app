@@ -326,6 +326,18 @@ router.get('/offers', async (req, res) => {
   }
 });
 
+// (NUEVA RUTA) Obtiene las cotizaciones del dólar (pública)
+router.get('/exchange-rates', async (req, res) => {
+  console.log('GET /api/exchange-rates -> Consultando cotizaciones del dólar...');
+  try {
+    const rates = await controllers.getExchangeRatesController();
+    res.json(rates);
+  } catch (error) {
+    console.error('Error en /api/exchange-rates:', error);
+    res.status(500).json({ message: 'Error al obtener las cotizaciones.' });
+  }
+});
+
 // --- Consultas y Carga de Archivos ---
 // (MODIFICADO) Usamos el middleware 'requireUserId'
 router.post('/queries', requireUserId, async (req, res) => {
