@@ -325,15 +325,34 @@ CREATE TABLE IF NOT EXISTS public.dashboard_panels
 
 TABLESPACE pg_default;
 
-ALTER TABLE IF EXISTS public.dashboard_panels
+-- Table: public.user_product_group_permissions
+
+-- DROP TABLE IF EXISTS public.user_product_group_permissions;
+
+CREATE TABLE IF NOT EXISTS public.user_product_group_permissions
+(
+    id integer NOT NULL DEFAULT nextval('user_product_group_permissions_id_seq'::regclass),
+    user_id integer NOT NULL,
+    product_group character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT user_product_group_permissions_pkey PRIMARY KEY (id),
+    CONSTRAINT user_product_group_permissions_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT user_product_group_permissions_unique_group_per_user UNIQUE (user_id, product_group)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.user_product_group_permissions
     OWNER to postgres;
 
--- Insert initial data into dashboard_panels
-INSERT INTO public.dashboard_panels (title, subtitle, icon, navigation_path, tag, is_visible) VALUES
-('', 'Nuevo Pedido', 'ShoppingCart', 'new-order', NULL, true),
-('Historico', 'Histórico de Pedidos', 'Clock', 'order-history', NULL, true),
-('Precios', 'Lista de Precios', 'DollarSign', 'price-list', NULL, true),
-('Ofertas', 'Nuevas Ofertas', 'Gift', 'offers', 'NUEVO', true),
-('Cuenta Corriente', 'Saldo Cuenta', 'Banknote', 'account-balance', NULL, true),
-('Consultas', 'Envío de Consultas', 'HelpCircle', 'queries', NULL, true)
-ON CONFLICT (id) DO NOTHING;
+-- Index: idx_user_product_group_permissions_user_id
+
+-- DROP INDEX IF EXISTS public.idx_user_product_group_permissions_user_id;
+
+CREATE INDEX IF NOT EXISTS idx_user_product_group_permissions_user_id
+    ON public.user_product_group_permissions USING btree
+    (user_id ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;

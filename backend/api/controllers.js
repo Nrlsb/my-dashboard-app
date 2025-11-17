@@ -640,6 +640,7 @@ const saveProtheusOrder = async (orderData, userId) => {
  * Obtiene la lista de productos (paginada y con búsqueda)
  */
 const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = '', moneda = '1', userId = null) => {
+  console.log(`[DEBUG] fetchProtheusProducts llamado con: page=${page}, limit=${limit}, search='${search}', brand='${brand}', moneda='${moneda}', userId=${userId}`);
   try {
     // (NUEVO) Obtener las cotizaciones del dólar
     const exchangeRates = await getExchangeRates();
@@ -673,21 +674,22 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
         isUserAdmin = userResult.rows[0].is_admin;
       }
     }
+    console.log(`[DEBUG] userId: ${userId}, isUserAdmin: ${isUserAdmin}`);
 
-    if (userId && !isUserAdmin) {
-      const allowedGroups = await getUserGroupPermissions(userId);
+    if (userId) {
+      const deniedGroups = await getDeniedProductGroups(userId);
+      console.log(`[DEBUG] Grupos denegados para usuario no admin ${userId}:`, deniedGroups);
       
-      if (allowedGroups.length > 0) {
-        const groupQuery = ` product_group = ANY($${paramIndex}::varchar[]) `;
+      if (deniedGroups.length > 0) {
+        const groupQuery = ` product_group NOT IN (SELECT unnest($${paramIndex}::varchar[])) `;
         countQuery += ` AND ${groupQuery}`;
         dataQuery += ` AND ${groupQuery}`;
-        queryParams.push(allowedGroups);
+        queryParams.push(deniedGroups);
         paramIndex++;
       } else {
-        // Si el usuario no tiene grupos asignados, no debe ver ningún producto.
-        const falseQuery = ' 1 = 0 ';
-        countQuery += ` AND ${falseQuery}`;
-        dataQuery += ` AND ${falseQuery}`;
+        // Si no hay grupos denegados, el usuario puede ver todos los productos.
+        // No se añade ninguna cláusula WHERE para grupos de productos.
+        console.log(`[DEBUG] Usuario ${userId} no tiene grupos denegados, mostrando todos los productos.`);
       }
     }
     
@@ -718,11 +720,17 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
     // --- Ordenar y Paginar (Solo para dataQuery) ---
     dataQuery += ` ORDER BY description ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     
+    console.log(`[DEBUG] countQuery: ${countQuery}`);
+    console.log(`[DEBUG] dataQuery: ${dataQuery}`);
+    console.log(`[DEBUG] queryParams:`, queryParams);
+
     // --- Ejecutar Queries ---
     const countResult = await pool.query(countQuery, queryParams);
     const totalProducts = parseInt(countResult.rows[0].count, 10);
+    console.log(`[DEBUG] totalProducts: ${totalProducts}`);
     
     const dataResult = await pool.query(dataQuery, [...queryParams, limit, offset]);
+    console.log(`[DEBUG] Productos obtenidos: ${dataResult.rows.length}`);
     
     const products = dataResult.rows.map(prod => {
       let originalPrice = prod.price; // El precio base del producto
@@ -759,7 +767,7 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
     };
     
   } catch (error) {
-    console.error('Error en fetchProtheusProducts:', error);
+    console.error('[DEBUG] Error en fetchProtheusProducts:', error);
     throw error;
   }
 };
@@ -767,18 +775,32 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
 /**
  * (NUEVO) Obtiene el detalle de un solo producto
  */
-const fetchProductDetails = async (productId) => {
+const fetchProductDetails = async (productId, userId = null) => {
   try {
     // (CORREGIDO) Nombres de columnas actualizados según script.sql
-    const query = `
+    // (MODIFICADO) Se añade product_group a la selección
+    let query = `
       SELECT 
         id, code, description, price, brand, 
-        capacity_description
+        capacity_description, product_group
       FROM products
-      WHERE id = $1 AND price > 0 AND description IS NOT NULL;
+      WHERE id = $1 AND price > 0 AND description IS NOT NULL
     `;
+    let queryParams = [productId];
+            if (userId) {      const deniedGroups = await getDeniedProductGroups(userId);
+      
+      if (deniedGroups.length > 0) {
+        const groupQuery = ` product_group NOT IN (SELECT unnest($${paramIndex}::varchar[])) `;
+        query += ` AND ${groupQuery}`;
+        queryParams.push(deniedGroups);
+        paramIndex++;
+      } else {
+        // Si no hay grupos denegados, el usuario puede ver el producto.
+        // No se añade ninguna cláusula WHERE para grupos de productos.
+      }
+    }
     
-    const result = await pool.query(query, [productId]);
+    const result = await pool.query(query, queryParams);
     
     if (result.rows.length === 0) {
       return null; // Producto no encontrado
@@ -796,7 +818,8 @@ const fetchProductDetails = async (productId) => {
       imageUrl: null, 
       capacityDesc: prod.capacity_description, // Mapea 'capacity_description'
       capacityValue: null, 
-      additionalInfo: {} 
+      additionalInfo: {},
+      product_group: prod.product_group // (NUEVO) Devolver el grupo del producto
     };
     
     return productDetails;
@@ -834,18 +857,46 @@ const fetchProtheusBrands = async () => {
 /**
  * Obtiene la lista de ofertas (ej. productos con descuento)
  */
-const fetchProtheusOffers = async () => {
+const fetchProtheusOffers = async (userId = null) => {
   try {
     // (NUEVO) Ahora busca productos donde 'oferta' es true.
-    const query = `
+    // (MODIFICADO) Se añade product_group a la selección
+    let query = `
       SELECT 
         id, code, description, price, brand, 
-        capacity_description, moneda, cotizacion
+        capacity_description, moneda, cotizacion, product_group
       FROM products 
       WHERE oferta = true AND price > 0 AND description IS NOT NULL
-      ORDER BY description ASC;
     `;
-    const result = await pool.query(query);
+    let queryParams = [];
+    let paramIndex = 1;
+
+    // (NUEVO) Lógica de permisos por grupo de productos
+    let isUserAdmin = false;
+    if (userId) {
+      const userResult = await pool.query('SELECT is_admin FROM users WHERE id = $1', [userId]);
+      if (userResult.rows.length > 0) {
+        isUserAdmin = userResult.rows[0].is_admin;
+      }
+    }
+
+    if (userId) {
+      const deniedGroups = await getDeniedProductGroups(userId);
+      
+      if (deniedGroups.length > 0) {
+        const groupQuery = ` product_group NOT IN (SELECT unnest($${paramIndex}::varchar[])) `;
+        query += ` AND ${groupQuery}`;
+        queryParams.push(deniedGroups);
+        paramIndex++;
+      } else {
+        // Si no hay grupos denegados, el usuario puede ver todas las ofertas.
+        // No se añade ninguna cláusula WHERE para grupos de productos.
+      }
+    }
+
+    query += ` ORDER BY description ASC;`;
+
+    const result = await pool.query(query, queryParams);
     
     // Reutilizar la lógica de formateo de precios de fetchProtheusProducts
     const exchangeRates = await getExchangeRates();
@@ -873,7 +924,8 @@ const fetchProtheusOffers = async () => {
         capacityDesc: prod.capacity_description,
         moneda: prod.moneda,
         cotizacion: prod.moneda === 2 ? ventaBillete : (prod.moneda === 3 ? ventaDivisa : 1),
-        originalPrice: originalPrice
+        originalPrice: originalPrice,
+        product_group: prod.product_group // (NUEVO) Devolver el grupo del producto
       };
     });
 
@@ -960,7 +1012,7 @@ const saveProtheusVoucher = async (fileInfo, userId) => {
 /**
  * Obtiene los paneles del dashboard visibles para todos los usuarios
  */
-const getDashboardPanels = async () => {
+const getDashboardPanels = async (userId) => {
   try {
     const result = await pool.query('SELECT * FROM dashboard_panels WHERE is_visible = true ORDER BY id');
     let panels = result.rows;
@@ -969,7 +1021,7 @@ const getDashboardPanels = async () => {
     const offersPanelIndex = panels.findIndex(panel => panel.navigation_path === 'offers');
 
     if (offersPanelIndex > -1) {
-      const offers = await fetchProtheusOffers();
+      const offers = await fetchProtheusOffers(userId); // <--- Pass userId here
       if (offers.length === 0) {
         // Si no hay ofertas, filtramos el panel de la lista
         panels = panels.filter(panel => panel.navigation_path !== 'offers');
@@ -1091,7 +1143,7 @@ const getProductGroupsForAdmin = async () => {
 /**
  * (Admin) Obtiene los permisos de grupo para un usuario específico
  */
-const getUserGroupPermissions = async (userId) => {
+const getDeniedProductGroups = async (userId) => {
   try {
     const query = `
       SELECT product_group 
@@ -1099,10 +1151,10 @@ const getUserGroupPermissions = async (userId) => {
       WHERE user_id = $1;
     `;
     const result = await pool.query(query, [userId]);
-    // Return an array of strings
-    return result.rows.map(row => row.product_group);
+    const deniedGroups = result.rows.map(row => row.product_group);
+    return deniedGroups;
   } catch (error) {
-    console.error(`Error in getUserGroupPermissions for user ${userId}:`, error);
+    console.error(`Error in getDeniedProductGroups for user ${userId}:`, error);
     throw error;
   }
 };
@@ -1127,7 +1179,7 @@ const updateUserGroupPermissions = async (userId, groups) => {
     }
 
     await client.query('COMMIT');
-    console.log(`Permissions updated for user ${userId}`);
+    console.log(`Denied product group permissions updated for user ${userId}`);
     return { success: true, message: 'Permisos actualizados correctamente.' };
   } catch (error) {
     await client.query('ROLLBACK');
@@ -1166,6 +1218,6 @@ module.exports = {
   toggleProductOfferStatus,
   getUsersForAdmin,
   getProductGroupsForAdmin,
-  getUserGroupPermissions,
+  getDeniedProductGroups, // Renamed export
   updateUserGroupPermissions,
 };

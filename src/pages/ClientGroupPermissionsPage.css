@@ -47,6 +47,40 @@
   padding-bottom: 1rem;
 }
 
+.filter-container {
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.filter-container label {
+  font-weight: bold;
+}
+
+.filter-container input {
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  flex-grow: 1;
+}
+
+.select-all-container {
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.select-all-container input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
+.select-all-container label {
+  font-weight: bold;
+}
+
 .groups-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));

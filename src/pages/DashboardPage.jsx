@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import DashboardCard from '/src/components/DashboardCard.jsx';
 import { apiService } from '../api/apiService';
+import { useAuth } from '../context/AuthContext'; // Import useAuth
 import {
   ShoppingCart,
   Clock,
@@ -22,15 +23,21 @@ const iconMap = {
 
 // El Contenido del Dashboard
 const Dashboard = ({ onNavigate }) => {
+  const { user } = useAuth(); // Use the useAuth hook
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchPanels = async () => {
+      if (!user || !user.id) {
+        setError('Usuario no autenticado o ID de usuario no disponible.');
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
-        const fetchedPanels = await apiService.getDashboardPanels();
+        const fetchedPanels = await apiService.getDashboardPanels(user.id); // Pass user.id
         setCards(fetchedPanels);
         setError(null);
       } catch (err) {
@@ -42,7 +49,7 @@ const Dashboard = ({ onNavigate }) => {
     };
 
     fetchPanels();
-  }, []);
+  }, [user]); // Depend on user to re-fetch if user changes
 
   if (loading) {
     return <div className="text-center p-8">Cargando paneles...</div>;

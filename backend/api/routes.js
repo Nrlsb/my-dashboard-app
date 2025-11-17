@@ -72,7 +72,20 @@ const requireAdmin = async (req, res, next) => {
   router.post('/login', async (req, res) => {
     console.log('POST /api/login -> Autenticando contra DB...');
     try {
-      const { email, password } = req.body;
+      let email = req.body.email; // Obtener email
+      const password = req.body.password; // Obtener password
+
+      // Si email es un objeto, intentar extraer la propiedad 'email'
+      if (typeof email === 'object' && email !== null && email.email) {
+        email = email.email;
+      }
+
+      // Validar que email y password sean cadenas no vacías
+      if (!email || typeof email !== 'string' || email.trim() === '' ||
+          !password || typeof password !== 'string' || password.trim() === '') {
+        return res.status(400).json({ message: 'Email y contraseña son obligatorios.' });
+      }
+
       const result = await controllers.authenticateProtheusUser(email, password);
       if (result.success) {
         // Devuelve el objeto { success: true, user: {...} }
@@ -261,7 +274,7 @@ const requireAdmin = async (req, res, next) => {
     const { userId } = req.params;
     console.log(`GET /api/admin/users/${userId}/product-groups -> Admin ${req.userId} fetching permissions...`);
     try {
-      const permissions = await controllers.getUserGroupPermissions(userId);
+      const permissions = await controllers.getDeniedProductGroups(userId);
       res.json(permissions);
     } catch (error) {
       console.error(`Error in /api/admin/users/${userId}/product-groups:`, error);
@@ -339,7 +352,7 @@ const requireAdmin = async (req, res, next) => {
   
   // --- Productos y Ofertas ---
   // (MODIFICADO) Esta ruta ahora usa el middleware opcional de userId
-  router.get('/products', async (req, res) => {
+  router.get('/products', optionalUserId, async (req, res) => {
     console.log('GET /api/products -> Consultando productos en DB (paginado)...');
     try {
       const { page = 1, limit = 20, search = '', brand = '', moneda = '0' } = req.query;
@@ -355,11 +368,11 @@ const requireAdmin = async (req, res, next) => {
   // --- (NUEVA RUTA) ---
   // Obtiene un producto específico por su ID
   // Es pública, no necesita requireUserId
-  router.get('/products/:id', async (req, res) => {
+  router.get('/products/:id', optionalUserId, async (req, res) => {
     const productId = req.params.id;
     console.log(`GET /api/products/${productId} -> Consultando producto individual...`);
     try {
-      const product = await controllers.fetchProductDetails(productId);
+      const product = await controllers.fetchProductDetails(productId, req.userId);
       if (product) {
         res.json(product);
       } else {
@@ -384,10 +397,10 @@ const requireAdmin = async (req, res, next) => {
     }
   });
   
-  router.get('/offers', async (req, res) => {
+  router.get('/offers', optionalUserId, async (req, res) => {
     console.log('GET /api/offers -> Consultando ofertas en DB...');
     try {
-      const offers = await controllers.fetchProtheusOffers();
+      const offers = await controllers.fetchProtheusOffers(req.userId);
       res.json(offers);
     } catch (error) {
       console.error('Error en /api/offers:', error);

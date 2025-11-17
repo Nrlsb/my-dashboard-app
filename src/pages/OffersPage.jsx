@@ -3,6 +3,7 @@ import React from 'react';
 import { Tag, ArrowLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchOffers } from '../api/apiService.js'; // <-- Corregido con .js
+import { useAuth } from '../context/AuthContext'; // Import useAuth
 
 // Componente de UI para el estado de carga (Skeleton)
 const LoadingSkeleton = () => (
@@ -41,6 +42,8 @@ const OfferCard = ({ offer }) => (
 );
 
 export default function OffersPage({ onNavigate }) { // (NUEVO) Recibe onNavigate
+  const { user } = useAuth(); // Use the useAuth hook
+
   // 1. Reemplazamos useEffect y useState con useQuery
   const { 
     data: offers = [], // Valor por defecto
@@ -48,13 +51,23 @@ export default function OffersPage({ onNavigate }) { // (NUEVO) Recibe onNavigat
     isError, 
     error 
   } = useQuery({
-    queryKey: ['offers'], // Clave única
-    queryFn: fetchOffers, // Función de API
+    queryKey: ['offers', user?.id], // Add user.id to queryKey for re-fetching when user changes
+    queryFn: () => fetchOffers(user?.id), // Pass user.id to fetchOffers
+    enabled: !!user?.id, // Only run query if user.id is available
     staleTime: 1000 * 60 * 15, // 15 minutos de caché
   });
 
   // 2. Renderizado condicional
   const renderContent = () => {
+    if (!user?.id) {
+      return (
+        <div className="text-center py-20 bg-white rounded-lg shadow-md">
+          <h3 className="mt-4 text-lg font-medium text-gray-900">Inicia sesión para ver las ofertas</h3>
+          <p className="mt-1 text-sm text-gray-500">Necesitas estar autenticado para acceder a esta sección.</p>
+        </div>
+      );
+    }
+
     if (isLoading) {
       return <LoadingSkeleton />;
     }

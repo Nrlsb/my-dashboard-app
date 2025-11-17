@@ -5,6 +5,7 @@ import { Loader2, ArrowLeft, Search, X, ChevronDown, Download } from 'lucide-rea
 import { useInView } from 'react-intersection-observer';
 // (MODIFICADO) Se importa la nueva función fetchAllProductsForPDF
 import { fetchProducts, fetchProtheusBrands, fetchAllProductsForPDF } from '/src/api/apiService.js';
+import { useAuth } from "../context/AuthContext.jsx";
 
 // (NUEVO) Formateador de moneda (copiado de otras páginas)
 const formatCurrency = (amount) => {
@@ -103,6 +104,10 @@ const ErrorMessage = ({ message, onRetry, showRetry = true }) => (
 // --- Componente Principal de la Página ---
 
 export default function PriceListPage({ onNavigate }) {
+  const { user } = useAuth(); // (NUEVO) Obtener el usuario del contexto de autenticación
+  const userId = user?.id; // (NUEVO) Obtener el ID del usuario
+
+  console.log('[PriceListPage] userId:', userId); // Debug log
 
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -122,7 +127,7 @@ export default function PriceListPage({ onNavigate }) {
 
   const pdfMutation = useMutation({
 
-    mutationFn: () => fetchAllProductsForPDF(debounceSearchTerm, brand, moneda),
+    mutationFn: () => fetchAllProductsForPDF(debounceSearchTerm, brand, moneda, userId), // (MODIFICADO) Pasar userId
 
     onSuccess: (products) => {
 
@@ -137,9 +142,7 @@ export default function PriceListPage({ onNavigate }) {
         return;
 
       }
-
       
-
       // Generar PDF (requiere jsPDF y jsPDF-AutoTable desde index.html)
 
       const { jsPDF } = window.jspdf;
@@ -238,46 +241,47 @@ export default function PriceListPage({ onNavigate }) {
 
   // --- Consultas de Datos ---
 
-  const { 
+    const { 
 
-    data, 
+      data, 
 
-    fetchNextPage, 
+      fetchNextPage, 
 
-    hasNextPage, 
+      hasNextPage, 
 
-    isFetchingNextPage, 
+      isFetchingNextPage, 
 
-    isError, 
+      isError, 
 
-    error,
+      error,
 
-    isLoading 
+      isLoading 
 
-  } = useInfiniteQuery({
+    } = useInfiniteQuery({
 
-    queryKey: ['products', debounceSearchTerm, brand, moneda],
+      queryKey: ['products', debounceSearchTerm, brand, moneda, userId], // (MODIFICADO) Añadir userId a la queryKey
 
-    queryFn: ({ pageParam = 1 }) => fetchProducts(pageParam, debounceSearchTerm, brand, moneda),
+      queryFn: ({ pageParam = 1 }) => fetchProducts(pageParam, debounceSearchTerm, brand, moneda, userId), // (MODIFICADO) Pasar userId
 
-    getNextPageParam: (lastPage, allPages) => {
+      getNextPageParam: (lastPage, allPages) => {
 
-      const productsLoaded = allPages.reduce((acc, page) => acc + page.products.length, 0);
+        const productsLoaded = allPages.reduce((acc, page) => acc + page.products.length, 0);
 
-      const totalProducts = lastPage.totalProducts;
+        const totalProducts = lastPage.totalProducts;
 
-      return productsLoaded < totalProducts ? allPages.length + 1 : undefined;
+        return productsLoaded < totalProducts ? allPages.length + 1 : undefined;
 
-    },
+      },
 
-    initialPageParam: 1,
+      initialPageParam: 1,
 
-    staleTime: 1000 * 60 * 1, // 1 minuto de caché
+      staleTime: 1000 * 60 * 1, // 1 minuto de caché
 
-  });
+      enabled: !!userId, // Only run query if userId is available
+
+    });
 
   
-
     // No se usa useInView para carga infinita, se usará un botón "Cargar más"
 
 
@@ -315,9 +319,7 @@ export default function PriceListPage({ onNavigate }) {
       clearTimeout(debounceTimeout.current);
 
     }
-
     
-
     // Establecer un nuevo timeout
 
     debounceTimeout.current = setTimeout(() => {

@@ -25,7 +25,7 @@ const handleResponse = async (response) => {
  * @param {string} brand - Marca a filtrar
  * @returns {Promise<object>} - Objeto con { products: [], totalProducts: 0 }
  */
-export const fetchProducts = async (page, searchTerm, brand, moneda) => {
+export const fetchProducts = async (page, searchTerm, brand, moneda, userId) => {
   const params = new URLSearchParams({
     page: page,
     limit: PRODUCTS_PER_PAGE,
@@ -33,6 +33,9 @@ export const fetchProducts = async (page, searchTerm, brand, moneda) => {
     brand: brand,
     moneda: moneda,
   });
+  if (userId) {
+    params.append('userId', userId);
+  }
 
   const response = await fetch(`${API_BASE_URL}/products?${params.toString()}`);
   return handleResponse(response); // Devuelve el objeto { products, totalProducts }
@@ -44,7 +47,7 @@ export const fetchProducts = async (page, searchTerm, brand, moneda) => {
  * @param {string} brand - Marca a filtrar
  * @returns {Promise<Array<object>>} - Array de productos
  */
-export const fetchAllProductsForPDF = async (searchTerm, brand, moneda) => {
+export const fetchAllProductsForPDF = async (searchTerm, brand, moneda, userId) => {
   const params = new URLSearchParams({
     page: 1,
     limit: 9999, // Un límite muy alto para traer todos los productos
@@ -52,6 +55,9 @@ export const fetchAllProductsForPDF = async (searchTerm, brand, moneda) => {
     brand: brand,
     moneda: moneda,
   });
+  if (userId) {
+    params.append('userId', userId);
+  }
 
   const response = await fetch(`${API_BASE_URL}/products?${params.toString()}`);
   const data = await handleResponse(response);
@@ -64,11 +70,15 @@ export const fetchAllProductsForPDF = async (searchTerm, brand, moneda) => {
  * @param {string} productId - El ID del producto
  * @returns {Promise<object>} - El objeto del producto
  */
-export const fetchProductById = async (productId) => {
+export const fetchProductById = async (productId, userId) => {
   if (!productId) {
     throw new Error("El ID de producto es requerido");
   }
-  const response = await fetch(`${API_BASE_URL}/products/${productId}`);
+  const params = new URLSearchParams();
+  if (userId) {
+    params.append('userId', userId);
+  }
+  const response = await fetch(`${API_BASE_URL}/products/${productId}?${params.toString()}`);
   return handleResponse(response);
 };
 
@@ -205,8 +215,12 @@ export const fetchOrderDetail = async (orderId, userId) => {
  * Obtiene las ofertas activas
  * @returns {Promise<Array<object>>} - Lista de ofertas
  */
-export const fetchOffers = async () => {
-  const response = await fetch(`${API_BASE_URL}/offers`);
+export const fetchOffers = async (userId) => {
+  const params = new URLSearchParams();
+  if (userId) {
+    params.append('userId', userId);
+  }
+  const response = await fetch(`${API_BASE_URL}/offers?${params.toString()}`);
   return handleResponse(response);
 };
 
@@ -298,8 +312,12 @@ export const apiService = {
    * (Público) Obtiene los paneles del dashboard visibles
    * @returns {Promise<Array<object>>} - Lista de paneles visibles
    */
-  getDashboardPanels: async () => {
-    const response = await fetch(`${API_BASE_URL}/dashboard-panels`);
+  getDashboardPanels: async (userId) => {
+    const params = new URLSearchParams();
+    if (userId) {
+      params.append('userId', userId);
+    }
+    const response = await fetch(`${API_BASE_URL}/dashboard-panels?${params.toString()}`);
     return handleResponse(response);
   },
 
@@ -343,12 +361,12 @@ export const apiService = {
   },
 
   /**
-   * (Admin) Obtiene los permisos de grupo de un usuario
+   * (Admin) Obtiene los grupos de productos denegados para un usuario
    * @param {string} targetUserId - El ID del usuario a consultar
    * @param {string} adminUserId - El ID del admin que solicita
-   * @returns {Promise<Array<string>>} - Lista de permisos
+   * @returns {Promise<Array<string>>} - Lista de grupos denegados
    */
-  getUserGroupPermissions: async (targetUserId, adminUserId) => {
+  getDeniedProductGroups: async (targetUserId, adminUserId) => {
     if (!targetUserId || !adminUserId) throw new Error("ID de admin y de usuario objetivo requeridos");
     const response = await fetch(`${API_BASE_URL}/admin/users/${targetUserId}/product-groups?userId=${adminUserId}`);
     return handleResponse(response);

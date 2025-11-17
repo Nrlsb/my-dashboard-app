@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 // (NUEVO) Importamos el hook para acceder al cliente de React Query
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -27,22 +27,39 @@ import Header from './components/Header.jsx'; // Importa el Header unificado
 // Importar el hook del carrito
 // (CORREGIDO) Se cambian las rutas a relativas
 import { useCart } from './context/CartContext.jsx'; 
+import { useAuth } from './context/AuthContext.jsx'; // (NUEVO) Importar useAuth
 
 // --- Componente Raíz (Maneja la autenticación y navegación) ---
 function App() {
+  const { isAuthenticated, user, loading, login, logout } = useAuth(); // (MODIFICADO) Usar useAuth
   const [currentPage, setCurrentPage] = useState('login');
   
-  const [currentUser, setCurrentUser] = useState(null);
+  // (ELIMINADO) const [currentUser, setCurrentUser] = useState(null); // Ya no necesitamos este estado duplicado
+  
   // (NUEVO) Estado para guardar el ID del pedido que queremos ver
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   // (NUEVO) Estado para guardar el ID del producto que queremos ver
   const [selectedProductId, setSelectedProductId] = useState(null);
   
-  const isLoggedIn = !!currentUser;
+  // (ELIMINADO) const isLoggedIn = !!currentUser; // Ahora usamos isAuthenticated de useAuth
   
   const { cart, clearCart } = useCart();
   
   const queryClient = useQueryClient();
+
+  const initialPageSet = useRef(false); // (NUEVO) Para asegurar que la página inicial se establezca solo una vez
+
+  // (MODIFICADO) Sincronizar currentPage con el estado de autenticación (solo una vez al cargar)
+  useEffect(() => {
+    if (!loading && !initialPageSet.current) {
+      if (isAuthenticated) {
+        setCurrentPage('dashboard');
+      } else {
+        setCurrentPage('login');
+      }
+      initialPageSet.current = true; // Marcar que la inicialización ya se hizo
+    }
+  }, [loading, isAuthenticated]);
 
   // Función para cambiar de vista (nuestro "router" simple)
   const handleNavigate = (page) => {
@@ -72,13 +89,16 @@ function App() {
   };
 
 
-  const handleLogin = (user) => {
-    setCurrentUser(user);
-    setCurrentPage('dashboard');
+  const handleLogin = async (email, password) => { // (MODIFICADO) Ahora usa la función login del contexto
+    const success = await login(email, password);
+    if (success) {
+      setCurrentPage('dashboard');
+    }
+    return success;
   };
 
-  const handleLogout = () => {
-    setCurrentUser(null);
+  const handleLogout = () => { // (MODIFICADO) Ahora usa la función logout del contexto
+    logout();
     clearCart(); // Limpiamos el carrito al cerrar sesión
     setCurrentPage('login');
   };
@@ -106,7 +126,7 @@ function App() {
   // Función para renderizar la página correcta
   const renderPage = () => {
     // Si no está logueado, solo mostramos Login o Register
-    if (!isLoggedIn) {
+    if (!isAuthenticated) { // (MODIFICADO) Usamos isAuthenticated de useAuth
       switch (currentPage) {
         case 'register':
           return <RegisterPage onNavigate={handleNavigate} />;
@@ -121,47 +141,41 @@ function App() {
       case 'dashboard':
         return <DashboardPage onNavigate={handleNavigate} />;
       case 'profile':
-        // Pasamos el currentUser para que la página cargue sus datos
-        // (CORREGIDO) Cambiado 'currentUser' por 'user' para que coincida con el prop de ProfilePage.jsx
-        return <ProfilePage onNavigate={handleNavigate} user={currentUser} />;
+        // Pasamos el user del contexto
+        return <ProfilePage onNavigate={handleNavigate} user={user} />; // (MODIFICADO)
       case 'price-list':
         return <PriceListPage onNavigate={handleNavigate} />;
       case 'new-order':
-        // Ya no pasamos props de carrito (vienen del context)
-        // Pasamos currentUser para la lógica de cliente
-        // (NUEVO) Pasamos el manejador 'handleViewProductDetails'
-        return <NewOrderPage onNavigate={handleNavigate} currentUser={currentUser} onViewProductDetails={handleViewProductDetails} />;
+        // Pasamos user del contexto
+        return <NewOrderPage onNavigate={handleNavigate} currentUser={user} onViewProductDetails={handleViewProductDetails} />; // (MODIFICADO)
       case 'order-preview':
-        // Pasamos currentUser para la lógica de envío
+        // Pasamos user del contexto
         return (
           <OrderPreviewPage
             onNavigate={handleNavigate}
             onCompleteOrder={handleCompleteOrder} // Esta prop es necesaria
-            currentUser={currentUser}
+            currentUser={user} // (MODIFICADO)
           />
         );
       case 'order-history':
-        // Pasamos currentUser para filtrar pedidos
-        // (CORREGIDO) Cambiado 'currentUser' por 'user' para que coincida con el prop de OrderHistoryPage.jsx
-        // (NUEVO) Pasamos el manejador 'handleViewOrderDetail'
+        // Pasamos user del contexto
         return (
           <OrderHistoryPage 
             onNavigate={handleNavigate} 
-            user={currentUser} 
+            user={user} // (MODIFICADO)
             onViewDetails={handleViewOrderDetail} 
           />
         );
       case 'account-balance':
-        // Pasamos currentUser para filtrar movimientos
-        // (CORREGIDO) Cambiado 'currentUser' por 'user' para que coincida con el prop de AccountBalancePage.jsx
-        return <AccountBalancePage onNavigate={handleNavigate} user={currentUser} />;
+        // Pasamos user del contexto
+        return <AccountBalancePage onNavigate={handleNavigate} user={user} />; // (MODIFICADO)
       
       // (NUEVO) Caso para la nueva página de detalle de pedido
       case 'order-detail':
         return (
           <OrderDetailPage 
             onNavigate={handleNavigate} 
-            user={currentUser} 
+            user={user} // (MODIFICADO)
             orderId={selectedOrderId} 
           />
         );
@@ -176,26 +190,26 @@ function App() {
         );
 
       case 'voucher-upload':
-        // Pasamos currentUser para asociar el archivo
-        return <VoucherUploadPage onNavigate={handleNavigate} currentUser={currentUser} />;
+        // Pasamos user del contexto
+        return <VoucherUploadPage onNavigate={handleNavigate} currentUser={user} />; // (MODIFICADO)
       case 'offers':
         return <OffersPage onNavigate={handleNavigate} />;
       case 'queries':
-        // Pasamos currentUser para asociar la consulta
-        return <QueriesPage onNavigate={handleNavigate} currentUser={currentUser} />;
+        // Pasamos user del contexto
+        return <QueriesPage onNavigate={handleNavigate} currentUser={user} />; // (MODIFICADO)
       case 'dashboard-settings': // (NUEVO)
-        return <DashboardSettingsPage onNavigate={handleNavigate} currentUser={currentUser} />;
+        return <DashboardSettingsPage onNavigate={handleNavigate} currentUser={user} />; // (MODIFICADO)
       
       case 'manage-offers': // (NUEVO)
-        if (currentUser?.is_admin) {
-          return <ManageOffersPage onNavigate={handleNavigate} currentUser={currentUser} />;
+        if (user?.is_admin) { // (MODIFICADO)
+          return <ManageOffersPage onNavigate={handleNavigate} currentUser={user} />; // (MODIFICADO)
         }
         // Si no es admin, lo mandamos al dashboard
         return <DashboardPage onNavigate={handleNavigate} />;
 
       case 'client-group-permissions': // (NUEVO)
-        if (currentUser?.is_admin) {
-          return <ClientGroupPermissionsPage onNavigate={handleNavigate} currentUser={currentUser} />;
+        if (user?.is_admin) { // (MODIFICADO)
+          return <ClientGroupPermissionsPage onNavigate={handleNavigate} currentUser={user} />; // (MODIFICADO)
         }
         // Si no es admin, lo mandamos al dashboard
         return <DashboardPage onNavigate={handleNavigate} />;
@@ -206,14 +220,23 @@ function App() {
     }
   };
 
+  // (NUEVO) Mostrar un spinner o mensaje de carga mientras AuthContext está cargando
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="text-lg font-semibold text-gray-700">Cargando autenticación...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="app-container">
-      {isLoggedIn && (
+      {isAuthenticated && ( // (MODIFICADO) Usamos isAuthenticated de useAuth
         // El Header se renderiza aquí para todas las páginas logueadas
         <Header
           onNavigate={handleNavigate}
           onLogout={handleLogout}
-          currentUser={currentUser}
+          currentUser={user} // (MODIFICADO)
         />
       )}
       <div className="page-content">

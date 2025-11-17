@@ -5,8 +5,9 @@ import {
   ArrowLeft, Search, ShoppingCart, Trash2, Package, CheckCircle, 
   ChevronLeft, ChevronRight, X, Plus, Minus, Star 
 } from 'lucide-react';
+import { useAuth } from "../context/AuthContext.jsx";
+import { fetchProducts, fetchProductById, fetchProtheusBrands } from '../api/apiService.js'; // (NUEVO) Importar apiService
 
-const API_URL = 'http://localhost:3001';
 const PRODUCTS_PER_PAGE = 20;
 
 // Formateador de moneda (reutilizado)
@@ -18,7 +19,7 @@ const formatCurrency = (amount) => {
 };
 
 // --- (NUEVO) Componente de Modal de Vista Rápida ---
-const ProductModal = ({ product, onClose, onAddToCart, onViewDetails }) => {
+const ProductModal = ({ product, onClose, onAddToCart, onViewDetails, userId }) => { // (MODIFICADO) Recibe userId
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
 
@@ -134,7 +135,7 @@ const ProductModal = ({ product, onClose, onAddToCart, onViewDetails }) => {
           </button>
 
           <button
-            onClick={() => onViewDetails(product.id)}
+            onClick={() => onViewDetails(product.id, userId)} // (MODIFICADO) Pasar userId
             className="mt-4 text-center text-sm text-blue-600 hover:underline"
           >
             Ver detalles completos del producto
@@ -149,6 +150,8 @@ const ProductModal = ({ product, onClose, onAddToCart, onViewDetails }) => {
 // --- Página de Nuevo Pedido ---
 // (MODIFICADO) Acepta 'onViewProductDetails'
 const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
+  const { user } = useAuth(); // (NUEVO) Obtener el usuario del contexto de autenticación
+  const userId = user?.id; // (NUEVO) Obtener el ID del usuario
   // --- Estados ---
   const [allProducts, setAllProducts] = useState([]); // Almacena solo la página actual
   const [productMap, setProductMap] = useState(new Map()); // Mapa para lookup rápido
@@ -175,9 +178,7 @@ const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
   useEffect(() => {
     const fetchBrands = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/brands`);
-        if (!response.ok) throw new Error('No se pudieron cargar las marcas.');
-        const brandsData = await response.json();
+        const brandsData = await fetchProtheusBrands(); // Usar apiService
         setAllBrands(brandsData);
       } catch (err) {
         console.error(err);
@@ -189,23 +190,12 @@ const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
 
   // --- Carga de Productos (paginada) ---
   useEffect(() => {
-    const fetchProducts = async () => {
+    const loadProducts = async () => { // (MODIFICADO) Renombrado para evitar conflicto
       try {
         setLoadingProducts(true);
         setProductError(null);
         
-        // Construir query string para el backend
-        const params = new URLSearchParams({
-          page: currentPage,
-          limit: PRODUCTS_PER_PAGE,
-          search: searchTerm,
-          brand: selectedBrand,
-        });
-        
-        const response = await fetch(`${API_URL}/api/products?${params.toString()}`);
-        if (!response.ok) throw new Error('No se pudo cargar la lista de productos.');
-        
-        const data = await response.json();
+        const data = await fetchProducts(currentPage, searchTerm, selectedBrand, '1', userId); // (MODIFICADO) Usar apiService y pasar userId
         
         setAllProducts(data.products); // Almacena solo los productos de la página actual
         setTotalProducts(data.totalProducts); // Almacena el conteo total
@@ -218,13 +208,16 @@ const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
         });
 
       } catch (err) {
+        console.error('Error al cargar productos:', err);
         setProductError(err.message);
       } finally {
         setLoadingProducts(false);
       }
     };
-    fetchProducts();
-  }, [currentPage, searchTerm, selectedBrand]); // Dependencias del useEffect
+    if (userId) { // (NUEVO) Solo cargar productos si userId está disponible
+      loadProducts();
+    }
+  }, [currentPage, searchTerm, selectedBrand, userId]); // (MODIFICADO) Añadir userId a las dependencias
 
   
   // --- Lógica de Carrito (usa funciones del Contexto) ---
@@ -304,6 +297,7 @@ const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
         onClose={() => setSelectedProduct(null)}
         onAddToCart={addToCart}
         onViewDetails={onViewProductDetails}
+        userId={userId} // (NUEVO) Pasar userId al modal
       />
       
       <main className="p-4 md:p-8 max-w-7xl mx-auto">

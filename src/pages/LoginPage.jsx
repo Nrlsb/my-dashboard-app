@@ -1,51 +1,34 @@
 import React, { useState } from 'react';
 import { Mail, Lock } from 'lucide-react';
-
-const API_URL = 'http://localhost:3001';
+import { useAuth } from '../context/AuthContext'; // Importar useAuth
 
 // --- Componente de Login ---
-// (MODIFICADO) Recibe 'onLogin' en lugar de 'onLoginSuccess'
-const LoginPage = ({ onLogin, onNavigate }) => { 
+const LoginPage = ({ onNavigate }) => { 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false); 
 
+  const { login } = useAuth(); // Usar el hook useAuth
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
-    if (email.trim() === '' || password.trim() === '') {
-      setError('Email o contraseña no pueden estar vacíos.');
-      return;
-    }
-
     setIsLoading(true); 
 
     try {
-      const response = await fetch(`${API_URL}/api/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      // (MODIFICADO) Obtenemos la respuesta (sea error o éxito)
-      const result = await response.json();
-
-      if (!response.ok) {
-        // Si la respuesta no es 2xx (ej. 401 Unauthorized)
-        throw new Error(result.message || 'Error de autenticación');
+      const success = await login(email, password); // Llamar a la función login del AuthContext
+      if (success) {
+        // Si el login es exitoso, AuthContext ya maneja el estado y el localStorage
+        // No necesitamos hacer nada aquí, App.jsx detectará el cambio en isAuthenticated
+      } else {
+        // Si el login falla, el error ya se ha manejado en AuthContext
+        // Podemos mostrar un mensaje genérico o el mensaje específico si AuthContext lo devuelve
+        setError('Credenciales inválidas. Inténtalo de nuevo.');
       }
-
-      // Si la autenticación es exitosa
-      // (MODIFICADO) Llamamos a 'onLogin' con el objeto 'user'
-      onLogin(result.user); // Pasa { id, full_name, email, ... } a App.jsx
-
     } catch (err) {
       console.error(err);
-      setError(err.message);
+      setError('Ocurrió un error inesperado durante el inicio de sesión.');
     } finally {
       setIsLoading(false);
     }

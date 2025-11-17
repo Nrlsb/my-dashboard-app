@@ -2,6 +2,7 @@ import React, { useState } from 'react'; // (CORREGIDO) Faltaba importar useStat
 import { useQuery } from '@tanstack/react-query';
 import { fetchProductById } from '../api/apiService.js';
 import { useCart } from '../context/CartContext.jsx';
+import { useAuth } from "../context/AuthContext.jsx";
 import { ArrowLeft, Package, DollarSign, CheckCircle, AlertTriangle, Loader2, ShoppingCart, Info } from 'lucide-react';
 
 // Formateador de moneda
@@ -39,13 +40,15 @@ const ErrorMessage = ({ message }) => (
 
 export default function ProductDetailPage({ productId, onNavigate }) {
   const { addToCart } = useCart();
+  const { user } = useAuth(); // (NUEVO) Obtener el usuario del contexto de autenticación
+  const userId = user?.id; // (NUEVO) Obtener el ID del usuario
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
 
   const { data: product, isLoading, isError, error } = useQuery({
-    queryKey: ['product', productId],
-    queryFn: () => fetchProductById(productId),
-    enabled: !!productId,
+    queryKey: ['product', productId, userId], // (MODIFICADO) Añadir userId a la queryKey
+    queryFn: () => fetchProductById(productId, userId), // (MODIFICADO) Pasar userId
+    enabled: !!productId && !!userId, // (MODIFICADO) Habilitar la query solo si userId está disponible
   });
 
   const handleAddToCart = () => {
