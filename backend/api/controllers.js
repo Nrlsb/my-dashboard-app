@@ -639,7 +639,7 @@ const saveProtheusOrder = async (orderData, userId) => {
 /**
  * Obtiene la lista de productos (paginada y con búsqueda)
  */
-const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = '', moneda = '1') => {
+const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = '', moneda = '1', userId = null) => {
   try {
     // (NUEVO) Obtener las cotizaciones del dólar
     const exchangeRates = await getExchangeRates();
@@ -653,16 +653,43 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
     let countQuery = 'SELECT COUNT(*) FROM products WHERE price > 0 AND description IS NOT NULL';
     
     // --- Query para Obtener Productos ---
+    // (MODIFICADO) Se añade product_group a la selección
     let dataQuery = `
       SELECT 
         id, code, description, price, brand, 
-        capacity_description, moneda, cotizacion
+        capacity_description, moneda, cotizacion, product_group
       FROM products
       WHERE price > 0 AND description IS NOT NULL
     `;
     
     // --- Aplicar Filtros ---
     let paramIndex = 1;
+
+    // (NUEVO) Lógica de permisos por grupo de productos
+    let isUserAdmin = false;
+    if (userId) {
+      const userResult = await pool.query('SELECT is_admin FROM users WHERE id = $1', [userId]);
+      if (userResult.rows.length > 0) {
+        isUserAdmin = userResult.rows[0].is_admin;
+      }
+    }
+
+    if (userId && !isUserAdmin) {
+      const allowedGroups = await getUserGroupPermissions(userId);
+      
+      if (allowedGroups.length > 0) {
+        const groupQuery = ` product_group = ANY($${paramIndex}::varchar[]) `;
+        countQuery += ` AND ${groupQuery}`;
+        dataQuery += ` AND ${groupQuery}`;
+        queryParams.push(allowedGroups);
+        paramIndex++;
+      } else {
+        // Si el usuario no tiene grupos asignados, no debe ver ningún producto.
+        const falseQuery = ' 1 = 0 ';
+        countQuery += ` AND ${falseQuery}`;
+        dataQuery += ` AND ${falseQuery}`;
+      }
+    }
     
     if (search) {
       const searchQuery = ` (description ILIKE $${paramIndex} OR code ILIKE $${paramIndex}) `;
@@ -721,7 +748,8 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
         moneda: prod.moneda,
         // (MODIFICADO) La cotización ahora refleja la que se usó
         cotizacion: prod.moneda === 2 ? ventaBillete : (prod.moneda === 3 ? ventaDivisa : 1),
-        originalPrice: originalPrice
+        originalPrice: originalPrice,
+        product_group: prod.product_group // (NUEVO) Devolver el grupo del producto
       };
     });
     
@@ -1021,6 +1049,95 @@ const toggleProductOfferStatus = async (productId) => {
   }
 };
 
+/**
+ * (Admin) Obtiene la lista de clientes (no-admins)
+ */
+const getUsersForAdmin = async () => {
+  try {
+    const query = `
+      SELECT id, full_name, email, a1_cod 
+      FROM users 
+      WHERE is_admin = false 
+      ORDER BY full_name ASC;
+    `;
+    const result = await pool.query(query);
+    return result.rows;
+  } catch (error) {
+    console.error('Error in getUsersForAdmin:', error);
+    throw error;
+  }
+};
+
+/**
+ * (Admin) Obtiene la lista de grupos de productos únicos
+ */
+const getProductGroupsForAdmin = async () => {
+  try {
+    const query = `
+      SELECT DISTINCT product_group 
+      FROM products 
+      WHERE product_group IS NOT NULL AND product_group != '' 
+      ORDER BY product_group ASC;
+    `;
+    const result = await pool.query(query);
+    // Return an array of strings, not an array of objects
+    return result.rows.map(row => row.product_group);
+  } catch (error) {
+    console.error('Error in getProductGroupsForAdmin:', error);
+    throw error;
+  }
+};
+
+/**
+ * (Admin) Obtiene los permisos de grupo para un usuario específico
+ */
+const getUserGroupPermissions = async (userId) => {
+  try {
+    const query = `
+      SELECT product_group 
+      FROM user_product_group_permissions 
+      WHERE user_id = $1;
+    `;
+    const result = await pool.query(query, [userId]);
+    // Return an array of strings
+    return result.rows.map(row => row.product_group);
+  } catch (error) {
+    console.error(`Error in getUserGroupPermissions for user ${userId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * (Admin) Actualiza los permisos de grupo para un usuario específico
+ */
+const updateUserGroupPermissions = async (userId, groups) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Delete old permissions
+    await client.query('DELETE FROM user_product_group_permissions WHERE user_id = $1', [userId]);
+
+    // 2. Insert new permissions if any
+    if (groups && groups.length > 0) {
+      const insertQuery = 'INSERT INTO user_product_group_permissions (user_id, product_group) VALUES ($1, $2)';
+      for (const group of groups) {
+        await client.query(insertQuery, [userId, group]);
+      }
+    }
+
+    await client.query('COMMIT');
+    console.log(`Permissions updated for user ${userId}`);
+    return { success: true, message: 'Permisos actualizados correctamente.' };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error(`Error in updateUserGroupPermissions for user ${userId}:`, error);
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
 
 // Exportar todos los controladores
 module.exports = {
@@ -1047,4 +1164,8 @@ module.exports = {
   getAdminDashboardPanels,
   updateDashboardPanel,
   toggleProductOfferStatus,
+  getUsersForAdmin,
+  getProductGroupsForAdmin,
+  getUserGroupPermissions,
+  updateUserGroupPermissions,
 };

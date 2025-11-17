@@ -21,6 +21,7 @@ import OrderDetailPage from './pages/OrderDetailPage.jsx';
 import ProductDetailPage from './pages/ProductDetailPage.jsx';
 import DashboardSettingsPage from './pages/DashboardSettingsPage.jsx'; // (NUEVO) Importar la página de configuración
 import ManageOffersPage from './pages/ManageOffersPage.jsx'; // (NUEVO) Importar la página de gestión de ofertas
+import ClientGroupPermissionsPage from './pages/ClientGroupPermissionsPage.jsx'; // (NUEVO) Importar la página de permisos
 import Header from './components/Header.jsx'; // Importa el Header unificado
 
 // Importar el hook del carrito
@@ -188,6 +189,13 @@ function App() {
       case 'manage-offers': // (NUEVO)
         if (currentUser?.is_admin) {
           return <ManageOffersPage onNavigate={handleNavigate} currentUser={currentUser} />;
+        }
+        // Si no es admin, lo mandamos al dashboard
+        return <DashboardPage onNavigate={handleNavigate} />;
+
+      case 'client-group-permissions': // (NUEVO)
+        if (currentUser?.is_admin) {
+          return <ClientGroupPermissionsPage onNavigate={handleNavigate} currentUser={currentUser} />;
         }
         // Si no es admin, lo mandamos al dashboard
         return <DashboardPage onNavigate={handleNavigate} />;

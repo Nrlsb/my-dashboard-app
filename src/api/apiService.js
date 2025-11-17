@@ -319,4 +319,57 @@ export const apiService = {
     });
     return handleResponse(response);
   },
+
+  /**
+   * (Admin) Obtiene la lista de clientes (no-admins)
+   * @param {string} adminUserId - El ID del admin que solicita
+   * @returns {Promise<Array<object>>} - Lista de usuarios
+   */
+  getAdminUsers: async (adminUserId) => {
+    if (!adminUserId) throw new Error("ID de admin requerido");
+    const response = await fetch(`${API_BASE_URL}/admin/users?userId=${adminUserId}`);
+    return handleResponse(response);
+  },
+
+  /**
+   * (Admin) Obtiene la lista de grupos de productos
+   * @param {string} adminUserId - El ID del admin que solicita
+   * @returns {Promise<Array<string>>} - Lista de grupos
+   */
+  getAdminProductGroups: async (adminUserId) => {
+    if (!adminUserId) throw new Error("ID de admin requerido");
+    const response = await fetch(`${API_BASE_URL}/admin/product-groups?userId=${adminUserId}`);
+    return handleResponse(response);
+  },
+
+  /**
+   * (Admin) Obtiene los permisos de grupo de un usuario
+   * @param {string} targetUserId - El ID del usuario a consultar
+   * @param {string} adminUserId - El ID del admin que solicita
+   * @returns {Promise<Array<string>>} - Lista de permisos
+   */
+  getUserGroupPermissions: async (targetUserId, adminUserId) => {
+    if (!targetUserId || !adminUserId) throw new Error("ID de admin y de usuario objetivo requeridos");
+    const response = await fetch(`${API_BASE_URL}/admin/users/${targetUserId}/product-groups?userId=${adminUserId}`);
+    return handleResponse(response);
+  },
+
+  /**
+   * (Admin) Actualiza los permisos de grupo de un usuario
+   * @param {string} targetUserId - El ID del usuario a actualizar
+   * @param {Array<string>} groups - El array de grupos permitidos
+   * @param {string} adminUserId - El ID del admin que solicita
+   * @returns {Promise<object>} - Respuesta de éxito
+   */
+  updateUserGroupPermissions: async (targetUserId, groups, adminUserId) => {
+    if (!targetUserId || !adminUserId) throw new Error("ID de admin y de usuario objetivo requeridos");
+    const response = await fetch(`${API_BASE_URL}/admin/users/${targetUserId}/product-groups?userId=${adminUserId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ groups }),
+    });
+    return handleResponse(response);
+  },
 };
