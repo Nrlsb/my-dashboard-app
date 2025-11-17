@@ -326,6 +326,19 @@ router.get('/offers', async (req, res) => {
   }
 });
 
+// (NUEVA RUTA ADMIN) Activar/desactivar oferta de un producto
+router.put('/products/:id/toggle-offer', requireUserId, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  console.log(`PUT /api/products/${id}/toggle-offer -> Admin ${req.userId} cambiando estado de oferta...`);
+  try {
+    const updatedProduct = await controllers.toggleProductOfferStatus(id);
+    res.json({ success: true, product: updatedProduct });
+  } catch (error) {
+    console.error(`Error en /api/products/${id}/toggle-offer:`, error);
+    res.status(500).json({ message: error.message || 'Error al actualizar el estado de la oferta.' });
+  }
+});
+
 // (NUEVA RUTA) Obtiene las cotizaciones del dólar (pública)
 router.get('/exchange-rates', async (req, res) => {
   console.log('GET /api/exchange-rates -> Consultando cotizaciones del dólar...');

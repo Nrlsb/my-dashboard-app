@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../api/apiService'; // Assuming apiService is in this location
+import { ChevronRight } from 'lucide-react';
 
-const DashboardSettingsPage = ({ currentUser }) => {
+const DashboardSettingsPage = ({ currentUser, onNavigate }) => {
   const [panels, setPanels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -51,7 +52,25 @@ const DashboardSettingsPage = ({ currentUser }) => {
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Configuración de Paneles del Dashboard</h1>
+      <h1 className="text-2xl font-bold mb-6">Configuración del Sitio</h1>
+
+      {/* Sección de Gestión de Contenido */}
+      <h2 className="text-xl font-semibold mb-4 mt-8">Gestión de Contenido</h2>
+      <div className="bg-white shadow rounded-lg mb-8">
+        <button
+          onClick={() => onNavigate('manage-offers')}
+          className="p-4 flex justify-between items-center w-full text-left hover:bg-gray-50"
+        >
+          <div>
+            <p className="font-semibold">Gestionar Ofertas de Productos</p>
+            <p className="text-sm text-gray-500">Activar o desactivar productos en oferta.</p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-gray-400" />
+        </button>
+      </div>
+
+      {/* Sección de Visibilidad de Paneles */}
+      <h2 className="text-xl font-semibold mb-4">Visibilidad de Paneles del Dashboard</h2>
       <div className="bg-white shadow rounded-lg">
         <ul className="divide-y divide-gray-200">
           {panels.map(panel => (

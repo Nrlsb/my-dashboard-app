@@ -302,4 +302,21 @@ export const apiService = {
     const response = await fetch(`${API_BASE_URL}/dashboard-panels`);
     return handleResponse(response);
   },
+
+  /**
+   * (Admin) Cambia el estado de oferta de un producto
+   * @param {string} productId - El ID del producto
+   * @param {string} adminUserId - El ID del admin que solicita
+   * @returns {Promise<object>} - El producto actualizado
+   */
+  toggleProductOffer: async (productId, adminUserId) => {
+    if (!productId || !adminUserId) throw new Error("ID de producto y de admin requeridos");
+    const response = await fetch(`${API_BASE_URL}/products/${productId}/toggle-offer?userId=${adminUserId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return handleResponse(response);
+  },
 };

@@ -20,6 +20,7 @@ import OrderDetailPage from './pages/OrderDetailPage.jsx';
 // (NUEVO) Importar la nueva página de detalle de producto
 import ProductDetailPage from './pages/ProductDetailPage.jsx';
 import DashboardSettingsPage from './pages/DashboardSettingsPage.jsx'; // (NUEVO) Importar la página de configuración
+import ManageOffersPage from './pages/ManageOffersPage.jsx'; // (NUEVO) Importar la página de gestión de ofertas
 import Header from './components/Header.jsx'; // Importa el Header unificado
 
 // Importar el hook del carrito
@@ -182,7 +183,15 @@ function App() {
         // Pasamos currentUser para asociar la consulta
         return <QueriesPage onNavigate={handleNavigate} currentUser={currentUser} />;
       case 'dashboard-settings': // (NUEVO)
-        return <DashboardSettingsPage currentUser={currentUser} />;
+        return <DashboardSettingsPage onNavigate={handleNavigate} currentUser={currentUser} />;
+      
+      case 'manage-offers': // (NUEVO)
+        if (currentUser?.is_admin) {
+          return <ManageOffersPage onNavigate={handleNavigate} currentUser={currentUser} />;
+        }
+        // Si no es admin, lo mandamos al dashboard
+        return <DashboardPage onNavigate={handleNavigate} />;
+
       default:
         // Fallback si la página no se conoce
         return <DashboardPage onNavigate={handleNavigate} />;

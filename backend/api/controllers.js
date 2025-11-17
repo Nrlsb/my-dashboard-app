@@ -808,11 +808,48 @@ const fetchProtheusBrands = async () => {
  */
 const fetchProtheusOffers = async () => {
   try {
-    // (PENDIENTE) La columna 'b1_oferta' o similar no existe en el script.sql.
-    // Se debe definir una nueva lógica para determinar qué productos son "ofertas".
-    // Devolviendo un array vacío por ahora.
-    console.warn("fetchProtheusOffers: No hay lógica de ofertas definida.");
-    return [];
+    // (NUEVO) Ahora busca productos donde 'oferta' es true.
+    const query = `
+      SELECT 
+        id, code, description, price, brand, 
+        capacity_description, moneda, cotizacion
+      FROM products 
+      WHERE oferta = true AND price > 0 AND description IS NOT NULL
+      ORDER BY description ASC;
+    `;
+    const result = await pool.query(query);
+    
+    // Reutilizar la lógica de formateo de precios de fetchProtheusProducts
+    const exchangeRates = await getExchangeRates();
+    const ventaBillete = exchangeRates.venta_billete;
+    const ventaDivisa = exchangeRates.venta_divisa;
+
+    const offers = result.rows.map(prod => {
+      let originalPrice = prod.price;
+      let finalPrice = prod.price;
+
+      if (prod.moneda === 2) { // Dólar Billete
+        finalPrice = originalPrice * ventaBillete;
+      } else if (prod.moneda === 3) { // Dólar Divisa
+        finalPrice = originalPrice * ventaDivisa;
+      }
+
+      return {
+        id: prod.id,
+        code: prod.code,
+        name: prod.description,
+        price: finalPrice,
+        formattedPrice: formatCurrency(finalPrice),
+        brand: prod.brand,
+        imageUrl: null,
+        capacityDesc: prod.capacity_description,
+        moneda: prod.moneda,
+        cotizacion: prod.moneda === 2 ? ventaBillete : (prod.moneda === 3 ? ventaDivisa : 1),
+        originalPrice: originalPrice
+      };
+    });
+
+    return offers;
     
   } catch (error) {
     console.error('Error en fetchProtheusOffers:', error);
@@ -898,7 +935,20 @@ const saveProtheusVoucher = async (fileInfo, userId) => {
 const getDashboardPanels = async () => {
   try {
     const result = await pool.query('SELECT * FROM dashboard_panels WHERE is_visible = true ORDER BY id');
-    return result.rows;
+    let panels = result.rows;
+
+    // Comprobar si el panel de ofertas debe mostrarse
+    const offersPanelIndex = panels.findIndex(panel => panel.navigation_path === 'offers');
+
+    if (offersPanelIndex > -1) {
+      const offers = await fetchProtheusOffers();
+      if (offers.length === 0) {
+        // Si no hay ofertas, filtramos el panel de la lista
+        panels = panels.filter(panel => panel.navigation_path !== 'offers');
+      }
+    }
+
+    return panels;
   } catch (error) {
     console.error('Error en getDashboardPanels:', error);
     throw error;
@@ -944,6 +994,33 @@ const updateDashboardPanel = async (panelId, isVisible) => {
   }
 };
 
+/**
+ * (Admin) Cambia el estado de 'oferta' de un producto.
+ */
+const toggleProductOfferStatus = async (productId) => {
+  try {
+    const query = `
+      UPDATE products 
+      SET oferta = NOT oferta 
+      WHERE id = $1 
+      RETURNING id, description, code, price, oferta;
+    `;
+    const result = await pool.query(query, [productId]);
+    
+    if (result.rows.length === 0) {
+      throw new Error('Producto no encontrado.');
+    }
+    
+    const updatedProduct = result.rows[0];
+    console.log(`Estado de oferta para producto ${productId} cambiado a ${updatedProduct.oferta}`);
+    return updatedProduct;
+    
+  } catch (error) {
+    console.error(`Error en toggleProductOfferStatus para producto ${productId}:`, error);
+    throw error;
+  }
+};
+
 
 // Exportar todos los controladores
 module.exports = {
@@ -969,4 +1046,5 @@ module.exports = {
   getDashboardPanels,
   getAdminDashboardPanels,
   updateDashboardPanel,
+  toggleProductOfferStatus,
 };
