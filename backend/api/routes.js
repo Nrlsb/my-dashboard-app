@@ -339,7 +339,7 @@ const requireAdmin = async (req, res, next) => {
   
   // --- Productos y Ofertas ---
   // (MODIFICADO) Esta ruta ahora usa el middleware opcional de userId
-  router.get('/products', optionalUserId, async (req, res) => {
+  router.get('/products', async (req, res) => {
     console.log('GET /api/products -> Consultando productos en DB (paginado)...');
     try {
       const { page = 1, limit = 20, search = '', brand = '', moneda = '0' } = req.query;
