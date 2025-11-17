@@ -55,7 +55,7 @@ const formatItemsToHTML = (items) => {
 /**
  * Envía un correo de confirmación al COMPRADOR
  */
-const sendOrderConfirmationEmail = async (toEmail, orderId, items, total, customerName) => {
+const sendOrderConfirmationEmail = async (toEmail, orderId, items, total, customerName, attachments = []) => {
   const subject = `Confirmación de tu pedido #${orderId}`;
   const itemsHtml = formatItemsToHTML(items);
 
@@ -84,6 +84,7 @@ const sendOrderConfirmationEmail = async (toEmail, orderId, items, total, custom
       to: [toEmail],
       subject: subject,
       html: htmlBody,
+      attachments: attachments, // Adjuntar archivos
     });
 
     if (error) {
@@ -104,7 +105,7 @@ const sendOrderConfirmationEmail = async (toEmail, orderId, items, total, custom
  * Envía una notificación de nuevo pedido al VENDEDOR
  */
 // (CORREGIDO) Se eliminó el 'ac' al final de la línea de definición
-const sendNewOrderNotificationEmail = async (toEmail, orderId, items, total, customer) => {
+const sendNewOrderNotificationEmail = async (toEmail, orderId, items, total, customer, attachments = []) => {
   // (CORREGIDO) Se cambió 'customer.nombre' por 'customer.full_name'
   const subject = `¡Nuevo Pedido Recibido! #${orderId} de ${customer.full_name}`;
   const itemsHtml = formatItemsToHTML(items);
@@ -138,6 +139,7 @@ const sendNewOrderNotificationEmail = async (toEmail, orderId, items, total, cus
       to: [toEmail], // Email del vendedor
       subject: subject,
       html: htmlBody,
+      attachments: attachments, // Adjuntar archivos
     });
 
     if (error) {

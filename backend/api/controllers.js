@@ -15,6 +15,7 @@ const { getExchangeRates } = require('./utils/exchangeRateService'); // (NUEVO) 
 
 // (NUEVO) Importar el servicio de email
 const { sendOrderConfirmationEmail, sendNewOrderNotificationEmail } = require('./emailService');
+const { generateOrderPDF, generateOrderCSV } = require('./utils/fileGenerator');
 
 
 // =================================================================
@@ -556,8 +557,18 @@ const saveProtheusOrder = async (orderData, userId) => {
     // Terminar Transacción
     await client.query('COMMIT');
     
-    // --- (NUEVO) 4. Enviar correos después de confirmar la transacción ---
+    // --- 4. Enviar correos y generar archivos después de confirmar la transacción ---
     try {
+      // Primero, enriquecemos los items con sus descripciones desde la BD
+      const productIds = items.map(item => item.id);
+      const productsResult = await pool.query('SELECT id, description FROM products WHERE id = ANY($1::int[])', [productIds]);
+      const productMap = new Map(productsResult.rows.map(p => [p.id, p.description]));
+
+      const enrichedItems = items.map(item => ({
+        ...item,
+        name: productMap.get(item.id) || 'Descripción no encontrada',
+      }));
+
       const sellerEmail = process.env.SELLER_EMAIL;
       const fromEmail = process.env.EMAIL_FROM;
 
@@ -565,27 +576,40 @@ const saveProtheusOrder = async (orderData, userId) => {
         console.warn(`[Pedido #${newOrderId}] Faltan variables .env (RESEND_API_KEY, SELLER_EMAIL o EMAIL_FROM). No se enviarán correos.`);
       } else {
         console.log(`[Pedido #${newOrderId}] Enviando correos a ${user.email} y ${sellerEmail}...`);
+
+        const orderDataForFiles = { user, newOrder, items: enrichedItems, total };
         
-        // Enviar al comprador
-        // (CORREGIDO) Se pasa 'user.full_name' como 'customerName'
+        const pdfBuffer = await generateOrderPDF(orderDataForFiles);
+        const csvBuffer = await generateOrderCSV(enrichedItems);
+
+        const pdfAttachment = {
+          filename: `Pedido_${newOrderId}.pdf`,
+          content: pdfBuffer,
+        };
+        const csvAttachment = {
+          filename: `Pedido_${newOrderId}.csv`,
+          content: csvBuffer,
+        };
+        
         await sendOrderConfirmationEmail(
-          user.email,       // to
+          user.email,
           newOrderId,
-          items,
+          enrichedItems,
           total,
-          user.full_name
+          user.full_name,
+          [pdfAttachment]
         );
 
-        // Enviar al vendedor
         await sendNewOrderNotificationEmail(
-          sellerEmail,      // to
+          sellerEmail,
           newOrderId,
-          items,
+          enrichedItems,
           total,
-          user // Pasamos el objeto de usuario completo (full_name, email, a1_cod)
+          user,
+          [pdfAttachment, csvAttachment]
         );
         
-        console.log(`[Pedido #${newOrderId}] Correos enviados con éxito.`);
+        console.log(`[Pedido #${newOrderId}] Correos con adjuntos enviados con éxito.`);
       }
 
     } catch (emailError) {
