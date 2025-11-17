@@ -570,7 +570,6 @@ const saveProtheusOrder = async (orderData, userId) => {
         // (CORREGIDO) Se pasa 'user.full_name' como 'customerName'
         await sendOrderConfirmationEmail(
           user.email,       // to
-          fromEmail,        // from
           newOrderId,
           items,
           total,
@@ -580,7 +579,6 @@ const saveProtheusOrder = async (orderData, userId) => {
         // Enviar al vendedor
         await sendNewOrderNotificationEmail(
           sellerEmail,      // to
-          fromEmail,        // from
           newOrderId,
           items,
           total,

@@ -55,7 +55,7 @@ const formatItemsToHTML = (items) => {
 /**
  * Envía un correo de confirmación al COMPRADOR
  */
-const sendOrderConfirmationEmail = async (toEmail, fromEmail, orderId, items, total, customerName) => {
+const sendOrderConfirmationEmail = async (toEmail, orderId, items, total, customerName) => {
   const subject = `Confirmación de tu pedido #${orderId}`;
   const itemsHtml = formatItemsToHTML(items);
 
@@ -80,7 +80,7 @@ const sendOrderConfirmationEmail = async (toEmail, fromEmail, orderId, items, to
 
   try {
     const { data, error } = await resend.emails.send({
-      from: fromEmail,
+      from: process.env.EMAIL_FROM,
       to: [toEmail],
       subject: subject,
       html: htmlBody,
@@ -104,7 +104,7 @@ const sendOrderConfirmationEmail = async (toEmail, fromEmail, orderId, items, to
  * Envía una notificación de nuevo pedido al VENDEDOR
  */
 // (CORREGIDO) Se eliminó el 'ac' al final de la línea de definición
-const sendNewOrderNotificationEmail = async (toEmail, fromEmail, orderId, items, total, customer) => {
+const sendNewOrderNotificationEmail = async (toEmail, orderId, items, total, customer) => {
   // (CORREGIDO) Se cambió 'customer.nombre' por 'customer.full_name'
   const subject = `¡Nuevo Pedido Recibido! #${orderId} de ${customer.full_name}`;
   const itemsHtml = formatItemsToHTML(items);
@@ -134,7 +134,7 @@ const sendNewOrderNotificationEmail = async (toEmail, fromEmail, orderId, items,
 
   try {
     const { data, error } = await resend.emails.send({
-      from: fromEmail,
+      from: process.env.EMAIL_FROM,
       to: [toEmail], // Email del vendedor
       subject: subject,
       html: htmlBody,
