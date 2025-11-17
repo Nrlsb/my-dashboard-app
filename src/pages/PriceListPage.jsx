@@ -278,13 +278,7 @@ export default function PriceListPage({ onNavigate }) {
 
   
 
-  // Hook para el 'Intersection Observer' (Carga infinita)
-
-  const { ref: infiniteScrollRef } = useInView({
-
-    threshold: 0.5,
-
-  });
+    // No se usa useInView para carga infinita, se usará un botón "Cargar más"
 
 
 
@@ -340,17 +334,7 @@ export default function PriceListPage({ onNavigate }) {
 
 
 
-  // useEffect para manejar el scroll infinito
-
-  useEffect(() => {
-
-    if (infiniteScrollRef && hasNextPage && !isFetchingNextPage) {
-
-      fetchNextPage();
-
-    }
-
-  }, [infiniteScrollRef, hasNextPage, isFetchingNextPage, fetchNextPage]);
+    // (ELIMINADO) useEffect para manejar el scroll infinito, ahora se usa un botón
 
 
 
@@ -708,9 +692,71 @@ export default function PriceListPage({ onNavigate }) {
 
           
 
-          {/* Elemento invisible que dispara la carga infinita */}
+                    {/* Botón "Cargar más" */}
 
-          <div ref={infiniteScrollRef} style={{ height: '10px' }} />
+          
+
+                    {hasNextPage && (
+
+          
+
+                      <button
+
+          
+
+                        onClick={() => fetchNextPage()}
+
+          
+
+                        disabled={isFetchingNextPage}
+
+          
+
+                        className="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center mx-auto"
+
+          
+
+                      >
+
+          
+
+                        {isFetchingNextPage ? (
+
+          
+
+                          <>
+
+          
+
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+
+          
+
+                            Cargando más...
+
+          
+
+                          </>
+
+          
+
+                        ) : (
+
+          
+
+                          'Cargar más productos'
+
+          
+
+                        )}
+
+          
+
+                      </button>
+
+          
+
+                    )}
 
         </div>
 
