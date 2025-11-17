@@ -52,7 +52,7 @@ const requireAdmin = async (req, res, next) => {
   // --- (NUEVO) Middleware Opcional para userId ---
   const optionalUserId = (req, res, next) => {
     // Buscamos el userId en query params o en el body
-    const userId = req.query.userId || req.body.userId;
+    const userId = req.query.userId || req.body?.userId;
     if (userId) {
       // Si existe, lo adjuntamos a 'req' para que los controladores lo usen
       req.userId = userId;
