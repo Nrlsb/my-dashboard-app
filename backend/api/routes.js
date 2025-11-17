@@ -274,8 +274,8 @@ router.post('/orders', requireUserId, async (req, res) => {
 router.get('/products', async (req, res) => {
   console.log('GET /api/products -> Consultando productos en DB (paginado)...');
   try {
-    const { page = 1, limit = 20, search = '', brand = '' } = req.query;
-    const data = await controllers.fetchProtheusProducts(page, limit, search, brand);
+    const { page = 1, limit = 20, search = '', brand = '', moneda = '1' } = req.query;
+    const data = await controllers.fetchProtheusProducts(page, limit, search, brand, moneda);
     res.json(data); // Devuelve { products: [...], totalProducts: X }
   } catch (error) {
     console.error('Error en /api/products:', error);

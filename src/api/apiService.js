@@ -25,12 +25,13 @@ const handleResponse = async (response) => {
  * @param {string} brand - Marca a filtrar
  * @returns {Promise<object>} - Objeto con { products: [], totalProducts: 0 }
  */
-export const fetchProducts = async (page, searchTerm, brand) => {
+export const fetchProducts = async (page, searchTerm, brand, moneda) => {
   const params = new URLSearchParams({
     page: page,
     limit: PRODUCTS_PER_PAGE,
     search: searchTerm,
     brand: brand,
+    moneda: moneda,
   });
 
   const response = await fetch(`${API_BASE_URL}/products?${params.toString()}`);
@@ -43,12 +44,13 @@ export const fetchProducts = async (page, searchTerm, brand) => {
  * @param {string} brand - Marca a filtrar
  * @returns {Promise<Array<object>>} - Array de productos
  */
-export const fetchAllProductsForPDF = async (searchTerm, brand) => {
+export const fetchAllProductsForPDF = async (searchTerm, brand, moneda) => {
   const params = new URLSearchParams({
     page: 1,
     limit: 9999, // Un límite muy alto para traer todos los productos
     search: searchTerm,
     brand: brand,
+    moneda: moneda,
   });
 
   const response = await fetch(`${API_BASE_URL}/products?${params.toString()}`);

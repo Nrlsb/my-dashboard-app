@@ -603,21 +603,19 @@ const saveProtheusOrder = async (orderData, userId) => {
 /**
  * Obtiene la lista de productos (paginada y con búsqueda)
  */
-const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = '') => {
+const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = '', moneda = '1') => {
   try {
     const offset = (page - 1) * limit;
     let queryParams = [];
     
     // --- Query para Contar Total ---
-    // (CORREGIDO) Apunta a 'products' y usa 'price' y 'description' (en lugar de 'name')
     let countQuery = 'SELECT COUNT(*) FROM products WHERE price > 0 AND description IS NOT NULL';
     
     // --- Query para Obtener Productos ---
-    // (CORREGIDO) Nombres de columnas actualizados según script.sql
     let dataQuery = `
       SELECT 
         id, code, description, price, brand, 
-        capacity_description
+        capacity_description, moneda, cotizacion
       FROM products
       WHERE price > 0 AND description IS NOT NULL
     `;
@@ -626,7 +624,6 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
     let paramIndex = 1;
     
     if (search) {
-      // (CORREGIDO) Buscamos en 'description' (nombre) O 'code' (código)
       const searchQuery = ` (description ILIKE $${paramIndex} OR code ILIKE $${paramIndex}) `;
       countQuery += ` AND ${searchQuery}`;
       dataQuery += ` AND ${searchQuery}`;
@@ -635,16 +632,22 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
     }
     
     if (brand) {
-      // (CORREGIDO) Buscamos en 'brand'
       const brandQuery = ` brand = $${paramIndex} `;
       countQuery += ` AND ${brandQuery}`;
       dataQuery += ` AND ${brandQuery}`;
       queryParams.push(brand);
       paramIndex++;
     }
+
+    if (moneda && moneda !== '0') { // Asumimos que '0' o '' significa todas las monedas
+      const monedaQuery = ` moneda = $${paramIndex} `;
+      countQuery += ` AND ${monedaQuery}`;
+      dataQuery += ` AND ${monedaQuery}`;
+      queryParams.push(moneda);
+      paramIndex++;
+    }
     
     // --- Ordenar y Paginar (Solo para dataQuery) ---
-    // (CORREGIDO) Ordenar por 'description'
     dataQuery += ` ORDER BY description ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     
     // --- Ejecutar Queries ---
@@ -653,19 +656,30 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
     
     const dataResult = await pool.query(dataQuery, [...queryParams, limit, offset]);
     
-    // (CORREGIDO) Mapeo actualizado a los nuevos nombres de columna
-    // El frontend recibirá 'name' pero con el valor de 'description'
-    const products = dataResult.rows.map(prod => ({
-      id: prod.id,
-      code: prod.code,
-      name: prod.description, // Mapea 'description' de la BD a 'name' para el frontend
-      price: prod.price,
-      formattedPrice: formatCurrency(prod.price),
-      brand: prod.brand,
-      imageUrl: null, 
-      capacityDesc: prod.capacity_description, // Mapea 'capacity_description'
-      capacityValue: null 
-    }));
+    const products = dataResult.rows.map(prod => {
+      let originalPrice = null;
+      let finalPrice = prod.price;
+
+      if (prod.moneda === 2 || prod.moneda === 3) {
+        originalPrice = prod.price;
+        finalPrice = prod.price * prod.cotizacion;
+      }
+
+      return {
+        id: prod.id,
+        code: prod.code,
+        name: prod.description,
+        price: finalPrice,
+        formattedPrice: formatCurrency(finalPrice),
+        brand: prod.brand,
+        imageUrl: null,
+        capacityDesc: prod.capacity_description,
+        capacityValue: null,
+        moneda: prod.moneda,
+        cotizacion: prod.cotizacion,
+        originalPrice: originalPrice
+      };
+    });
     
     return {
       products,
