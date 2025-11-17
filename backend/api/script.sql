@@ -303,3 +303,37 @@ CREATE INDEX IF NOT EXISTS idx_vouchers_user_id
     (user_id ASC NULLS LAST)
     WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;
+
+-- Sequence and defined type
+CREATE SEQUENCE IF NOT EXISTS dashboard_panels_id_seq;
+
+-- Table: public.dashboard_panels
+
+-- DROP TABLE IF EXISTS public.dashboard_panels;
+
+CREATE TABLE IF NOT EXISTS public.dashboard_panels
+(
+    id integer NOT NULL DEFAULT nextval('dashboard_panels_id_seq'::regclass),
+    title character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    subtitle character varying(255) COLLATE pg_catalog."default",
+    icon character varying(50) COLLATE pg_catalog."default",
+    navigation_path character varying(100) COLLATE pg_catalog."default",
+    tag character varying(50) COLLATE pg_catalog."default",
+    is_visible boolean DEFAULT true,
+    CONSTRAINT dashboard_panels_pkey PRIMARY KEY (id)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.dashboard_panels
+    OWNER to postgres;
+
+-- Insert initial data into dashboard_panels
+INSERT INTO public.dashboard_panels (title, subtitle, icon, navigation_path, tag, is_visible) VALUES
+('', 'Nuevo Pedido', 'ShoppingCart', 'new-order', NULL, true),
+('Historico', 'Histórico de Pedidos', 'Clock', 'order-history', NULL, true),
+('Precios', 'Lista de Precios', 'DollarSign', 'price-list', NULL, true),
+('Ofertas', 'Nuevas Ofertas', 'Gift', 'offers', 'NUEVO', true),
+('Cuenta Corriente', 'Saldo Cuenta', 'Banknote', 'account-balance', NULL, true),
+('Consultas', 'Envío de Consultas', 'HelpCircle', 'queries', NULL, true)
+ON CONFLICT (id) DO NOTHING;

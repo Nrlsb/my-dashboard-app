@@ -1,6 +1,6 @@
-import React from 'react';
-// (ELIMINADO) Header ya no se importa ni se renderiza aquí
+import React, { useState, useEffect } from 'react';
 import DashboardCard from '/src/components/DashboardCard.jsx';
+import { apiService } from '../api/apiService';
 import {
   ShoppingCart,
   Clock,
@@ -8,97 +8,71 @@ import {
   Gift,
   Banknote,
   HelpCircle,
-  // (ELIMINADO) FileText y UploadCloud ya no se usan
 } from 'lucide-react';
+
+// Mapa para convertir los nombres de los iconos de la BD a componentes
+const iconMap = {
+  ShoppingCart,
+  Clock,
+  DollarSign,
+  Gift,
+  Banknote,
+  HelpCircle,
+};
 
 // El Contenido del Dashboard
 const Dashboard = ({ onNavigate }) => {
-  const cards = [
-    { 
-      title: '', 
-      subTitle: 'Nuevo Pedido', 
-      icon: ShoppingCart, 
-      bgColor: 'bg-gray-700',
-      action: () => onNavigate('new-order') // (RUTA CORREGIDA)
-    },
-    { 
-      title: 'Historico', 
-      subTitle: 'Histórico de Pedidos', 
-      icon: Clock, 
-      bgColor: 'bg-gray-700',
-      action: () => onNavigate('order-history') // (RUTA CORREGIDA)
-    },
-    { 
-      title: 'Precios', 
-      subTitle: 'Lista de Precios', 
-      icon: DollarSign, 
-      bgColor: 'bg-gray-700',
-      action: () => onNavigate('price-list') // (RUTA CORREGIDA)
-    },
-    { 
-      title: 'Ofertas', 
-      subTitle: 'Nuevas Ofertas', 
-      icon: Gift, 
-      tag: 'NUEVO', 
-      bgColor: 'bg-gray-700',
-      action: () => onNavigate('offers')
-    },
-    { 
-      title: 'Cuenta Corriente', 
-      subTitle: 'Saldo Cuenta', 
-      icon: Banknote, 
-      bgColor: 'bg-gray-700',
-      action: () => onNavigate('account-balance') // (RUTA CORREGIDA)
-    },
-    // --- (ELIMINADO) Objeto de 'Información Importante' ---
-    // { 
-    //   title: 'Información Importante', 
-    //   subTitle: 'Información', 
-    //   icon: FileText, 
-    //   bgColor: 'bg-gray-700',
-    //   action: () => {}
-    // },
-    { 
-      title: 'Consultas', 
-      subTitle: 'Envío de Consultas', 
-      icon: HelpCircle, 
-      bgColor: 'bg-gray-700',
-      action: () => onNavigate('queries')
-    },
-    // --- (ELIMINADO) Objeto de 'Carga Comprobantes' ---
-    // { 
-    //   title: 'Cupones Tarjeta', 
-    //   subTitle: 'Carga Comprobantes', 
-    //   icon: UploadCloud, 
-    //   bgColor: 'bg-gray-700',
-    //   action: () => onNavigate('voucher-upload')
-    // },
-  ];
+  const [cards, setCards] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchPanels = async () => {
+      try {
+        setLoading(true);
+        const fetchedPanels = await apiService.getDashboardPanels();
+        setCards(fetchedPanels);
+        setError(null);
+      } catch (err) {
+        setError('No se pudieron cargar los paneles del dashboard.');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPanels();
+  }, []);
+
+  if (loading) {
+    return <div className="text-center p-8">Cargando paneles...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center p-8 text-red-500">{error}</div>;
+  }
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-      {cards.map((card, index) => (
+      {cards.map((card) => (
         <DashboardCard
-          key={index}
+          key={card.id}
           title={card.title}
-          subTitle={card.subTitle}
-          icon={card.icon}
+          subTitle={card.subtitle}
+          icon={iconMap[card.icon] || HelpCircle} // Usa el icono del mapa o uno por defecto
           tag={card.tag}
-          bgColor={card.bgColor}
-          onClick={card.action} // Asignamos el onClick
+          bgColor="bg-gray-700" // El color es consistente
+          onClick={() => onNavigate(card.navigation_path)}
         />
       ))}
     </div>
   );
 };
 
-
 // --- Página Principal del Dashboard ---
 const DashboardPage = ({ onNavigate }) => {
   return (
-    // (MODIFICADO) Se quita min-h-screen y bg-gray-100 (App.jsx lo maneja)
     <div className="font-sans">
-      {/* (ELIMINADO) Header ya no se renderiza aquí */}
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         <Dashboard onNavigate={onNavigate} />
       </main>

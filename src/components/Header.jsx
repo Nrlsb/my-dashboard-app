@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 // (TYPO CORREGIDO) La ruta correcta es '../' para subir de 'components' a 'src'
 import { useCart } from '../context/CartContext.jsx';
-import { Building, ChevronDown, User, LogOut, ShoppingCart } from 'lucide-react';
+import { Building, ChevronDown, User, LogOut, ShoppingCart, Settings } from 'lucide-react';
 
 // --- Componente de Header (Corregido) ---
 // (MODIFICADO) Acepta 'onLogout' y 'currentUser'
@@ -18,6 +18,14 @@ const Header = ({ onNavigate, onLogout, currentUser }) => {
   const handleProfileClick = () => {
     if (onNavigate) {
       onNavigate('profile');
+    }
+    setIsDropdownOpen(false);
+  };
+
+  // (NUEVO) Manejador para el botón de configuración
+  const handleSettingsClick = () => {
+    if (onNavigate) {
+      onNavigate('dashboard-settings');
     }
     setIsDropdownOpen(false);
   };
@@ -94,6 +102,15 @@ const Header = ({ onNavigate, onLogout, currentUser }) => {
                       <User className="w-5 h-5 mr-3 text-gray-500" />
                       Mi Perfil
                     </button>
+                    {currentUser?.is_admin && (
+                      <button
+                        onClick={handleSettingsClick}
+                        className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <Settings className="w-5 h-5 mr-3 text-gray-500" />
+                        Config. Dashboard
+                      </button>
+                    )}
                     <button
                       onClick={handleLogoutClick}
                       className="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 border-t border-gray-100"

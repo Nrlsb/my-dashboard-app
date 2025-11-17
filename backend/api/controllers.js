@@ -864,6 +864,61 @@ const saveProtheusVoucher = async (fileInfo, userId) => {
   }
 };
 
+// =================================================================
+// --- (NUEVO) Dashboard Panels ---
+// =================================================================
+
+/**
+ * Obtiene los paneles del dashboard visibles para todos los usuarios
+ */
+const getDashboardPanels = async () => {
+  try {
+    const result = await pool.query('SELECT * FROM dashboard_panels WHERE is_visible = true ORDER BY id');
+    return result.rows;
+  } catch (error) {
+    console.error('Error en getDashboardPanels:', error);
+    throw error;
+  }
+};
+
+/**
+ * (Admin) Obtiene todos los paneles del dashboard
+ */
+const getAdminDashboardPanels = async () => {
+  try {
+    const result = await pool.query('SELECT * FROM dashboard_panels ORDER BY id');
+    return result.rows;
+  } catch (error) {
+    console.error('Error en getAdminDashboardPanels:', error);
+    throw error;
+  }
+};
+
+/**
+ * (Admin) Actualiza la visibilidad de un panel del dashboard
+ */
+const updateDashboardPanel = async (panelId, isVisible) => {
+  try {
+    const query = `
+      UPDATE dashboard_panels
+      SET is_visible = $1
+      WHERE id = $2
+      RETURNING *;
+    `;
+    const values = [isVisible, panelId];
+    const result = await pool.query(query, values);
+    
+    if (result.rows.length === 0) {
+      throw new Error('Panel no encontrado al actualizar.');
+    }
+    
+    console.log(`Visibilidad del panel ${panelId} actualizada a ${isVisible}`);
+    return { success: true, message: 'Visibilidad del panel actualizada.', panel: result.rows[0] };
+  } catch (error) {
+    console.error('Error en updateDashboardPanel:', error);
+    throw error;
+  }
+};
 
 
 // Exportar todos los controladores
@@ -886,5 +941,8 @@ module.exports = {
   fetchProtheusOffers,
   saveProtheusQuery,
   saveProtheusVoucher,
-  getExchangeRatesController, // (NUEVO) Exportar el controlador de cotizaciones
+  getExchangeRatesController,
+  getDashboardPanels,
+  getAdminDashboardPanels,
+  updateDashboardPanel,
 };

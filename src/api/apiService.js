@@ -228,23 +228,78 @@ export const fetchUserProfile = async (userId) => {
 };
 
 /**
- * (NUEVO) Actualiza el perfil de un usuario
- * @param {object} data - Objeto con { userId, profileData }
- * @returns {Promise<object>} - Respuesta del servidor
+ * Actualiza el perfil de un usuario
+ * @param {object} data - Un objeto que contiene userId y profileData
+ * @param {string} data.userId - El ID del usuario a actualizar
+ * @param {object} data.profileData - Los nuevos datos del perfil
+ * @returns {Promise<object>} - Los datos del perfil actualizados
  */
 export const updateUserProfile = async ({ userId, profileData }) => {
-  if (!userId) throw new Error("ID de usuario requerido para actualizar");
+  if (!userId) {
+    throw new Error("El ID de usuario es requerido para actualizar el perfil.");
+  }
 
-  // (CORREGIDO) Se elimina la verificación de 'token' que no existe.
-
-  // (CORREGIDO) La ruta es /profile?userId=...
   const response = await fetch(`${API_BASE_URL}/profile?userId=${userId}`, {
     method: 'PUT',
     headers: {
-      // (CORREGIDO) Se elimina el header de 'Authorization'
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(profileData),
   });
+
   return handleResponse(response);
+};
+
+export const apiService = {
+  fetchProducts,
+  fetchAllProductsForPDF,
+  fetchProductById,
+  fetchProtheusBrands,
+  fetchAccountBalance,
+  createCreditNoteApi,
+  fetchCustomerInvoicesApi,
+  fetchAdminOrderDetailApi,
+  fetchOrderHistory,
+  fetchOrderDetail,
+  fetchOffers,
+  fetchUserProfile,
+
+  /**
+   * (Admin) Obtiene todos los paneles del dashboard para configuración
+   * @param {string} adminUserId - El ID del admin que solicita
+   * @returns {Promise<Array<object>>} - Lista de todos los paneles
+   */
+  getAdminDashboardPanels: async (adminUserId) => {
+    if (!adminUserId) throw new Error("ID de admin requerido");
+    const response = await fetch(`${API_BASE_URL}/admin/dashboard-panels?userId=${adminUserId}`);
+    return handleResponse(response);
+  },
+
+  /**
+   * (Admin) Actualiza la visibilidad de un panel
+   * @param {string} adminUserId - El ID del admin que solicita
+   * @param {number} panelId - El ID del panel a actualizar
+   * @param {boolean} is_visible - El nuevo estado de visibilidad
+   * @returns {Promise<object>} - El panel actualizado
+   */
+  updateDashboardPanel: async (adminUserId, panelId, is_visible) => {
+    if (!adminUserId || !panelId) throw new Error("ID de admin y de panel requeridos");
+    const response = await fetch(`${API_BASE_URL}/admin/dashboard-panels/${panelId}?userId=${adminUserId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ is_visible }),
+    });
+    return handleResponse(response);
+  },
+
+  /**
+   * (Público) Obtiene los paneles del dashboard visibles
+   * @returns {Promise<Array<object>>} - Lista de paneles visibles
+   */
+  getDashboardPanels: async () => {
+    const response = await fetch(`${API_BASE_URL}/dashboard-panels`);
+    return handleResponse(response);
+  },
 };

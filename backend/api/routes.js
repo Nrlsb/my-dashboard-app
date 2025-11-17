@@ -381,4 +381,44 @@ router.post('/upload-voucher', upload.single('voucherFile'), requireUserId, asyn
   }
 });
 
+
+// --- (NUEVO) Dashboard Panels ---
+router.get('/dashboard-panels', async (req, res) => {
+  console.log('GET /api/dashboard-panels -> Consultando paneles visibles...');
+  try {
+    const panels = await controllers.getDashboardPanels();
+    res.json(panels);
+  } catch (error) {
+    console.error('Error en /api/dashboard-panels:', error);
+    res.status(500).json({ message: 'Error al obtener los paneles del dashboard.' });
+  }
+});
+
+router.get('/admin/dashboard-panels', requireUserId, requireAdmin, async (req, res) => {
+  console.log('GET /api/admin/dashboard-panels -> Admin consultando todos los paneles...');
+  try {
+    const panels = await controllers.getAdminDashboardPanels();
+    res.json(panels);
+  } catch (error) {
+    console.error('Error en /api/admin/dashboard-panels:', error);
+    res.status(500).json({ message: 'Error al obtener los paneles del dashboard para admin.' });
+  }
+});
+
+router.put('/admin/dashboard-panels/:id', requireUserId, requireAdmin, async (req, res) => {
+  const panelId = req.params.id;
+  const { is_visible } = req.body;
+  console.log(`PUT /api/admin/dashboard-panels/${panelId} -> Admin actualizando visibilidad...`);
+  try {
+    if (typeof is_visible !== 'boolean') {
+      return res.status(400).json({ message: 'El campo is_visible es obligatorio y debe ser un booleano.' });
+    }
+    const result = await controllers.updateDashboardPanel(panelId, is_visible);
+    res.json(result);
+  } catch (error) {
+    console.error(`Error en /api/admin/dashboard-panels/${panelId}:`, error);
+    res.status(500).json({ message: 'Error al actualizar el panel del dashboard.' });
+  }
+});
+
 module.exports = router;
