@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiService } from '../api/apiService';
 import './AccessoryCarousel.css';
 
@@ -8,37 +8,37 @@ const AccessoryCarousel = () => {
   const [error, setError] = useState(null);
   const carouselRef = useRef(null);
 
-  useEffect(() => {
-    const fetchAccessories = async () => {
-      try {
-        setLoading(true);
-        const data = await apiService.getAccessories();
-        setAccessories(data);
-        setLoading(false);
-      } catch (err) {
-        setError('No se pudieron cargar los accesorios.');
-        console.error(err);
-        setLoading(false);
+  const fetchAccessories = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await apiService.getAccessories();
+      // Al recargar, nos aseguramos de que el scroll vuelva al inicio
+      if (carouselRef.current) {
+        carouselRef.current.scrollTo({ left: 0, behavior: 'auto' });
       }
-    };
-
-    fetchAccessories();
+      setAccessories(data);
+      setLoading(false);
+    } catch (err) {
+      setError('No se pudieron cargar los accesorios.');
+      console.error(err);
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchAccessories();
+  }, [fetchAccessories]);
 
   // Effect for auto-scrolling
   useEffect(() => {
     const carousel = carouselRef.current;
-    if (!carousel) return;
+    if (!carousel || loading) return; // No hacer nada si está cargando
 
     const intervalId = setInterval(() => {
-      // A tolerance of 1px for floating point inaccuracies
       const atEnd = carousel.scrollLeft + carousel.offsetWidth >= carousel.scrollWidth - 1;
 
       if (atEnd) {
-        carousel.scrollTo({
-          left: 0,
-          behavior: 'smooth',
-        });
+        fetchAccessories(); // Cargar nuevos accesorios
       } else {
         carousel.scrollBy({
           left: carousel.offsetWidth,
@@ -47,11 +47,10 @@ const AccessoryCarousel = () => {
       }
     }, 15000); // Scroll every 15 seconds
 
-    // Cleanup interval on component unmount
     return () => clearInterval(intervalId);
-  }, [accessories]); // Rerun if accessories change
+  }, [accessories, loading, fetchAccessories]); // Depender de 'loading' para reiniciar el intervalo
 
-  if (loading) {
+  if (loading && accessories.length === 0) {
     return <div className="p-4">Cargando accesorios...</div>;
   }
 
@@ -59,7 +58,6 @@ const AccessoryCarousel = () => {
     return <div className="p-4 text-red-500">{error}</div>;
   }
 
-  // Do not render the component if there are no accessories
   if (accessories.length === 0) {
     return null;
   }
@@ -78,6 +76,7 @@ const AccessoryCarousel = () => {
           </div>
         ))}
       </div>
+      {loading && <div className="carousel-loading-overlay">Cargando...</div>}
     </div>
   );
 };

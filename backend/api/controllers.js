@@ -1195,14 +1195,15 @@ const updateUserGroupPermissions = async (userId, groups) => {
  */
 const getAccessories = async (req, res) => {
   try {
+    const accessoryGroups = ['0102', '0103', '0114', '0120', '0121', '0125', '0128', '0136', '0140', '0143', '0144', '0148', '0149', '0166', '0177', '0186', '0187'];
     const query = `
       SELECT id, code, description, price 
       FROM products 
-      WHERE product_group = '0103' AND price > 0 AND description IS NOT NULL
-      ORDER BY description ASC
+      WHERE product_group = ANY($1) AND price > 0 AND description IS NOT NULL
+      ORDER BY RANDOM()
       LIMIT 20;
     `;
-    const result = await pool.query(query);
+    const result = await pool.query(query, [accessoryGroups]);
     
     const accessories = result.rows.map(prod => ({
       id: prod.id,
@@ -1218,6 +1219,51 @@ const getAccessories = async (req, res) => {
     
   } catch (error) {
     console.error('Error en getAccessories:', error);
+    throw error;
+  }
+};
+
+/**
+ * (NUEVO) Obtiene detalles de una lista de grupos de productos,
+ * incluyendo una imagen aleatoria de un producto de cada grupo.
+ */
+const getProductGroupsDetails = async () => {
+  const groupCodes = ['0102', '0103', '0114', '0120', '0121', '0125', '0128', '0136', '0140', '0143', '0144', '0148', '0149', '0166', '0177', '0186', '0187'];
+  
+  try {
+    const groupDetails = [];
+
+    for (const code of groupCodes) {
+      // Para cada código, busca un producto aleatorio que tenga una descripción no nula.
+      const productQuery = `
+        SELECT description
+        FROM products
+        WHERE product_group = $1 AND description IS NOT NULL
+        ORDER BY RANDOM()
+        LIMIT 1;
+      `;
+      const productResult = await pool.query(productQuery, [code]);
+      
+      let imageUrl = `https://via.placeholder.com/150/2D3748/FFFFFF?text=${encodeURIComponent(code)}`;
+      let name = `Grupo ${code}`;
+      if (productResult.rows.length > 0) {
+        // Si encontramos un producto, usamos su descripción para el placeholder.
+        const productName = productResult.rows[0].description;
+        imageUrl = `https://via.placeholder.com/150/2D3748/FFFFFF?text=${encodeURIComponent(productName.split(' ')[0])}`;
+        name = productName;
+      }
+      
+      groupDetails.push({
+        group_code: code,
+        name: name, 
+        image_url: imageUrl,
+      });
+    }
+    
+    return groupDetails;
+    
+  } catch (error) {
+    console.error('Error en getProductGroupsDetails:', error);
     throw error;
   }
 };
@@ -1253,4 +1299,5 @@ module.exports = {
   getDeniedProductGroups, // Renamed export
   updateUserGroupPermissions,
   getAccessories,
+  getProductGroupsDetails,
 };

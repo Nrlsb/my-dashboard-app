@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import DashboardCard from '/src/components/DashboardCard.jsx';
 import AccessoryCarousel from '../components/AccessoryCarousel';
+import ProductGroupCarousel from '../components/ProductGroupCarousel'; // Import the new component
 import { apiService } from '../api/apiService';
 import { useAuth } from '../context/AuthContext'; // Import useAuth
 import {
@@ -83,6 +84,7 @@ const DashboardPage = ({ onNavigate }) => {
     <div className="font-sans">
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         <Dashboard onNavigate={onNavigate} />
+        <ProductGroupCarousel />
         <AccessoryCarousel />
       </main>
     </div>

@@ -103,6 +103,15 @@ export const getAccessories = async () => {
   return handleResponse(response);
 };
 
+/**
+ * (NUEVO) Obtiene detalles de los grupos de productos.
+ * @returns {Promise<Array<object>>} - Lista de detalles de grupos.
+ */
+export const getProductGroupsDetails = async () => {
+  const response = await fetch(`${API_BASE_URL}/product-groups-details`);
+  return handleResponse(response);
+};
+
 
 /**
  * Obtiene el balance y movimientos de la cuenta de un usuario
@@ -280,6 +289,7 @@ export const apiService = {
   fetchProductById,
   fetchProtheusBrands,
   getAccessories,
+  getProductGroupsDetails,
   fetchAccountBalance,
   createCreditNoteApi,
   fetchCustomerInvoicesApi,

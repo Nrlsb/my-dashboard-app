@@ -1,0 +1,62 @@
+.product-group-carousel-container {
+  position: relative;
+  padding: 1rem 0;
+  margin-top: 2rem;
+}
+
+.product-group-carousel {
+  display: flex;
+  overflow-x: auto;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  scrollbar-width: thin;
+  scrollbar-color: #4a5568 #2d3748;
+}
+
+.product-group-carousel::-webkit-scrollbar {
+  height: 8px;
+}
+
+.product-group-carousel::-webkit-scrollbar-track {
+  background: #2d3748;
+  border-radius: 10px;
+}
+
+.product-group-carousel::-webkit-scrollbar-thumb {
+  background-color: #4a5568;
+  border-radius: 10px;
+  border: 2px solid #2d3748;
+}
+
+.product-group-card {
+  flex: 0 0 auto;
+  width: 180px;
+  background-color: #2d3748;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s ease-in-out;
+}
+
+.product-group-card:hover {
+  transform: translateY(-5px);
+}
+
+.product-group-image {
+  width: 100%;
+  height: 130px;
+  object-fit: cover;
+}
+
+.product-group-info {
+  padding: 1rem;
+}
+
+.product-group-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

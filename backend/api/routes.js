@@ -379,6 +379,19 @@ const requireAdmin = async (req, res, next) => {
   });
 
   // --- (NUEVA RUTA) ---
+  // Obtiene detalles de los grupos de productos para el carrusel
+  router.get('/product-groups-details', async (req, res) => {
+    console.log('GET /api/product-groups-details -> Consultando detalles de grupos...');
+    try {
+      const groupDetails = await controllers.getProductGroupsDetails();
+      res.json(groupDetails);
+    } catch (error) {
+      console.error('Error en /api/product-groups-details:', error);
+      res.status(500).json({ message: 'Error al obtener detalles de los grupos.' });
+    }
+  });
+
+  // --- (NUEVA RUTA) ---
   // Obtiene un producto específico por su ID
   // Es pública, no necesita requireUserId
   router.get('/products/:id', optionalUserId, async (req, res) => {
