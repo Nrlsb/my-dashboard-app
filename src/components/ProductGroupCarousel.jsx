@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { apiService } from '../api/apiService';
 import './ProductGroupCarousel.css';
 
-const ProductGroupCarousel = () => {
+const ProductGroupCarousel = ({ onNavigateToCategory }) => {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -43,6 +43,12 @@ const ProductGroupCarousel = () => {
     return () => clearInterval(intervalId);
   }, [groups, loading]);
 
+  const handleCardClick = (groupCode) => {
+    if (onNavigateToCategory) {
+      onNavigateToCategory(groupCode);
+    }
+  };
+
   if (loading) {
     return <div className="p-4">Cargando grupos...</div>;
   }
@@ -60,7 +66,11 @@ const ProductGroupCarousel = () => {
       <h2 className="text-2xl font-bold mb-4 text-white">Categorías</h2>
       <div className="product-group-carousel" ref={carouselRef}>
         {groups.map((group) => (
-          <div key={group.group_code} className="product-group-card">
+          <div
+            key={group.group_code}
+            className="product-group-card cursor-pointer transform hover:scale-105 transition-transform duration-200"
+            onClick={() => handleCardClick(group.group_code)}
+          >
             <img src={group.image_url} alt={group.name} className="product-group-image" />
             <div className="product-group-info">
               <h3 className="product-group-name">{group.name}</h3>

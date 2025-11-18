@@ -392,6 +392,22 @@ const requireAdmin = async (req, res, next) => {
   });
 
   // --- (NUEVA RUTA) ---
+  // Obtiene productos por grupo (paginado)
+  router.get('/products/group/:groupCode', optionalUserId, async (req, res) => {
+    console.log(`GET /api/products/group/${req.params.groupCode} -> Consultando productos por grupo...`);
+    try {
+      const { groupCode } = req.params;
+      const { page = 1, limit = 20 } = req.query;
+      // Pasamos el groupCode, paginación y el userId (puede ser null) al controlador
+      const data = await controllers.fetchProductsByGroup(groupCode, page, limit, req.userId);
+      res.json(data);
+    } catch (error) {
+      console.error(`Error en /api/products/group/${req.params.groupCode}:`, error);
+      res.status(500).json({ message: 'Error al obtener productos por grupo.' });
+    }
+  });
+
+  // --- (NUEVA RUTA) ---
   // Obtiene un producto específico por su ID
   // Es pública, no necesita requireUserId
   router.get('/products/:id', optionalUserId, async (req, res) => {

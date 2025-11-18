@@ -1234,23 +1234,25 @@ const getProductGroupsDetails = async () => {
     const groupDetails = [];
 
     for (const code of groupCodes) {
-      // Para cada código, busca un producto aleatorio que tenga una descripción no nula.
+      // Para cada código, busca un producto para obtener la marca (nombre del grupo) y una descripción para la imagen.
       const productQuery = `
-        SELECT description
+        SELECT brand, description
         FROM products
-        WHERE product_group = $1 AND description IS NOT NULL
-        ORDER BY RANDOM()
+        WHERE product_group = $1 AND brand IS NOT NULL AND brand != ''
         LIMIT 1;
       `;
       const productResult = await pool.query(productQuery, [code]);
       
       let imageUrl = `https://via.placeholder.com/150/2D3748/FFFFFF?text=${encodeURIComponent(code)}`;
       let name = `Grupo ${code}`;
+
       if (productResult.rows.length > 0) {
-        // Si encontramos un producto, usamos su descripción para el placeholder.
-        const productName = productResult.rows[0].description;
-        imageUrl = `https://via.placeholder.com/150/2D3748/FFFFFF?text=${encodeURIComponent(productName.split(' ')[0])}`;
-        name = productName;
+        const product = productResult.rows[0];
+        // El nombre del grupo es la 'brand', según la indicación.
+        name = product.brand; 
+        // Usamos la descripción del producto para generar una imagen más descriptiva.
+        const imageName = product.description || name;
+        imageUrl = `https://via.placeholder.com/150/2D3748/FFFFFF?text=${encodeURIComponent(imageName.split(' ')[0])}`;
       }
       
       groupDetails.push({
@@ -1264,6 +1266,96 @@ const getProductGroupsDetails = async () => {
     
   } catch (error) {
     console.error('Error en getProductGroupsDetails:', error);
+    throw error;
+  }
+};
+
+/**
+ * (NUEVO) Obtiene la lista de productos para un grupo específico (paginada)
+ */
+const fetchProductsByGroup = async (groupCode, page = 1, limit = 20, userId = null) => {
+  console.log(`[DEBUG] fetchProductsByGroup llamado con: groupCode=${groupCode}, page=${page}, limit=${limit}, userId=${userId}`);
+  try {
+    const exchangeRates = await getExchangeRates();
+    const ventaBillete = exchangeRates.venta_billete;
+    const ventaDivisa = exchangeRates.venta_divisa;
+
+    const offset = (page - 1) * limit;
+    let queryParams = [groupCode];
+    let paramIndex = 2;
+
+    // --- Query para Contar Total ---
+    let countQuery = 'SELECT COUNT(*) FROM products WHERE product_group = $1 AND price > 0 AND description IS NOT NULL';
+    
+    // --- Query para Obtener Productos ---
+    let dataQuery = `
+      SELECT 
+        id, code, description, price, brand, 
+        capacity_description, moneda, cotizacion, product_group
+      FROM products
+      WHERE product_group = $1 AND price > 0 AND description IS NOT NULL
+    `;
+
+    // Lógica de permisos por grupo de productos
+    if (userId) {
+      const deniedGroups = await getDeniedProductGroups(userId);
+      if (deniedGroups.includes(groupCode)) {
+        // Si el grupo actual está denegado para el usuario, no devolvemos nada.
+        console.log(`[DEBUG] Acceso denegado al grupo ${groupCode} para el usuario ${userId}.`);
+        return { products: [], totalProducts: 0, groupName: '' };
+      }
+    }
+    
+    // --- Ordenar y Paginar ---
+    dataQuery += ` ORDER BY description ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    
+    // --- Ejecutar Queries ---
+    const countResult = await pool.query(countQuery, [groupCode]);
+    const totalProducts = parseInt(countResult.rows[0].count, 10);
+    
+    const dataResult = await pool.query(dataQuery, [...queryParams, limit, offset]);
+    
+    let groupName = '';
+    if (dataResult.rows.length > 0) {
+      groupName = dataResult.rows[0].brand; // El nombre del grupo es la marca
+    } else {
+      // Si no hay productos, intentamos obtener el nombre del grupo de todas formas
+      const groupNameResult = await pool.query('SELECT brand FROM products WHERE product_group = $1 AND brand IS NOT NULL LIMIT 1', [groupCode]);
+      if (groupNameResult.rows.length > 0) {
+        groupName = groupNameResult.rows[0].brand;
+      }
+    }
+
+    const products = dataResult.rows.map(prod => {
+      let originalPrice = prod.price;
+      let finalPrice = prod.price;
+
+      if (prod.moneda === 2) { // Dólar Billete
+        finalPrice = originalPrice * ventaBillete;
+      } else if (prod.moneda === 3) { // Dólar Divisa
+        finalPrice = originalPrice * ventaDivisa;
+      }
+
+      return {
+        id: prod.id,
+        code: prod.code,
+        name: prod.description,
+        price: finalPrice,
+        formattedPrice: formatCurrency(finalPrice),
+        brand: prod.brand,
+        imageUrl: null,
+        capacityDesc: prod.capacity_description,
+      };
+    });
+    
+    return {
+      products,
+      totalProducts,
+      groupName,
+    };
+    
+  } catch (error) {
+    console.error('[DEBUG] Error en fetchProductsByGroup:', error);
     throw error;
   }
 };
@@ -1300,4 +1392,5 @@ module.exports = {
   updateUserGroupPermissions,
   getAccessories,
   getProductGroupsDetails,
+  fetchProductsByGroup,
 };

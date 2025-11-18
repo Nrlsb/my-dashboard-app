@@ -17,6 +17,7 @@ import VoucherUploadPage from './pages/VoucherUploadPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx'; 
 import OrderPreviewPage from './pages/OrderPreviewPage.jsx'; 
 import OrderDetailPage from './pages/OrderDetailPage.jsx';
+import CategoryPage from './pages/CategoryPage.jsx'; // (NUEVO) Importar la página de categorías
 // (NUEVO) Importar la nueva página de detalle de producto
 import ProductDetailPage from './pages/ProductDetailPage.jsx';
 import DashboardSettingsPage from './pages/DashboardSettingsPage.jsx'; // (NUEVO) Importar la página de configuración
@@ -40,6 +41,8 @@ function App() {
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   // (NUEVO) Estado para guardar el ID del producto que queremos ver
   const [selectedProductId, setSelectedProductId] = useState(null);
+  // (NUEVO) Estado para guardar el código de grupo que queremos ver
+  const [selectedGroupCode, setSelectedGroupCode] = useState(null);
   
   // (ELIMINADO) const isLoggedIn = !!currentUser; // Ahora usamos isAuthenticated de useAuth
   
@@ -86,6 +89,12 @@ function App() {
   const handleViewProductDetails = (productId) => {
     setSelectedProductId(productId);
     setCurrentPage('product-detail');
+  };
+
+  // (NUEVO) Función para navegar a la página de categoría
+  const handleNavigateToCategory = (groupCode) => {
+    setSelectedGroupCode(groupCode);
+    setCurrentPage('category');
   };
 
 
@@ -139,7 +148,7 @@ function App() {
     // Si está logueado, mostramos el resto de las páginas
     switch (currentPage) {
       case 'dashboard':
-        return <DashboardPage onNavigate={handleNavigate} />;
+        return <DashboardPage onNavigate={handleNavigate} onNavigateToCategory={handleNavigateToCategory} />;
       case 'profile':
         // Pasamos el user del contexto
         return <ProfilePage onNavigate={handleNavigate} user={user} />; // (MODIFICADO)
@@ -177,6 +186,15 @@ function App() {
             onNavigate={handleNavigate} 
             user={user} // (MODIFICADO)
             orderId={selectedOrderId} 
+          />
+        );
+
+      // (NUEVO) Caso para la nueva página de categoría
+      case 'category':
+        return (
+          <CategoryPage
+            onNavigate={handleNavigate}
+            groupCode={selectedGroupCode}
           />
         );
         

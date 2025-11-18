@@ -79,12 +79,12 @@ const Dashboard = ({ onNavigate }) => {
 };
 
 // --- Página Principal del Dashboard ---
-const DashboardPage = ({ onNavigate }) => {
+const DashboardPage = ({ onNavigate, onNavigateToCategory }) => {
   return (
     <div className="font-sans">
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         <Dashboard onNavigate={onNavigate} />
-        <ProductGroupCarousel />
+        <ProductGroupCarousel onNavigateToCategory={onNavigateToCategory} />
         <AccessoryCarousel />
       </main>
     </div>

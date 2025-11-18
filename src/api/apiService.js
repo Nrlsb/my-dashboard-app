@@ -283,6 +283,26 @@ export const updateUserProfile = async ({ userId, profileData }) => {
   return handleResponse(response);
 };
 
+/**
+ * (NUEVO) Obtiene productos por grupo (paginado)
+ * @param {string} groupCode - El código del grupo de productos
+ * @param {number} page - Número de página
+ * @param {string} userId - (Opcional) El ID del usuario para verificar permisos
+ * @returns {Promise<object>} - Objeto con { products: [], totalProducts: 0, groupName: '' }
+ */
+export const fetchProductsByGroup = async (groupCode, page, userId) => {
+  const params = new URLSearchParams({
+    page: page,
+    limit: PRODUCTS_PER_PAGE,
+  });
+  if (userId) {
+    params.append('userId', userId);
+  }
+
+  const response = await fetch(`${API_BASE_URL}/products/group/${groupCode}?${params.toString()}`);
+  return handleResponse(response);
+};
+
 export const apiService = {
   fetchProducts,
   fetchAllProductsForPDF,
@@ -290,6 +310,7 @@ export const apiService = {
   fetchProtheusBrands,
   getAccessories,
   getProductGroupsDetails,
+  fetchProductsByGroup,
   fetchAccountBalance,
   createCreditNoteApi,
   fetchCustomerInvoicesApi,
