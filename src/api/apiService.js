@@ -95,6 +95,16 @@ export const fetchProtheusBrands = async () => {
 
 
 /**
+ * (NUEVO) Obtiene la lista de productos accesorios
+ * @returns {Promise<Array<object>>} - Lista de accesorios
+ */
+export const getAccessories = async () => {
+  const response = await fetch(`${API_BASE_URL}/accessories`);
+  return handleResponse(response);
+};
+
+
+/**
  * Obtiene el balance y movimientos de la cuenta de un usuario
  * @param {string} userId - El ID del usuario
  * @returns {Promise<object>} - Objeto con balance y movimientos
@@ -269,6 +279,7 @@ export const apiService = {
   fetchAllProductsForPDF,
   fetchProductById,
   fetchProtheusBrands,
+  getAccessories,
   fetchAccountBalance,
   createCreditNoteApi,
   fetchCustomerInvoicesApi,

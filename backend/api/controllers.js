@@ -1190,6 +1190,38 @@ const updateUserGroupPermissions = async (userId, groups) => {
   }
 };
 
+/**
+ * (NUEVO) Obtiene la lista de productos accesorios
+ */
+const getAccessories = async (req, res) => {
+  try {
+    const query = `
+      SELECT id, code, description, price 
+      FROM products 
+      WHERE product_group = '0103' AND price > 0 AND description IS NOT NULL
+      ORDER BY description ASC
+      LIMIT 20;
+    `;
+    const result = await pool.query(query);
+    
+    const accessories = result.rows.map(prod => ({
+      id: prod.id,
+      code: prod.code,
+      name: prod.description, // Map description to name for the frontend
+      price: prod.price,
+      formattedPrice: formatCurrency(prod.price), // Using existing helper
+      // Using a placeholder for the image
+      image_url: `https://via.placeholder.com/150/2D3748/FFFFFF?text=${encodeURIComponent(prod.description.split(' ')[0])}`
+    }));
+    
+    return accessories;
+    
+  } catch (error) {
+    console.error('Error en getAccessories:', error);
+    throw error;
+  }
+};
+
 
 // Exportar todos los controladores
 module.exports = {
@@ -1220,4 +1252,5 @@ module.exports = {
   getProductGroupsForAdmin,
   getDeniedProductGroups, // Renamed export
   updateUserGroupPermissions,
+  getAccessories,
 };

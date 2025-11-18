@@ -366,6 +366,19 @@ const requireAdmin = async (req, res, next) => {
   });
   
   // --- (NUEVA RUTA) ---
+  // Obtiene la lista de productos accesorios
+  router.get('/accessories', async (req, res) => {
+    console.log('GET /api/accessories -> Consultando productos accesorios...');
+    try {
+      const accessories = await controllers.getAccessories();
+      res.json(accessories);
+    } catch (error) {
+      console.error('Error en /api/accessories:', error);
+      res.status(500).json({ message: 'Error al obtener accesorios.' });
+    }
+  });
+
+  // --- (NUEVA RUTA) ---
   // Obtiene un producto específico por su ID
   // Es pública, no necesita requireUserId
   router.get('/products/:id', optionalUserId, async (req, res) => {
