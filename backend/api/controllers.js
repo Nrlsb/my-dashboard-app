@@ -1126,14 +1126,14 @@ const getUsersForAdmin = async () => {
 const getProductGroupsForAdmin = async () => {
   try {
     const query = `
-      SELECT DISTINCT product_group 
+      SELECT DISTINCT product_group, brand 
       FROM products 
-      WHERE product_group IS NOT NULL AND product_group != '' 
+      WHERE product_group IS NOT NULL AND product_group != '' AND brand IS NOT NULL AND brand != ''
       ORDER BY product_group ASC;
     `;
     const result = await pool.query(query);
-    // Return an array of strings, not an array of objects
-    return result.rows.map(row => row.product_group);
+    // Return an array of objects { product_group, brand }
+    return result.rows;
   } catch (error) {
     console.error('Error in getProductGroupsForAdmin:', error);
     throw error;

@@ -4,6 +4,7 @@ import './ClientGroupPermissionsPage.css';
 
 const ClientGroupPermissionsPage = ({ currentUser }) => {
   const [clients, setClients] = useState([]);
+  const [userSearch, setUserSearch] = useState('');
   const [productGroups, setProductGroups] = useState([]);
   const [selectedClient, setSelectedClient] = useState('');
   const [clientDeniedGroups, setClientDeniedGroups] = useState([]);
@@ -94,27 +95,35 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
   // Si no es admin, mostrar mensaje de acceso denegado
   // Mover las sentencias de retorno condicionales para `isLoading`, `error` y `!currentUser || !currentUser.is_admin`
   // después de todas las llamadas a `useState` y `useEffect` para asegurar que los hooks se llamen incondicionalmente.
+  const filteredClients = clients.filter(client =>
+    (client.full_name && client.full_name.toLowerCase().includes(userSearch.toLowerCase())) ||
+    (client.email && client.email.toLowerCase().includes(userSearch.toLowerCase())) ||
+    (client.a1_cod && client.a1_cod.toLowerCase().includes(userSearch.toLowerCase()))
+  );
 
-  const filteredProductGroups = productGroups.filter(group =>
-    group.toLowerCase().includes(filterText.toLowerCase())
+  const filteredProductGroups = productGroups.filter(item =>
+    (item.product_group && item.product_group.toLowerCase().includes(filterText.toLowerCase())) ||
+    (item.brand && item.brand.toLowerCase().includes(filterText.toLowerCase()))
   );
 
   const handleSelectAllChange = (e) => {
     const isChecked = e.target.checked;
     setSelectAll(isChecked);
 
+    const filteredGroupNames = filteredProductGroups.map(item => item.product_group);
+
     if (isChecked) {
       // Add all filtered groups to clientDeniedGroups
-      setClientDeniedGroups(prev => [...new Set([...prev, ...filteredProductGroups])]);
+      setClientDeniedGroups(prev => [...new Set([...prev, ...filteredGroupNames])]);
     } else {
       // Remove all filtered groups from clientDeniedGroups
-      setClientDeniedGroups(prev => prev.filter(group => !filteredProductGroups.includes(group)));
+      setClientDeniedGroups(prev => prev.filter(group => !filteredGroupNames.includes(group)));
     }
   };
 
   // Determine if the "Select All" checkbox should be checked
   useEffect(() => {
-    if (filteredProductGroups.length > 0 && filteredProductGroups.every(group => clientDeniedGroups.includes(group))) {
+    if (filteredProductGroups.length > 0 && filteredProductGroups.every(item => clientDeniedGroups.includes(item.product_group))) {
       setSelectAll(true);
     } else {
       setSelectAll(false);
@@ -139,10 +148,19 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
       {success && <p className="success-message">{success}</p>}
       
       <div className="selection-container">
+        <label htmlFor="user-search">Buscar Cliente:</label>
+        <input
+          type="text"
+          id="user-search"
+          value={userSearch}
+          onChange={e => setUserSearch(e.target.value)}
+          placeholder="Filtrar por nombre, email o código..."
+          className="user-search-input"
+        />
         <label htmlFor="client-select">Seleccionar Cliente:</label>
         <select id="client-select" value={selectedClient} onChange={e => setSelectedClient(e.target.value)}>
           <option value="">-- Seleccione un cliente --</option>
-          {clients.map(client => (
+          {filteredClients.map(client => (
             <option key={client.id} value={client.id}>
               {client.full_name} ({client.email})
             </option>
@@ -159,7 +177,7 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
               id="product-group-filter"
               value={filterText}
               onChange={e => setFilterText(e.target.value)}
-              placeholder="Escriba para filtrar grupos..."
+              placeholder="Filtrar por grupo o marca..."
             />
           </div>
           <div className="select-all-container">
@@ -173,15 +191,17 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
           </div>
           <h3>Grupos de Productos Denegados</h3>
           <div className="groups-list">
-            {filteredProductGroups.map(group => (
-              <div key={group} className="group-item">
+            {filteredProductGroups.map(item => (
+              <div key={item.product_group} className="group-item">
                 <input
                   type="checkbox"
-                  id={`group-${group}`}
-                  checked={clientDeniedGroups.includes(group)}
-                  onChange={() => handleCheckboxChange(group)}
+                  id={`group-${item.product_group}`}
+                  checked={clientDeniedGroups.includes(item.product_group)}
+                  onChange={() => handleCheckboxChange(item.product_group)}
                 />
-                <label htmlFor={`group-${group}`}>{group}</label>
+                <label htmlFor={`group-${item.product_group}`}>
+                  {item.product_group} <span className="brand-label">({item.brand})</span>
+                </label>
               </div>
             ))}
           </div>
