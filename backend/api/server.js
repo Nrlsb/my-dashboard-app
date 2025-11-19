@@ -29,7 +29,26 @@ app.use(helmet());
 const PORT = process.env.PORT || 3001;
 
 // --- Configuración ---
-app.use(cors());
+// (NUEVO) Opciones de CORS para mayor seguridad
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Lista de dominios permitidos
+    const allowedOrigins = [
+      'http://localhost:5173', // Desarrollo Frontend
+      'https://midashboard.com',   // Producción Frontend
+    ];
+
+    // Permitir si el origen está en la lista o si no hay origen (peticiones de la misma máquina o Postman)
+    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      callback(null, true);
+    } else {
+      callback(new Error('No permitido por CORS'));
+    }
+  },
+  optionsSuccessStatus: 200, // Para compatibilidad con navegadores antiguos
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // (NUEVO) Servir archivos estáticos (para los comprobantes subidos)
