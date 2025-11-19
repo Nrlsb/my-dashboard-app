@@ -1,16 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
-// (NUEVO) Importamos el hook useCart
 import { useCart } from '../context/CartContext.jsx';
 import { 
   ArrowLeft, Search, ShoppingCart, Trash2, Package, CheckCircle, 
-  ChevronLeft, ChevronRight, X, Plus, Minus, Star 
+  ChevronLeft, ChevronRight, X, Plus, Minus
 } from 'lucide-react';
 import { useAuth } from "../context/AuthContext.jsx";
-import { fetchProducts, fetchProductById, fetchProtheusBrands } from '../api/apiService.js'; // (NUEVO) Importar apiService
+import apiService from '../api/apiService.js';
 
 const PRODUCTS_PER_PAGE = 20;
 
-// Formateador de moneda (reutilizado)
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
@@ -18,12 +16,10 @@ const formatCurrency = (amount) => {
   }).format(amount || 0);
 };
 
-// --- (NUEVO) Componente de Modal de Vista Rápida ---
-const ProductModal = ({ product, onClose, onAddToCart, onViewDetails, userId }) => { // (MODIFICADO) Recibe userId
+const ProductModal = ({ product, onClose, onAddToCart, onViewDetails }) => {
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
 
-  // Resetea la cantidad si el producto cambia
   useEffect(() => {
     setQuantity(1);
     setIsAdded(false);
@@ -33,22 +29,20 @@ const ProductModal = ({ product, onClose, onAddToCart, onViewDetails, userId }) 
     onAddToCart(product, quantity);
     setIsAdded(true);
     setTimeout(() => {
-      onClose(); // Cierra el modal después de agregar
-    }, 1500); // Espera 1.5s
+      onClose();
+    }, 1500);
   };
 
   if (!product) return null;
 
   return (
-    // Fondo oscuro (Backdrop)
     <div 
       className="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-50"
       onClick={onClose}
     >
-      {/* Contenedor del Modal */}
       <div
         className="relative bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col md:flex-row overflow-hidden"
-        onClick={(e) => e.stopPropagation()} // Evita que el clic en el modal lo cierre
+        onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
@@ -57,29 +51,14 @@ const ProductModal = ({ product, onClose, onAddToCart, onViewDetails, userId }) 
           <X className="w-6 h-6" />
         </button>
 
-        {/* Columna de Imagen (Placeholder) */}
         <div className="w-full md:w-1/2 flex items-center justify-center bg-gray-100 p-8">
           <Package className="w-48 h-48 text-gray-400" />
         </div>
 
-        {/* Columna de Detalles */}
         <div className="w-full md:w-1/2 p-8 flex flex-col justify-center overflow-y-auto">
           <span className="text-sm font-medium text-blue-600 uppercase">{product.brand || 'Marca'}</span>
           <h2 className="text-2xl font-bold text-gray-900 mt-1">{product.name}</h2>
           
-          {/* --- BLOQUE DE ESTRELLAS ELIMINADO ---
-          <div className="flex items-center my-3">
-            <div className="flex text-yellow-400">
-              <Star className="w-5 h-5 fill-current" />
-              <Star className="w-5 h-5 fill-current" />
-              <Star className="w-5 h-5 fill-current" />
-              <Star className="w-5 h-5 fill-current" />
-              <Star className="w-5 h-5 text-gray-300 fill-current" />
-            </div>
-            <span className="text-sm text-gray-500 ml-2">(1)</span>
-          </div>
-          */}
-
           <p className="text-3xl font-extrabold text-gray-800 mt-3">{formatCurrency(product.price)}</p>
 
           <p className="text-gray-600 leading-relaxed my-4 text-sm">
@@ -135,7 +114,7 @@ const ProductModal = ({ product, onClose, onAddToCart, onViewDetails, userId }) 
           </button>
 
           <button
-            onClick={() => onViewDetails(product.id, userId)} // (MODIFICADO) Pasar userId
+            onClick={() => onViewDetails(product.id)}
             className="mt-4 text-center text-sm text-blue-600 hover:underline"
           >
             Ver detalles completos del producto
@@ -146,17 +125,12 @@ const ProductModal = ({ product, onClose, onAddToCart, onViewDetails, userId }) 
   );
 };
 
-
-// --- Página de Nuevo Pedido ---
-// (MODIFICADO) Acepta 'onViewProductDetails'
-const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
-  const { user } = useAuth(); // (NUEVO) Obtener el usuario del contexto de autenticación
-  const userId = user?.id; // (NUEVO) Obtener el ID del usuario
-  // --- Estados ---
-  const [allProducts, setAllProducts] = useState([]); // Almacena solo la página actual
-  const [productMap, setProductMap] = useState(new Map()); // Mapa para lookup rápido
-  const [totalProducts, setTotalProducts] = useState(0); // 
-  const [allBrands, setAllBrands] = useState([]); // 
+const NewOrderPage = ({ onNavigate, onViewProductDetails }) => {
+  const { user } = useAuth();
+  const [allProducts, setAllProducts] = useState([]);
+  const [productMap, setProductMap] = useState(new Map());
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [allBrands, setAllBrands] = useState([]);
   
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [productError, setProductError] = useState(null);
@@ -164,46 +138,38 @@ const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
   
-  // (NUEVO) Estado para el modal
   const [selectedProduct, setSelectedProduct] = useState(null);
   
-  // (NUEVO) Obtenemos el carrito y sus funciones del Contexto
   const { cart, addToCart, updateQuantity, removeFromCart } = useCart();
   
-  // Estados de Paginación
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
 
-  // --- Carga de Marcas (solo una vez) ---
   useEffect(() => {
     const fetchBrands = async () => {
       try {
-        // (MODIFICADO) Pasar el userId para filtrar las marcas según los permisos
-        const brandsData = await fetchProtheusBrands(userId); 
+        const brandsData = await apiService.fetchProtheusBrands(); 
         setAllBrands(brandsData);
       } catch (err) {
         console.error(err);
-        // No es un error crítico, así que solo lo logueamos
       }
     };
-    if (userId) { // Solo buscar marcas si hay un usuario logueado
+    if (user) {
       fetchBrands();
     }
-  }, [userId]); // (MODIFICADO) Se vuelve a ejecutar si el usuario cambia
+  }, [user]);
 
-  // --- Carga de Productos (paginada) ---
   useEffect(() => {
-    const loadProducts = async () => { // (MODIFICADO) Renombrado para evitar conflicto
+    const loadProducts = async () => {
       try {
         setLoadingProducts(true);
         setProductError(null);
         
-        const data = await fetchProducts(currentPage, searchTerm, selectedBrand, '', userId); // (MODIFICADO) Usar apiService y pasar userId
+        const data = await apiService.fetchProducts(currentPage, searchTerm, selectedBrand, '');
         
-        setAllProducts(data.products); // Almacena solo los productos de la página actual
-        setTotalProducts(data.totalProducts); // Almacena el conteo total
+        setAllProducts(data.products);
+        setTotalProducts(data.totalProducts);
         
-        // Actualizar el mapa de productos para el carrito
         setProductMap(prevMap => {
           const newMap = new Map(prevMap);
           data.products.forEach(p => newMap.set(p.id, p));
@@ -217,34 +183,24 @@ const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
         setLoadingProducts(false);
       }
     };
-    if (userId) { // (NUEVO) Solo cargar productos si userId está disponible
+    if (user) {
       loadProducts();
     }
-  }, [currentPage, searchTerm, selectedBrand, userId]); // (MODIFICADO) Añadir userId a las dependencias
-
+  }, [currentPage, searchTerm, selectedBrand, user]);
   
-  // --- Lógica de Carrito (usa funciones del Contexto) ---
-  
-  // Esta función es solo para el input numérico
   const handleQuantityChange = (productId, quantityStr) => {
     const quantity = parseInt(quantityStr, 10);
-    // Llama a la función del contexto
     updateQuantity(productId, isNaN(quantity) ? 0 : quantity); 
   };
   
-  // Esta función es para el botón "Añadir"
   const handleAddToCartClick = (product) => {
-    // Llama a la función del contexto
-    addToCart(product, 1); // Añade 1 por defecto
+    addToCart(product, 1);
   };
 
-  // El totalPrice ahora lee del 'cart' del contexto
   const totalPrice = useMemo(() => {
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   }, [cart]);
   
-
-  // --- Renderizado de Lista de Productos ---
   const renderProductList = () => {
     if (loadingProducts) {
       return <div className="p-6 bg-white rounded-lg shadow-md text-center text-gray-500">Cargando productos...</div>;
@@ -257,11 +213,10 @@ const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
     }
     
     return allProducts.map(product => (
-      // (MODIFICADO) Se añade onClick para abrir el modal
       <div 
         key={product.id} 
         className="flex items-center justify-between p-4 bg-white rounded-lg shadow-md cursor-pointer hover:shadow-lg transition-shadow"
-        onClick={() => setSelectedProduct(product)} // <-- Abre el modal
+        onClick={() => setSelectedProduct(product)}
       >
         <div className="flex items-center space-x-4">
           <div className="flex-shrink-0 p-3 bg-gray-100 rounded-lg">
@@ -275,10 +230,9 @@ const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
         </div>
         <div className="text-right">
           <p className="text-lg font-bold text-gray-800">{formatCurrency(product.price)}</p>
-          {/* (MODIFICADO) El botón ahora está en el modal, pero dejamos uno aquí por si acaso */}
           <button
             onClick={(e) => {
-              e.stopPropagation(); // Evita que el clic en el botón abra el modal
+              e.stopPropagation();
               handleAddToCartClick(product);
             }}
             className="mt-2 px-4 py-1 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
@@ -292,19 +246,14 @@ const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      {/* (ELIMINADO) Header ya no se renderiza aquí */}
-      
-      {/* (NUEVO) Renderiza el modal si hay un producto seleccionado */}
       <ProductModal
         product={selectedProduct}
         onClose={() => setSelectedProduct(null)}
         onAddToCart={addToCart}
         onViewDetails={onViewProductDetails}
-        userId={userId} // (NUEVO) Pasar userId al modal
       />
       
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
-        {/* Encabezado con Botón de Volver y Título */}
         <div className="flex items-center mb-6">
           <button
             onClick={() => onNavigate('dashboard')}
@@ -316,12 +265,9 @@ const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
           <h1 className="text-2xl font-bold text-gray-800">Nuevo Pedido</h1>
         </div>
 
-        {/* Layout de 2 Columnas: Productos | Carrito */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* --- Columna Izquierda: Filtros y Productos --- */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Controles de Filtro (Selector y Búsqueda) */}
             <div className="p-6 bg-white rounded-lg shadow-md">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
@@ -363,12 +309,10 @@ const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
               </div>
             </div>
 
-            {/* Lista de productos */}
             <div className="space-y-4">
               {renderProductList()}
             </div>
             
-            {/* Controles de Paginación */}
             {totalPages > 1 && (
               <div className="flex justify-between items-center p-4 bg-white rounded-lg shadow-md">
                 <button
@@ -394,7 +338,6 @@ const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
             )}
           </div>
 
-          {/* --- Columna Derecha: Carrito Sticky --- */}
           <div className="lg-col-span-1">
             <div className="sticky top-8 bg-white rounded-lg shadow-md flex flex-col max-h-[calc(100vh-4rem)]">
               
@@ -405,7 +348,6 @@ const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
                 </div>
               </div>
               
-              {/* Lista de Items (del contexto) */}
               <div className="flex-1 divide-y divide-gray-200 overflow-y-auto px-6">
                 {cart.length === 0 && (
                   <p className="py-4 text-center text-gray-500">Tu carrito está vacío.</p>
@@ -421,15 +363,15 @@ const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
                           id={`qty-${item.id}`}
                           type="number"
                           value={item.quantity}
-                          onChange={(e) => handleQuantityChange(item.id, e.target.value)} // (MODIFICADO)
+                          onChange={(e) => handleQuantityChange(item.id, e.target.value)}
                           className="w-16 px-2 py-1 border border-gray-300 rounded-md text-sm"
                           min="0"
-                          max={item.stock} // Usamos el stock del item (que vino del producto)
+                          max={item.stock}
                         />
                       </div>
                     </div>
                     <button
-                      onClick={() => removeFromCart(item.id)} // (MODIFICADO)
+                      onClick={() => removeFromCart(item.id)}
                       className="p-1 text-gray-400 hover:text-red-600"
                       aria-label="Quitar item"
                     >
@@ -439,14 +381,12 @@ const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
                 ))}
               </div>
 
-              {/* Pie del Carrito */}
               {cart.length > 0 && (
                 <div className="flex-shrink-0 p-6 border-t border-gray-200 space-y-3">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-lg font-medium text-gray-900">Total:</span>
                     <span className="text-2xl font-bold text-gray-900">{formatCurrency(totalPrice)}</span>
                   </div>
-                  {/* (MODIFICADO) Botón navega a 'order-preview' */}
                   <button
                     onClick={() => onNavigate('order-preview')} 
                     disabled={cart.length === 0}

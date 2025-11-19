@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { apiService } from '../api/apiService';
-import { useAuth } from '../context/AuthContext'; // (NUEVO) Importar useAuth
+import apiService from '../api/apiService';
+import { useAuth } from '../context/AuthContext';
 
-const PRODUCTS_PER_PAGE = 20; // Coincide con el backend
+const PRODUCTS_PER_PAGE = 20;
 
 const CategoryPage = ({ groupCode, onNavigate, onViewProductDetails }) => {
-  const { user } = useAuth(); // (NUEVO) Obtener el usuario para los permisos
+  const { user } = useAuth();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [groupName, setGroupName] = useState('');
   
-  // (NUEVO) Estados para paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
 
@@ -21,8 +20,7 @@ const CategoryPage = ({ groupCode, onNavigate, onViewProductDetails }) => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        // (IMPLEMENTADO) Llamada a la API con paginación y userId
-        const data = await apiService.fetchProductsByGroup(groupCode, currentPage, user?.id);
+        const data = await apiService.fetchProductsByGroup(groupCode, currentPage);
         
         setProducts(data.products);
         setGroupName(data.groupName);
@@ -37,7 +35,7 @@ const CategoryPage = ({ groupCode, onNavigate, onViewProductDetails }) => {
     };
 
     fetchProducts();
-  }, [groupCode, currentPage, user]); // (MODIFICADO) El efecto se ejecuta si cambia el grupo, la página o el usuario
+  }, [groupCode, currentPage, user]);
 
   const handlePageChange = (newPage) => {
     if (newPage > 0 && newPage <= totalPages) {
@@ -80,7 +78,6 @@ const CategoryPage = ({ groupCode, onNavigate, onViewProductDetails }) => {
             ))}
           </div>
 
-          {/* (NUEVO) Controles de Paginación */}
           {totalPages > 1 && (
             <div className="flex justify-center items-center mt-8">
               <button

@@ -1,9 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-// (NUEVO) Importar la API real
-import { fetchOrderDetail } from '../api/apiService'; 
+import apiService from '../api/apiService'; 
 
-// (NUEVO) Hook para formatear moneda
 const useCurrencyFormatter = () => {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
@@ -11,15 +9,13 @@ const useCurrencyFormatter = () => {
   });
 };
 
-// (Componente MODIFICADO)
 function OrderDetailPage({ onNavigate, user, orderId }) {
   const formatter = useCurrencyFormatter();
 
-  // (NUEVO) Usar React Query para fetchear los detalles
   const { data: orderDetails, isLoading, error } = useQuery({
-    queryKey: ['orderDetail', orderId, user.id],
-    queryFn: () => fetchOrderDetail(orderId, user.id),
-    enabled: !!orderId && !!user.id, // Solo ejecutar si tenemos los IDs
+    queryKey: ['orderDetail', orderId],
+    queryFn: () => apiService.fetchOrderDetail(orderId),
+    enabled: !!orderId && !!user?.id,
   });
 
   if (isLoading) {
@@ -34,11 +30,7 @@ function OrderDetailPage({ onNavigate, user, orderId }) {
     return <div>Pedido no encontrado.</div>;
   }
   
-  // (CORREGIDO) Se eliminan los estilos en línea
-  // Se usan clases de App.css
-
   return (
-    // (CORREGIDO) Se usa la clase 'order-detail-page'
     <div className="order-detail-page"> 
       <h2>Detalle del Pedido #{orderDetails.id}</h2>
       
@@ -46,7 +38,6 @@ function OrderDetailPage({ onNavigate, user, orderId }) {
         Volver al Historial
       </button>
       
-      {/* (CORREGIDO) Se usa la clase 'order-info-box' */}
       <div className="order-info-box">
         <strong>Fecha:</strong> {orderDetails.formatted_date}<br />
         <strong>Estado:</strong> {orderDetails.status}<br />
@@ -55,38 +46,25 @@ function OrderDetailPage({ onNavigate, user, orderId }) {
 
       <h3>Items del Pedido</h3>
       
-      {/* (CORREGIDO) Se usa la clase 'order-list-container' y 'order-table' */}
       <div className="order-list-container">
         <table className="order-table">
           <thead>
             <tr>
-              {/* ======================================================== */}
-              {/* --- INICIO DE LA CORRECCIÓN --- */}
-              {/* ======================================================== */}
               <th>Código</th>
-              <th>Descripción</th> {/* (NUEVA COLUMNA) */}
+              <th>Descripción</th>
               <th>Cantidad</th>
               <th>Precio Unit.</th>
               <th>Subtotal</th>
-              {/* ======================================================== */}
-              {/* --- FIN DE LA CORRECCIÓN --- */}
-              {/* ======================================================== */}
             </tr>
           </thead>
           <tbody>
             {orderDetails.items.map((item) => (
               <tr key={item.id}>
-                {/* ======================================================== */}
-                {/* --- INICIO DE LA CORRECCIÓN --- */}
-                {/* ======================================================== */}
                 <td>{item.product_code}</td>
-                <td>{item.product_name}</td> {/* (NUEVA CELDA) */}
+                <td>{item.product_name}</td>
                 <td>{item.quantity}</td>
                 <td>{item.formattedPrice}</td>
                 <td>{formatter.format(item.quantity * item.unit_price)}</td>
-                {/* ======================================================== */}
-                {/* --- FIN DE LA CORRECCIÓN --- */}
-                {/* ======================================================== */}
               </tr>
             ))}
           </tbody>

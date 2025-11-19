@@ -2,9 +2,11 @@ import React, { useState, useMemo } from 'react';
 // (MODIFICADO) Se corrige la ruta de importación añadiendo la extensión
 import { useCart } from '../context/CartContext.jsx'; 
 import { AlertCircle, CheckCircle } from 'lucide-react';
+import apiService from '../api/apiService.js'; // (NUEVO) Importar apiService
 
 // (NUEVO) API de envío de pedidos
 const API_BASE_URL = 'http://localhost:3001/api';
+
 
 // (NUEVO) Helper simple de formato de moneda (si no se importa)
 const formatCurrency = (value) => {
@@ -84,21 +86,9 @@ const OrderPreviewPage = ({ onNavigate, onCompleteOrder, currentUser }) => {
     };
 
     try {
-      // El 'userId' ahora se envía en la query para el middleware
-      const response = await fetch(`${API_BASE_URL}/orders?userId=${currentUser.id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al enviar el pedido');
-      }
-
-      const result = await response.json();
+      // (MODIFICADO) Usamos apiService para enviar el pedido.
+      // Ya no se pasa el userId, el backend lo obtiene del token.
+      const result = await apiService.createOrder(orderData);
       
       setSuccess(`¡${orderType === 'quote' ? 'Presupuesto' : 'Pedido'} enviado con éxito! ID: ${result.orderId}`);
       

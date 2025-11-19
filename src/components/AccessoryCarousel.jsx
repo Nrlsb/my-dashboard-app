@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { apiService } from '../api/apiService';
+import apiService from '../api/apiService';
 import './AccessoryCarousel.css';
 
 const AccessoryCarousel = ({ onViewProductDetails }) => {

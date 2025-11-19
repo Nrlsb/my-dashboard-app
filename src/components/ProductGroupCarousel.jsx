@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { apiService } from '../api/apiService';
+import apiService from '../api/apiService';
 import './ProductGroupCarousel.css';
 
 const ProductGroupCarousel = ({ onNavigateToCategory }) => {

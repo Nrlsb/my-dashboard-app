@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import DashboardCard from '/src/components/DashboardCard.jsx';
 import AccessoryCarousel from '../components/AccessoryCarousel';
 import ProductGroupCarousel from '../components/ProductGroupCarousel'; // Import the new component
-import { apiService } from '../api/apiService';
+import apiService from '../api/apiService';
 import { useAuth } from '../context/AuthContext'; // Import useAuth
 import {
   ShoppingCart,
@@ -32,14 +32,14 @@ const Dashboard = ({ onNavigate }) => {
 
   useEffect(() => {
     const fetchPanels = async () => {
-      if (!user || !user.id) {
-        setError('Usuario no autenticado o ID de usuario no disponible.');
+      if (!user) {
+        // No user logged in, fetch public panels
         setLoading(false);
         return;
       }
       try {
         setLoading(true);
-        const fetchedPanels = await apiService.getDashboardPanels(user.id); // Pass user.id
+        const fetchedPanels = await apiService.getDashboardPanels(); // No user.id needed
         setCards(fetchedPanels);
         setError(null);
       } catch (err) {

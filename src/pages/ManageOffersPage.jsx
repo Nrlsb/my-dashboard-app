@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useInfiniteQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Loader2, ArrowLeft, Search, CheckCircle, XCircle } from 'lucide-react';
-import { fetchProducts, apiService } from '../api/apiService.js';
+import apiService from '../api/apiService.js';
 
 // --- Componente Reutilizable para el Interruptor ---
 const ToggleSwitch = ({ checked, onChange, disabled }) => (
@@ -76,21 +76,22 @@ export default function ManageOffersPage({ onNavigate, currentUser }) {
     isError,
     error,
   } = useInfiniteQuery({
-    queryKey: ['products', debounceSearchTerm, '', '0'], // Usamos una queryKey que no colisione
-    queryFn: ({ pageParam = 1 }) => fetchProducts(pageParam, debounceSearchTerm, '', '0'), // Filtros vacíos para traer todo
+    queryKey: ['products', debounceSearchTerm, []], // Usamos una queryKey que no colisione
+    queryFn: ({ pageParam = 1 }) => apiService.fetchProducts(pageParam, debounceSearchTerm, []), // Filtros vacíos para traer todo
     getNextPageParam: (lastPage, allPages) => {
       const productsLoaded = allPages.reduce((acc, page) => acc + page.products.length, 0);
       return productsLoaded < lastPage.totalProducts ? allPages.length + 1 : undefined;
     },
     initialPageParam: 1,
+    enabled: !!currentUser?.is_admin, // Solo habilitar si es admin
   });
 
   // Mutación para cambiar el estado de la oferta
   const { mutate: toggleOffer, isPending: isToggling } = useMutation({
-    mutationFn: (productId) => apiService.toggleProductOffer(productId, currentUser.id),
+    mutationFn: (productId) => apiService.toggleProductOffer(productId),
     onSuccess: (data) => {
       // Actualizamos el caché de react-query para reflejar el cambio instantáneamente
-      queryClient.setQueryData(['products', debounceSearchTerm, '', '0'], (oldData) => {
+      queryClient.setQueryData(['products', debounceSearchTerm, []], (oldData) => {
         if (!oldData) return oldData;
         return {
           ...oldData,
@@ -109,6 +110,10 @@ export default function ManageOffersPage({ onNavigate, currentUser }) {
   });
 
   const allProducts = data?.pages.flatMap(page => page.products) || [];
+
+  if (!currentUser?.is_admin) {
+    return <div className="p-8 text-center text-red-500">Acceso denegado.</div>
+  }
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">

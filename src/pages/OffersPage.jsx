@@ -1,11 +1,9 @@
 import React from 'react';
-// (NUEVO) Importar ArrowLeft
 import { Tag, ArrowLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchOffers } from '../api/apiService.js'; // <-- Corregido con .js
-import { useAuth } from '../context/AuthContext'; // Import useAuth
+import apiService from '../api/apiService.js';
+import { useAuth } from '../context/AuthContext';
 
-// Componente de UI para el estado de carga (Skeleton)
 const LoadingSkeleton = () => (
   <div className="animate-pulse grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     <div className="bg-gray-200 h-48 rounded-lg"></div>
@@ -14,7 +12,6 @@ const LoadingSkeleton = () => (
   </div>
 );
 
-// Componente de UI para el estado de error
 const ErrorMessage = ({ message }) => (
   <div className="flex flex-col items-center justify-center p-10 bg-white rounded-lg shadow-md">
     <p className="text-red-500 font-semibold text-lg">Error al cargar las ofertas</p>
@@ -22,7 +19,6 @@ const ErrorMessage = ({ message }) => (
   </div>
 );
 
-// Componente para una tarjeta de oferta
 const OfferCard = ({ offer }) => (
   <div className="bg-white rounded-lg shadow-lg overflow-hidden transform transition-transform hover:scale-105 duration-300">
     <div className="p-6">
@@ -41,23 +37,21 @@ const OfferCard = ({ offer }) => (
   </div>
 );
 
-export default function OffersPage({ onNavigate }) { // (NUEVO) Recibe onNavigate
-  const { user } = useAuth(); // Use the useAuth hook
+export default function OffersPage({ onNavigate }) {
+  const { user } = useAuth();
 
-  // 1. Reemplazamos useEffect y useState con useQuery
   const { 
-    data: offers = [], // Valor por defecto
+    data: offers = [],
     isLoading, 
     isError, 
     error 
   } = useQuery({
-    queryKey: ['offers', user?.id], // Add user.id to queryKey for re-fetching when user changes
-    queryFn: () => fetchOffers(user?.id), // Pass user.id to fetchOffers
-    enabled: !!user?.id, // Only run query if user.id is available
-    staleTime: 1000 * 60 * 15, // 15 minutos de caché
+    queryKey: ['offers', user?.id],
+    queryFn: () => apiService.fetchOffers(),
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 15,
   });
 
-  // 2. Renderizado condicional
   const renderContent = () => {
     if (!user?.id) {
       return (
@@ -97,7 +91,6 @@ export default function OffersPage({ onNavigate }) { // (NUEVO) Recibe onNavigat
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      {/* (MODIFICADO) Encabezado con botón de volver */}
       <header className="mb-6 flex items-center">
         <button
           onClick={() => onNavigate('dashboard')}

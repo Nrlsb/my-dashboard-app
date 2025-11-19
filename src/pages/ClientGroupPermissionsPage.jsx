@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiService } from '../api/apiService';
+import apiService from '../api/apiService';
 import './ClientGroupPermissionsPage.css';
 
 const ClientGroupPermissionsPage = ({ currentUser }) => {
@@ -11,7 +11,7 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
   const [filterText, setFilterText] = useState('');
   const [selectAll, setSelectAll] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null); // Cambiado a null para diferenciar de string vacío
+  const [error, setError] = useState(null);
   const [success, setSuccess] = useState('');
 
   useEffect(() => {
@@ -25,12 +25,12 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
       try {
         setIsLoading(true);
         const [clientsData, groupsData] = await Promise.all([
-          apiService.getAdminUsers(currentUser.id),
-          apiService.getAdminProductGroups(currentUser.id)
+          apiService.getAdminUsers(),
+          apiService.getAdminProductGroups()
         ]);
         setClients(clientsData);
         setProductGroups(groupsData);
-        setError(null); // Limpiar errores si la carga inicial es exitosa
+        setError(null);
       } catch (err) {
         setError('Error al cargar datos iniciales. Asegúrese de tener permisos de administrador.');
         console.error(err);
@@ -39,9 +39,8 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
       }
     };
     fetchData();
-  }, [currentUser]); // Dependencia de currentUser
+  }, [currentUser]);
 
-  // Fetch permissions when a client is selected
   useEffect(() => {
     if (!selectedClient || !currentUser || !currentUser.is_admin) {
       setClientDeniedGroups([]);
@@ -51,7 +50,7 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
       try {
         setIsLoading(true);
         setError(null);
-        const permissionsData = await apiService.getDeniedProductGroups(selectedClient, currentUser.id);
+        const permissionsData = await apiService.getDeniedProductGroups(selectedClient);
         setClientDeniedGroups(permissionsData);
       } catch (err) {
         setError(`Error al cargar los permisos para el cliente seleccionado.`);
@@ -61,7 +60,7 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
       }
     };
     fetchPermissions();
-  }, [selectedClient, currentUser]); // Dependencias de selectedClient y currentUser
+  }, [selectedClient, currentUser]);
 
   const handleCheckboxChange = (group) => {
     setClientDeniedGroups(prev =>
@@ -82,7 +81,7 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
       setIsLoading(true);
       setError(null);
       setSuccess('');
-      await apiService.updateUserGroupPermissions(selectedClient, clientDeniedGroups, currentUser.id);
+      await apiService.updateUserGroupPermissions(selectedClient, clientDeniedGroups);
       setSuccess('Permisos guardados con éxito.');
     } catch (err) {
       setError('Error al guardar los permisos.');
@@ -92,9 +91,6 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
     }
   };
 
-  // Si no es admin, mostrar mensaje de acceso denegado
-  // Mover las sentencias de retorno condicionales para `isLoading`, `error` y `!currentUser || !currentUser.is_admin`
-  // después de todas las llamadas a `useState` y `useEffect` para asegurar que los hooks se llamen incondicionalmente.
   const filteredClients = clients.filter(client =>
     (client.full_name && client.full_name.toLowerCase().includes(userSearch.toLowerCase())) ||
     (client.email && client.email.toLowerCase().includes(userSearch.toLowerCase())) ||
@@ -113,15 +109,12 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
     const filteredGroupNames = filteredProductGroups.map(item => item.product_group);
 
     if (isChecked) {
-      // Add all filtered groups to clientDeniedGroups
       setClientDeniedGroups(prev => [...new Set([...prev, ...filteredGroupNames])]);
     } else {
-      // Remove all filtered groups from clientDeniedGroups
       setClientDeniedGroups(prev => prev.filter(group => !filteredGroupNames.includes(group)));
     }
   };
 
-  // Determine if the "Select All" checkbox should be checked
   useEffect(() => {
     if (filteredProductGroups.length > 0 && filteredProductGroups.every(item => clientDeniedGroups.includes(item.product_group))) {
       setSelectAll(true);
@@ -130,7 +123,7 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
     }
   }, [filteredProductGroups, clientDeniedGroups]);
 
-  if (isLoading && !error) { // Mostrar "Cargando..." solo si no hay un error previo
+  if (isLoading && !error) {
     return <div className="text-center p-8">Cargando...</div>;
   }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiService } from '../api/apiService'; // Assuming apiService is in this location
+import apiService from '../api/apiService';
 import { ChevronRight } from 'lucide-react';
 
 const DashboardSettingsPage = ({ currentUser, onNavigate }) => {
@@ -16,7 +16,7 @@ const DashboardSettingsPage = ({ currentUser, onNavigate }) => {
       }
       try {
         setLoading(true);
-        const fetchedPanels = await apiService.getAdminDashboardPanels(currentUser.id);
+        const fetchedPanels = await apiService.getAdminDashboardPanels();
         setPanels(fetchedPanels);
         setError(null);
       } catch (err) {
@@ -31,14 +31,17 @@ const DashboardSettingsPage = ({ currentUser, onNavigate }) => {
   }, [currentUser]);
 
   const handleToggle = async (panelId, newVisibility) => {
+    // Optimistic update
+    const originalPanels = panels;
+    setPanels(panels.map(p => p.id === panelId ? { ...p, is_visible: newVisibility } : p));
+
     try {
-      await apiService.updateDashboardPanel(currentUser.id, panelId, newVisibility);
-      setPanels(panels.map(p => p.id === panelId ? { ...p, is_visible: newVisibility } : p));
+      await apiService.updateDashboardPanel(panelId, newVisibility);
     } catch (err) {
       setError('Error al actualizar el panel.');
       console.error(err);
       // Revert optimistic update on error
-      setPanels(panels.map(p => p.id === panelId ? { ...p, is_visible: !newVisibility } : p));
+      setPanels(originalPanels);
     }
   };
 
@@ -54,7 +57,6 @@ const DashboardSettingsPage = ({ currentUser, onNavigate }) => {
     <div className="p-4 md:p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Configuración del Sitio</h1>
 
-      {/* Sección de Gestión de Contenido */}
       <h2 className="text-xl font-semibold mb-4 mt-8">Gestión de Contenido</h2>
       <div className="bg-white shadow rounded-lg mb-8">
         <button
@@ -69,7 +71,6 @@ const DashboardSettingsPage = ({ currentUser, onNavigate }) => {
         </button>
       </div>
 
-      {/* Sección de Visibilidad de Paneles */}
       <h2 className="text-xl font-semibold mb-4">Visibilidad de Paneles del Dashboard</h2>
       <div className="bg-white shadow rounded-lg">
         <ul className="divide-y divide-gray-200">

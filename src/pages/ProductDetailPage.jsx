@@ -1,6 +1,6 @@
-import React, { useState } from 'react'; // (CORREGIDO) Faltaba importar useState
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchProductById } from '../api/apiService.js';
+import apiService from '../api/apiService.js';
 import { useCart } from '../context/CartContext.jsx';
 import { useAuth } from "../context/AuthContext.jsx";
 import { ArrowLeft, Package, DollarSign, CheckCircle, AlertTriangle, Loader2, ShoppingCart, Info } from 'lucide-react';
@@ -40,15 +40,14 @@ const ErrorMessage = ({ message }) => (
 
 export default function ProductDetailPage({ productId, onNavigate }) {
   const { addToCart } = useCart();
-  const { user } = useAuth(); // (NUEVO) Obtener el usuario del contexto de autenticación
-  const userId = user?.id; // (NUEVO) Obtener el ID del usuario
+  const { user } = useAuth();
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
 
   const { data: product, isLoading, isError, error } = useQuery({
-    queryKey: ['product', productId, userId], // (MODIFICADO) Añadir userId a la queryKey
-    queryFn: () => fetchProductById(productId, userId), // (MODIFICADO) Pasar userId
-    enabled: !!productId && !!userId, // (MODIFICADO) Habilitar la query solo si userId está disponible
+    queryKey: ['product', productId, user?.id],
+    queryFn: () => apiService.fetchProductById(productId),
+    enabled: !!productId,
   });
 
   const handleAddToCart = () => {
@@ -74,18 +73,15 @@ export default function ProductDetailPage({ productId, onNavigate }) {
     return (
       <div className="bg-white p-6 md:p-8 rounded-lg shadow-lg">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Columna de Imagen (Placeholder) */}
           <div className="flex items-center justify-center bg-gray-100 rounded-lg h-80 md:h-96">
             <Package className="w-24 h-24 text-gray-400" />
             <span className="absolute text-gray-500 text-sm">Imagen de producto</span>
           </div>
 
-          {/* Columna de Detalles */}
           <div className="flex flex-col justify-center space-y-4">
             <span className="text-sm font-medium text-blue-600 uppercase">{product.brand || 'Marca'}</span>
             <h2 className="text-3xl font-bold text-gray-900">{product.name}</h2>
             
-            {/* Aquí irían las estrellas de calificación (estáticas por ahora) */}
             <div className="flex items-center">
               <span className="text-sm text-gray-500">(Sin calificaciones)</span>
             </div>
@@ -155,7 +151,6 @@ export default function ProductDetailPage({ productId, onNavigate }) {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Encabezado con botón de volver */}
       <header className="mb-6 flex items-center">
         <button
           onClick={() => onNavigate('new-order')}

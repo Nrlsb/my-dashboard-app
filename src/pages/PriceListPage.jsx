@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useInfiniteQuery, useQuery, useMutation } from '@tanstack/react-query';
 import { Loader2, ArrowLeft, Search, X, ChevronDown, Download } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
-import { fetchProducts, fetchProtheusBrands, fetchAllProductsForPDF } from '/src/api/apiService.js';
+import apiService from '/src/api/apiService.js';
 import { useAuth } from "../context/AuthContext.jsx";
 
 // --- Formateadores ---
@@ -62,19 +62,17 @@ const ErrorMessage = ({ message, onRetry, showRetry = true }) => (
 // --- Componente Principal de la Página ---
 export default function PriceListPage({ onNavigate }) {
   const { user } = useAuth();
-  const userId = user?.id;
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedBrands, setSelectedBrands] = useState([]); // (MODIFICADO) Estado para múltiples marcas
+  const [selectedBrands, setSelectedBrands] = useState([]);
   const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
   const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
   
   const debounceTimeout = useRef(null);
   const brandDropdownRef = useRef(null);
 
-  // --- Mutación para Generar PDF ---
   const pdfMutation = useMutation({
-    mutationFn: () => fetchAllProductsForPDF(debounceSearchTerm, selectedBrands, userId), // (MODIFICADO) Pasa selectedBrands, elimina moneda
+    mutationFn: () => apiService.fetchAllProductsForPDF(debounceSearchTerm, selectedBrands),
     onSuccess: (products) => {
       if (!products || products.length === 0) {
         alert("No se encontraron productos con los filtros actuales para generar el PDF.");
@@ -120,29 +118,27 @@ export default function PriceListPage({ onNavigate }) {
     }
   });
 
-  // --- Consultas de Datos ---
   const { 
     data, fetchNextPage, hasNextPage, isFetchingNextPage, isError, error, isLoading 
   } = useInfiniteQuery({
-    queryKey: ['products', debounceSearchTerm, selectedBrands, userId], // (MODIFICADO) Usa selectedBrands, elimina moneda
-    queryFn: ({ pageParam = 1 }) => fetchProducts(pageParam, debounceSearchTerm, selectedBrands, userId), // (MODIFICADO)
+    queryKey: ['products', debounceSearchTerm, selectedBrands, user?.id],
+    queryFn: ({ pageParam = 1 }) => apiService.fetchProducts(pageParam, debounceSearchTerm, selectedBrands),
     getNextPageParam: (lastPage, allPages) => {
       const productsLoaded = allPages.reduce((acc, page) => acc + page.products.length, 0);
       return productsLoaded < lastPage.totalProducts ? allPages.length + 1 : undefined;
     },
     initialPageParam: 1,
     staleTime: 1000 * 60 * 1,
-    enabled: !!userId,
+    enabled: !!user,
   });
 
   const { data: brandsData, isLoading: isBrandsLoading } = useQuery({
-    queryKey: ['brands', userId],
-    queryFn: () => fetchProtheusBrands(userId),
+    queryKey: ['brands', user?.id],
+    queryFn: () => apiService.fetchProtheusBrands(),
     staleTime: 1000 * 60 * 60,
-    enabled: !!userId,
+    enabled: !!user,
   });
 
-  // --- useEffects ---
   useEffect(() => {
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     debounceTimeout.current = setTimeout(() => setDebounceSearchTerm(searchTerm), 500);
@@ -159,17 +155,14 @@ export default function PriceListPage({ onNavigate }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // --- Handlers de UI ---
   const handleSearchChange = (e) => setSearchTerm(e.target.value);
 
-  // (MODIFICADO) Manejador para selección múltiple de marcas
   const handleBrandChange = (brand) => {
     setSelectedBrands(prev =>
       prev.includes(brand) ? prev.filter(b => b !== brand) : [...prev, brand]
     );
   };
 
-  // (MODIFICADO) Limpia el nuevo filtro de marcas
   const handleClearFilters = () => {
     setSearchTerm('');
     setSelectedBrands([]);
@@ -177,11 +170,9 @@ export default function PriceListPage({ onNavigate }) {
 
   const handleGeneratePDF = () => pdfMutation.mutate();
 
-  // --- Renderizado ---
   const allProducts = data?.pages.flatMap(page => page.products) || [];
-  const hasFilters = searchTerm.length > 0 || selectedBrands.length > 0; // (MODIFICADO)
+  const hasFilters = searchTerm.length > 0 || selectedBrands.length > 0;
 
-  // (NUEVO) Lógica para el texto del botón de marcas
   const getBrandButtonLabel = () => {
     if (isBrandsLoading) return "Cargando marcas...";
     if (selectedBrands.length === 0) return "Todas las marcas";
@@ -204,16 +195,13 @@ export default function PriceListPage({ onNavigate }) {
         </button>
       </header>
 
-      {/* (MODIFICADO) Grid de filtros ahora con 2 columnas */}
       <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Buscador */}
         <div className="relative">
           <label htmlFor="search" className="sr-only">Buscar producto</label>
           <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input id="search" type="text" value={searchTerm} onChange={handleSearchChange} placeholder="Buscar por nombre o código..." className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
         
-        {/* (MODIFICADO) Dropdown de Marcas con selección múltiple */}
         <div className="relative" ref={brandDropdownRef}>
           <label htmlFor="brand-dropdown" className="sr-only">Filtrar por marca</label>
           <button id="brand-dropdown" onClick={() => setIsBrandDropdownOpen(!isBrandDropdownOpen)} disabled={isBrandsLoading} className="w-full flex justify-between items-center text-left bg-white pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -231,7 +219,6 @@ export default function PriceListPage({ onNavigate }) {
             </div>
           )}
         </div>
-        {/* (ELIMINADO) Dropdown de Moneda */}
       </div>
 
       {hasFilters && (
