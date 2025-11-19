@@ -1,125 +1,133 @@
-# Client Dashboard App
+# Mi Aplicación de Dashboard
 
-Este proyecto es una aplicación web full-stack de tipo dashboard diseñada para que los clientes puedan gestionar sus cuentas, ver productos, realizar pedidos e interactuar con la empresa.
+Esta es una aplicación full-stack con un frontend de React y un backend de Node.js. Proporciona un dashboard para que los usuarios administren su cuenta, pedidos, productos y más.
 
-La aplicación consiste en un frontend de **React** (construido con Vite) y un backend **Node.js/Express** que se conecta a una base de datos **PostgreSQL** para gestionar toda la lógica de negocio.
+## Características
 
-## Características Principales
+*   **Autenticación:** Los usuarios pueden registrarse e iniciar sesión en su cuenta.
+*   **Gestión de Perfil:** Los usuarios pueden ver y actualizar la información de su perfil.
+*   **Saldo de Cuenta:** Los usuarios pueden ver el saldo y los movimientos de su cuenta.
+*   **Gestión de Pedidos:** Los usuarios pueden crear nuevos pedidos, ver su historial de pedidos y ver los detalles de los pedidos.
+*   **Catálogo de Productos:** Los usuarios pueden navegar por una lista de productos, ver detalles de productos y buscar productos.
+*   **Ofertas:** Los usuarios pueden ver ofertas especiales.
+*   **Consultas:** Los usuarios pueden enviar consultas.
+*   **Carga de Comprobantes:** Los usuarios pueden cargar comprobantes de pago.
+*   **Funciones de Administrador:**
+    *   Gestionar permisos de usuario para grupos de productos.
+    *   Crear notas de crédito.
+    *   Ver todos los usuarios y pedidos.
+    *   Activar/desactivar ofertas de productos.
+    *   Gestionar la visibilidad del panel del dashboard.
 
-*   **Autenticación de Usuarios:** Registro e inicio de sesión seguros con hashing de contraseñas (bcrypt).
-*   **Dashboard Principal:** Un panel central con accesos directos a las funcionalidades clave.
-*   **Gestión de Perfil:** Los usuarios pueden ver y actualizar sus datos de perfil.
-*   **Catálogo de Productos:** Lista de precios con filtros y búsqueda para explorar todos los productos.
-*   **Creación de Pedidos:** Interfaz para añadir productos a un carrito y generar un nuevo pedido.
-*   **Historial de Pedidos:** Tabla con el historial de pedidos del cliente, con acceso a los detalles de cada uno.
-*   **Cuenta Corriente:** Resumen del saldo de la cuenta del cliente y un historial detallado de movimientos (débitos y créditos).
-*   **Sistema de Consultas:** Formulario para que los clientes envíen consultas o mensajes.
-*   **Carga de Comprobantes:** Interfaz para subir archivos (comprobantes de pago, etc.) al servidor.
-*   **Notificaciones por Email:** Envío automático de correos para confirmación de pedidos (usando Resend).
+## Primeros Pasos
 
-## Tech Stack (Tecnologías Utilizadas)
+Estas instrucciones te permitirán obtener una copia del proyecto en funcionamiento en tu máquina local para fines de desarrollo y prueba.
 
-### Frontend
+### Prerrequisitos
 
-*   **Framework:** React 19
-*   **Enrutamiento:** React Router
-*   **Gestión de Estado Asíncrono:** TanStack Query
-*   **Bundler:** Vite
-*   **Iconos:** lucide-react, react-icons
+*   [Node.js](https://nodejs.org/) (v18 o posterior)
+*   [npm](https://www.npmjs.com/)
 
-### Backend
+### Instalación
 
-*   **Runtime:** Node.js
-*   **Framework:** Express
-*   **Base de Datos:** PostgreSQL (con `node-pg`)
-*   **Autenticación:** `bcryptjs` (hashing de contraseñas)
-*   **Manejo de Archivos:** `multer` (carga de archivos)
-*   **Variables de Entorno:** `dotenv`
-*   **Envío de Emails:** `resend`
+1.  **Clona el repositorio:**
 
-## Estructura del Proyecto
+    ```bash
+    git clone https://github.com/tu-usuario/my-dashboard-app.git
+    cd my-dashboard-app
+    ```
 
-```
-my-dashboard-app/
-├── backend/api/
-│   ├── controllers.js  # Lógica de negocio de la API
-│   ├── db.js           # Gestor de conexión a PostgreSQL
-│   ├── server.js       # Servidor Express (API REST)
-│   ├── script.sql      # Script de creación de tablas para la BD
-│   ├── package.json    # Dependencias del backend
-│   └── .env            # (Requerido) Variables de entorno
-├── src/
-│   ├── api/
-│   ├── components/
-│   ├── context/
-│   ├── pages/
-│   ├── App.jsx         # Componente principal y enrutador
-│   └── main.jsx        # Punto de entrada de React
-├── index.html
-└── package.json        # Dependencias del frontend
-```
+2.  **Instala las dependencias del frontend:**
 
-## Instalación y Puesta en Marcha
+    ```bash
+    npm install
+    ```
 
-Para correr este proyecto localmente, necesitas tener **Node.js** y **PostgreSQL** instalados.
+3.  **Instala las dependencias del backend:**
 
-### 1. Backend (Servidor API)
-
-1.  Navega a la carpeta del backend:
     ```bash
     cd backend/api
-    ```
-2.  Instala las dependencias:
-    ```bash
     npm install
+    cd ../..
     ```
-3.  Configura la Base de Datos:
-    *   Asegúrate de que tu servicio de PostgreSQL esté corriendo.
-    *   Crea una base de datos (ej. `my_dashboard_db`).
-    *   Ejecuta el script `script.sql` en tu base de datos para crear todas las tablas.
-    *   (Ej. usando `psql`: `psql -U tu_usuario -d my_dashboard_db -f script.sql`)
 
-4.  Crea las variables de entorno:
-    *   En la carpeta `backend/api/`, crea un archivo llamado `.env`.
-    *   Añade tus credenciales de la base de datos y las claves de la API de email:
-        ```.env
-        # PostgreSQL DB Credentials
-        DB_USER=tu_usuario_postgres
-        DB_HOST=localhost
-        DB_DATABASE=my_dashboard_db
-        DB_PASSWORD=tu_contraseña_postgres
-        DB_PORT=5432
+### Ejecutando la Aplicación
 
-        # Email Service (Resend)
-        RESEND_API_KEY=tu_api_key_de_resend
-        SELLER_EMAIL=email_del_vendedor@ejemplo.com
-        EMAIL_FROM=email_de_envio@ejemplo.com
-        ```
-5.  Inicia el servidor backend:
+1.  **Inicia el servidor del backend:**
+
+    El backend se ejecuta en `http://localhost:3001`.
+
     ```bash
+    cd backend/api
     node server.js
     ```
-    *   El servidor estará corriendo en `http://localhost:3001`.
 
-### 2. Frontend (Aplicación React)
+2.  **Inicia el servidor de desarrollo del frontend:**
 
-1.  Abre una **nueva terminal** en la raíz del proyecto.
+    El frontend se ejecuta en `http://localhost:5173` por defecto (revisa la salida de Vite).
 
-2.  Instala las dependencias:
-    ```bash
-    npm install
-    ```
-3.  Inicia el cliente de desarrollo:
     ```bash
     npm run dev
     ```
-    *   La aplicación estará disponible en `http://localhost:5173` (o el puerto que indique Vite).
 
-## Scripts Disponibles
+3.  Abre tu navegador y navega a la URL del frontend.
 
-Para el frontend (desde la carpeta raíz):
+## Endpoints de la API
 
-*   `npm run dev`: Inicia el servidor de desarrollo.
-*   `npm run build`: Compila la aplicación para producción en la carpeta `dist`.
-*   `npm run lint`: Ejecuta ESLint para analizar el código.
-*   `npm run preview`: Sirve la carpeta `dist` para previsualizar la build de producción.
+La API del backend tiene el prefijo `/api`.
+
+*   **Autenticación:**
+    *   `POST /login`: Autenticar un usuario.
+    *   `POST /register`: Registrar un nuevo usuario.
+*   **Perfil:**
+    *   `GET /profile`: Obtener el perfil del usuario.
+    *   `PUT /profile`: Actualizar el perfil del usuario.
+*   **Saldo de Cuenta:**
+    *   `GET /balance`: Obtener el saldo de la cuenta.
+    *   `GET /movements`: Obtener los movimientos de la cuenta.
+*   **Pedidos:**
+    *   `GET /orders`: Obtener todos los pedidos del usuario.
+    *   `GET /orders/:id`: Obtener detalles del pedido.
+    *   `POST /orders`: Crear un nuevo pedido.
+*   **Productos:**
+    *   `GET /products`: Obtener una lista paginada de productos.
+    *   `GET /products/:id`: Obtener detalles del producto.
+    *   `GET /brands`: Obtener una lista de todas las marcas.
+    *   `GET /offers`: Obtener una lista de todas las ofertas.
+*   **Administrador:**
+    *   `POST /credit-note`: Crear una nota de crédito.
+    *   `GET /customer-invoices/:cod`: Obtener facturas de un cliente.
+    *   `GET /admin/order-details/:id`: Obtener detalles de cualquier pedido.
+    *   `GET /admin/users`: Obtener una lista de todos los usuarios.
+    *   `GET /admin/product-groups`: Obtener una lista de todos los grupos de productos.
+    *   `GET /admin/users/:userId/product-groups`: Obtener permisos de grupo de productos para un usuario.
+    *   `PUT /admin/users/:userId/product-groups`: Actualizar permisos de grupo de productos para un usuario.
+    *   `PUT /products/:id/toggle-offer`: Activar/desactivar el estado de oferta de un producto.
+    *   `GET /dashboard-panels`: Obtener paneles de dashboard visibles.
+    *   `GET /admin/dashboard-panels`: Obtener todos los paneles de dashboard.
+    *   `PUT /admin/dashboard-panels/:id`: Actualizar la visibilidad de un panel de dashboard.
+*   **Carga de Archivos:**
+    *   `POST /upload-voucher`: Cargar un comprobante de pago.
+*   **Consultas:**
+    *   `POST /queries`: Enviar una nueva consulta.
+
+## Tecnologías Utilizadas
+
+### Frontend
+
+*   [React](https://reactjs.org/)
+*   [Vite](https://vitejs.dev/)
+*   [React Router](https://reactrouter.com/)
+*   [@tanstack/react-query](https://tanstack.com/query/latest)
+*   [Lucide React](https://lucide.dev/guide/react)
+*   [ESLint](https://eslint.org/)
+
+### Backend
+
+*   [Node.js](https://nodejs.org/)
+*   [Express](https://expressjs.com/)
+*   [PostgreSQL](https://www.postgresql.org/) (controlador `pg`)
+*   [bcryptjs](https://www.npmjs.com/package/bcryptjs) para el hash de contraseñas.
+*   [Multer](https://github.com/expressjs/multer) para la carga de archivos.
+*   [CORS](https://expressjs.com/en/resources/middleware/cors.html)
+*   [dotenv](https://www.npmjs.com/package/dotenv) para variables de entorno.
