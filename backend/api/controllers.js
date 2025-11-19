@@ -787,11 +787,14 @@ const fetchProductDetails = async (productId, userId = null) => {
       WHERE id = $1 AND price > 0 AND description IS NOT NULL
     `;
     let queryParams = [productId];
-            if (userId) {      const deniedGroups = await getDeniedProductGroups(userId);
+    let paramIndex = 2; // Inicializar paramIndex
+
+    if (userId) {
+      const deniedGroups = await getDeniedProductGroups(userId);
       
       if (deniedGroups.length > 0) {
-        const groupQuery = ` product_group NOT IN (SELECT unnest($${paramIndex}::varchar[])) `;
-        query += ` AND ${groupQuery}`;
+        const groupQuery = ` AND product_group NOT IN (SELECT unnest($${paramIndex}::varchar[])) `;
+        query += groupQuery;
         queryParams.push(deniedGroups);
         paramIndex++;
       } else {

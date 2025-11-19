@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'; // (NUEVO) Importar useAuth
 
 const PRODUCTS_PER_PAGE = 20; // Coincide con el backend
 
-const CategoryPage = ({ groupCode, onNavigate }) => {
+const CategoryPage = ({ groupCode, onNavigate, onViewProductDetails }) => {
   const { user } = useAuth(); // (NUEVO) Obtener el usuario para los permisos
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +66,11 @@ const CategoryPage = ({ groupCode, onNavigate }) => {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {products.map(product => (
-              <div key={product.id} className="border p-4 rounded-lg shadow-md bg-white flex flex-col justify-between">
+              <div 
+                key={product.id} 
+                className="border p-4 rounded-lg shadow-md bg-white flex flex-col justify-between cursor-pointer"
+                onClick={() => onViewProductDetails(product.id)}
+              >
                 <div>
                   <h2 className="text-base font-semibold text-gray-800 h-12">{product.name}</h2>
                   <p className="text-sm text-gray-500">{product.brand}</p>

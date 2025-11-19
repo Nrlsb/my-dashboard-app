@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiService } from '../api/apiService';
 import './AccessoryCarousel.css';
 
-const AccessoryCarousel = () => {
+const AccessoryCarousel = ({ onViewProductDetails }) => {
   const [accessories, setAccessories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -50,6 +50,12 @@ const AccessoryCarousel = () => {
     return () => clearInterval(intervalId);
   }, [accessories, loading, fetchAccessories]); // Depender de 'loading' para reiniciar el intervalo
 
+  const handleAccessoryClick = (productId) => {
+    if (onViewProductDetails) {
+      onViewProductDetails(productId);
+    }
+  };
+
   if (loading && accessories.length === 0) {
     return <div className="p-4">Cargando accesorios...</div>;
   }
@@ -67,7 +73,11 @@ const AccessoryCarousel = () => {
       <h2 className="text-2xl font-bold mb-4 text-white">Accesorios</h2>
       <div className="accessory-carousel" ref={carouselRef}>
         {accessories.map((item) => (
-          <div key={item.id} className="accessory-card">
+          <div 
+            key={item.id} 
+            className="accessory-card cursor-pointer transform hover:scale-105 transition-transform"
+            onClick={() => handleAccessoryClick(item.id)}
+          >
             <img src={item.image_url} alt={item.name} className="accessory-image" />
             <div className="accessory-info">
               <h3 className="accessory-name">{item.name}</h3>

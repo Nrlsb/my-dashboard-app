@@ -148,7 +148,7 @@ function App() {
     // Si está logueado, mostramos el resto de las páginas
     switch (currentPage) {
       case 'dashboard':
-        return <DashboardPage onNavigate={handleNavigate} onNavigateToCategory={handleNavigateToCategory} />;
+        return <DashboardPage onNavigate={handleNavigate} onNavigateToCategory={handleNavigateToCategory} onViewProductDetails={handleViewProductDetails} />;
       case 'profile':
         // Pasamos el user del contexto
         return <ProfilePage onNavigate={handleNavigate} user={user} />; // (MODIFICADO)
@@ -195,6 +195,7 @@ function App() {
           <CategoryPage
             onNavigate={handleNavigate}
             groupCode={selectedGroupCode}
+            onViewProductDetails={handleViewProductDetails}
           />
         );
         
