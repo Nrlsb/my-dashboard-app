@@ -1215,11 +1215,23 @@ const updateUserGroupPermissions = async (userId, groups) => {
 /**
  * (NUEVO) Obtiene la lista de productos accesorios
  */
-const getAccessories = async (req, res) => {
+const getAccessories = async (userId) => {
   try {
-    const accessoryGroups = ['0102', '0103', '0114', '0120', '0121', '0125', '0128', '0136', '0140', '0143', '0144', '0148', '0149', '0166', '0177', '0186', '0187'];
+    let accessoryGroups = ['0102', '0103', '0114', '0120', '0121', '0125', '0128', '0136', '0140', '0143', '0144', '0148', '0149', '0166', '0177', '0186', '0187'];
+
+    if (userId) {
+      const deniedGroups = await getDeniedProductGroups(userId);
+      if (deniedGroups.length > 0) {
+        accessoryGroups = accessoryGroups.filter(group => !deniedGroups.includes(group));
+      }
+    }
+
+    if (accessoryGroups.length === 0) {
+      return []; // No hay grupos de accesorios para mostrar
+    }
+
     const query = `
-      SELECT id, code, description, price 
+      SELECT id, code, description, price, product_group
       FROM products 
       WHERE product_group = ANY($1) AND price > 0 AND description IS NOT NULL
       ORDER BY RANDOM()
@@ -1230,11 +1242,11 @@ const getAccessories = async (req, res) => {
     const accessories = result.rows.map(prod => ({
       id: prod.id,
       code: prod.code,
-      name: prod.description, // Map description to name for the frontend
+      name: prod.description,
       price: prod.price,
-      formattedPrice: formatCurrency(prod.price), // Using existing helper
-      // Using a placeholder for the image
-      image_url: `https://via.placeholder.com/150/2D3748/FFFFFF?text=${encodeURIComponent(prod.description.split(' ')[0])}`
+      formattedPrice: formatCurrency(prod.price),
+      image_url: `https://via.placeholder.com/150/2D3748/FFFFFF?text=${encodeURIComponent(prod.description.split(' ')[0])}`,
+      group_code: prod.product_group,
     }));
     
     return accessories;
@@ -1249,14 +1261,24 @@ const getAccessories = async (req, res) => {
  * (NUEVO) Obtiene detalles de una lista de grupos de productos,
  * incluyendo una imagen aleatoria de un producto de cada grupo.
  */
-const getProductGroupsDetails = async () => {
-  const groupCodes = ['0102', '0103', '0114', '0120', '0121', '0125', '0128', '0136', '0140', '0143', '0144', '0148', '0149', '0166', '0177', '0186', '0187'];
+const getProductGroupsDetails = async (userId) => {
+  let groupCodes = ['0102', '0103', '0114', '0120', '0121', '0125', '0128', '0136', '0140', '0143', '0144', '0148', '0149', '0166', '0177', '0186', '0187'];
   
   try {
+    if (userId) {
+      const deniedGroups = await getDeniedProductGroups(userId);
+      if (deniedGroups.length > 0) {
+        groupCodes = groupCodes.filter(code => !deniedGroups.includes(code));
+      }
+    }
+
+    if (groupCodes.length === 0) {
+      return [];
+    }
+
     const groupDetails = [];
 
     for (const code of groupCodes) {
-      // Para cada código, busca un producto para obtener la marca (nombre del grupo) y una descripción para la imagen.
       const productQuery = `
         SELECT brand, description
         FROM products
@@ -1270,9 +1292,7 @@ const getProductGroupsDetails = async () => {
 
       if (productResult.rows.length > 0) {
         const product = productResult.rows[0];
-        // El nombre del grupo es la 'brand', según la indicación.
         name = product.brand; 
-        // Usamos la descripción del producto para generar una imagen más descriptiva.
         const imageName = product.description || name;
         imageUrl = `https://via.placeholder.com/150/2D3748/FFFFFF?text=${encodeURIComponent(imageName.split(' ')[0])}`;
       }

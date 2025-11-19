@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import apiService from '../api/apiService';
+import { useAuth } from '../context/AuthContext'; // Importar useAuth
 import './AccessoryCarousel.css';
 
 const AccessoryCarousel = ({ onViewProductDetails }) => {
@@ -7,23 +8,30 @@ const AccessoryCarousel = ({ onViewProductDetails }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const carouselRef = useRef(null);
+  const { user } = useAuth(); // Obtener el usuario del contexto
 
   const fetchAccessories = useCallback(async () => {
     try {
       setLoading(true);
       const data = await apiService.getAccessories();
+      
+      // Filtrar los accesorios si el usuario tiene grupos restringidos
+      const filteredAccessories = user && user.restricted_groups
+        ? data.filter(acc => !user.restricted_groups.includes(acc.group_code))
+        : data;
+
       // Al recargar, nos aseguramos de que el scroll vuelva al inicio
       if (carouselRef.current) {
         carouselRef.current.scrollTo({ left: 0, behavior: 'auto' });
       }
-      setAccessories(data);
+      setAccessories(filteredAccessories);
       setLoading(false);
     } catch (err) {
       setError('No se pudieron cargar los accesorios.');
       console.error(err);
       setLoading(false);
     }
-  }, []);
+  }, [user]); // Depender del usuario para volver a filtrar si cambia
 
   useEffect(() => {
     fetchAccessories();

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import apiService from '../api/apiService';
+import { useAuth } from '../context/AuthContext'; // Importar useAuth
 import './ProductGroupCarousel.css';
 
 const ProductGroupCarousel = ({ onNavigateToCategory }) => {
@@ -7,13 +8,20 @@ const ProductGroupCarousel = ({ onNavigateToCategory }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const carouselRef = useRef(null);
+  const { user } = useAuth(); // Obtener el usuario del contexto
 
   useEffect(() => {
     const fetchGroupDetails = async () => {
       try {
         setLoading(true);
         const data = await apiService.getProductGroupsDetails();
-        setGroups(data);
+        
+        // Filtrar los grupos si el usuario tiene grupos restringidos
+        const filteredGroups = user && user.restricted_groups
+          ? data.filter(group => !user.restricted_groups.includes(group.group_code))
+          : data;
+
+        setGroups(filteredGroups);
         setLoading(false);
       } catch (err) {
         setError('No se pudieron cargar los grupos de productos.');
@@ -23,7 +31,7 @@ const ProductGroupCarousel = ({ onNavigateToCategory }) => {
     };
 
     fetchGroupDetails();
-  }, []);
+  }, [user]); // Depender del usuario para volver a filtrar si cambia
 
   // Auto-scrolling effect
   useEffect(() => {

@@ -349,10 +349,10 @@ const optionalAuthenticateToken = (req, res, next) => {
     }
   });
   
-  router.get('/accessories', async (req, res) => {
+  router.get('/accessories', optionalAuthenticateToken, async (req, res) => {
     console.log('GET /api/accessories -> Consultando productos accesorios...');
     try {
-      const accessories = await controllers.getAccessories();
+      const accessories = await controllers.getAccessories(req.userId);
       res.json(accessories);
     } catch (error) {
       console.error('Error en /api/accessories:', error);
@@ -360,10 +360,10 @@ const optionalAuthenticateToken = (req, res, next) => {
     }
   });
 
-  router.get('/product-groups-details', async (req, res) => {
+  router.get('/product-groups-details', optionalAuthenticateToken, async (req, res) => {
     console.log('GET /api/product-groups-details -> Consultando detalles de grupos...');
     try {
-      const groupDetails = await controllers.getProductGroupsDetails();
+      const groupDetails = await controllers.getProductGroupsDetails(req.userId);
       res.json(groupDetails);
     } catch (error) {
       console.error('Error en /api/product-groups-details:', error);
