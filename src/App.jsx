@@ -23,6 +23,7 @@ import ProductDetailPage from './pages/ProductDetailPage.jsx';
 import DashboardSettingsPage from './pages/DashboardSettingsPage.jsx'; // (NUEVO) Importar la página de configuración
 import ManageOffersPage from './pages/ManageOffersPage.jsx'; // (NUEVO) Importar la página de gestión de ofertas
 import ClientGroupPermissionsPage from './pages/ClientGroupPermissionsPage.jsx'; // (NUEVO) Importar la página de permisos
+import ManageAdminsPage from './pages/ManageAdminsPage.jsx'; // (NUEVO) Importar la página de gestión de admins
 import Header from './components/Header.jsx'; // Importa el Header unificado
 
 // Importar el hook del carrito
@@ -229,6 +230,13 @@ function App() {
       case 'client-group-permissions': // (NUEVO)
         if (user?.is_admin) { // (MODIFICADO)
           return <ClientGroupPermissionsPage onNavigate={handleNavigate} currentUser={user} />; // (MODIFICADO)
+        }
+        // Si no es admin, lo mandamos al dashboard
+        return <DashboardPage onNavigate={handleNavigate} />;
+
+      case 'manage-admins': // (NUEVO)
+        if (user?.is_admin) {
+          return <ManageAdminsPage onNavigate={handleNavigate} />;
         }
         // Si no es admin, lo mandamos al dashboard
         return <DashboardPage onNavigate={handleNavigate} />;

@@ -534,4 +534,43 @@ const optionalAuthenticateToken = (req, res, next) => {
     }
   });
   
+  // --- (NUEVO) Gestión de Administradores ---
+  router.get('/admin/management/admins', authenticateToken, requireAdmin, async (req, res) => {
+    console.log(`GET /api/admin/management/admins -> Admin ${req.userId} fetching admin list...`);
+    try {
+      const admins = await controllers.getAdmins();
+      res.json(admins);
+    } catch (error) {
+      console.error('Error in /api/admin/management/admins (GET):', error);
+      res.status(500).json({ message: 'Error al obtener la lista de administradores.' });
+    }
+  });
+  
+  router.post('/admin/management/admins', authenticateToken, requireAdmin, async (req, res) => {
+    const { userId } = req.body;
+    console.log(`POST /api/admin/management/admins -> Admin ${req.userId} adding user ${userId} as admin...`);
+    try {
+      if (!userId) {
+        return res.status(400).json({ message: 'El campo "userId" es obligatorio.' });
+      }
+      const result = await controllers.addAdmin(userId);
+      res.json(result);
+    } catch (error) {
+      console.error('Error in /api/admin/management/admins (POST):', error);
+      res.status(500).json({ message: error.message || 'Error al añadir administrador.' });
+    }
+  });
+  
+  router.delete('/admin/management/admins/:userId', authenticateToken, requireAdmin, async (req, res) => {
+    const { userId } = req.params;
+    console.log(`DELETE /api/admin/management/admins/${userId} -> Admin ${req.userId} removing admin...`);
+    try {
+      const result = await controllers.removeAdmin(userId);
+      res.json(result);
+    } catch (error) {
+      console.error(`Error in /api/admin/management/admins/${userId} (DELETE):`, error);
+      res.status(500).json({ message: error.message || 'Error al eliminar administrador.' });
+    }
+  });
+  
   module.exports = router;

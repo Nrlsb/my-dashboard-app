@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 // (TYPO CORREGIDO) La ruta correcta es '../' para subir de 'components' a 'src'
 import { useCart } from '../context/CartContext.jsx';
-import { Building, ChevronDown, User, LogOut, ShoppingCart, Settings, Users } from 'lucide-react';
+import { Building, ChevronDown, User, LogOut, ShoppingCart, Settings, Users, UserCog } from 'lucide-react';
 
 // --- Componente de Header (Corregido) ---
 // (MODIFICADO) Acepta 'onLogout' y 'currentUser'
@@ -34,6 +34,14 @@ const Header = ({ onNavigate, onLogout, currentUser }) => {
   const handlePermissionsClick = () => {
     if (onNavigate) {
       onNavigate('client-group-permissions');
+    }
+    setIsDropdownOpen(false);
+  };
+
+  // (NUEVO) Manejador para la gestión de administradores
+  const handleManageAdminsClick = () => {
+    if (onNavigate) {
+      onNavigate('manage-admins');
     }
     setIsDropdownOpen(false);
   };
@@ -125,6 +133,13 @@ const Header = ({ onNavigate, onLogout, currentUser }) => {
                         >
                           <Users className="w-5 h-5 mr-3 text-gray-500" />
                           Permisos Clientes
+                        </button>
+                        <button
+                          onClick={handleManageAdminsClick}
+                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <UserCog className="w-5 h-5 mr-3 text-gray-500" />
+                          Gestionar Admins
                         </button>
                       </>
                     )}

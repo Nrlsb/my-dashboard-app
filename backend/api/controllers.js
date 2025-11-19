@@ -41,6 +41,7 @@ const getExchangeRatesController = async (req, res) => {
 const authenticateProtheusUser = async (email, password) => {
   try {
     console.log(`Buscando usuario con email: ${email}`);
+    // Paso 1: Autenticar usuario contra la DB1 (pool)
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     
     if (result.rows.length === 0) {
@@ -50,7 +51,6 @@ const authenticateProtheusUser = async (email, password) => {
     
     const user = result.rows[0];
     
-    // (NUEVO) Comparamos la contraseña hasheada
     const isMatch = await bcrypt.compare(password, user.password_hash);
     
     if (!isMatch) {
@@ -58,10 +58,27 @@ const authenticateProtheusUser = async (email, password) => {
       return { success: false, message: 'Usuario o contraseña incorrectos.' };
     }
 
-    // Si la contraseña es correcta, devolvemos el usuario (sin el hash)
-    console.log(`Usuario ${user.id} autenticado.`);
+    console.log(`Usuario ${user.id} autenticado. Verificando permisos de admin en DB2...`);
     const { password_hash, ...userWithoutPassword } = user;
+
+    // Paso 2: Verificar si es admin en la DB2 (pool2)
+    try {
+      const adminCheck = await pool2.query('SELECT 1 FROM admins WHERE user_id = $1', [user.id]);
+      if (adminCheck.rows.length > 0) {
+        console.log(`El usuario ${user.id} ES administrador.`);
+        userWithoutPassword.is_admin = true;
+      } else {
+        console.log(`El usuario ${user.id} NO es administrador.`);
+        userWithoutPassword.is_admin = false;
+      }
+    } catch (adminDbError) {
+      console.error('Error al consultar la tabla de administradores en DB2:', adminDbError);
+      // Decidir si fallar o continuar sin permisos de admin.
+      // Es más seguro asumir que no es admin si la DB2 falla.
+      userWithoutPassword.is_admin = false;
+    }
     
+    // Paso 3: Devolver el usuario con el estado de admin actualizado
     return { success: true, user: userWithoutPassword };
     
   } catch (error) {
@@ -337,52 +354,55 @@ const fetchCustomerInvoices = async (customerCod) => {
  */
 const fetchAdminOrderDetails = async (orderId) => {
   try {
-    // 1. Obtener datos del pedido
-    // (CORREGIDO) Se cambió 'u.nombre' por 'u.full_name'
+    // 1. Obtener datos del pedido desde BD2
     const orderQuery = `
-      SELECT p.*, 
-             u.full_name as user_nombre, 
-             u.email as user_email,
-             TO_CHAR(p.created_at, 'DD/MM/YYYY HH24:MI') as formatted_date
-      FROM orders p
-      JOIN users u ON p.user_id = u.id
-      WHERE p.id = $1;
+      SELECT *, TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') as formatted_date
+      FROM orders
+      WHERE id = $1;
     `;
-    const orderResult = await pool.query(orderQuery, [orderId]);
+    const orderResult = await pool2.query(orderQuery, [orderId]);
     
     if (orderResult.rows.length === 0) {
       return null; // Pedido no encontrado
     }
+    const order = orderResult.rows[0];
+
+    // 2. Obtener datos del usuario desde BD1
+    const userQuery = `SELECT full_name as user_nombre, email as user_email FROM users WHERE id = $1;`;
+    const userResult = await pool.query(userQuery, [order.user_id]);
+    const user = userResult.rows[0] || { user_nombre: 'N/A', user_email: 'N/A' };
     
-    // 2. Obtener items del pedido
-    // ========================================================
-    // --- INICIO DE LA CORRECCIÓN (ADMIN) ---
-    // ========================================================
-    // Se hace JOIN con 'products' para obtener la descripción/nombre real
-    const itemsQuery = `
-      SELECT 
-        oi.*, 
-        p.description as product_name_from_products
-      FROM order_items oi
-      LEFT JOIN products p ON oi.product_id = p.id
-      WHERE oi.order_id = $1;
-    `;
-    const itemsResult = await pool.query(itemsQuery, [orderId]);
+    // 3. Obtener items del pedido desde BD2
+    const itemsQuery = `SELECT * FROM order_items WHERE order_id = $1;`;
+    const itemsResult = await pool2.query(itemsQuery, [orderId]);
+    const items = itemsResult.rows;
+
+    if (items.length > 0) {
+        // 4. Obtener los IDs de los productos
+        const productIds = items.map(item => item.product_id);
+
+        // 5. Obtener las descripciones de los productos desde BD1
+        const productsQuery = `SELECT id, description FROM products WHERE id = ANY($1::int[]);`;
+        const productsResult = await pool.query(productsQuery, [productIds]);
+        const productMap = new Map(productsResult.rows.map(p => [p.id, p.description]));
+
+        // 6. Enriquecer los items con la descripción del producto
+        items.forEach(item => {
+            item.product_name = productMap.get(item.product_id) || 'Descripción no disponible';
+        });
+    }
     
-    // 3. Combinar y formatear
+    // 7. Combinar y formatear
     const orderDetails = {
-      ...orderResult.rows[0],
-      items: itemsResult.rows.map(item => ({
+      ...order,
+      ...user,
+      items: items.map(item => ({
         ...item,
-        // Usamos la descripción de la tabla 'products' como fuente principal
-        product_name: item.product_name_from_products,
+        product_name: item.product_name,
         formattedPrice: formatCurrency(item.unit_price)
       })),
-      formattedTotal: formatCurrency(orderResult.rows[0].total)
+      formattedTotal: formatCurrency(order.total)
     };
-    // ========================================================
-    // --- FIN DE LA CORRECCIÓN (ADMIN) ---
-    // ========================================================
     
     return orderDetails;
     
@@ -411,7 +431,7 @@ const fetchProtheusOrders = async (userId) => {
       WHERE user_id = $1
       ORDER BY created_at DESC;
     `;
-    const result = await pool.query(query, [userId]);
+    const result = await pool2.query(query, [userId]);
     
     // Formatear los datos antes de enviarlos
     const formattedOrders = result.rows.map(order => ({
@@ -432,48 +452,49 @@ const fetchProtheusOrders = async (userId) => {
  */
 const fetchProtheusOrderDetails = async (orderId, userId) => {
   try {
-    // 1. Obtener datos del pedido (y verificar que pertenece al usuario)
+    // 1. Obtener datos del pedido (y verificar que pertenece al usuario) desde BD2
     const orderQuery = `
       SELECT *, 
              TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') as formatted_date
       FROM orders
       WHERE id = $1 AND user_id = $2;
     `;
-    const orderResult = await pool.query(orderQuery, [orderId, userId]);
+    const orderResult = await pool2.query(orderQuery, [orderId, userId]);
     
     if (orderResult.rows.length === 0) {
       return null; // Pedido no encontrado o no pertenece al usuario
     }
     
-    // ========================================================
-    // --- INICIO DE LA CORRECCIÓN ---
-    // ========================================================
-    // 2. Obtener items del pedido (CORREGIDO: Se hace JOIN con 'products')
-    // Esto asegura que SIEMPRE tengamos la descripción,
-    // incluso si falló al guardarse en 'order_items.product_name'
-    const itemsQuery = `
-      SELECT 
-        oi.*, 
-        p.description as product_name_from_products
-      FROM order_items oi
-      LEFT JOIN products p ON oi.product_id = p.id
-      WHERE oi.order_id = $1;
-    `;
-    const itemsResult = await pool.query(itemsQuery, [orderId]);
+    // 2. Obtener items del pedido desde BD2 (sin el JOIN)
+    const itemsQuery = `SELECT * FROM order_items WHERE order_id = $1;`;
+    const itemsResult = await pool2.query(itemsQuery, [orderId]);
+    const items = itemsResult.rows;
+
+    if (items.length > 0) {
+        // 3. Obtener los IDs de los productos
+        const productIds = items.map(item => item.product_id);
+
+        // 4. Obtener las descripciones de los productos desde BD1
+        const productsQuery = `SELECT id, description FROM products WHERE id = ANY($1::int[]);`;
+        const productsResult = await pool.query(productsQuery, [productIds]);
+        const productMap = new Map(productsResult.rows.map(p => [p.id, p.description]));
+
+        // 5. Enriquecer los items con la descripción del producto
+        items.forEach(item => {
+            item.product_name = productMap.get(item.product_id) || 'Descripción no disponible';
+        });
+    }
     
-    // 3. Combinar y formatear
+    // 6. Combinar y formatear
     const orderDetails = {
       ...orderResult.rows[0],
-      items: itemsResult.rows.map(item => ({
+      items: items.map(item => ({
         ...item,
-        product_name: item.product_name_from_products,
+        product_name: item.product_name, // Usar el nombre enriquecido
         formattedPrice: formatCurrency(item.unit_price)
       })),
       formattedTotal: formatCurrency(orderResult.rows[0].total)
     };
-    // ========================================================
-    // --- FIN DE LA CORRECCIÓN ---
-    // ========================================================
     
     return orderDetails;
     
@@ -504,15 +525,16 @@ const saveProtheusOrder = async (orderData, userId) => {
     throw error; // Detener la ejecución si no encontramos al usuario
   }
 
-  // (MODIFICADO) Conectamos un cliente para la transacción
-  const client = await pool.connect();
+  // (MODIFICADO) Conectamos un cliente para la transacción a la BD 2
+  const client = await pool2.connect();
+  let newOrder; // La declaramos aquí para que sea accesible fuera del try/catch de la transacción
+  let newOrderId;
   
   try {
-    // Iniciar Transacción
+    // Iniciar Transacción en BD 2
     await client.query('BEGIN');
     
-    // 1. Insertar el pedido principal (orders)
-    // Adaptado a script.sql: Se quitan 'payment_method' y 'a1_cod'.
+    // 1. Insertar el pedido principal (orders) en BD 2
     const orderInsertQuery = `
       INSERT INTO orders (user_id, total, status)
       VALUES ($1, $2, $3)
@@ -521,115 +543,116 @@ const saveProtheusOrder = async (orderData, userId) => {
     const orderValues = [userId, total, 'Pendiente'];
     
     const orderResult = await client.query(orderInsertQuery, orderValues);
-    const newOrder = orderResult.rows[0];
-    const newOrderId = newOrder.id;
+    newOrder = orderResult.rows[0];
+    newOrderId = newOrder.id; // Asignamos el ID del nuevo pedido
 
-    // 2. Insertar los items del pedido (order_items)
-    // Adaptado a script.sql: Se quita 'product_name'.
+    // 2. Insertar los items del pedido (order_items) en BD 2
     const itemInsertQuery = `
       INSERT INTO order_items (order_id, product_id, quantity, unit_price, product_code)
       VALUES ($1, $2, $3, $4, $5);
     `;
     
-    // (MODIFICADO) Usamos un bucle 'for...of' para 'await' dentro
     for (const item of items) {
       const itemValues = [
         newOrderId,
-        item.id,       // 'id' del producto
+        item.id,
         item.quantity,
-        item.price,    // 'price' del producto
-        item.code      // 'code' del producto
+        item.price,
+        item.code
       ];
       await client.query(itemInsertQuery, itemValues);
     }
     
-    // 3. Si paga con 'Cuenta Corriente', registrar el débito
-    // Adaptado a la tabla 'account_movements'.
-    if (paymentMethod === 'Cuenta Corriente') {
-      const updateBalanceQuery = `
-        INSERT INTO account_movements (user_id, debit, description, order_ref, date)
-        VALUES ($1, $2, $3, $4, CURRENT_DATE);
-      `;
-      // Insertamos un movimiento de 'débito' (positivo en su columna) por el total del pedido.
-      await client.query(updateBalanceQuery, [userId, total, `Débito por Pedido #${newOrderId}`, newOrderId]);
-    }
-
-    // Terminar Transacción
+    // Terminar Transacción en BD 2
     await client.query('COMMIT');
     
-    // --- 4. Enviar correos y generar archivos después de confirmar la transacción ---
-    try {
-      // Primero, enriquecemos los items con sus descripciones desde la BD
-      const productIds = items.map(item => item.id);
-      const productsResult = await pool.query('SELECT id, description FROM products WHERE id = ANY($1::int[])', [productIds]);
-      const productMap = new Map(productsResult.rows.map(p => [p.id, p.description]));
-
-      const enrichedItems = items.map(item => ({
-        ...item,
-        name: productMap.get(item.id) || 'Descripción no encontrada',
-      }));
-
-      const sellerEmail = process.env.SELLER_EMAIL;
-      const fromEmail = process.env.EMAIL_FROM;
-
-      if (!sellerEmail || !fromEmail || !process.env.RESEND_API_KEY) {
-        console.warn(`[Pedido #${newOrderId}] Faltan variables .env (RESEND_API_KEY, SELLER_EMAIL o EMAIL_FROM). No se enviarán correos.`);
-      } else {
-        console.log(`[Pedido #${newOrderId}] Enviando correos a ${user.email} y ${sellerEmail}...`);
-
-        const orderDataForFiles = { user, newOrder, items: enrichedItems, total };
-        
-        const pdfBuffer = await generateOrderPDF(orderDataForFiles);
-        const csvBuffer = await generateOrderCSV(enrichedItems);
-
-        const pdfAttachment = {
-          filename: `Pedido_${newOrderId}.pdf`,
-          content: pdfBuffer,
-        };
-        const csvAttachment = {
-          filename: `Pedido_${newOrderId}.csv`,
-          content: csvBuffer,
-        };
-        
-        await sendOrderConfirmationEmail(
-          user.email,
-          newOrderId,
-          enrichedItems,
-          total,
-          user.full_name,
-          [pdfAttachment]
-        );
-
-        await sendNewOrderNotificationEmail(
-          sellerEmail,
-          newOrderId,
-          enrichedItems,
-          total,
-          user,
-          [pdfAttachment, csvAttachment]
-        );
-        
-        console.log(`[Pedido #${newOrderId}] Correos con adjuntos enviados con éxito.`);
-      }
-
-    } catch (emailError) {
-      // Si falla el email, NO detenemos la operación. Solo lo logueamos.
-      // El pedido ya se guardó y la transacción se completó.
-      console.error(`[Pedido #${newOrderId}] El pedido se guardó, pero falló el envío de correos:`, emailError);
-    }
-    // --- (FIN NUEVO) ---
-
-    // Devolver éxito (el pedido se guardó)
-    return { success: true, message: 'Pedido guardado con éxito.', orderId: newOrderId };
-
   } catch (error) {
-    // Si algo falla ANTES del COMMIT, hacer rollback
+    // Si algo falla, hacer rollback en BD 2
     await client.query('ROLLBACK');
-    console.error('Error en la transacción de guardado de pedido:', error);
+    console.error('Error en la transacción de guardado de pedido en BD2:', error);
     throw error; // Lanza el error para que la ruta lo maneje
   } finally {
-    client.release(); // (NUEVO) Liberar el cliente de vuelta al pool
+    client.release(); // Liberar el cliente de vuelta al pool2
   }
+
+  // --- Lógica Post-Transacción ---
+  try {
+    // 3. Si paga con 'Cuenta Corriente', registrar el débito en BD 1 (FUERA de la transacción principal)
+    if (paymentMethod === 'Cuenta Corriente') {
+      try {
+        const updateBalanceQuery = `
+          INSERT INTO account_movements (user_id, debit, description, order_ref, date)
+          VALUES ($1, $2, $3, $4, CURRENT_DATE);
+        `;
+        await pool.query(updateBalanceQuery, [userId, total, `Débito por Pedido #${newOrderId}`, newOrderId]);
+      } catch (balanceError) {
+        // CRÍTICO: El pedido se guardó pero no se pudo actualizar el saldo.
+        // Se debe registrar este error para una corrección manual.
+        console.error(`[ERROR CRÍTICO] Pedido #${newOrderId} guardado, pero falló la actualización de saldo para usuario ${userId}:`, balanceError);
+      }
+    }
+
+    // 4. Enviar correos y generar archivos
+    const productIds = items.map(item => item.id);
+    const productsResult = await pool.query('SELECT id, description FROM products WHERE id = ANY($1::int[])', [productIds]);
+    const productMap = new Map(productsResult.rows.map(p => [p.id, p.description]));
+
+    const enrichedItems = items.map(item => ({
+      ...item,
+      name: productMap.get(item.id) || 'Descripción no encontrada',
+    }));
+
+    const sellerEmail = process.env.SELLER_EMAIL;
+    const fromEmail = process.env.EMAIL_FROM;
+
+    if (!sellerEmail || !fromEmail || !process.env.RESEND_API_KEY) {
+      console.warn(`[Pedido #${newOrderId}] Faltan variables .env (RESEND_API_KEY, SELLER_EMAIL o EMAIL_FROM). No se enviarán correos.`);
+    } else {
+      console.log(`[Pedido #${newOrderId}] Enviando correos a ${user.email} y ${sellerEmail}...`);
+
+      const orderDataForFiles = { user, newOrder, items: enrichedItems, total };
+      
+      const pdfBuffer = await generateOrderPDF(orderDataForFiles);
+      const csvBuffer = await generateOrderCSV(enrichedItems);
+
+      const pdfAttachment = {
+        filename: `Pedido_${newOrderId}.pdf`,
+        content: pdfBuffer,
+      };
+      const csvAttachment = {
+        filename: `Pedido_${newOrderId}.csv`,
+        content: csvBuffer,
+      };
+      
+      await sendOrderConfirmationEmail(
+        user.email,
+        newOrderId,
+        enrichedItems,
+        total,
+        user.full_name,
+        [pdfAttachment]
+      );
+
+      await sendNewOrderNotificationEmail(
+        sellerEmail,
+        newOrderId,
+        enrichedItems,
+        total,
+        user,
+        [pdfAttachment, csvAttachment]
+      );
+      
+      console.log(`[Pedido #${newOrderId}] Correos con adjuntos enviados con éxito.`);
+    }
+
+  } catch (postTransactionError) {
+    // Si falla el envío de email o la actualización de saldo, NO detenemos la operación.
+    // El pedido ya se guardó. Solo lo logueamos.
+    console.error(`[ERROR POST-TRANSACCIÓN] Pedido #${newOrderId} guardado, pero fallaron operaciones posteriores (email/saldo):`, postTransactionError);
+  }
+
+  // Devolver éxito (el pedido se guardó)
+  return { success: true, message: 'Pedido guardado con éxito.', orderId: newOrderId };
 };
 
 // =================================================================
@@ -1402,6 +1425,65 @@ const fetchProductsByGroup = async (groupCode, page = 1, limit = 20, userId = nu
   }
 };
 
+// =================================================================
+// --- (NUEVO) Gestión de Administradores ---
+// =================================================================
+
+/**
+ * (Admin) Obtiene la lista de todos los administradores.
+ */
+const getAdmins = async () => {
+  try {
+    const adminIdsResult = await pool2.query('SELECT user_id FROM admins ORDER BY created_at DESC');
+    if (adminIdsResult.rows.length === 0) {
+      return [];
+    }
+    const adminIds = adminIdsResult.rows.map(row => row.user_id);
+    // Busca la información de los usuarios en la DB1
+    const usersResult = await pool.query('SELECT id, full_name, email FROM users WHERE id = ANY($1::int[])', [adminIds]);
+    return usersResult.rows;
+  } catch (error) {
+    console.error('Error en getAdmins:', error);
+    throw error;
+  }
+};
+
+/**
+ * (Admin) Añade un nuevo administrador.
+ */
+const addAdmin = async (userId) => {
+  try {
+    // 1. Verificar que el usuario existe en la DB1
+    const userResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      throw new Error('El usuario no existe en la base de datos principal.');
+    }
+    // 2. Insertar en la tabla admins en DB2. ON CONFLICT evita duplicados.
+    await pool2.query('INSERT INTO admins (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING', [userId]);
+    return { success: true, message: 'Usuario añadido como administrador.' };
+  } catch (error) {
+    console.error('Error en addAdmin:', error);
+    throw error;
+  }
+};
+
+/**
+ * (Admin) Elimina a un administrador.
+ */
+const removeAdmin = async (userId) => {
+  try {
+    const result = await pool2.query('DELETE FROM admins WHERE user_id = $1', [userId]);
+    if (result.rowCount === 0) {
+      // Esto puede pasar si el usuario ya no era admin, no es necesariamente un error.
+      return { success: false, message: 'El usuario no era administrador.' };
+    }
+    return { success: true, message: 'Administrador eliminado correctamente.' };
+  } catch (error) {
+    console.error('Error en removeAdmin:', error);
+    throw error;
+  }
+};
+
 
 // Exportar todos los controladores
 module.exports = {
@@ -1435,4 +1517,7 @@ module.exports = {
   getAccessories,
   getProductGroupsDetails,
   fetchProductsByGroup,
+  getAdmins,
+  addAdmin,
+  removeAdmin,
 };

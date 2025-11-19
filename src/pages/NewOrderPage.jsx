@@ -165,7 +165,8 @@ const NewOrderPage = ({ onNavigate, onViewProductDetails }) => {
         setLoadingProducts(true);
         setProductError(null);
         
-        const data = await apiService.fetchProducts(currentPage, searchTerm, selectedBrand, '');
+        const brandsParam = selectedBrand ? [selectedBrand] : [];
+        const data = await apiService.fetchProducts(currentPage, searchTerm, brandsParam);
         
         setAllProducts(data.products);
         setTotalProducts(data.totalProducts);

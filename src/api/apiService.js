@@ -270,6 +270,28 @@ const apiService = {
       body: { groups },
     });
   },
+
+  // (NUEVO) Obtiene la lista de administradores
+  getAdmins() {
+    return this.request('/admin/management/admins');
+  },
+
+  // (NUEVO) Añade un nuevo administrador
+  addAdmin(userId) {
+    if (!userId) throw new Error("ID de usuario requerido");
+    return this.request('/admin/management/admins', {
+      method: 'POST',
+      body: { userId },
+    });
+  },
+
+  // (NUEVO) Elimina a un administrador
+  removeAdmin(userId) {
+    if (!userId) throw new Error("ID de usuario requerido");
+    return this.request(`/admin/management/admins/${userId}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 export default apiService;
