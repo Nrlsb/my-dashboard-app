@@ -1,9 +1,20 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken'); // <-- AÑADIDO
+const rateLimit = require('express-rate-limit');
 const { upload } = require('./middleware/upload'); // Importar config de Multer
 const controllers = require('./controllers'); // Importar todos los controladores
 const pool = require('./db'); // (NUEVO) Importamos pool para la db
+
+// --- Rate Limiter for login ---
+const loginLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 minutes
+	max: 5, // Limit each IP to 5 login requests per `window` (here, per 15 minutes)
+	message:
+		'Demasiados intentos de inicio de sesión desde esta IP, por favor intente de nuevo después de 15 minutos',
+	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
 
 // --- (NUEVO) Middleware de Autenticación JWT ---
 const authenticateToken = (req, res, next) => {
@@ -72,7 +83,7 @@ const optionalAuthenticateToken = (req, res, next) => {
   
   // --- Autenticación ---
   // Estas rutas no se protegen porque aquí es donde el usuario obtiene el token
-  router.post('/login', async (req, res) => {
+  router.post('/login', loginLimiter, async (req, res) => {
     console.log('POST /api/login -> Autenticando contra DB...');
     try {
       let email = req.body.email; // Obtener email

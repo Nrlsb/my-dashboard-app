@@ -20,8 +20,12 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const mainRoutes = require('./routes'); // (NUEVO) Importar todas las rutas
+const helmet = require('helmet');
 
 const app = express();
+
+// Usar Helmet para securizar la app
+app.use(helmet());
 const PORT = process.env.PORT || 3001;
 
 // --- Configuración ---
