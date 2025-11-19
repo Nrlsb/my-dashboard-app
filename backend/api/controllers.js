@@ -8,7 +8,7 @@
 * =================================================================
 */
 
-const pool = require('./db'); // Importar el pool de conexiones
+const { pool, pool2 } = require('./db'); // Importar el pool de conexiones
 const bcrypt = require('bcryptjs'); // (NUEVO) Para hashear contraseñas
 const { formatCurrency, formatMovementType } = require('./utils/helpers'); // Importar helpers
 const { getExchangeRates } = require('./utils/exchangeRateService'); // (NUEVO) Importar servicio de cotizaciones
@@ -1036,7 +1036,7 @@ const getDashboardPanels = async (userId) => {
     }
     query += ' ORDER BY id';
 
-    const result = await pool.query(query);
+    const result = await pool2.query(query);
     let panels = result.rows;
 
     // Comprobar si el panel de ofertas debe mostrarse
@@ -1062,7 +1062,7 @@ const getDashboardPanels = async (userId) => {
  */
 const getAdminDashboardPanels = async () => {
   try {
-    const result = await pool.query('SELECT * FROM dashboard_panels ORDER BY id');
+    const result = await pool2.query('SELECT * FROM dashboard_panels ORDER BY id');
     return result.rows;
   } catch (error) {
     console.error('Error en getAdminDashboardPanels:', error);
@@ -1082,7 +1082,7 @@ const updateDashboardPanel = async (panelId, isVisible) => {
       RETURNING *;
     `;
     const values = [isVisible, panelId];
-    const result = await pool.query(query, values);
+    const result = await pool2.query(query, values);
     
     if (result.rows.length === 0) {
       throw new Error('Panel no encontrado al actualizar.');
@@ -1172,7 +1172,7 @@ const getDeniedProductGroups = async (userId) => {
       FROM user_product_group_permissions 
       WHERE user_id = $1;
     `;
-    const result = await pool.query(query, [userId]);
+    const result = await pool2.query(query, [userId]);
     const deniedGroups = result.rows.map(row => row.product_group);
     return deniedGroups;
   } catch (error) {
@@ -1185,7 +1185,7 @@ const getDeniedProductGroups = async (userId) => {
  * (Admin) Actualiza los permisos de grupo para un usuario específico
  */
 const updateUserGroupPermissions = async (userId, groups) => {
-  const client = await pool.connect();
+  const client = await pool2.connect();
   try {
     await client.query('BEGIN');
 

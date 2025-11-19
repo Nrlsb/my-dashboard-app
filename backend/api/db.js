@@ -9,7 +9,32 @@ const pool = new Pool({
   port: process.env.DB_PORT,
 });
 
-// (LA SOLUCIÓN)
-// Esta línea faltaba. Exporta la instancia de 'pool'
-// para que otros archivos (como controllers.js) puedan importarla.
-module.exports = pool;
+const requiredDb2Vars = [
+  'DB2_USER',
+  'DB2_HOST',
+  'DB2_DATABASE',
+  'DB2_PASSWORD',
+  'DB2_PORT',
+];
+
+let db2ConfigError = false;
+requiredDb2Vars.forEach(v => {
+  if (!process.env[v]) {
+    console.error(`[DB2 Config Error] La variable de entorno ${v} no está definida. Revisa tu archivo .env.`);
+    db2ConfigError = true;
+  }
+});
+
+const pool2 = new Pool({
+  user: process.env.DB2_USER,
+  host: process.env.DB2_HOST,
+  database: process.env.DB2_DATABASE,
+  password: process.env.DB2_PASSWORD,
+  port: process.env.DB2_PORT,
+});
+
+// Si hay un error de configuración, podrías querer manejarlo aquí,
+// por ejemplo, no exportando un pool que sabes que fallará.
+// Por ahora, solo se loguea el error.
+
+module.exports = { pool, pool2 };
