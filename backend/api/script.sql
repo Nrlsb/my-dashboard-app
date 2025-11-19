@@ -356,3 +356,46 @@ CREATE INDEX IF NOT EXISTS idx_user_product_group_permissions_user_id
     (user_id ASC NULLS LAST)
     WITH (fillfactor=100, deduplicate_items=True)
     TABLESPACE pg_default;
+
+-- Sequence and defined type
+CREATE SEQUENCE IF NOT EXISTS product_offer_status_id_seq;
+
+-- Table: public.product_offer_status
+
+-- DROP TABLE IF EXISTS public.product_offer_status;
+
+CREATE TABLE IF NOT EXISTS public.product_offer_status
+(
+    id integer NOT NULL DEFAULT nextval('product_offer_status_id_seq'::regclass),
+    product_id integer NOT NULL,
+    is_on_offer boolean DEFAULT false,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT product_offer_status_pkey PRIMARY KEY (id),
+    CONSTRAINT product_offer_status_product_id_key UNIQUE (product_id)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.product_offer_status
+    OWNER to postgres;
+
+-- Index: idx_product_offer_status_product_id
+
+-- DROP INDEX IF EXISTS public.idx_product_offer_status_product_id;
+
+CREATE INDEX IF NOT EXISTS idx_product_offer_status_product_id
+    ON public.product_offer_status USING btree
+    (product_id ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
+
+-- Index: idx_product_offer_status_is_on_offer
+
+-- DROP INDEX IF EXISTS public.idx_product_offer_status_is_on_offer;
+
+CREATE INDEX IF NOT EXISTS idx_product_offer_status_is_on_offer
+    ON public.product_offer_status USING btree
+    (is_on_offer ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;

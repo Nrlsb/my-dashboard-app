@@ -679,11 +679,10 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
     // --- Query para Obtener Productos ---
     // (MODIFICADO) Se añade product_group a la selección
     let dataQuery = `
-      SELECT 
-        id, code, description, price, brand, 
-        capacity_description, moneda, cotizacion, product_group, oferta
-      FROM products
-      WHERE price > 0 AND description IS NOT NULL
+            SELECT
+              id, code, description, price, brand,
+              capacity_description, moneda, cotizacion, product_group
+            FROM products      WHERE price > 0 AND description IS NOT NULL
     `;
     
     // --- Aplicar Filtros ---
@@ -748,6 +747,19 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
     const dataResult = await pool.query(dataQuery, [...queryParams, limit, offset]);
     console.log(`[DEBUG] Productos obtenidos: ${dataResult.rows.length}`);
     
+    // Obtener los IDs de los productos para consultar su estado de oferta en DB2
+    const productIds = dataResult.rows.map(prod => prod.id);
+    let offerStatusMap = new Map();
+    if (productIds.length > 0) {
+      const offerStatusResult = await pool2.query(
+        'SELECT product_id, is_on_offer FROM product_offer_status WHERE product_id = ANY($1::int[])',
+        [productIds]
+      );
+      offerStatusResult.rows.forEach(row => {
+        offerStatusMap.set(row.product_id, row.is_on_offer);
+      });
+    }
+
     const products = dataResult.rows.map(prod => {
       let originalPrice = prod.price; // El precio base del producto
       let finalPrice = prod.price;
@@ -774,7 +786,7 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
         cotizacion: prod.moneda === 2 ? ventaBillete : (prod.moneda === 3 ? ventaDivisa : 1),
         originalPrice: originalPrice,
         product_group: prod.product_group, // (NUEVO) Devolver el grupo del producto
-        oferta: prod.oferta // (CORREGIDO) Añadir el campo oferta
+        oferta: offerStatusMap.get(prod.id) || false // Obtener el estado de oferta de DB2
       };
     });
     
@@ -890,45 +902,43 @@ const fetchProtheusBrands = async (userId = null) => {
  */
 const fetchProtheusOffers = async (userId = null) => {
   try {
-    // (NUEVO) Ahora busca productos donde 'oferta' es true.
-    // (MODIFICADO) Se añade product_group a la selección
-    let query = `
-      SELECT 
-        id, code, description, price, brand, 
-        capacity_description, moneda, cotizacion, product_group
-      FROM products 
-      WHERE oferta = true AND price > 0 AND description IS NOT NULL
-    `;
-    let queryParams = [];
-    let paramIndex = 1;
+    // 1. Obtener los IDs de los productos en oferta desde DB2
+    const offerProductIdsResult = await pool2.query(
+      'SELECT product_id FROM product_offer_status WHERE is_on_offer = true'
+    );
+    const offerProductIds = offerProductIdsResult.rows.map(row => row.product_id);
 
-    // (NUEVO) Lógica de permisos por grupo de productos
-    let isUserAdmin = false;
-    if (userId) {
-      const userResult = await pool.query('SELECT is_admin FROM users WHERE id = $1', [userId]);
-      if (userResult.rows.length > 0) {
-        isUserAdmin = userResult.rows[0].is_admin;
-      }
+    if (offerProductIds.length === 0) {
+      return []; // No hay productos en oferta
     }
 
+    // 2. Obtener los detalles de esos productos desde DB1
+    let query = `
+      SELECT
+        id, code, description, price, brand,
+        capacity_description, moneda, cotizacion, product_group
+      FROM products
+      WHERE id = ANY($1::int[]) AND price > 0 AND description IS NOT NULL
+    `;
+    let queryParams = [offerProductIds];
+    let paramIndex = 2;
+
+    // Lógica de permisos por grupo de productos
     if (userId) {
       const deniedGroups = await getDeniedProductGroups(userId);
-      
+
       if (deniedGroups.length > 0) {
         const groupQuery = ` product_group NOT IN (SELECT unnest($${paramIndex}::varchar[])) `;
         query += ` AND ${groupQuery}`;
         queryParams.push(deniedGroups);
         paramIndex++;
-      } else {
-        // Si no hay grupos denegados, el usuario puede ver todas las ofertas.
-        // No se añade ninguna cláusula WHERE para grupos de productos.
       }
     }
 
     query += ` ORDER BY description ASC;`;
 
     const result = await pool.query(query, queryParams);
-    
+
     // Reutilizar la lógica de formateo de precios de fetchProtheusProducts
     const exchangeRates = await getExchangeRates();
     const ventaBillete = exchangeRates.venta_billete;
@@ -956,18 +966,18 @@ const fetchProtheusOffers = async (userId = null) => {
         moneda: prod.moneda,
         cotizacion: prod.moneda === 2 ? ventaBillete : (prod.moneda === 3 ? ventaDivisa : 1),
         originalPrice: originalPrice,
-        product_group: prod.product_group // (NUEVO) Devolver el grupo del producto
+        product_group: prod.product_group,
+        oferta: true // Siempre true para ofertas
       };
     });
 
     return offers;
-    
+
   } catch (error) {
     console.error('Error en fetchProtheusOffers:', error);
     throw error;
   }
 };
-
 
 // =================================================================
 // --- Consultas y Carga de Archivos ---
@@ -1124,28 +1134,49 @@ const updateDashboardPanel = async (panelId, isVisible) => {
  */
 const toggleProductOfferStatus = async (productId) => {
   try {
-    const query = `
-      UPDATE products 
-      SET oferta = NOT oferta 
-      WHERE id = $1 
-      RETURNING id, description, code, price, oferta;
-    `;
-    const result = await pool.query(query, [productId]);
-    
-    if (result.rows.length === 0) {
-      throw new Error('Producto no encontrado.');
+    // 1. Verificar si el producto existe en DB1 (solo lectura)
+    const productResult = await pool.query('SELECT id, description, code, price FROM products WHERE id = $1', [productId]);
+    if (productResult.rows.length === 0) {
+      throw new Error('Producto no encontrado en la base de datos principal.');
     }
-    
-    const updatedProduct = result.rows[0];
-    console.log(`Estado de oferta para producto ${productId} cambiado a ${updatedProduct.oferta}`);
-    return updatedProduct;
-    
+    const productDetails = productResult.rows[0];
+
+    // 2. Intentar obtener el estado de oferta del producto desde DB2
+    const existingOffer = await pool2.query('SELECT is_on_offer FROM product_offer_status WHERE product_id = $1', [productId]);
+
+    let newOfferStatus;
+    if (existingOffer.rows.length > 0) {
+      // Si existe, alternar el estado
+      newOfferStatus = !existingOffer.rows[0].is_on_offer;
+      await pool2.query(
+        'UPDATE product_offer_status SET is_on_offer = $1, updated_at = CURRENT_TIMESTAMP WHERE product_id = $2',
+        [newOfferStatus, productId]
+      );
+    } else {
+      // Si no existe, insertar un nuevo registro con is_on_offer = true
+      newOfferStatus = true;
+      await pool2.query(
+        'INSERT INTO product_offer_status (product_id, is_on_offer) VALUES ($1, $2)',
+        [productId, newOfferStatus]
+      );
+    }
+
+    console.log(`Estado de oferta para producto ${productId} cambiado a ${newOfferStatus} en DB2.`);
+
+    // Devolver la información del producto combinada con el nuevo estado de oferta
+    return {
+      id: productDetails.id,
+      description: productDetails.description,
+      code: productDetails.code,
+      price: productDetails.price,
+      oferta: newOfferStatus, // Usamos 'oferta' para compatibilidad con el frontend
+    };
+
   } catch (error) {
     console.error(`Error en toggleProductOfferStatus para producto ${productId}:`, error);
     throw error;
   }
 };
-
 /**
  * (Admin) Obtiene la lista de clientes (no-admins)
  */
