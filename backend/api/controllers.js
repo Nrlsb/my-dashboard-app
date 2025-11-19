@@ -658,7 +658,7 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
     let dataQuery = `
       SELECT 
         id, code, description, price, brand, 
-        capacity_description, moneda, cotizacion, product_group
+        capacity_description, moneda, cotizacion, product_group, oferta
       FROM products
       WHERE price > 0 AND description IS NOT NULL
     `;
@@ -757,7 +757,8 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
         // (MODIFICADO) La cotización ahora refleja la que se usó
         cotizacion: prod.moneda === 2 ? ventaBillete : (prod.moneda === 3 ? ventaDivisa : 1),
         originalPrice: originalPrice,
-        product_group: prod.product_group // (NUEVO) Devolver el grupo del producto
+        product_group: prod.product_group, // (NUEVO) Devolver el grupo del producto
+        oferta: prod.oferta // (CORREGIDO) Añadir el campo oferta
       };
     });
     
@@ -1028,7 +1029,21 @@ const saveProtheusVoucher = async (fileInfo, userId) => {
  */
 const getDashboardPanels = async (userId) => {
   try {
-    const result = await pool.query('SELECT * FROM dashboard_panels WHERE is_visible = true ORDER BY id');
+    let isAdmin = false;
+    if (userId) {
+      const userResult = await pool.query('SELECT is_admin FROM users WHERE id = $1', [userId]);
+      if (userResult.rows.length > 0) {
+        isAdmin = userResult.rows[0].is_admin;
+      }
+    }
+
+    let query = 'SELECT * FROM dashboard_panels';
+    if (!isAdmin) {
+      query += ' WHERE is_visible = true';
+    }
+    query += ' ORDER BY id';
+
+    const result = await pool.query(query);
     let panels = result.rows;
 
     // Comprobar si el panel de ofertas debe mostrarse

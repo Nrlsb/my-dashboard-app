@@ -520,10 +520,10 @@ const requireAdmin = async (req, res, next) => {
   
   
   // --- (NUEVO) Dashboard Panels ---
-  router.get('/dashboard-panels', async (req, res) => {
+  router.get('/dashboard-panels', optionalUserId, async (req, res) => {
     console.log('GET /api/dashboard-panels -> Consultando paneles visibles...');
     try {
-      const panels = await controllers.getDashboardPanels();
+      const panels = await controllers.getDashboardPanels(req.userId);
       res.json(panels);
     } catch (error) {
       console.error('Error en /api/dashboard-panels:', error);
