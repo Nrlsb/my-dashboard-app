@@ -178,15 +178,18 @@ const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
   useEffect(() => {
     const fetchBrands = async () => {
       try {
-        const brandsData = await fetchProtheusBrands(); // Usar apiService
+        // (MODIFICADO) Pasar el userId para filtrar las marcas según los permisos
+        const brandsData = await fetchProtheusBrands(userId); 
         setAllBrands(brandsData);
       } catch (err) {
         console.error(err);
         // No es un error crítico, así que solo lo logueamos
       }
     };
-    fetchBrands();
-  }, []); // Array vacío, se ejecuta al montar
+    if (userId) { // Solo buscar marcas si hay un usuario logueado
+      fetchBrands();
+    }
+  }, [userId]); // (MODIFICADO) Se vuelve a ejecutar si el usuario cambia
 
   // --- Carga de Productos (paginada) ---
   useEffect(() => {
@@ -195,7 +198,7 @@ const NewOrderPage = ({ onNavigate, currentUser, onViewProductDetails }) => {
         setLoadingProducts(true);
         setProductError(null);
         
-        const data = await fetchProducts(currentPage, searchTerm, selectedBrand, '1', userId); // (MODIFICADO) Usar apiService y pasar userId
+        const data = await fetchProducts(currentPage, searchTerm, selectedBrand, '', userId); // (MODIFICADO) Usar apiService y pasar userId
         
         setAllProducts(data.products); // Almacena solo los productos de la página actual
         setTotalProducts(data.totalProducts); // Almacena el conteo total

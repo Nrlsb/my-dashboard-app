@@ -288,23 +288,25 @@ export default function PriceListPage({ onNavigate }) {
 
   // Consulta para las marcas (dropdown)
 
-  const { 
+    const { 
 
-    data: brandsData, 
+      data: brandsData, 
 
-    isLoading: isBrandsLoading, 
+      isLoading: isBrandsLoading, 
 
-    isError: isBrandsError 
+      isError: isBrandsError 
 
-  } = useQuery({
+    } = useQuery({
 
-    queryKey: ['brands'],
+      queryKey: ['brands', userId], // (MODIFICADO) Añadir userId a la queryKey
 
-    queryFn: fetchProtheusBrands,
+      queryFn: () => fetchProtheusBrands(userId), // (MODIFICADO) Pasar userId
 
-    staleTime: 1000 * 60 * 60, // Cachear marcas por 1 hora
+      staleTime: 1000 * 60 * 60, // Cachear marcas por 1 hora
 
-  });
+      enabled: !!userId, // (NUEVO) Solo ejecutar si hay userId
+
+    });
 
 
 

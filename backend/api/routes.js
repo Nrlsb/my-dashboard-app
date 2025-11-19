@@ -428,10 +428,10 @@ const requireAdmin = async (req, res, next) => {
   // --- (FIN NUEVA RUTA) ---
   
   
-  router.get('/brands', async (req, res) => {
+  router.get('/brands', optionalUserId, async (req, res) => {
     console.log('GET /api/brands -> Consultando lista de marcas...');
     try {
-      const brands = await controllers.fetchProtheusBrands();
+      const brands = await controllers.fetchProtheusBrands(req.userId);
       res.json(brands);
     } catch (error) {
       console.error('Error en /api/brands:', error);

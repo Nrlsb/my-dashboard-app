@@ -837,18 +837,29 @@ const fetchProductDetails = async (productId, userId = null) => {
 /**
  * Obtiene la lista de marcas únicas
  */
-const fetchProtheusBrands = async () => {
+const fetchProtheusBrands = async (userId = null) => {
   try {
-    // (CORREGIDO) Apunta a 'brand' en 'products'
-    const query = `
+    let query = `
       SELECT DISTINCT brand 
       FROM products 
       WHERE brand IS NOT NULL AND brand != ''
-      ORDER BY brand ASC;
     `;
-    const result = await pool.query(query);
+    let queryParams = [];
+    let paramIndex = 1;
+
+    if (userId) {
+      const deniedGroups = await getDeniedProductGroups(userId);
+      if (deniedGroups.length > 0) {
+        query += ` AND product_group NOT IN (SELECT unnest($${paramIndex}::varchar[]))`;
+        queryParams.push(deniedGroups);
+        paramIndex++;
+      }
+    }
+
+    query += ` ORDER BY brand ASC;`;
     
-    // (CORREGIDO) Mapea 'brand'
+    const result = await pool.query(query, queryParams);
+    
     return result.rows.map(row => row.brand);
     
   } catch (error) {

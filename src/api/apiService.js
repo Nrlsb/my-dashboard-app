@@ -87,8 +87,12 @@ export const fetchProductById = async (productId, userId) => {
  * Obtiene la lista de todas las marcas de productos
  * @returns {Promise<Array<string>>} - Un array de strings de marcas
  */
-export const fetchProtheusBrands = async () => {
-  const response = await fetch(`${API_BASE_URL}/brands`);
+export const fetchProtheusBrands = async (userId) => {
+  const params = new URLSearchParams();
+  if (userId) {
+    params.append('userId', userId);
+  }
+  const response = await fetch(`${API_BASE_URL}/brands?${params.toString()}`);
   return handleResponse(response);
 };
 // --- (FIN NUEVA FUNCIÓN AÑADIDA) ---
