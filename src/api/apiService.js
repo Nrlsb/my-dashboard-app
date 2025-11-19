@@ -25,14 +25,15 @@ const handleResponse = async (response) => {
  * @param {string} brand - Marca a filtrar
  * @returns {Promise<object>} - Objeto con { products: [], totalProducts: 0 }
  */
-export const fetchProducts = async (page, searchTerm, brand, moneda, userId) => {
+export const fetchProducts = async (page, searchTerm, brands, userId) => {
   const params = new URLSearchParams({
     page: page,
     limit: PRODUCTS_PER_PAGE,
     search: searchTerm,
-    brand: brand,
-    moneda: moneda,
   });
+  if (brands && brands.length > 0) {
+    params.append('brand', brands.join(','));
+  }
   if (userId) {
     params.append('userId', userId);
   }
@@ -47,14 +48,15 @@ export const fetchProducts = async (page, searchTerm, brand, moneda, userId) => 
  * @param {string} brand - Marca a filtrar
  * @returns {Promise<Array<object>>} - Array de productos
  */
-export const fetchAllProductsForPDF = async (searchTerm, brand, moneda, userId) => {
+export const fetchAllProductsForPDF = async (searchTerm, brands, userId) => {
   const params = new URLSearchParams({
     page: 1,
     limit: 9999, // Un límite muy alto para traer todos los productos
     search: searchTerm,
-    brand: brand,
-    moneda: moneda,
   });
+  if (brands && brands.length > 0) {
+    params.append('brand', brands.join(','));
+  }
   if (userId) {
     params.append('userId', userId);
   }

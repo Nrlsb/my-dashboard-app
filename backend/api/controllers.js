@@ -639,8 +639,8 @@ const saveProtheusOrder = async (orderData, userId) => {
 /**
  * Obtiene la lista de productos (paginada y con búsqueda)
  */
-const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = '', moneda = '1', userId = null) => {
-  console.log(`[DEBUG] fetchProtheusProducts llamado con: page=${page}, limit=${limit}, search='${search}', brand='${brand}', moneda='${moneda}', userId=${userId}`);
+const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = '', userId = null) => {
+  console.log(`[DEBUG] fetchProtheusProducts llamado con: page=${page}, limit=${limit}, search='${search}', brand='${brand}', userId=${userId}`);
   try {
     // (NUEVO) Obtener las cotizaciones del dólar
     const exchangeRates = await getExchangeRates();
@@ -702,18 +702,11 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
     }
     
     if (brand) {
-      const brandQuery = ` brand = $${paramIndex} `;
+      const brands = brand.split(',');
+      const brandQuery = ` brand = ANY($${paramIndex}::varchar[]) `;
       countQuery += ` AND ${brandQuery}`;
       dataQuery += ` AND ${brandQuery}`;
-      queryParams.push(brand);
-      paramIndex++;
-    }
-
-    if (moneda && moneda !== '0') { // Asumimos que '0' o '' significa todas las monedas
-      const monedaQuery = ` moneda = $${paramIndex} `;
-      countQuery += ` AND ${monedaQuery}`;
-      dataQuery += ` AND ${monedaQuery}`;
-      queryParams.push(moneda);
+      queryParams.push(brands);
       paramIndex++;
     }
     

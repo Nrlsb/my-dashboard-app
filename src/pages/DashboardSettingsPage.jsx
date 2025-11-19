@@ -88,12 +88,12 @@ const DashboardSettingsPage = ({ currentUser, onNavigate }) => {
                     <input
                       type="checkbox"
                       id={`toggle-${panel.id}`}
-                      className="sr-only"
+                      className="sr-only peer"
                       checked={panel.is_visible}
                       onChange={(e) => handleToggle(panel.id, e.target.checked)}
                     />
-                    <div className="block bg-gray-600 w-14 h-8 rounded-full"></div>
-                    <div className="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
+                    <div className="block bg-gray-200 peer-checked:bg-green-500 w-14 h-8 rounded-full transition"></div>
+                    <div className="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform transform peer-checked:translate-x-6"></div>
                   </div>
                 </label>
               </div>
