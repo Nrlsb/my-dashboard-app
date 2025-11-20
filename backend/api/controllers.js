@@ -363,6 +363,99 @@ const downloadOrderPDF = async (orderId, userId) => {
   }
 };
 
+// =================================================================
+// --- (NUEVO) Wrappers para Administración (CORRECCIÓN CRÍTICA) ---
+// =================================================================
+
+const fetchAdminOrderDetails = async (req, res) => {
+  try {
+    const { id } = req.params; // Extraemos el ID del request
+    const order = await adminService.fetchAdminOrderDetails(id);
+    if (!order) {
+      return res.status(404).json({ message: 'Pedido no encontrado.' });
+    }
+    res.json(order); // Enviamos la respuesta HTTP
+  } catch (error) {
+    console.error(`Error en fetchAdminOrderDetails controller:`, error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
+};
+
+const getUsersForAdmin = async (req, res) => {
+  try {
+    const users = await adminService.getUsersForAdmin();
+    res.json(users);
+  } catch (error) {
+    console.error('Error en getUsersForAdmin controller:', error);
+    res.status(500).json({ message: 'Error al obtener usuarios' });
+  }
+};
+
+const updateUserGroupPermissions = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { groups } = req.body;
+    const result = await adminService.updateUserGroupPermissions(userId, groups);
+    res.json(result);
+  } catch (error) {
+    console.error('Error en updateUserGroupPermissions controller:', error);
+    res.status(500).json({ message: 'Error al actualizar permisos' });
+  }
+};
+
+const getAdmins = async (req, res) => {
+  try {
+    const admins = await adminService.getAdmins();
+    res.json(admins);
+  } catch (error) {
+    console.error('Error en getAdmins controller:', error);
+    res.status(500).json({ message: 'Error al obtener administradores' });
+  }
+};
+
+const addAdmin = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const result = await adminService.addAdmin(userId);
+    res.json(result);
+  } catch (error) {
+    console.error('Error en addAdmin controller:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const removeAdmin = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const result = await adminService.removeAdmin(userId);
+    res.json(result);
+  } catch (error) {
+    console.error('Error en removeAdmin controller:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getProductGroupsForAdmin = async (req, res) => {
+    try {
+        const result = await pool.query(`SELECT DISTINCT product_group, brand FROM products WHERE product_group IS NOT NULL AND product_group != '' ORDER BY product_group ASC;`);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error en getProductGroupsForAdmin:', error);
+        res.status(500).json({ message: 'Error interno' });
+    }
+};
+
+const toggleProductOfferStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await productService.toggleProductOfferStatus(id);
+        res.json(result);
+    } catch (error) {
+        console.error('Error en toggleProductOfferStatus:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
   authenticateProtheusUser,
   registerProtheusUser,
@@ -389,5 +482,12 @@ module.exports = {
   fetchProductsByGroup,
   downloadOrderPDF,
   getDeniedProductGroups,
-  ...adminService, // Exportar todas las funciones de adminService
+  fetchAdminOrderDetails,
+  getUsersForAdmin,
+  updateUserGroupPermissions,
+  getAdmins,
+  addAdmin,
+  removeAdmin,
+  getProductGroupsForAdmin,
+  toggleProductOfferStatus,
 };

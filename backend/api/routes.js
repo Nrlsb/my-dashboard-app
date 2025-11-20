@@ -241,13 +241,7 @@ const optionalAuthenticateToken = (req, res, next) => {
   router.get('/admin/order-details/:id', authenticateToken, requireAdmin, async (req, res) => {
     console.log(`GET /api/admin/order-details/${req.params.id} -> Admin ${req.userId} fetching details...`);
     try {
-      const orderId = req.params.id;
-      const orderDetails = await controllers.fetchAdminOrderDetails(orderId);
-      if (orderDetails) {
-        res.json(orderDetails);
-      } else {
-        res.status(404).json({ message: 'Pedido no encontrado.' });
-      }
+      await controllers.fetchAdminOrderDetails(req, res);
     } catch (error) {
       console.error(`Error en /api/admin/order-details/${req.params.id}:`, error);
       res.status(500).json({ message: error.message || 'Error al obtener detalles del pedido.' });
@@ -256,25 +250,11 @@ const optionalAuthenticateToken = (req, res, next) => {
   
   router.get('/admin/users', authenticateToken, requireAdmin, async (req, res) => {
     console.log(`GET /api/admin/users -> Admin ${req.userId} fetching user list...`);
-    try {
-      const users = await controllers.getUsersForAdmin();
-      res.json(users);
-    } catch (error) {
-      console.error('Error in /api/admin/users:', error);
-      res.status(500).json({ message: 'Error al obtener la lista de usuarios.' });
-    }
-  });
+      await controllers.getUsersForAdmin(req, res);  });
   
   router.get('/admin/product-groups', authenticateToken, requireAdmin, async (req, res) => {
     console.log(`GET /api/admin/product-groups -> Admin ${req.userId} fetching product groups...`);
-    try {
-      const groups = await productService.getProductGroupsForAdmin();
-      res.json(groups);
-    } catch (error) {
-      console.error('Error in /api/admin/product-groups:', error);
-      res.status(500).json({ message: 'Error al obtener los grupos de productos.' });
-    }
-  });
+      await controllers.getProductGroupsForAdmin(req, res);  });
   
   router.get('/admin/users/:userId/product-groups', authenticateToken, requireAdmin, async (req, res) => {
     const { userId } = req.params;
@@ -289,22 +269,8 @@ const optionalAuthenticateToken = (req, res, next) => {
   });
   
   router.put('/admin/users/:userId/product-groups', authenticateToken, requireAdmin, async (req, res) => {
-    const { userId } = req.params;
-    const { groups } = req.body;
-  
-    if (!Array.isArray(groups)) {
-      return res.status(400).json({ message: 'El cuerpo de la petición debe contener un array de "groups".' });
-    }
-  
-    console.log(`PUT /api/admin/users/${userId}/product-groups -> Admin ${req.userId} updating permissions...`);
-    try {
-      const result = await controllers.updateUserGroupPermissions(userId, groups);
-      res.json(result);
-    } catch (error) {
-      console.error(`Error in PUT /api/admin/users/${userId}/product-groups:`, error);
-      res.status(500).json({ message: 'Error al actualizar los permisos del usuario.' });
-    }
-  });
+      console.log(`PUT /api/admin/users/${req.params.userId}/product-groups -> Admin ${req.userId} updating permissions...`);
+      await controllers.updateUserGroupPermissions(req, res);  });
   
   
   // --- Pedidos ---
@@ -437,15 +403,8 @@ const optionalAuthenticateToken = (req, res, next) => {
   });
   
   router.put('/products/:id/toggle-offer', authenticateToken, requireAdmin, async (req, res) => {
-    const { id } = req.params;
-    console.log(`PUT /api/products/${id}/toggle-offer -> Admin ${req.userId} cambiando estado de oferta...`);
-    try {
-              const updatedProduct = await productService.toggleProductOfferStatus(id);      res.json({ success: true, product: updatedProduct });
-    } catch (error) {
-      console.error(`Error en /api/products/${id}/toggle-offer:`, error);
-      res.status(500).json({ message: error.message || 'Error al actualizar el estado de la oferta.' });
-    }
-  });
+      console.log(`PUT /api/products/${req.params.id}/toggle-offer -> Admin ${req.userId} cambiando estado de oferta...`);
+      await controllers.toggleProductOfferStatus(req, res);  });
   
   router.get('/exchange-rates', async (req, res) => {
     console.log('GET /api/exchange-rates -> Consultando cotizaciones del dólar...');
@@ -538,40 +497,14 @@ const optionalAuthenticateToken = (req, res, next) => {
   // --- (NUEVO) Gestión de Administradores ---
   router.get('/admin/management/admins', authenticateToken, requireAdmin, async (req, res) => {
     console.log(`GET /api/admin/management/admins -> Admin ${req.userId} fetching admin list...`);
-    try {
-      const admins = await controllers.getAdmins();
-      res.json(admins);
-    } catch (error) {
-      console.error('Error in /api/admin/management/admins (GET):', error);
-      res.status(500).json({ message: 'Error al obtener la lista de administradores.' });
-    }
-  });
+      await controllers.getAdmins(req, res);  });
   
   router.post('/admin/management/admins', authenticateToken, requireAdmin, async (req, res) => {
-    const { userId } = req.body;
-    console.log(`POST /api/admin/management/admins -> Admin ${req.userId} adding user ${userId} as admin...`);
-    try {
-      if (!userId) {
-        return res.status(400).json({ message: 'El campo "userId" es obligatorio.' });
-      }
-      const result = await controllers.addAdmin(userId);
-      res.json(result);
-    } catch (error) {
-      console.error('Error in /api/admin/management/admins (POST):', error);
-      res.status(500).json({ message: error.message || 'Error al añadir administrador.' });
-    }
-  });
+      console.log(`POST /api/admin/management/admins -> Admin ${req.userId} adding user ${req.body.userId} as admin...`);
+      await controllers.addAdmin(req, res);  });
   
   router.delete('/admin/management/admins/:userId', authenticateToken, requireAdmin, async (req, res) => {
-    const { userId } = req.params;
-    console.log(`DELETE /api/admin/management/admins/${userId} -> Admin ${req.userId} removing admin...`);
-    try {
-      const result = await controllers.removeAdmin(userId);
-      res.json(result);
-    } catch (error) {
-      console.error(`Error in /api/admin/management/admins/${userId} (DELETE):`, error);
-      res.status(500).json({ message: error.message || 'Error al eliminar administrador.' });
-    }
-  });
+      console.log(`DELETE /api/admin/management/admins/${req.params.userId} -> Admin ${req.userId} removing admin...`);
+      await controllers.removeAdmin(req, res);  });
   
   module.exports = router;
