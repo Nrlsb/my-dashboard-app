@@ -138,14 +138,26 @@ const registerProtheusUser = async (userData) => {
  */
 const getProfile = async (userId) => {
   try {
-    const result = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+    const result = await pool.query(
+      `SELECT 
+        id, 
+        full_name AS "A1_NOME", 
+        email AS "A1_EMAIL", 
+        a1_cod AS "A1_COD", 
+        a1_loja AS "A1_LOJA", 
+        a1_cgc AS "A1_CGC", 
+        a1_tel AS "A1_NUMBER", 
+        a1_endereco AS "A1_END"
+      FROM users WHERE id = $1`, 
+      [userId]
+    );
     
     if (result.rows.length === 0) {
       return null; // Usuario no encontrado
     }
     
-    const { password_hash, ...profileData } = result.rows[0];
-    return profileData;
+    // No need to remove password_hash as it's not selected
+    return result.rows[0];
     
   } catch (error) {
     console.error('Error en getProfile:', error);
@@ -157,19 +169,16 @@ const getProfile = async (userId) => {
  * Actualiza los datos del perfil de un usuario
  */
 const updateProfile = async (userId, profileData) => {
-  // (CORREGIDO) El frontend envía 'nombre', la BD espera 'full_name'
-  const { nombre, a1_tel, a1_email, a1_endereco } = profileData;
-  // (Opcional: incluir cambio de contraseña aquí, verificando la actual)
+  const { A1_NOME, A1_NUMBER, A1_EMAIL, A1_END, A1_CGC } = profileData;
   
   try {
-    // (CORREGIDO) Se actualiza 'full_name' y 'a1_endereco'. Se quita 'a1_email' (no existe)
     const query = `
       UPDATE users
-      SET full_name = $1, a1_tel = $2, a1_endereco = $3
-      WHERE id = $4
+      SET full_name = $1, a1_tel = $2, email = $3, a1_endereco = $4, a1_cgc = $5
+      WHERE id = $6
       RETURNING *;
     `;
-    const values = [nombre, a1_tel, a1_endereco || null, userId];
+    const values = [A1_NOME, A1_NUMBER, A1_EMAIL, A1_END || null, A1_CGC, userId];
     
     const result = await pool.query(query, values);
     
@@ -536,11 +545,11 @@ const saveProtheusOrder = async (orderData, userId) => {
     
     // 1. Insertar el pedido principal (orders) en BD 2
     const orderInsertQuery = `
-      INSERT INTO orders (user_id, total, status)
-      VALUES ($1, $2, $3)
+      INSERT INTO orders (user_id, a1_cod, total, status)
+      VALUES ($1, $2, $3, $4)
       RETURNING id, created_at;
     `;
-    const orderValues = [userId, total, 'Pendiente'];
+    const orderValues = [userId, user.a1_cod, total, 'Pendiente'];
     
     const orderResult = await client.query(orderInsertQuery, orderValues);
     newOrder = orderResult.rows[0];

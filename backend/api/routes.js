@@ -105,7 +105,7 @@ const optionalAuthenticateToken = (req, res, next) => {
           userId: user.id,
           name: user.nombre,
           isAdmin: user.is_admin,
-          codCliente: user.cod_cliente,
+          codCliente: user.a1_cod,
         };
 
         const token = jwt.sign(payload, process.env.JWT_SECRET, {

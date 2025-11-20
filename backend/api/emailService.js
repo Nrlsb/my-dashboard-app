@@ -120,7 +120,7 @@ const sendNewOrderNotificationEmail = async (toEmail, orderId, items, total, cus
       <ul>
         <li><strong>Nombre:</strong> ${customer.full_name}</li>
         <li><strong>Email:</strong> ${customer.email}</li>
-        <li><strong>Código Cliente (A1_COD):</strong> ${customer.a1_cod || 'No disponible'}</li>
+        <li><strong>Código Cliente:</strong> ${customer.a1_cod || 'No disponible'}</li>
       </ul>
       
       <h2 style="color: #333; border-bottom: 2px solid #eee; padding-bottom: 5px;">Detalles del Pedido #${orderId}</h2>
