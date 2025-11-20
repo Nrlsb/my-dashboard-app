@@ -190,3 +190,68 @@ body {
   cursor: not-allowed;
   opacity: 0.7;
 }
+
+/* ======================================================== */
+/* --- MEDIA QUERIES PARA RESPONSIVIDAD --- */
+/* ======================================================== */
+
+/* --- Para Tablets y Móviles Grandes (hasta 768px) --- */
+@media (max-width: 768px) {
+  .page-content {
+    padding: 16px;
+    margin: 10px auto;
+  }
+
+  .order-table {
+    min-width: 500px; /* Reducimos el mínimo para tablets */
+  }
+
+  .order-table th,
+  .order-table td {
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .order-table th {
+    font-size: 12px;
+  }
+
+  .order-detail-actions {
+    flex-wrap: wrap; /* Permite que los botones pasen a la siguiente línea */
+  }
+
+  .order-history-page h2,
+  .order-detail-page h2 {
+    font-size: 24px;
+  }
+}
+
+/* --- Para Móviles Pequeños (hasta 480px) --- */
+@media (max-width: 480px) {
+  .page-content {
+    padding: 12px;
+  }
+
+  .order-table th,
+  .order-table td {
+    padding: 8px;
+    font-size: 13px;
+  }
+
+  .order-table th {
+    font-size: 11px;
+  }
+
+  .back-button,
+  .view-details-button,
+  .download-pdf-button {
+    width: 100%; /* Ocupan todo el ancho */
+    text-align: center;
+    margin-bottom: 8px;
+  }
+
+  .order-detail-actions {
+    flex-direction: column; /* Apila los botones verticalmente */
+    gap: 8px;
+  }
+}

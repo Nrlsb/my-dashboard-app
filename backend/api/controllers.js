@@ -12,6 +12,8 @@ const { pool, pool2 } = require('./db'); // Importar el pool de conexiones
 const bcrypt = require('bcryptjs'); // (NUEVO) Para hashear contraseñas
 const { formatCurrency, formatMovementType } = require('./utils/helpers'); // Importar helpers
 const { getExchangeRates } = require('./utils/exchangeRateService'); // (NUEVO) Importar servicio de cotizaciones
+const productService = require('./services/productService'); // (NUEVO) Importar el servicio de productos
+const { getDeniedProductGroups } = require('./models/productModel'); //(NUEVO) Importar funcion de productModel
 
 // (NUEVO) Importar el servicio de email
 const { sendOrderConfirmationEmail, sendNewOrderNotificationEmail } = require('./emailService');
@@ -675,138 +677,10 @@ const saveProtheusOrder = async (orderData, userId) => {
 const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = '', userId = null) => {
   console.log(`[DEBUG] fetchProtheusProducts llamado con: page=${page}, limit=${limit}, search='${search}', brand='${brand}', userId=${userId}`);
   try {
-    // (NUEVO) Obtener las cotizaciones del dólar
-    const exchangeRates = await getExchangeRates();
-    const ventaBillete = exchangeRates.venta_billete;
-    const ventaDivisa = exchangeRates.venta_divisa;
-
-    const offset = (page - 1) * limit;
-    let queryParams = [];
-    
-    // --- Query para Contar Total ---
-    let countQuery = 'SELECT COUNT(*) FROM products WHERE price > 0 AND description IS NOT NULL';
-    
-    // --- Query para Obtener Productos ---
-    // (MODIFICADO) Se añade product_group a la selección
-    let dataQuery = `
-            SELECT
-              id, code, description, price, brand,
-              capacity_description, moneda, cotizacion, product_group
-            FROM products      WHERE price > 0 AND description IS NOT NULL
-    `;
-    
-    // --- Aplicar Filtros ---
-    let paramIndex = 1;
-
-    // (NUEVO) Lógica de permisos por grupo de productos
-    let isUserAdmin = false;
-    if (userId) {
-      const userResult = await pool.query('SELECT is_admin FROM users WHERE id = $1', [userId]);
-      if (userResult.rows.length > 0) {
-        isUserAdmin = userResult.rows[0].is_admin;
-      }
-    }
-    console.log(`[DEBUG] userId: ${userId}, isUserAdmin: ${isUserAdmin}`);
-
-    if (userId) {
-      const deniedGroups = await getDeniedProductGroups(userId);
-      console.log(`[DEBUG] Grupos denegados para usuario no admin ${userId}:`, deniedGroups);
-      
-      if (deniedGroups.length > 0) {
-        const groupQuery = ` product_group NOT IN (SELECT unnest($${paramIndex}::varchar[])) `;
-        countQuery += ` AND ${groupQuery}`;
-        dataQuery += ` AND ${groupQuery}`;
-        queryParams.push(deniedGroups);
-        paramIndex++;
-      } else {
-        // Si no hay grupos denegados, el usuario puede ver todos los productos.
-        // No se añade ninguna cláusula WHERE para grupos de productos.
-        console.log(`[DEBUG] Usuario ${userId} no tiene grupos denegados, mostrando todos los productos.`);
-      }
-    }
-    
-    if (search) {
-      const searchQuery = ` (description ILIKE $${paramIndex} OR code ILIKE $${paramIndex}) `;
-      countQuery += ` AND ${searchQuery}`;
-      dataQuery += ` AND ${searchQuery}`;
-      queryParams.push(`%${search}%`);
-      paramIndex++;
-    }
-    
-    if (brand) {
-      const brands = brand.split(',');
-      const brandQuery = ` brand = ANY($${paramIndex}::varchar[]) `;
-      countQuery += ` AND ${brandQuery}`;
-      dataQuery += ` AND ${brandQuery}`;
-      queryParams.push(brands);
-      paramIndex++;
-    }
-    
-    // --- Ordenar y Paginar (Solo para dataQuery) ---
-    dataQuery += ` ORDER BY description ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-    
-    console.log(`[DEBUG] countQuery: ${countQuery}`);
-    console.log(`[DEBUG] dataQuery: ${dataQuery}`);
-    console.log(`[DEBUG] queryParams:`, queryParams);
-
-    // --- Ejecutar Queries ---
-    const countResult = await pool.query(countQuery, queryParams);
-    const totalProducts = parseInt(countResult.rows[0].count, 10);
-    console.log(`[DEBUG] totalProducts: ${totalProducts}`);
-    
-    const dataResult = await pool.query(dataQuery, [...queryParams, limit, offset]);
-    console.log(`[DEBUG] Productos obtenidos: ${dataResult.rows.length}`);
-    
-    // Obtener los IDs de los productos para consultar su estado de oferta en DB2
-    const productIds = dataResult.rows.map(prod => prod.id);
-    let offerStatusMap = new Map();
-    if (productIds.length > 0) {
-      const offerStatusResult = await pool2.query(
-        'SELECT product_id, is_on_offer FROM product_offer_status WHERE product_id = ANY($1::int[])',
-        [productIds]
-      );
-      offerStatusResult.rows.forEach(row => {
-        offerStatusMap.set(row.product_id, row.is_on_offer);
-      });
-    }
-
-    const products = dataResult.rows.map(prod => {
-      let originalPrice = prod.price; // El precio base del producto
-      let finalPrice = prod.price;
-
-      // (MODIFICADO) Aplicar cotización según el tipo de moneda
-      if (prod.moneda === 2) { // Dólar Billete
-        finalPrice = originalPrice * ventaBillete;
-      } else if (prod.moneda === 3) { // Dólar Divisa
-        finalPrice = originalPrice * ventaDivisa;
-      }
-
-      return {
-        id: prod.id,
-        code: prod.code,
-        name: prod.description,
-        price: finalPrice,
-        formattedPrice: formatCurrency(finalPrice),
-        brand: prod.brand,
-        imageUrl: null,
-        capacityDesc: prod.capacity_description,
-        capacityValue: null,
-        moneda: prod.moneda,
-        // (MODIFICADO) La cotización ahora refleja la que se usó
-        cotizacion: prod.moneda === 2 ? ventaBillete : (prod.moneda === 3 ? ventaDivisa : 1),
-        originalPrice: originalPrice,
-        product_group: prod.product_group, // (NUEVO) Devolver el grupo del producto
-        oferta: offerStatusMap.get(prod.id) || false // Obtener el estado de oferta de DB2
-      };
-    });
-    
-    return {
-      products,
-      totalProducts
-    };
-    
+    const result = await productService.fetchProducts({ page, limit, search, brand, userId });
+    return result;
   } catch (error) {
-    console.error('[DEBUG] Error en fetchProtheusProducts:', error);
+    console.error('[DEBUG] Error en fetchProtheusProducts (controller):', error);
     throw error;
   }
 };
@@ -816,58 +690,10 @@ const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = 
  */
 const fetchProductDetails = async (productId, userId = null) => {
   try {
-    // (CORREGIDO) Nombres de columnas actualizados según script.sql
-    // (MODIFICADO) Se añade product_group a la selección
-    let query = `
-      SELECT 
-        id, code, description, price, brand, 
-        capacity_description, product_group
-      FROM products
-      WHERE id = $1 AND price > 0 AND description IS NOT NULL
-    `;
-    let queryParams = [productId];
-    let paramIndex = 2; // Inicializar paramIndex
-
-    if (userId) {
-      const deniedGroups = await getDeniedProductGroups(userId);
-      
-      if (deniedGroups.length > 0) {
-        const groupQuery = ` AND product_group NOT IN (SELECT unnest($${paramIndex}::varchar[])) `;
-        query += groupQuery;
-        queryParams.push(deniedGroups);
-        paramIndex++;
-      } else {
-        // Si no hay grupos denegados, el usuario puede ver el producto.
-        // No se añade ninguna cláusula WHERE para grupos de productos.
-      }
-    }
-    
-    const result = await pool.query(query, queryParams);
-    
-    if (result.rows.length === 0) {
-      return null; // Producto no encontrado
-    }
-    
-    // (CORREGIDO) Mapeo actualizado
-    const prod = result.rows[0];
-    const productDetails = {
-      id: prod.id,
-      code: prod.code,
-      name: prod.description, // Mapea 'description' de la BD a 'name' para el frontend
-      price: prod.price,
-      formattedPrice: formatCurrency(prod.price),
-      brand: prod.brand,
-      imageUrl: null, 
-      capacityDesc: prod.capacity_description, // Mapea 'capacity_description'
-      capacityValue: null, 
-      additionalInfo: {},
-      product_group: prod.product_group // (NUEVO) Devolver el grupo del producto
-    };
-    
+    const productDetails = await productService.fetchProductDetails(productId, userId);
     return productDetails;
-
   } catch (error) {
-    console.error(`Error en fetchProductDetails para ID ${productId}:`, error);
+    console.error(`Error en fetchProductDetails (controller) para ID ${productId}:`, error);
     throw error;
   }
 };
@@ -878,31 +704,10 @@ const fetchProductDetails = async (productId, userId = null) => {
  */
 const fetchProtheusBrands = async (userId = null) => {
   try {
-    let query = `
-      SELECT DISTINCT brand 
-      FROM products 
-      WHERE brand IS NOT NULL AND brand != ''
-    `;
-    let queryParams = [];
-    let paramIndex = 1;
-
-    if (userId) {
-      const deniedGroups = await getDeniedProductGroups(userId);
-      if (deniedGroups.length > 0) {
-        query += ` AND product_group NOT IN (SELECT unnest($${paramIndex}::varchar[]))`;
-        queryParams.push(deniedGroups);
-        paramIndex++;
-      }
-    }
-
-    query += ` ORDER BY brand ASC;`;
-    
-    const result = await pool.query(query, queryParams);
-    
-    return result.rows.map(row => row.brand);
-    
+    const brands = await productService.fetchProtheusBrands(userId);
+    return brands;
   } catch (error) {
-    console.error('Error en fetchProtheusBrands:', error);
+    console.error('Error en fetchProtheusBrands (controller):', error);
     throw error;
   }
 };
@@ -1227,25 +1032,6 @@ const getProductGroupsForAdmin = async () => {
 };
 
 /**
- * (Admin) Obtiene los permisos de grupo para un usuario específico
- */
-const getDeniedProductGroups = async (userId) => {
-  try {
-    const query = `
-      SELECT product_group 
-      FROM user_product_group_permissions 
-      WHERE user_id = $1;
-    `;
-    const result = await pool2.query(query, [userId]);
-    const deniedGroups = result.rows.map(row => row.product_group);
-    return deniedGroups;
-  } catch (error) {
-    console.error(`Error in getDeniedProductGroups for user ${userId}:`, error);
-    throw error;
-  }
-};
-
-/**
  * (Admin) Actualiza los permisos de grupo para un usuario específico
  */
 const updateUserGroupPermissions = async (userId, groups) => {
@@ -1281,42 +1067,10 @@ const updateUserGroupPermissions = async (userId, groups) => {
  */
 const getAccessories = async (userId) => {
   try {
-    let accessoryGroups = ['0102', '0103', '0114', '0120', '0121', '0125', '0128', '0136', '0140', '0143', '0144', '0148', '0149', '0166', '0177', '0186', '0187'];
-
-    if (userId) {
-      const deniedGroups = await getDeniedProductGroups(userId);
-      if (deniedGroups.length > 0) {
-        accessoryGroups = accessoryGroups.filter(group => !deniedGroups.includes(group));
-      }
-    }
-
-    if (accessoryGroups.length === 0) {
-      return []; // No hay grupos de accesorios para mostrar
-    }
-
-    const query = `
-      SELECT id, code, description, price, product_group
-      FROM products 
-      WHERE product_group = ANY($1) AND price > 0 AND description IS NOT NULL
-      ORDER BY RANDOM()
-      LIMIT 20;
-    `;
-    const result = await pool.query(query, [accessoryGroups]);
-    
-    const accessories = result.rows.map(prod => ({
-      id: prod.id,
-      code: prod.code,
-      name: prod.description,
-      price: prod.price,
-      formattedPrice: formatCurrency(prod.price),
-      image_url: `https://via.placeholder.com/150/2D3748/FFFFFF?text=${encodeURIComponent(prod.description.split(' ')[0])}`,
-      group_code: prod.product_group,
-    }));
-    
+    const accessories = await productService.getAccessories(userId);
     return accessories;
-    
   } catch (error) {
-    console.error('Error en getAccessories:', error);
+    console.error('Error en getAccessories (controller):', error);
     throw error;
   }
 };
@@ -1326,52 +1080,11 @@ const getAccessories = async (userId) => {
  * incluyendo una imagen aleatoria de un producto de cada grupo.
  */
 const getProductGroupsDetails = async (userId) => {
-  let groupCodes = ['0102', '0103', '0114', '0120', '0121', '0125', '0128', '0136', '0140', '0143', '0144', '0148', '0149', '0166', '0177', '0186', '0187'];
-  
   try {
-    if (userId) {
-      const deniedGroups = await getDeniedProductGroups(userId);
-      if (deniedGroups.length > 0) {
-        groupCodes = groupCodes.filter(code => !deniedGroups.includes(code));
-      }
-    }
-
-    if (groupCodes.length === 0) {
-      return [];
-    }
-
-    const groupDetails = [];
-
-    for (const code of groupCodes) {
-      const productQuery = `
-        SELECT brand, description
-        FROM products
-        WHERE product_group = $1 AND brand IS NOT NULL AND brand != ''
-        LIMIT 1;
-      `;
-      const productResult = await pool.query(productQuery, [code]);
-      
-      let imageUrl = `https://via.placeholder.com/150/2D3748/FFFFFF?text=${encodeURIComponent(code)}`;
-      let name = `Grupo ${code}`;
-
-      if (productResult.rows.length > 0) {
-        const product = productResult.rows[0];
-        name = product.brand; 
-        const imageName = product.description || name;
-        imageUrl = `https://via.placeholder.com/150/2D3748/FFFFFF?text=${encodeURIComponent(imageName.split(' ')[0])}`;
-      }
-      
-      groupDetails.push({
-        group_code: code,
-        name: name, 
-        image_url: imageUrl,
-      });
-    }
-    
+    const groupDetails = await productService.getProductGroupsDetails(userId);
     return groupDetails;
-    
   } catch (error) {
-    console.error('Error en getProductGroupsDetails:', error);
+    console.error('Error en getProductGroupsDetails (controller):', error);
     throw error;
   }
 };
@@ -1617,7 +1330,6 @@ module.exports = {
   toggleProductOfferStatus,
   getUsersForAdmin,
   getProductGroupsForAdmin,
-  getDeniedProductGroups, // Renamed export
   updateUserGroupPermissions,
   getAccessories,
   getProductGroupsDetails,
@@ -1626,4 +1338,5 @@ module.exports = {
   addAdmin,
   removeAdmin,
   downloadOrderPDF,
+  getDeniedProductGroups,
 };
