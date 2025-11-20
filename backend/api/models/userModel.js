@@ -58,9 +58,30 @@ const isUserAdmin = async (userId) => {
   }
 };
 
+/**
+ * Actualiza los datos de un usuario en la base de datos.
+ * @param {number} userId - El ID del usuario a actualizar.
+ * @param {object} profileData - Los nuevos datos del perfil.
+ * @returns {Promise<object|null>}
+ */
+const updateUser = async (userId, profileData) => {
+  const { A1_NOME, A1_NUMBER, A1_EMAIL, A1_END, A1_CGC } = profileData;
+  const query = `
+    UPDATE users
+    SET full_name = $1, a1_tel = $2, email = $3, a1_endereco = $4, a1_cgc = $5
+    WHERE id = $6
+    RETURNING *;
+  `;
+  const values = [A1_NOME, A1_NUMBER, A1_EMAIL, A1_END || null, A1_CGC, userId];
+  
+  const result = await pool.query(query, values);
+  return result.rows[0] || null;
+};
+
 module.exports = {
   findUserByEmail,
   findUserById,
   createUser,
   isUserAdmin,
+  updateUser,
 };

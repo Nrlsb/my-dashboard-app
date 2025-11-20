@@ -3,6 +3,8 @@
 const { pool, pool2 } = require('../db');
 const { sendOrderConfirmationEmail, sendNewOrderNotificationEmail } = require('../emailService');
 const { generateOrderPDF, generateOrderCSV } = require('../utils/fileGenerator');
+const orderModel = require('../models/orderModel');
+const { formatCurrency } = require('../utils/helpers');
 
 /**
  * Orquesta la creación de un nuevo pedido, incluyendo la transacción en la base de datos,
@@ -150,6 +152,48 @@ const createOrder = async (orderData, userId) => {
   return { success: true, message: 'Pedido guardado con éxito.', orderId: newOrderId };
 };
 
+/**
+ * Obtiene y formatea el historial de pedidos de un usuario.
+ * @param {number} userId - El ID del usuario.
+ * @returns {Promise<Array<object>>} - Una promesa que se resuelve con la lista de pedidos formateados.
+ */
+const fetchOrders = async (userId) => {
+  const orders = await orderModel.findOrdersByUserId(userId);
+  
+  // Formatear los datos antes de enviarlos
+  return orders.map(order => ({
+    ...order,
+    formattedTotal: formatCurrency(order.total)
+  }));
+};
+
+/**
+ * Obtiene y formatea los detalles de un pedido específico.
+ * @param {number} orderId - El ID del pedido.
+ * @param {number} userId - El ID del usuario.
+ * @returns {Promise<object|null>} - Una promesa que se resuelve con los detalles del pedido formateados o null.
+ */
+const fetchOrderDetails = async (orderId, userId) => {
+  const orderDetails = await orderModel.findOrderDetailsById(orderId, userId);
+
+  if (!orderDetails) {
+    return null;
+  }
+
+  // Formatear y enriquecer
+  return {
+    ...orderDetails,
+    items: orderDetails.items.map(item => ({
+      ...item,
+      product_name: item.product_name,
+      formattedPrice: formatCurrency(item.unit_price)
+    })),
+    formattedTotal: formatCurrency(orderDetails.total)
+  };
+};
+
 module.exports = {
   createOrder,
+  fetchOrders,
+  fetchOrderDetails,
 };

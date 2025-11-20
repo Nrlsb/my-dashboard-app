@@ -9,13 +9,12 @@
 */
 
 const { pool, pool2 } = require('./db'); // Importar el pool de conexiones
-const bcrypt = require('bcryptjs'); // (NUEVO) Para hashear contraseñas
-const { formatCurrency, formatMovementType } = require('./utils/helpers'); // Importar helpers
-const { getExchangeRates } = require('./utils/exchangeRateService'); // (NUEVO) Importar servicio de cotizaciones
 const productService = require('./services/productService'); // (NUEVO) Importar el servicio de productos
 const orderService = require('./services/orderService'); // (NUEVO) Importar el servicio de pedidos
 const movementService = require('./services/movementService'); // (NUEVO) Importar el servicio de movimientos
 const userService = require('./services/userService'); // (NUEVO) Importar el servicio de usuarios
+const accountingService = require('./services/accountingService'); // (NUEVO) Importar el servicio de contabilidad
+const dashboardService = require('./services/dashboardService'); // (NUEVO) Importar el servicio de dashboard
 const { getDeniedProductGroups } = require('./models/productModel'); //(NUEVO) Importar funcion de productModel
 
 // (NUEVO) Importar el servicio de email
@@ -26,19 +25,6 @@ const { generateOrderPDF, generateOrderCSV } = require('./utils/fileGenerator');
 // =================================================================
 // --- (NUEVO) Autenticación y Perfil (Users Table) ---
 // =================================================================
-
-/**
- * (NUEVO) Obtiene las cotizaciones del dólar (billete y divisa)
- */
-const getExchangeRatesController = async (req, res) => {
-  try {
-    const rates = await getExchangeRates();
-    return rates;
-  } catch (error) {
-    console.error('Error en getExchangeRatesController:', error);
-    throw error;
-  }
-};
 
 /**
  * Autentica un usuario contra la tabla 'users'
@@ -81,30 +67,10 @@ const getProfile = async (userId) => {
  * Actualiza los datos del perfil de un usuario
  */
 const updateProfile = async (userId, profileData) => {
-  const { A1_NOME, A1_NUMBER, A1_EMAIL, A1_END, A1_CGC } = profileData;
-  
   try {
-    const query = `
-      UPDATE users
-      SET full_name = $1, a1_tel = $2, email = $3, a1_endereco = $4, a1_cgc = $5
-      WHERE id = $6
-      RETURNING *;
-    `;
-    const values = [A1_NOME, A1_NUMBER, A1_EMAIL, A1_END || null, A1_CGC, userId];
-    
-    const result = await pool.query(query, values);
-    
-    if (result.rows.length === 0) {
-      throw new Error('Usuario no encontrado al actualizar.');
-    }
-    
-    const { password_hash, ...updatedUser } = result.rows[0];
-    console.log(`Perfil actualizado para usuario: ${updatedUser.email}`);
-    
-    return { success: true, message: 'Perfil actualizado.', user: updatedUser };
-    
+    return await userService.updateUserProfile(userId, profileData);
   } catch (error) {
-    console.error('Error en updateProfile:', error);
+    console.error('Error en updateProfile (controller):', error);
     throw error;
   }
 };
@@ -148,44 +114,9 @@ const fetchProtheusMovements = async (userId) => {
  */
 const createCreditNote = async (targetUserCod, reason, items, invoiceRefId, adminUserId) => {
   try {
-    // 1. Verificar que el cliente (targetUserCod) existe
-    const userResult = await pool.query('SELECT id FROM users WHERE a1_cod = $1', [targetUserCod]);
-    if (userResult.rows.length === 0) {
-      throw new Error(`El cliente con código ${targetUserCod} no existe en la base de datos.`);
-    }
-    const targetUserId = userResult.rows[0].id;
-
-    // 2. Calcular el total de la NC basado en los items
-    let totalCreditAmount = 0;
-    for (const item of items) {
-      totalCreditAmount += item.quantity * item.unit_price;
-    }
-
-    if (totalCreditAmount <= 0) {
-      throw new Error('El monto de la nota de crédito debe ser positivo.');
-    }
-
-    // 3. Insertar el movimiento en 'account_movements'
-    // Adaptado a script.sql: Se usa la columna 'credit'.
-    const query = `
-      INSERT INTO account_movements 
-        (user_id, credit, description, date)
-      VALUES 
-        ($1, $2, $3, CURRENT_DATE)
-      RETURNING *;
-    `;
-    // La info extra (admin, reason) va en la descripción.
-    const description = `Nota de Crédito (Admin: ${adminUserId}): ${reason}. Ref Fact: ${invoiceRefId}.`;
-    const values = [targetUserId, totalCreditAmount, description];
-    
-    const result = await pool.query(query, values);
-    
-    console.log(`Nota de Crédito creada por Admin ${adminUserId} para Cliente ${targetUserCod}. Monto: ${totalCreditAmount}`);
-    
-    return { success: true, message: 'Nota de crédito creada exitosamente.', movement: result.rows[0] };
-
+    return await accountingService.createCreditNote(targetUserCod, reason, items, invoiceRefId, adminUserId);
   } catch (error) {
-    console.error('Error en createCreditNote:', error);
+    console.error('Error en createCreditNote (controller):', error);
     throw error;
   }
 };
@@ -195,39 +126,9 @@ const createCreditNote = async (targetUserCod, reason, items, invoiceRefId, admi
  */
 const fetchCustomerInvoices = async (customerCod) => {
   try {
-    // Adaptado a 'account_movements': Una factura es un débito con referencia a un pedido.
-    const query = `
-      SELECT 
-        am.id, am.date, am.debit, am.description, am.order_ref,
-        TO_CHAR(am.date, 'DD/MM/YYYY') as formatted_date
-      FROM account_movements am
-      JOIN users u ON am.user_id = u.id
-      WHERE u.a1_cod = $1 
-        AND am.debit > 0
-        AND am.order_ref IS NOT NULL
-      ORDER BY am.date DESC;
-    `;
-    
-    const result = await pool.query(query, [customerCod]);
-    
-    if (result.rows.length === 0) {
-      console.log(`No se encontraron facturas para el código: ${customerCod}`);
-      return []; 
-    }
-    
-    // Formatear para que coincida con lo que el frontend podría esperar
-    return result.rows.map(inv => ({
-      id: inv.id,
-      created_at: inv.date, // Mapear 'date' a 'created_at'
-      amount: -inv.debit, // Frontend esperaba un débito como negativo
-      formattedAmount: formatCurrency(-inv.debit),
-      description: inv.description,
-      formatted_date: inv.formatted_date,
-      invoiceId: inv.order_ref // El ID de la factura es la referencia del pedido
-    }));
-    
+    return await accountingService.fetchCustomerInvoices(customerCod);
   } catch (error) {
-    console.error(`Error en fetchCustomerInvoices para ${customerCod}:`, error);
+    console.error(`Error en fetchCustomerInvoices (controller) para ${customerCod}:`, error);
     throw error;
   }
 };
@@ -306,26 +207,9 @@ const fetchAdminOrderDetails = async (orderId) => {
  */
 const fetchProtheusOrders = async (userId) => {
   try {
-    const query = `
-      SELECT id, total, status, 
-             TO_CHAR(created_at, 'DD/MM/YYYY') as formatted_date,
-             (SELECT COUNT(*) FROM order_items WHERE order_id = orders.id) as item_count
-      FROM orders
-      WHERE user_id = $1
-      ORDER BY created_at DESC;
-    `;
-    const result = await pool2.query(query, [userId]);
-    
-    // Formatear los datos antes de enviarlos
-    const formattedOrders = result.rows.map(order => ({
-      ...order,
-      formattedTotal: formatCurrency(order.total)
-    }));
-    
-    return formattedOrders;
-    
+    return await orderService.fetchOrders(userId);
   } catch (error) {
-    console.error('Error en fetchProtheusOrders:', error);
+    console.error('Error en fetchProtheusOrders (controller):', error);
     throw error;
   }
 };
@@ -335,54 +219,9 @@ const fetchProtheusOrders = async (userId) => {
  */
 const fetchProtheusOrderDetails = async (orderId, userId) => {
   try {
-    // 1. Obtener datos del pedido (y verificar que pertenece al usuario) desde BD2
-    const orderQuery = `
-      SELECT *, 
-             TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') as formatted_date
-      FROM orders
-      WHERE id = $1 AND user_id = $2;
-    `;
-    const orderResult = await pool2.query(orderQuery, [orderId, userId]);
-    
-    if (orderResult.rows.length === 0) {
-      return null; // Pedido no encontrado o no pertenece al usuario
-    }
-    
-    // 2. Obtener items del pedido desde BD2 (sin el JOIN)
-    const itemsQuery = `SELECT * FROM order_items WHERE order_id = $1;`;
-    const itemsResult = await pool2.query(itemsQuery, [orderId]);
-    const items = itemsResult.rows;
-
-    if (items.length > 0) {
-        // 3. Obtener los IDs de los productos
-        const productIds = items.map(item => item.product_id);
-
-        // 4. Obtener las descripciones de los productos desde BD1
-        const productsQuery = `SELECT id, description FROM products WHERE id = ANY($1::int[]);`;
-        const productsResult = await pool.query(productsQuery, [productIds]);
-        const productMap = new Map(productsResult.rows.map(p => [p.id, p.description]));
-
-        // 5. Enriquecer los items con la descripción del producto
-        items.forEach(item => {
-            item.product_name = productMap.get(item.product_id) || 'Descripción no disponible';
-        });
-    }
-    
-    // 6. Combinar y formatear
-    const orderDetails = {
-      ...orderResult.rows[0],
-      items: items.map(item => ({
-        ...item,
-        product_name: item.product_name, // Usar el nombre enriquecido
-        formattedPrice: formatCurrency(item.unit_price)
-      })),
-      formattedTotal: formatCurrency(orderResult.rows[0].total)
-    };
-    
-    return orderDetails;
-    
+    return await orderService.fetchOrderDetails(orderId, userId);
   } catch (error) {
-    console.error(`Error en fetchProtheusOrderDetails para ID ${orderId} y User ${userId}:`, error);
+    console.error(`Error en fetchProtheusOrderDetails (controller) para ID ${orderId}:`, error);
     throw error;
   }
 };
@@ -453,79 +292,9 @@ const fetchProtheusBrands = async (userId = null) => {
  */
 const fetchProtheusOffers = async (userId = null) => {
   try {
-    // 1. Obtener los IDs de los productos en oferta desde DB2
-    const offerProductIdsResult = await pool2.query(
-      'SELECT product_id FROM product_offer_status WHERE is_on_offer = true'
-    );
-    const offerProductIds = offerProductIdsResult.rows.map(row => row.product_id);
-
-    if (offerProductIds.length === 0) {
-      return []; // No hay productos en oferta
-    }
-
-    // 2. Obtener los detalles de esos productos desde DB1
-    let query = `
-      SELECT
-        id, code, description, price, brand,
-        capacity_description, moneda, cotizacion, product_group
-      FROM products
-      WHERE id = ANY($1::int[]) AND price > 0 AND description IS NOT NULL
-    `;
-    let queryParams = [offerProductIds];
-    let paramIndex = 2;
-
-    // Lógica de permisos por grupo de productos
-    if (userId) {
-      const deniedGroups = await getDeniedProductGroups(userId);
-
-      if (deniedGroups.length > 0) {
-        const groupQuery = ` product_group NOT IN (SELECT unnest($${paramIndex}::varchar[])) `;
-        query += ` AND ${groupQuery}`;
-        queryParams.push(deniedGroups);
-        paramIndex++;
-      }
-    }
-
-    query += ` ORDER BY description ASC;`;
-
-    const result = await pool.query(query, queryParams);
-
-    // Reutilizar la lógica de formateo de precios de fetchProtheusProducts
-    const exchangeRates = await getExchangeRates();
-    const ventaBillete = exchangeRates.venta_billete;
-    const ventaDivisa = exchangeRates.venta_divisa;
-
-    const offers = result.rows.map(prod => {
-      let originalPrice = prod.price;
-      let finalPrice = prod.price;
-
-      if (prod.moneda === 2) { // Dólar Billete
-        finalPrice = originalPrice * ventaBillete;
-      } else if (prod.moneda === 3) { // Dólar Divisa
-        finalPrice = originalPrice * ventaDivisa;
-      }
-
-      return {
-        id: prod.id,
-        code: prod.code,
-        name: prod.description,
-        price: finalPrice,
-        formattedPrice: formatCurrency(finalPrice),
-        brand: prod.brand,
-        imageUrl: null,
-        capacityDesc: prod.capacity_description,
-        moneda: prod.moneda,
-        cotizacion: prod.moneda === 2 ? ventaBillete : (prod.moneda === 3 ? ventaDivisa : 1),
-        originalPrice: originalPrice,
-        product_group: prod.product_group,
-        oferta: true // Siempre true para ofertas
-      };
-    });
-
-    return offers;
-
+    return await productService.fetchProtheusOffers(userId);
   } catch (error) {
-    console.error('Error en fetchProtheusOffers:', error);
+    console.error('Error en fetchProtheusOffers (controller):', error);
     throw error;
   }
 };
@@ -606,37 +375,9 @@ const saveProtheusVoucher = async (fileInfo, userId) => {
  */
 const getDashboardPanels = async (userId) => {
   try {
-    let isAdmin = false;
-    if (userId) {
-      const userResult = await pool.query('SELECT is_admin FROM users WHERE id = $1', [userId]);
-      if (userResult.rows.length > 0) {
-        isAdmin = userResult.rows[0].is_admin;
-      }
-    }
-
-    let query = 'SELECT * FROM dashboard_panels';
-    if (!isAdmin) {
-      query += ' WHERE is_visible = true';
-    }
-    query += ' ORDER BY id';
-
-    const result = await pool2.query(query);
-    let panels = result.rows;
-
-    // Comprobar si el panel de ofertas debe mostrarse
-    const offersPanelIndex = panels.findIndex(panel => panel.navigation_path === 'offers');
-
-    if (offersPanelIndex > -1) {
-      const offers = await fetchProtheusOffers(userId); // <--- Pass userId here
-      if (offers.length === 0) {
-        // Si no hay ofertas, filtramos el panel de la lista
-        panels = panels.filter(panel => panel.navigation_path !== 'offers');
-      }
-    }
-
-    return panels;
+    return await dashboardService.getDashboardPanels(userId);
   } catch (error) {
-    console.error('Error en getDashboardPanels:', error);
+    console.error('Error en getDashboardPanels (controller):', error);
     throw error;
   }
 };
@@ -829,88 +570,10 @@ const getProductGroupsDetails = async (userId) => {
  * (NUEVO) Obtiene la lista de productos para un grupo específico (paginada)
  */
 const fetchProductsByGroup = async (groupCode, page = 1, limit = 20, userId = null) => {
-  console.log(`[DEBUG] fetchProductsByGroup llamado con: groupCode=${groupCode}, page=${page}, limit=${limit}, userId=${userId}`);
   try {
-    const exchangeRates = await getExchangeRates();
-    const ventaBillete = exchangeRates.venta_billete;
-    const ventaDivisa = exchangeRates.venta_divisa;
-
-    const offset = (page - 1) * limit;
-    let queryParams = [groupCode];
-    let paramIndex = 2;
-
-    // --- Query para Contar Total ---
-    let countQuery = 'SELECT COUNT(*) FROM products WHERE product_group = $1 AND price > 0 AND description IS NOT NULL';
-    
-    // --- Query para Obtener Productos ---
-    let dataQuery = `
-      SELECT 
-        id, code, description, price, brand, 
-        capacity_description, moneda, cotizacion, product_group
-      FROM products
-      WHERE product_group = $1 AND price > 0 AND description IS NOT NULL
-    `;
-
-    // Lógica de permisos por grupo de productos
-    if (userId) {
-      const deniedGroups = await getDeniedProductGroups(userId);
-      if (deniedGroups.includes(groupCode)) {
-        // Si el grupo actual está denegado para el usuario, no devolvemos nada.
-        console.log(`[DEBUG] Acceso denegado al grupo ${groupCode} para el usuario ${userId}.`);
-        return { products: [], totalProducts: 0, groupName: '' };
-      }
-    }
-    
-    // --- Ordenar y Paginar ---
-    dataQuery += ` ORDER BY description ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-    
-    // --- Ejecutar Queries ---
-    const countResult = await pool.query(countQuery, [groupCode]);
-    const totalProducts = parseInt(countResult.rows[0].count, 10);
-    
-    const dataResult = await pool.query(dataQuery, [...queryParams, limit, offset]);
-    
-    let groupName = '';
-    if (dataResult.rows.length > 0) {
-      groupName = dataResult.rows[0].brand; // El nombre del grupo es la marca
-    } else {
-      // Si no hay productos, intentamos obtener el nombre del grupo de todas formas
-      const groupNameResult = await pool.query('SELECT brand FROM products WHERE product_group = $1 AND brand IS NOT NULL LIMIT 1', [groupCode]);
-      if (groupNameResult.rows.length > 0) {
-        groupName = groupNameResult.rows[0].brand;
-      }
-    }
-
-    const products = dataResult.rows.map(prod => {
-      let originalPrice = prod.price;
-      let finalPrice = prod.price;
-
-      if (prod.moneda === 2) { // Dólar Billete
-        finalPrice = originalPrice * ventaBillete;
-      } else if (prod.moneda === 3) { // Dólar Divisa
-        finalPrice = originalPrice * ventaDivisa;
-      }
-
-      return {
-        id: prod.id,
-        code: prod.code,
-        name: prod.description,
-        price: finalPrice,
-        formattedPrice: formatCurrency(finalPrice),
-        brand: prod.brand,
-        imageUrl: null,
-        capacityDesc: prod.capacity_description,
-      };
-    });
-    
-    return {
-      products,
-      totalProducts,
-      groupName,
-    };
-    
+    return await productService.fetchProductsByGroup(groupCode, page, limit, userId);
   } catch (error) {
-    console.error('[DEBUG] Error en fetchProductsByGroup:', error);
+    console.error('[DEBUG] Error en fetchProductsByGroup (controller):', error);
     throw error;
   }
 };
@@ -1059,7 +722,6 @@ module.exports = {
   fetchProtheusOffers,
   saveProtheusQuery,
   saveProtheusVoucher,
-  getExchangeRatesController,
   getDashboardPanels,
   getAdminDashboardPanels,
   updateDashboardPanel,

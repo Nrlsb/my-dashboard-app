@@ -279,6 +279,57 @@ const fetchProtheusOffers = async (userId = null) => {
   }
 };
 
+const fetchProductsByGroup = async (groupCode, page = 1, limit = 20, userId = null) => {
+  try {
+    const exchangeRates = await getExchangeRates();
+    const ventaBillete = exchangeRates.venta_billete;
+    const ventaDivisa = exchangeRates.venta_divisa;
+
+    const offset = (page - 1) * limit;
+    let deniedGroups = [];
+    if (userId) {
+      const userResult = await pool.query('SELECT is_admin FROM users WHERE id = $1', [userId]);
+      const isUserAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin;
+      if (!isUserAdmin) {
+        deniedGroups = await productModel.getDeniedProductGroups(userId);
+      }
+    }
+
+    const { products: rawProducts, totalProducts, groupName } = await productModel.findProductsByGroup(groupCode, limit, offset, deniedGroups);
+
+    const products = rawProducts.map(prod => {
+      let originalPrice = prod.price;
+      let finalPrice = prod.price;
+
+      if (prod.moneda === 2) { // Dólar Billete
+        finalPrice = originalPrice * ventaBillete;
+      } else if (prod.moneda === 3) { // Dólar Divisa
+        finalPrice = originalPrice * ventaDivisa;
+      }
+
+      return {
+        id: prod.id,
+        code: prod.code,
+        name: prod.description,
+        price: finalPrice,
+        formattedPrice: formatCurrency(finalPrice),
+        brand: prod.brand,
+        imageUrl: null,
+        capacityDesc: prod.capacity_description,
+      };
+    });
+
+    return {
+      products,
+      totalProducts,
+      groupName,
+    };
+  } catch (error) {
+    console.error('[DEBUG] Error in fetchProductsByGroup (service):', error);
+    throw error;
+  }
+};
+
 module.exports = {
   fetchProducts,
   getAccessories,
@@ -286,4 +337,5 @@ module.exports = {
   fetchProductDetails,
   fetchProtheusBrands,
   fetchProtheusOffers,
+  fetchProductsByGroup,
 };

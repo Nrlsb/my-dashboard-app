@@ -98,8 +98,34 @@ const getUserProfile = async (userId) => {
   }
 };
 
+/**
+ * Actualiza el perfil de un usuario.
+ * @param {number} userId - El ID del usuario.
+ * @param {object} profileData - Los datos del perfil a actualizar.
+ * @returns {Promise<object>}
+ */
+const updateUserProfile = async (userId, profileData) => {
+  try {
+    const updatedUserWithHash = await userModel.updateUser(userId, profileData);
+
+    if (!updatedUserWithHash) {
+      throw new Error('Usuario no encontrado al actualizar.');
+    }
+
+    const { password_hash, ...updatedUser } = updatedUserWithHash;
+    console.log(`Perfil actualizado para usuario: ${updatedUser.email}`);
+
+    return { success: true, message: 'Perfil actualizado.', user: updatedUser };
+
+  } catch (error) {
+    console.error('Error en updateUserProfile (service):', error);
+    throw error;
+  }
+};
+
 module.exports = {
   authenticateUser,
   registerUser,
   getUserProfile,
+  updateUserProfile,
 };

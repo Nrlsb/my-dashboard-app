@@ -233,6 +233,42 @@ const findOffers = async (deniedGroups = []) => {
   }
 };
 
+const findProductsByGroup = async (groupCode, limit, offset, deniedGroups = []) => {
+  if (deniedGroups.includes(groupCode)) {
+    console.log(`[DEBUG] Acceso denegado al grupo ${groupCode}.`);
+    return { products: [], totalProducts: 0, groupName: '' };
+  }
+
+  const countQuery = 'SELECT COUNT(*) FROM products WHERE product_group = $1 AND price > 0 AND description IS NOT NULL';
+  const dataQuery = `
+    SELECT 
+      id, code, description, price, brand, 
+      capacity_description, moneda, cotizacion, product_group
+    FROM products
+    WHERE product_group = $1 AND price > 0 AND description IS NOT NULL
+    ORDER BY description ASC 
+    LIMIT $2 OFFSET $3;
+  `;
+
+  const countResult = await pool.query(countQuery, [groupCode]);
+  const totalProducts = parseInt(countResult.rows[0].count, 10);
+
+  const dataResult = await pool.query(dataQuery, [groupCode, limit, offset]);
+  const products = dataResult.rows;
+
+  let groupName = '';
+  if (products.length > 0) {
+    groupName = products[0].brand;
+  } else {
+    const groupNameResult = await pool.query('SELECT brand FROM products WHERE product_group = $1 AND brand IS NOT NULL LIMIT 1', [groupCode]);
+    if (groupNameResult.rows.length > 0) {
+      groupName = groupNameResult.rows[0].brand;
+    }
+  }
+
+  return { products, totalProducts, groupName };
+};
+
 module.exports = {
   findProducts,
   getDeniedProductGroups,
@@ -241,4 +277,5 @@ module.exports = {
   findProductById,
   findUniqueBrands,
   findOffers,
+  findProductsByGroup,
 };
