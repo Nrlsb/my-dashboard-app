@@ -13,6 +13,9 @@ const bcrypt = require('bcryptjs'); // (NUEVO) Para hashear contraseñas
 const { formatCurrency, formatMovementType } = require('./utils/helpers'); // Importar helpers
 const { getExchangeRates } = require('./utils/exchangeRateService'); // (NUEVO) Importar servicio de cotizaciones
 const productService = require('./services/productService'); // (NUEVO) Importar el servicio de productos
+const orderService = require('./services/orderService'); // (NUEVO) Importar el servicio de pedidos
+const movementService = require('./services/movementService'); // (NUEVO) Importar el servicio de movimientos
+const userService = require('./services/userService'); // (NUEVO) Importar el servicio de usuarios
 const { getDeniedProductGroups } = require('./models/productModel'); //(NUEVO) Importar funcion de productModel
 
 // (NUEVO) Importar el servicio de email
@@ -42,50 +45,10 @@ const getExchangeRatesController = async (req, res) => {
  */
 const authenticateProtheusUser = async (email, password) => {
   try {
-    console.log(`Buscando usuario con email: ${email}`);
-    // Paso 1: Autenticar usuario contra la DB1 (pool)
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    
-    if (result.rows.length === 0) {
-      console.log('Usuario no encontrado.');
-      return { success: false, message: 'Usuario o contraseña incorrectos.' };
-    }
-    
-    const user = result.rows[0];
-    
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-    
-    if (!isMatch) {
-      console.log('Contraseña incorrecta.');
-      return { success: false, message: 'Usuario o contraseña incorrectos.' };
-    }
-
-    console.log(`Usuario ${user.id} autenticado. Verificando permisos de admin en DB2...`);
-    const { password_hash, ...userWithoutPassword } = user;
-
-    // Paso 2: Verificar si es admin en la DB2 (pool2)
-    try {
-      const adminCheck = await pool2.query('SELECT 1 FROM admins WHERE user_id = $1', [user.id]);
-      if (adminCheck.rows.length > 0) {
-        console.log(`El usuario ${user.id} ES administrador.`);
-        userWithoutPassword.is_admin = true;
-      } else {
-        console.log(`El usuario ${user.id} NO es administrador.`);
-        userWithoutPassword.is_admin = false;
-      }
-    } catch (adminDbError) {
-      console.error('Error al consultar la tabla de administradores en DB2:', adminDbError);
-      // Decidir si fallar o continuar sin permisos de admin.
-      // Es más seguro asumir que no es admin si la DB2 falla.
-      userWithoutPassword.is_admin = false;
-    }
-    
-    // Paso 3: Devolver el usuario con el estado de admin actualizado
-    return { success: true, user: userWithoutPassword };
-    
+    return await userService.authenticateUser(email, password);
   } catch (error) {
-    console.error('Error en authenticateProtheusUser:', error);
-    throw error; // Lanza el error para que la ruta lo maneje
+    console.error('Error en authenticateProtheusUser (controller):', error);
+    throw error;
   }
 };
 
@@ -93,44 +56,11 @@ const authenticateProtheusUser = async (email, password) => {
  * Registra un nuevo usuario en la tabla 'users'
  */
 const registerProtheusUser = async (userData) => {
-  // (CORREGIDO) El frontend envía 'nombre', pero la BD espera 'full_name'
-  const { nombre, email, password, a1_cod, a1_loja, a1_cgc, a1_tel, a1_email } = userData;
-  
   try {
-    // Verificar si el email ya existe
-    const existingUser = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (existingUser.rows.length > 0) {
-      throw new Error('El email ya está registrado.');
-    }
-    
-    // (NUEVO) Hashear la contraseña
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
-    
-    // (CORREGIDO) Se inserta en 'full_name' (el script no tiene 'a1_email')
-    const query = `
-      INSERT INTO users 
-        (full_name, email, password_hash, a1_cod, a1_loja, a1_cgc, a1_tel, is_admin)
-      VALUES 
-        ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING *;
-    `;
-    // Por defecto, is_admin = false
-    // (CORREGIDO) Se usa 'nombre' (del form) para 'full_name' (de la BD)
-    const values = [nombre, email, passwordHash, a1_cod, a1_loja, a1_cgc, a1_tel, false];
-    
-    const result = await pool.query(query, values);
-    const newUser = result.rows[0];
-    
-    // No devolver el hash
-    const { password_hash, ...userToReturn } = newUser;
-    console.log(`Nuevo usuario registrado: ${userToReturn.email}`);
-    
-    return userToReturn;
-    
+    return await userService.registerUser(userData);
   } catch (error) {
-    console.error('Error en registerProtheusUser:', error);
-    throw error; // Lanza el error para que la ruta lo maneje
+    console.error('Error en registerProtheusUser (controller):', error);
+    throw error;
   }
 };
 
@@ -140,29 +70,9 @@ const registerProtheusUser = async (userData) => {
  */
 const getProfile = async (userId) => {
   try {
-    const result = await pool.query(
-      `SELECT 
-        id, 
-        full_name AS "A1_NOME", 
-        email AS "A1_EMAIL", 
-        a1_cod AS "A1_COD", 
-        a1_loja AS "A1_LOJA", 
-        a1_cgc AS "A1_CGC", 
-        a1_tel AS "A1_NUMBER", 
-        a1_endereco AS "A1_END"
-      FROM users WHERE id = $1`, 
-      [userId]
-    );
-    
-    if (result.rows.length === 0) {
-      return null; // Usuario no encontrado
-    }
-    
-    // No need to remove password_hash as it's not selected
-    return result.rows[0];
-    
+    return await userService.getUserProfile(userId);
   } catch (error) {
-    console.error('Error en getProfile:', error);
+    console.error('Error en getProfile (controller):', error);
     throw error;
   }
 };
@@ -209,24 +119,9 @@ const updateProfile = async (userId, profileData) => {
  */
 const fetchProtheusBalance = async (userId) => {
   try {
-    // Adaptado a la tabla 'account_movements'
-    const query = `
-      SELECT 
-        COALESCE(SUM(credit), 0) - COALESCE(SUM(debit), 0) AS total_balance
-      FROM account_movements
-      WHERE user_id = $1;
-    `;
-    const result = await pool.query(query, [userId]);
-    
-    const balance = parseFloat(result.rows[0].total_balance);
-    
-    return {
-      balance: balance,
-      formattedBalance: formatCurrency(balance) // Usar el helper
-    };
-    
+    return await movementService.getBalance(userId);
   } catch (error) {
-    console.error('Error en fetchProtheusBalance:', error);
+    console.error('Error en fetchProtheusBalance (controller):', error);
     throw error;
   }
 };
@@ -237,33 +132,9 @@ const fetchProtheusBalance = async (userId) => {
  */
 const fetchProtheusMovements = async (userId) => {
   try {
-    // Adaptado a la tabla 'account_movements'
-    const query = `
-      SELECT *, 
-             TO_CHAR(date, 'DD/MM/YYYY') as formatted_date,
-             TO_CHAR(fecha_vencimiento, 'DD/MM/YYYY') as formatted_fecha_vencimiento
-      FROM account_movements
-      WHERE user_id = $1
-      ORDER BY date DESC, created_at DESC;
-    `;
-    const result = await pool.query(query, [userId]);
-    
-    // Formatear los datos antes de enviarlos
-    const formattedMovements = result.rows.map(mov => {
-      // La tabla tiene 'debit' y 'credit', no 'amount'. Creamos un valor unificado.
-      const amount = mov.credit - mov.debit;
-      return {
-        ...mov,
-        amount: amount, // Añadimos el campo 'amount' calculado
-        formattedAmount: formatCurrency(amount),
-        // La columna 'type' no existe, se elimina 'formattedType'
-      };
-    });
-    
-    return formattedMovements;
-    
+    return await movementService.getMovements(userId);
   } catch (error) {
-    console.error('Error en fetchProtheusMovements:', error);
+    console.error('Error en fetchProtheusMovements (controller):', error);
     throw error;
   }
 };
@@ -521,150 +392,15 @@ const fetchProtheusOrderDetails = async (orderId, userId) => {
  * Guarda un nuevo pedido (y sus items) en la base de datos
  */
 const saveProtheusOrder = async (orderData, userId) => {
-  const { items, total, paymentMethod } = orderData;
-  
-  // --- 1. Obtener datos del usuario para el email ---
-  let user;
   try {
-    // (CORREGIDO) Se cambió 'nombre' por 'full_name'
-    const userResult = await pool.query('SELECT full_name, email, a1_cod FROM users WHERE id = $1', [userId]);
-    if (userResult.rows.length === 0) {
-      throw new Error(`Usuario con ID ${userId} no encontrado.`);
-    }
-    user = userResult.rows[0];
+    // La lógica compleja ahora está en el servicio
+    const result = await orderService.createOrder(orderData, userId);
+    return result;
   } catch (error) {
-    console.error('Error al buscar usuario en saveProtheusOrder:', error);
-    throw error; // Detener la ejecución si no encontramos al usuario
+    // El servicio ya loguea los errores internos, aquí solo relanzamos
+    console.error('Error en el controlador saveProtheusOrder:', error.message);
+    throw error;
   }
-
-  // (MODIFICADO) Conectamos un cliente para la transacción a la BD 2
-  const client = await pool2.connect();
-  let newOrder; // La declaramos aquí para que sea accesible fuera del try/catch de la transacción
-  let newOrderId;
-  
-  try {
-    // Iniciar Transacción en BD 2
-    await client.query('BEGIN');
-    
-    // 1. Insertar el pedido principal (orders) en BD 2
-    const orderInsertQuery = `
-      INSERT INTO orders (user_id, a1_cod, total, status)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, created_at;
-    `;
-    const orderValues = [userId, user.a1_cod, total, 'Pendiente'];
-    
-    const orderResult = await client.query(orderInsertQuery, orderValues);
-    newOrder = orderResult.rows[0];
-    newOrderId = newOrder.id; // Asignamos el ID del nuevo pedido
-
-    // 2. Insertar los items del pedido (order_items) en BD 2
-    const itemInsertQuery = `
-      INSERT INTO order_items (order_id, product_id, quantity, unit_price, product_code)
-      VALUES ($1, $2, $3, $4, $5);
-    `;
-    
-    for (const item of items) {
-      const itemValues = [
-        newOrderId,
-        item.id,
-        item.quantity,
-        item.price,
-        item.code
-      ];
-      await client.query(itemInsertQuery, itemValues);
-    }
-    
-    // Terminar Transacción en BD 2
-    await client.query('COMMIT');
-    
-  } catch (error) {
-    // Si algo falla, hacer rollback en BD 2
-    await client.query('ROLLBACK');
-    console.error('Error en la transacción de guardado de pedido en BD2:', error);
-    throw error; // Lanza el error para que la ruta lo maneje
-  } finally {
-    client.release(); // Liberar el cliente de vuelta al pool2
-  }
-
-  // --- Lógica Post-Transacción ---
-  try {
-    // 3. Si paga con 'Cuenta Corriente', registrar el débito en BD 1 (FUERA de la transacción principal)
-    if (paymentMethod === 'Cuenta Corriente') {
-      try {
-        const updateBalanceQuery = `
-          INSERT INTO account_movements (user_id, debit, description, order_ref, date)
-          VALUES ($1, $2, $3, $4, CURRENT_DATE);
-        `;
-        await pool.query(updateBalanceQuery, [userId, total, `Débito por Pedido #${newOrderId}`, newOrderId]);
-      } catch (balanceError) {
-        // CRÍTICO: El pedido se guardó pero no se pudo actualizar el saldo.
-        // Se debe registrar este error para una corrección manual.
-        console.error(`[ERROR CRÍTICO] Pedido #${newOrderId} guardado, pero falló la actualización de saldo para usuario ${userId}:`, balanceError);
-      }
-    }
-
-    // 4. Enviar correos y generar archivos
-    const productIds = items.map(item => item.id);
-    const productsResult = await pool.query('SELECT id, description FROM products WHERE id = ANY($1::int[])', [productIds]);
-    const productMap = new Map(productsResult.rows.map(p => [p.id, p.description]));
-
-    const enrichedItems = items.map(item => ({
-      ...item,
-      name: productMap.get(item.id) || 'Descripción no encontrada',
-    }));
-
-    const sellerEmail = process.env.SELLER_EMAIL;
-    const fromEmail = process.env.EMAIL_FROM;
-
-    if (!sellerEmail || !fromEmail || !process.env.RESEND_API_KEY) {
-      console.warn(`[Pedido #${newOrderId}] Faltan variables .env (RESEND_API_KEY, SELLER_EMAIL o EMAIL_FROM). No se enviarán correos.`);
-    } else {
-      console.log(`[Pedido #${newOrderId}] Enviando correos a ${user.email} y ${sellerEmail}...`);
-
-      const orderDataForFiles = { user, newOrder, items: enrichedItems, total };
-      
-      const pdfBuffer = await generateOrderPDF(orderDataForFiles);
-      const csvBuffer = await generateOrderCSV(enrichedItems);
-
-      const pdfAttachment = {
-        filename: `Pedido_${newOrderId}.pdf`,
-        content: pdfBuffer,
-      };
-      const csvAttachment = {
-        filename: `Pedido_${newOrderId}.csv`,
-        content: csvBuffer,
-      };
-      
-      await sendOrderConfirmationEmail(
-        user.email,
-        newOrderId,
-        enrichedItems,
-        total,
-        user.full_name,
-        [pdfAttachment]
-      );
-
-      await sendNewOrderNotificationEmail(
-        sellerEmail,
-        newOrderId,
-        enrichedItems,
-        total,
-        user,
-        [pdfAttachment, csvAttachment]
-      );
-      
-      console.log(`[Pedido #${newOrderId}] Correos con adjuntos enviados con éxito.`);
-    }
-
-  } catch (postTransactionError) {
-    // Si falla el envío de email o la actualización de saldo, NO detenemos la operación.
-    // El pedido ya se guardó. Solo lo logueamos.
-    console.error(`[ERROR POST-TRANSACCIÓN] Pedido #${newOrderId} guardado, pero fallaron operaciones posteriores (email/saldo):`, postTransactionError);
-  }
-
-  // Devolver éxito (el pedido se guardó)
-  return { success: true, message: 'Pedido guardado con éxito.', orderId: newOrderId };
 };
 
 // =================================================================
