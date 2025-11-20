@@ -170,6 +170,13 @@ const apiService = {
   },
 
   /**
+   * Obtiene los movimientos de la cuenta del usuario logueado.
+   */
+  fetchAccountMovements() {
+    return this.request('/movements');
+  },
+
+  /**
    * Obtiene el historial de pedidos del usuario logueado.
    */
   fetchOrderHistory() {

@@ -238,7 +238,8 @@ const fetchProtheusMovements = async (userId) => {
     // Adaptado a la tabla 'account_movements'
     const query = `
       SELECT *, 
-             TO_CHAR(date, 'DD/MM/YYYY') as formatted_date
+             TO_CHAR(date, 'DD/MM/YYYY') as formatted_date,
+             TO_CHAR(fecha_vencimiento, 'DD/MM/YYYY') as formatted_fecha_vencimiento
       FROM account_movements
       WHERE user_id = $1
       ORDER BY date DESC, created_at DESC;

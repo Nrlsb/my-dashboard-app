@@ -73,54 +73,57 @@ fs.createReadStream(filePath)
       
       let rowCounter = 0; // Contador para saber qué fila falla
 
+      // Helper para convertir valores a enteros de forma segura
+      const parseIntSafe = (value) => {
+        if (value === null || value === undefined || String(value).trim() === '') {
+          return 0; // Devuelve 0 si el valor es nulo, indefinido o una cadena vacía
+        }
+        const parsed = parseInt(value, 10);
+        return isNaN(parsed) ? 0 : parsed;
+      };
+
       // Iterar sobre cada producto y crear la consulta de inserción
       for (const row of products) {
         
         rowCounter++; // Incrementamos el contador
 
-        // ======================================================
-        // --- INICIO DE MODIFICACIÓN 4: Omitir filas vacías ---
-        // ======================================================
         // Si la fila está vacía (común en líneas en blanco al final del CSV),
         // row['Codigo'] será undefined o null. La omitimos.
         if (!row['Codigo'] || row['Codigo'].trim() === '') {
           console.warn(`Fila ${rowCounter} omitida: El 'Codigo' está vacío. Datos:`, row);
           continue; // Salta esta iteración y sigue con la próxima fila
         }
-        // ======================================================
-        // --- FIN DE MODIFICACIÓN 4 ---
-        // ======================================================
 
-        // ======================================================
-        // --- INICIO DE MODIFICACIÓN 3: Consulta "UPSERT" ---
-        // ======================================================
         // Cambiamos el query a un "INSERT ... ON CONFLICT ... DO UPDATE" (Upsert).
         // Esto insertará la fila si el 'code' es nuevo.
         // Si el 'code' ya existe, ejecutará el 'DO UPDATE SET' en su lugar.
         const query = `
           INSERT INTO products (
-            code, description, capacity, product_group, ts_standard
+            code, description, capacity, product_group, ts_standard,
+            embalaje, stock_disponible, stock_de_seguridad
           ) 
-          VALUES ($1, $2, $3, $4, $5)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           ON CONFLICT (code) DO UPDATE SET
             description = EXCLUDED.description,
             capacity = EXCLUDED.capacity,
             product_group = EXCLUDED.product_group,
-            ts_standard = EXCLUDED.ts_standard
+            ts_standard = EXCLUDED.ts_standard,
+            embalaje = EXCLUDED.embalaje,
+            stock_disponible = EXCLUDED.stock_disponible,
+            stock_de_seguridad = EXCLUDED.stock_de_seguridad
         `;
         
-        // Ajustamos los valores para que coincidan solo con las columnas
-        // que estamos insertando/actualizando desde ESTE archivo.
+        // Ajustamos los valores para que coincidan con las columnas que estamos insertando/actualizando.
         const values = [
-          row['Codigo'],          // $1
-          row['Descripcion'],     // $2
-          row['Capacidad'],       // $3
-          row['Grupo'],           // $4
-          row['TS Estandar']     // $5
+          row['Codigo'],
+          row['Descripcion'],
+          row['Capacidad'],
+          row['Grupo'],
+          row['TS Estandar'],
+          row['Embalaje'], // Asume que la columna en el CSV se llama 'Embalaje'
+          parseIntSafe(row['Stock Disponible']), // Asume 'Stock Disponible'
+          parseIntSafe(row['Stock de Seguridad'])  // Asume 'Stock de Seguridad'
         ];
-        // ======================================================
-        // --- FIN DE MODIFICACIÓN 3 ---
-        // ======================================================
         
         // Añadimos un try/catch INTERNO solo para el log
         try {

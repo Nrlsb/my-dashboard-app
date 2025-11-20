@@ -396,39 +396,23 @@ const BalanceCard = ({ title, amount, bgColorClass }) => {
   );
 };
 
-const MovementRow = ({ movement }) => {
-  const isPositive = movement.importe >= 0;
-  const formattedDate = new Date(movement.fecha).toLocaleDateString('es-AR');
-
-  return (
-    <tr className="border-b border-gray-200 hover:bg-gray-50">
-      <td className="py-3 px-4 text-sm text-gray-700">{formattedDate}</td>
-      <td className="py-3 px-4 text-sm text-gray-900 font-medium">{movement.tipo}</td>
-      <td className="py-3 px-4 text-sm text-gray-600">{movement.comprobante}</td>
-      <td className={`py-3 px-4 text-sm font-semibold text-right ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-        <span className="inline-flex items-center">
-          {isPositive ? (
-            <ArrowUp className="w-4 h-4 mr-1" />
-          ) : (
-            <ArrowDown className="w-4 h-4 mr-1" />
-          )}
-          {parseFloat(movement.importe).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
-        </span>
-      </td>
-    </tr>
-  );
-};
-
 
 export default function AccountBalancePage({ user, onNavigate }) {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   
-  const { data, isLoading, isError, error } = useQuery({
+  const { data: balanceData, isLoading: isLoadingBalance, isError: isErrorBalance, error: errorBalance } = useQuery({
     queryKey: ['accountBalance', user?.id], 
     queryFn: () => apiService.fetchAccountBalance(),
     enabled: !!user?.id, 
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const { data: movementsData, isLoading: isLoadingMovements, isError: isErrorMovements, error: errorMovements } = useQuery({
+    queryKey: ['accountMovements', user?.id],
+    queryFn: () => apiService.fetchAccountMovements(),
+    enabled: !!user?.id,
     staleTime: 1000 * 60 * 2,
   });
 
@@ -438,17 +422,17 @@ export default function AccountBalancePage({ user, onNavigate }) {
     setTimeout(() => setSuccessMessage(''), 3000);
   };
   
-  const balance = data?.balance || { total: 0, disponible: 0, pendiente: 0 };
-  const movements = data?.movements || [];
+  const balance = balanceData?.balance || { total: 0, disponible: 0, pendiente: 0 };
+  const movements = movementsData || [];
 
-  if (isLoading) {
+  if (isLoadingBalance) {
     return <LoadingSkeleton />;
   }
 
-  if (isError) {
+  if (isErrorBalance) {
     const errorMessage = !user?.id 
       ? "No se ha podido identificar al usuario." 
-      : error.message;
+      : errorBalance.message;
     return <ErrorMessage message={errorMessage} />;
   }
 
@@ -503,27 +487,61 @@ export default function AccountBalancePage({ user, onNavigate }) {
         </div>
 
         <section>
-          <h2 className="text-2xl font-semibold text-gray-700 mb-4">Últimos Movimientos</h2>
+          <h2 className="text-2xl font-semibold text-gray-700 mb-4">Detalle de Movimientos</h2>
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full bg-white">
                 <thead className="bg-gray-100 border-b border-gray-300">
                   <tr>
-                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha</th>
-                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tipo</th>
-                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Comprobante</th>
-                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">Importe</th>
+                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Num. Titulo</th>
+                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fch Emision</th>
+                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fch. de Vencimien.</th>
+                    <th className="py-3 px-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Debitos</th>
+                    <th className="py-3 px-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Creditos</th>
+                    <th className="py-3 px-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Saldo Acumulados</th>
+                    <th className="py-3 px-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">% Canc.</th>
+                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">N° Recibo</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {movements.length > 0 ? (
+                  {isLoadingMovements ? (
+                    <tr>
+                      <td colSpan="8" className="py-6 px-4 text-center text-gray-500">
+                        <div className="flex justify-center items-center">
+                          <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                          <span className="ml-2">Cargando movimientos...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : isErrorMovements ? (
+                    <tr>
+                      <td colSpan="8" className="py-6 px-4 text-center text-red-500">
+                        Error al cargar los movimientos: {errorMovements.message}
+                      </td>
+                    </tr>
+                  ) : movements.length > 0 ? (
                     movements.map((mov) => (
-                      <MovementRow key={mov.id} movement={mov} />
+                      <tr key={mov.id} className="hover:bg-gray-50">
+                        <td className="py-3 px-4 text-sm text-gray-700">{mov.titulo_num || '-'}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{mov.formatted_date}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{mov.formatted_fecha_vencimiento || '-'}</td>
+                        <td className="py-3 px-4 text-sm font-semibold text-right text-red-600">
+                          {mov.debit ? formatCurrency(mov.debit) : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-sm font-semibold text-right text-green-600">
+                          {mov.credit ? formatCurrency(mov.credit) : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-sm font-bold text-right text-gray-800">
+                          {formatCurrency(mov.balance)}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-right text-gray-700">{mov.porc_cancelado ? `${mov.porc_cancelado}%` : '-'}</td>
+                        <td className="py-3 px-4 text-sm text-gray-600">{mov.order_ref || '-'}</td>
+                      </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="4" className="py-6 px-4 text-center text-gray-500">
-                        No se registraron movimientos recientes.
+                      <td colSpan="8" className="py-6 px-4 text-center text-gray-500">
+                        No se registraron movimientos.
                       </td>
                     </tr>
                   )}
@@ -536,3 +554,4 @@ export default function AccountBalancePage({ user, onNavigate }) {
     </>
   );
 }
+

@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS public.products
     brand character varying(255) COLLATE pg_catalog."default",
     moneda integer DEFAULT 1,
     cotizacion numeric(10,2) DEFAULT 1.00,
+    embalaje character varying(255) COLLATE pg_catalog."default",
+    stock_disponible integer DEFAULT 0,
+    stock_de_seguridad integer DEFAULT 0,
     CONSTRAINT products_pkey PRIMARY KEY (id),
     CONSTRAINT products_code_key UNIQUE (code)
 )
@@ -79,6 +82,9 @@ CREATE TABLE IF NOT EXISTS public.account_movements
     balance numeric(12,2) DEFAULT 0,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     order_ref integer,
+    titulo_num character varying(255) COLLATE pg_catalog."default",
+    fecha_vencimiento date,
+    porc_cancelado numeric(5,2) DEFAULT 0,
     CONSTRAINT account_movements_pkey PRIMARY KEY (id),
     CONSTRAINT account_movements_order_ref_fkey FOREIGN KEY (order_ref)
         REFERENCES public.orders (id) MATCH SIMPLE
