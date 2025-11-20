@@ -334,6 +334,25 @@ const optionalAuthenticateToken = (req, res, next) => {
     }
   });
   
+  router.get('/orders/:id/pdf', authenticateToken, async (req, res) => {
+    console.log(`GET /api/orders/${req.params.id}/pdf -> Generando PDF...`);
+    try {
+      const orderId = req.params.id;
+      const pdfBuffer = await controllers.downloadOrderPDF(orderId, req.userId);
+      
+      if (pdfBuffer) {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=Pedido_${orderId}.pdf`);
+        res.send(pdfBuffer);
+      } else {
+        res.status(404).json({ message: 'Pedido no encontrado o no le pertenece.' });
+      }
+    } catch (error) {
+      console.error(`Error en /api/orders/${req.params.id}/pdf:`, error);
+      res.status(500).json({ message: 'Error al generar el PDF del pedido.' });
+    }
+  });
+  
   
   router.post('/orders', authenticateToken, async (req, res) => {
     console.log('POST /api/orders -> Guardando nuevo pedido/presupuesto en DB...');

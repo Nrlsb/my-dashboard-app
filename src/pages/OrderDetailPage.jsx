@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import apiService from '../api/apiService'; 
 
@@ -11,12 +11,40 @@ const useCurrencyFormatter = () => {
 
 function OrderDetailPage({ onNavigate, user, orderId }) {
   const formatter = useCurrencyFormatter();
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const { data: orderDetails, isLoading, error } = useQuery({
     queryKey: ['orderDetail', orderId],
     queryFn: () => apiService.fetchOrderDetail(orderId),
     enabled: !!orderId && !!user?.id,
   });
+
+  const handleDownloadPDF = async () => {
+    setIsDownloading(true);
+    try {
+      const pdfBlob = await apiService.downloadOrderPDF(orderId);
+      
+      // Crear una URL para el Blob
+      const url = window.URL.createObjectURL(pdfBlob);
+      
+      // Crear un enlace temporal para iniciar la descarga
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Pedido_${orderId}.pdf`; // Nombre del archivo
+      document.body.appendChild(a); // Añadir el enlace al DOM
+      a.click(); // Simular clic
+      
+      // Limpiar
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+    } catch (err) {
+      console.error('Error al descargar el PDF:', err);
+      alert(`No se pudo descargar el PDF: ${err.message}`);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   if (isLoading) {
     return <div>Cargando detalles del pedido...</div>;
@@ -34,9 +62,14 @@ function OrderDetailPage({ onNavigate, user, orderId }) {
     <div className="order-detail-page"> 
       <h2>Detalle del Pedido #{orderDetails.id}</h2>
       
-      <button onClick={() => onNavigate('order-history')} className="back-button">
-        Volver al Historial
-      </button>
+      <div className="order-detail-actions">
+        <button onClick={() => onNavigate('order-history')} className="back-button">
+          Volver al Historial
+        </button>
+        <button onClick={handleDownloadPDF} className="download-pdf-button" disabled={isDownloading}>
+          {isDownloading ? 'Descargando...' : 'Descargar PDF'}
+        </button>
+      </div>
       
       <div className="order-info-box">
         <strong>Fecha:</strong> {orderDetails.formatted_date}<br />

@@ -137,8 +137,16 @@ body {
 
 /* --- Estilos para Botones --- */
 
+.order-detail-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
 .back-button,
-.view-details-button {
+.view-details-button,
+.download-pdf-button {
   border: none;
   border-radius: 6px;
   padding: 10px 16px;
@@ -152,7 +160,7 @@ body {
 .back-button {
   background-color: #e2e8f0;
   color: #333;
-  margin-bottom: 20px;
+  /* margin-bottom ya no es necesario aquí */
 }
 
 .back-button:hover {
@@ -166,4 +174,19 @@ body {
 
 .view-details-button:hover {
   background-color: #2563eb; /* Azul más oscuro */
+}
+
+.download-pdf-button {
+  background-color: #16a34a; /* Verde */
+  color: white;
+}
+
+.download-pdf-button:hover {
+  background-color: #15803d; /* Verde más oscuro */
+}
+
+.download-pdf-button:disabled {
+  background-color: #a1a1aa;
+  cursor: not-allowed;
+  opacity: 0.7;
 }

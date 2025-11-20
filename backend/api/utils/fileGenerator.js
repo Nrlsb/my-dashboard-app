@@ -92,12 +92,12 @@ async function generateOrderPDF(orderData) {
 
     // --- Filas de la Tabla ---
     items.forEach(item => {
-      const subtotal = item.price * item.quantity;
+      const subtotal = (item.price || 0) * (item.quantity || 0);
       const itemData = [
-        item.code,
-        (item.name || '').substring(0, 40), // Acortar descripción si es muy larga
-        item.quantity.toString(),
-        formatCurrency(item.price),
+        String(item.code || '-'),
+        String(item.name || '').substring(0, 40), // Acortar descripción
+        String(item.quantity || '0'),
+        formatCurrency(item.price || 0),
         formatCurrency(subtotal)
       ];
 

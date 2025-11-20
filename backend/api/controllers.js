@@ -1515,6 +1515,70 @@ const removeAdmin = async (userId) => {
   }
 };
 
+/**
+ * (NUEVO) Genera y devuelve un buffer de PDF para un pedido específico.
+ */
+const downloadOrderPDF = async (orderId, userId) => {
+  try {
+    // 1. Obtener datos del usuario de la BD1
+    const userQuery = 'SELECT full_name, a1_cod FROM users WHERE id = $1';
+    const userResult = await pool.query(userQuery, [userId]);
+    if (userResult.rows.length === 0) {
+      // No debería pasar si el token es válido, pero es una buena validación
+      throw new Error(`Usuario con ID ${userId} no encontrado.`);
+    }
+    const user = userResult.rows[0];
+
+    // 2. Obtener datos del pedido de la BD2, asegurando que pertenece al usuario
+    const orderQuery = `SELECT * FROM orders WHERE id = $1 AND user_id = $2;`;
+    const orderResult = await pool2.query(orderQuery, [orderId, userId]);
+    if (orderResult.rows.length === 0) {
+      return null; // Pedido no encontrado o no pertenece al usuario
+    }
+    const order = orderResult.rows[0];
+
+    // 3. Obtener items del pedido de la BD2
+    const itemsQuery = `SELECT * FROM order_items WHERE order_id = $1;`;
+    const itemsResult = await pool2.query(itemsQuery, [orderId]);
+    const items = itemsResult.rows;
+
+    // 4. Enriquecer los items con los nombres de los productos de la BD1
+    if (items.length > 0) {
+      const productIds = items.map(item => item.product_id);
+      const productsQuery = `SELECT id, description FROM products WHERE id = ANY($1::int[]);`;
+      const productsResult = await pool.query(productsQuery, [productIds]);
+      const productMap = new Map(productsResult.rows.map(p => [p.id, p.description]));
+      
+      items.forEach(item => {
+        item.name = productMap.get(item.product_id) || 'Descripción no disponible';
+        // La función para generar el PDF espera 'price', no 'unit_price'
+        item.price = item.unit_price;
+        // La función para generar el PDF espera 'code', no 'product_code'
+        item.code = item.product_code;
+      });
+    }
+
+    // 5. Ensamblar los datos para el generador de PDF
+    const orderDataForPDF = {
+      user: user,
+      newOrder: { // El generador de PDF espera un objeto llamado 'newOrder'
+        id: order.id,
+        created_at: order.created_at,
+      },
+      items: items,
+      total: order.total,
+    };
+
+    // 6. Generar el PDF
+    const pdfBuffer = await generateOrderPDF(orderDataForPDF);
+    return pdfBuffer;
+
+  } catch (error) {
+    console.error(`Error en downloadOrderPDF para Pedido ID ${orderId} y Usuario ${userId}:`, error);
+    throw error;
+  }
+};
+
 
 // Exportar todos los controladores
 module.exports = {
@@ -1551,4 +1615,5 @@ module.exports = {
   getAdmins,
   addAdmin,
   removeAdmin,
+  downloadOrderPDF,
 };

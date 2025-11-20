@@ -185,6 +185,28 @@ const apiService = {
   },
 
   /**
+   * Descarga el PDF de un pedido.
+   */
+  async downloadOrderPDF(orderId) {
+    if (!orderId) throw new Error("ID de pedido requerido");
+
+    const headers = {};
+    if (this.authToken) {
+      headers['Authorization'] = `Bearer ${this.authToken}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/orders/${orderId}/pdf`, { headers });
+
+    if (!response.ok) {
+      // Intenta leer el error como JSON
+      const errorData = await response.json().catch(() => ({ message: 'Error al descargar el PDF.' }));
+      throw new Error(errorData.message || 'Error en la solicitud de descarga.');
+    }
+
+    return response.blob();
+  },
+
+  /**
    * Obtiene las ofertas activas.
    */
   fetchOffers() {
