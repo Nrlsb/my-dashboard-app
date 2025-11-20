@@ -192,8 +192,63 @@ const fetchOrderDetails = async (orderId, userId) => {
   };
 };
 
+/**
+ * Prepara los datos de un pedido y genera su PDF.
+ * @param {number} orderId - El ID del pedido.
+ * @param {number} userId - El ID del usuario.
+ * @returns {Promise<Buffer>} - El contenido del PDF como un buffer.
+ */
+const downloadOrderPdf = async (orderId, userId) => {
+  try {
+    // 1. Obtener detalles del pedido
+    const orderDetails = await orderModel.findOrderDetailsById(orderId, userId);
+    if (!orderDetails) {
+      throw new Error('Pedido no encontrado o no le pertenece al usuario.');
+    }
+
+    // 2. Obtener datos del usuario
+    const userResult = await pool.query('SELECT full_name, email, a1_cod FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      throw new Error(`Usuario con ID ${userId} no encontrado.`);
+    }
+    const user = userResult.rows[0];
+
+    // 3. Enriquecer items con nombres de productos para el PDF
+    const productIds = orderDetails.items.map(item => item.product_id);
+    const productsResult = await pool.query('SELECT id, description FROM products WHERE id = ANY($1::int[])', [productIds]);
+    const productMap = new Map(productsResult.rows.map(p => [p.id, p.description]));
+
+    const enrichedItems = orderDetails.items.map(item => ({
+      code: item.product_code,
+      name: productMap.get(item.product_id) || 'Descripción no encontrada',
+      quantity: item.quantity,
+      price: item.unit_price,
+    }));
+
+    // 4. Preparar orderData para generateOrderPDF
+    const orderDataForPdf = {
+      user: user,
+      newOrder: {
+        id: orderDetails.id,
+        created_at: orderDetails.created_at,
+      },
+      items: enrichedItems,
+      total: orderDetails.total,
+    };
+
+    // 5. Generar el PDF
+    const pdfBuffer = await generateOrderPDF(orderDataForPdf);
+    return pdfBuffer;
+
+  } catch (error) {
+    console.error(`Error en orderService.downloadOrderPdf para pedido ${orderId}:`, error);
+    throw error;
+  }
+};
+
 module.exports = {
   createOrder,
   fetchOrders,
   fetchOrderDetails,
+  downloadOrderPdf,
 };

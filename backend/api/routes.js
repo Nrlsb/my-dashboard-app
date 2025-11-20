@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken'); // <-- AÑADIDO
 const rateLimit = require('express-rate-limit');
 const { upload } = require('./middleware/upload'); // Importar config de Multer
 const controllers = require('./controllers'); // Importar todos los controladores
+const productService = require('./services/productService'); // Importar el servicio de productos
 const pool = require('./db'); // (NUEVO) Importamos pool para la db
 
 // --- Rate Limiter for login ---
@@ -267,7 +268,7 @@ const optionalAuthenticateToken = (req, res, next) => {
   router.get('/admin/product-groups', authenticateToken, requireAdmin, async (req, res) => {
     console.log(`GET /api/admin/product-groups -> Admin ${req.userId} fetching product groups...`);
     try {
-      const groups = await controllers.getProductGroupsForAdmin();
+      const groups = await productService.getProductGroupsForAdmin();
       res.json(groups);
     } catch (error) {
       console.error('Error in /api/admin/product-groups:', error);
@@ -379,27 +380,9 @@ const optionalAuthenticateToken = (req, res, next) => {
     }
   });
   
-  router.get('/accessories', optionalAuthenticateToken, async (req, res) => {
-    console.log('GET /api/accessories -> Consultando productos accesorios...');
-    try {
-      const accessories = await controllers.getAccessories(req.userId);
-      res.json(accessories);
-    } catch (error) {
-      console.error('Error en /api/accessories:', error);
-      res.status(500).json({ message: 'Error al obtener accesorios.' });
-    }
-  });
+  router.get('/accessories', optionalAuthenticateToken, controllers.getAccessories);
 
-  router.get('/product-groups-details', optionalAuthenticateToken, async (req, res) => {
-    console.log('GET /api/product-groups-details -> Consultando detalles de grupos...');
-    try {
-      const groupDetails = await controllers.getProductGroupsDetails(req.userId);
-      res.json(groupDetails);
-    } catch (error) {
-      console.error('Error en /api/product-groups-details:', error);
-      res.status(500).json({ message: 'Error al obtener detalles de los grupos.' });
-    }
-  });
+  router.get('/product-groups-details', optionalAuthenticateToken, controllers.getProductGroupsDetails);
 
   router.get('/products/group/:groupCode', optionalAuthenticateToken, async (req, res) => {
     console.log(`GET /api/products/group/${req.params.groupCode} -> Consultando productos por grupo...`);
@@ -457,8 +440,7 @@ const optionalAuthenticateToken = (req, res, next) => {
     const { id } = req.params;
     console.log(`PUT /api/products/${id}/toggle-offer -> Admin ${req.userId} cambiando estado de oferta...`);
     try {
-      const updatedProduct = await controllers.toggleProductOfferStatus(id);
-      res.json({ success: true, product: updatedProduct });
+              const updatedProduct = await productService.toggleProductOfferStatus(id);      res.json({ success: true, product: updatedProduct });
     } catch (error) {
       console.error(`Error en /api/products/${id}/toggle-offer:`, error);
       res.status(500).json({ message: error.message || 'Error al actualizar el estado de la oferta.' });

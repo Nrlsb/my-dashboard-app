@@ -1,5 +1,6 @@
 // backend/api/services/dashboardService.js
 
+const { pool2 } = require('../db');
 const dashboardModel = require('../models/dashboardModel');
 const productService = require('./productService');
 
@@ -27,6 +28,47 @@ const getDashboardPanels = async (userId) => {
   return panels;
 };
 
+/**
+ * (Admin) Obtiene todos los paneles del dashboard
+ */
+const getAdminDashboardPanels = async () => {
+  try {
+    const result = await pool2.query('SELECT * FROM dashboard_panels ORDER BY id');
+    return result.rows;
+  } catch (error) {
+    console.error('Error en getAdminDashboardPanels:', error);
+    throw error;
+  }
+};
+
+/**
+ * (Admin) Actualiza la visibilidad de un panel del dashboard
+ */
+const updateDashboardPanel = async (panelId, isVisible) => {
+  try {
+    const query = `
+      UPDATE dashboard_panels
+      SET is_visible = $1
+      WHERE id = $2
+      RETURNING *;
+    `;
+    const values = [isVisible, panelId];
+    const result = await pool2.query(query, values);
+    
+    if (result.rows.length === 0) {
+      throw new Error('Panel no encontrado al actualizar.');
+    }
+    
+    console.log(`Visibilidad del panel ${panelId} actualizada a ${isVisible}`);
+    return { success: true, message: 'Visibilidad del panel actualizada.', panel: result.rows[0] };
+  } catch (error) {
+    console.error('Error en updateDashboardPanel:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   getDashboardPanels,
+  getAdminDashboardPanels,
+  updateDashboardPanel,
 };
