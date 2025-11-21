@@ -300,7 +300,7 @@ const optionalAuthenticateToken = (req, res, next) => {
   router.get('/orders', authenticateToken, async (req, res) => {
     console.log('GET /api/orders -> Consultando pedidos en DB...');
     try {
-      const orders = await controllers.fetchProtheusOrders(req.userId);
+      const orders = await controllers.fetchProtheusOrders(req.user);
       res.json(orders);
     } catch (error) {
       console.error('Error en /api/orders:', error);

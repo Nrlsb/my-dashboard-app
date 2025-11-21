@@ -3,20 +3,40 @@
 const { pool, pool2 } = require('../db');
 
 /**
- * Busca el historial de pedidos de un usuario en la base de datos.
- * @param {number} userId - El ID del usuario.
+ * Busca el historial de pedidos de uno o varios usuarios en la base de datos.
+ * @param {number|Array<number>} userIds - El ID de un usuario o un array de IDs de usuarios.
  * @returns {Promise<Array<object>>} - Una promesa que se resuelve con la lista de pedidos.
  */
-const findOrdersByUserId = async (userId) => {
-  const query = `
-    SELECT id, total, status, 
-           TO_CHAR(created_at, 'DD/MM/YYYY') as formatted_date,
-           (SELECT COUNT(*) FROM order_items WHERE order_id = orders.id) as item_count
-    FROM orders
-    WHERE user_id = $1
-    ORDER BY created_at DESC;
-  `;
-  const result = await pool2.query(query, [userId]);
+const findOrders = async (userIds) => {
+  console.log(`[orderModel] findOrders llamado con userIds:`, userIds);
+  let query;
+  let values;
+
+  if (Array.isArray(userIds)) {
+    query = `
+      SELECT id, total, status, 
+             TO_CHAR(created_at, 'DD/MM/YYYY') as formatted_date,
+             (SELECT COUNT(*) FROM order_items WHERE order_id = orders.id) as item_count
+      FROM orders
+      WHERE user_id = ANY($1::int[])
+      ORDER BY created_at DESC;
+    `;
+    values = [userIds];
+  } else {
+    query = `
+      SELECT id, total, status, 
+             TO_CHAR(created_at, 'DD/MM/YYYY') as formatted_date,
+             (SELECT COUNT(*) FROM order_items WHERE order_id = orders.id) as item_count
+      FROM orders
+      WHERE user_id = $1
+      ORDER BY created_at DESC;
+    `;
+    values = [userIds];
+  }
+  
+  console.log(`[orderModel] Ejecutando query: ${query} con valores:`, values);
+  const result = await pool2.query(query, values);
+  console.log(`[orderModel] Query result rows: ${result.rows.length}`);
   return result.rows;
 };
 
@@ -85,6 +105,6 @@ const validateOrderItems = async (items) => {
 
 module.exports = {
   validateOrderItems,
-  findOrdersByUserId,
+  findOrders, // Actualizado a findOrders
   findOrderDetailsById,
 };

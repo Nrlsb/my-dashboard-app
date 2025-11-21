@@ -166,9 +166,9 @@ const fetchCustomerInvoices = async (customerCod) => {
 /**
  * Obtiene el historial de pedidos de un usuario
  */
-const fetchProtheusOrders = async (userId) => {
+const fetchProtheusOrders = async (user) => { // Cambiar userId a user
   try {
-    return await orderService.fetchOrders(userId);
+    return await orderService.fetchOrders(user); // Pasar user completo
   } catch (error) {
     console.error('Error en fetchProtheusOrders (controller):', error);
     throw error;

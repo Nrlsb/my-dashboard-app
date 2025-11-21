@@ -4,6 +4,7 @@ const { pool, pool2 } = require('../db');
 const { sendOrderConfirmationEmail, sendNewOrderNotificationEmail } = require('../emailService');
 const { generateOrderPDF, generateOrderCSV } = require('../utils/fileGenerator');
 const orderModel = require('../models/orderModel');
+const userModel = require('../models/userModel'); // Importar userModel
 const { formatCurrency } = require('../utils/helpers');
 
 /**
@@ -154,13 +155,48 @@ const createOrder = async (orderData, userId) => {
 
 /**
  * Obtiene y formatea el historial de pedidos de un usuario.
+ * Si el usuario es un vendedor, obtiene los pedidos de todos sus clientes.
  * @param {number} userId - El ID del usuario.
  * @returns {Promise<Array<object>>} - Una promesa que se resuelve con la lista de pedidos formateados.
  */
-const fetchOrders = async (userId) => {
-  const orders = await orderModel.findOrdersByUserId(userId);
+const fetchOrders = async (user) => { // Cambiar userId a user
+  console.log(`[orderService] fetchOrders llamado para user:`, user);
+  // CORRECCIÓN: Usar user.userId en lugar de user.id
+  let targetUserIds = [user.userId]; // Por defecto, buscar pedidos del propio usuario (usando user.userId)
+
+  // El objeto 'user' ya viene con el rol y código correctos del token JWT
+  // No necesitamos llamar a userModel.findUserById(user.id) de nuevo aquí
+  // porque ya tenemos la información del usuario autenticado.
+
+  if (!user) { // Esto ya no debería ser necesario si el middleware funciona
+    throw new Error('Usuario no encontrado.');
+  }
+
+  // 2. Si el usuario es un vendedor, obtener los IDs de sus clientes
+  if (user.role === 'vendedor' && user.codigo) {
+    console.log(`[orderService] Usuario ${user.userId} es VENDEDOR con codigo: ${user.codigo}`); // Usar user.userId
+    const clients = await userModel.findUsersByVendedorCodigo(user.codigo);
+    console.log(`[orderService] Clientes encontrados para vendedor ${user.codigo}:`, clients.map(c => c.id));
+    targetUserIds = clients.map(client => client.id);
+    // Si el vendedor también es un cliente y tiene pedidos propios,
+    // podríamos querer incluir su propio ID aquí si no está ya en la lista de clientes.
+    // Por ahora, nos basamos en que findUsersByVendedorCodigo devuelve todos los clientes.
+    // Si el vendedor puede tener pedidos propios no asociados a un cliente,
+    // y quiere verlos, habría que añadir user.id a targetUserIds.
+    // Por la descripción, parece que solo quiere ver los de sus clientes.
+
+    if (targetUserIds.length === 0) {
+      console.log(`[orderService] Vendedor ${user.userId} no tiene clientes asignados. Devolviendo array vacío.`); // Usar user.userId
+      return [];
+    }
+  } else {
+    console.log(`[orderService] Usuario ${user.userId} NO es vendedor o no tiene codigo. Role: ${user.role}, Codigo: ${user.codigo}`); // Usar user.userId
+  }
+
+  console.log(`[orderService] Buscando pedidos para targetUserIds:`, targetUserIds);
+  const orders = await orderModel.findOrders(targetUserIds);
+  console.log(`[orderService] Pedidos encontrados: ${orders.length}`);
   
-  // Formatear los datos antes de enviarlos
   return orders.map(order => ({
     ...order,
     formattedTotal: formatCurrency(order.total)

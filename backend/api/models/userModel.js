@@ -18,8 +18,24 @@ const findUserByEmail = async (email) => {
  * @returns {Promise<object|null>}
  */
 const findUserById = async (userId) => {
-  const result = await pool.query('SELECT id, full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, a1_endereco, is_admin FROM users WHERE id = $1', [userId]);
-  return result.rows[0] || null;
+  // Convertir userId a entero para asegurar la comparación correcta con la columna ID numérica
+  const numericUserId = parseInt(userId, 10); 
+  if (isNaN(numericUserId)) {
+    console.error(`[userModel] Invalid userId provided to findUserById: ${userId}`);
+    return null;
+  }
+
+  const result = await pool.query('SELECT id, full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, a1_endereco, is_admin, vendedor_codigo FROM users WHERE id = $1', [numericUserId]);
+  const user = result.rows[0] || null;
+
+  if (user) {
+    user.role = user.vendedor_codigo ? 'vendedor' : 'cliente';
+    if (user.role === 'vendedor') {
+      user.codigo = user.vendedor_codigo;
+    }
+  }
+  console.log(`[userModel] findUserById(${userId}) -> user:`, user ? { id: user.id, role: user.role, codigo: user.codigo, vendedor_codigo: user.vendedor_codigo } : 'null');
+  return user;
 };
 
 /**
@@ -85,6 +101,7 @@ const updateUser = async (userId, profileData) => {
  */
 const findUsersByVendedorCodigo = async (vendedorCodigo) => {
   const result = await pool.query('SELECT id, full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, a1_endereco FROM users WHERE vendedor_codigo = $1', [vendedorCodigo]);
+  console.log(`[userModel] findUsersByVendedorCodigo(${vendedorCodigo}) -> found ${result.rows.length} clients. IDs:`, result.rows.map(r => r.id));
   return result.rows;
 };
 
