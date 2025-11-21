@@ -25,7 +25,7 @@ import ManageOffersPage from './pages/ManageOffersPage.jsx'; // (NUEVO) Importar
 import ClientGroupPermissionsPage from './pages/ClientGroupPermissionsPage.jsx'; // (NUEVO) Importar la página de permisos
 import ManageAdminsPage from './pages/ManageAdminsPage.jsx'; // (NUEVO) Importar la página de gestión de admins
 import VendedorDashboardPage from './pages/VendedorDashboardPage.jsx'; // (NUEVO) Importar panel de vendedor
-import ClientesPage from './pages/ClientesPage.jsx'; // (NUEVO) Importar página de clientes
+import VendedorClientsPage from './pages/VendedorClientsPage.jsx'; // (NUEVO) Importar página de clientes para vendedor
 import ChangePasswordPage from './pages/ChangePasswordPage.jsx'; // (NUEVO) Importar página de cambio de contraseña
 import Header from './components/Header.jsx'; // Importa el Header unificado
 
@@ -177,8 +177,8 @@ function App() {
       case 'vendedor-dashboard':
         return <VendedorDashboardPage onNavigate={handleNavigate} />;
       // (NUEVO) Página de clientes para el vendedor
-      case 'vendedor-clientes':
-        return <ClientesPage onNavigate={handleNavigate} />;
+      case 'vendedor-clients':
+        return <VendedorClientsPage />;
       case 'profile':
         // Pasamos el user del contexto
         return <ProfilePage onNavigate={handleNavigate} user={user} />; // (MODIFICADO)

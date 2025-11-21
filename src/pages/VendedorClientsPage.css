@@ -1,0 +1,62 @@
+.vendedor-clients-container {
+  padding: 2rem;
+  background-color: #f4f7f6;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.vendedor-clients-container h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.client-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  background-color: #ffffff;
+  border-radius: 8px;
+  overflow: hidden; /* Ensures rounded corners apply to children */
+}
+
+.client-table thead {
+  background-color: #3498db;
+  color: #ffffff;
+}
+
+.client-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.client-table tbody tr {
+  border-bottom: 1px solid #ecf0f1;
+  transition: background-color 0.2s ease;
+}
+
+.client-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.client-table tbody tr:hover {
+  background-color: #f8f8f8;
+}
+
+.client-table td {
+  padding: 1rem;
+  font-size: 0.95rem;
+  color: #34495e;
+}
+
+.error-message {
+  color: #e74c3c;
+  text-align: center;
+  font-size: 1.1rem;
+  margin-top: 1rem;
+}
