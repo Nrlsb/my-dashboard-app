@@ -185,6 +185,24 @@ body {
   background-color: #15803d; /* Verde más oscuro */
 }
 
+.save-changes-button {
+  background-color: #10b981; /* Un verde atractivo */
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-block;
+  margin-left: 10px; /* Para separarlo del botón "Volver al Dashboard" */
+}
+
+.save-changes-button:hover {
+  background-color: #059669; /* Verde más oscuro al pasar el ratón */
+}
+
 .download-pdf-button:disabled {
   background-color: #a1a1aa;
   cursor: not-allowed;

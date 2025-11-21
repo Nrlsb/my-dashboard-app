@@ -1,6 +1,7 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import apiService from '../api/apiService'; 
+import { useAuth } from '../context/AuthContext';
 
 const useCurrencyFormatter = () => {
   return new Intl.NumberFormat('es-AR', {
@@ -10,7 +11,20 @@ const useCurrencyFormatter = () => {
 };
 
 function OrderHistoryPage({ onNavigate, user, onViewDetails }) {
+  const { user: authUser } = useAuth();
+  const isVendor = authUser?.role === 'vendedor';
   const formatter = useCurrencyFormatter();
+
+  const [vendorSalesOrderNumbers, setVendorSalesOrderNumbers] = useState({});
+  const [orderConfirmations, setOrderConfirmations] = useState({});
+
+  const handleVendorSalesOrderNumberChange = (orderId, value) => {
+    setVendorSalesOrderNumbers(prev => ({ ...prev, [orderId]: value }));
+  };
+
+  const handleOrderConfirmationChange = (orderId, checked) => {
+    setOrderConfirmations(prev => ({ ...prev, [orderId]: checked }));
+  };
   
   const { data: orders, isLoading, error } = useQuery({
     queryKey: ['orderHistory', user.id], 
@@ -18,6 +32,40 @@ function OrderHistoryPage({ onNavigate, user, onViewDetails }) {
     staleTime: 1000 * 60 * 5, 
     enabled: !!user?.id,
   });
+
+  useEffect(() => {
+    if (orders) {
+      const initialSalesOrderNumbers = {};
+      const initialConfirmations = {};
+      orders.forEach(order => {
+        initialSalesOrderNumbers[order.id] = order.vendorSalesOrderNumber || '';
+        initialConfirmations[order.id] = order.isConfirmed || false;
+      });
+      setVendorSalesOrderNumbers(initialSalesOrderNumbers);
+      setOrderConfirmations(initialConfirmations);
+    }
+  }, [orders]);
+
+  const updateOrderDetailsMutation = useMutation({
+    mutationFn: (updatedOrders) => apiService.updateOrderDetails(updatedOrders),
+    onSuccess: () => {
+      alert('Cambios guardados exitosamente!');
+      // Optionally, refetch orders to show updated data
+      // queryClient.invalidateQueries(['orderHistory', user.id]);
+    },
+    onError: (error) => {
+      alert('Error al guardar los cambios: ' + error.message);
+    },
+  });
+
+  const handleSaveChanges = () => {
+    const updatedOrdersData = orders.map(order => ({
+      id: order.id,
+      vendorSalesOrderNumber: vendorSalesOrderNumbers[order.id],
+      isConfirmed: orderConfirmations[order.id],
+    }));
+    updateOrderDetailsMutation.mutate(updatedOrdersData);
+  };
 
   if (isLoading) {
     return <div>Cargando historial de pedidos...</div>;
@@ -34,6 +82,11 @@ function OrderHistoryPage({ onNavigate, user, onViewDetails }) {
       <button onClick={() => onNavigate('dashboard')} className="back-button">
         Volver al Dashboard
       </button>
+      {isVendor && (
+        <button onClick={handleSaveChanges} className="save-changes-button">
+          Guardar Cambios
+        </button>
+      )}
       
       <div className="order-list-container">
         {orders && orders.length > 0 ? (
@@ -45,6 +98,8 @@ function OrderHistoryPage({ onNavigate, user, onViewDetails }) {
                 <th>Total</th>
                 <th>Estado</th>
                 <th>Cant. Items</th> 
+                {isVendor && <th>N° Pedido Venta</th>}
+                {isVendor && <th>Confirmar Pedido</th>}
                 <th>Acciones</th> 
               </tr>
             </thead>
@@ -56,6 +111,25 @@ function OrderHistoryPage({ onNavigate, user, onViewDetails }) {
                   <td>{order.formattedTotal}</td> 
                   <td>{order.status}</td>
                   <td>{order.item_count}</td>
+                  {isVendor && (
+                    <td>
+                      <input 
+                        type="text" 
+                        value={vendorSalesOrderNumbers[order.id] || ''} 
+                        onChange={(e) => handleVendorSalesOrderNumberChange(order.id, e.target.value)}
+                        placeholder="N° Pedido"
+                      />
+                    </td>
+                  )}
+                  {isVendor && (
+                    <td>
+                      <input 
+                        type="checkbox" 
+                        checked={orderConfirmations[order.id] || false} 
+                        onChange={(e) => handleOrderConfirmationChange(order.id, e.target.checked)}
+                      />
+                    </td>
+                  )}
                   <td>
                     <button 
                       onClick={() => onViewDetails(order.id)} 

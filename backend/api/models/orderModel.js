@@ -16,7 +16,9 @@ const findOrders = async (userIds) => {
     query = `
       SELECT id, total, status, 
              TO_CHAR(created_at, 'DD/MM/YYYY') as formatted_date,
-             (SELECT COUNT(*) FROM order_items WHERE order_id = orders.id) as item_count
+             (SELECT COUNT(*) FROM order_items WHERE order_id = orders.id) as item_count,
+             vendor_sales_order_number,
+             is_confirmed
       FROM orders
       WHERE user_id = ANY($1::int[])
       ORDER BY created_at DESC;
@@ -26,7 +28,9 @@ const findOrders = async (userIds) => {
     query = `
       SELECT id, total, status, 
              TO_CHAR(created_at, 'DD/MM/YYYY') as formatted_date,
-             (SELECT COUNT(*) FROM order_items WHERE order_id = orders.id) as item_count
+             (SELECT COUNT(*) FROM order_items WHERE order_id = orders.id) as item_count,
+             vendor_sales_order_number,
+             is_confirmed
       FROM orders
       WHERE user_id = $1
       ORDER BY created_at DESC;
@@ -46,14 +50,30 @@ const findOrders = async (userIds) => {
  * @param {number} userId - El ID del usuario.
  * @returns {Promise<object|null>} - Una promesa que se resuelve con los detalles del pedido o null si no se encuentra.
  */
-const findOrderDetailsById = async (orderId, userId) => {
+const findOrderDetailsById = async (orderId, allowedUserIds) => {
   // 1. Obtener datos del pedido y verificar pertenencia
-  const orderQuery = `
-    SELECT *, TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') as formatted_date
-    FROM orders
-    WHERE id = $1 AND user_id = $2;
-  `;
-  const orderResult = await pool2.query(orderQuery, [orderId, userId]);
+  let orderQuery;
+  let values;
+
+  if (Array.isArray(allowedUserIds)) {
+    orderQuery = `
+      SELECT *, TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') as formatted_date,
+             vendor_sales_order_number, is_confirmed
+      FROM orders
+      WHERE id = $1 AND user_id = ANY($2::int[]);
+    `;
+    values = [orderId, allowedUserIds];
+  } else {
+    orderQuery = `
+      SELECT *, TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') as formatted_date,
+             vendor_sales_order_number, is_confirmed
+      FROM orders
+      WHERE id = $1 AND user_id = $2;
+    `;
+    values = [orderId, allowedUserIds];
+  }
+  
+  const orderResult = await pool2.query(orderQuery, values);
   if (orderResult.rows.length === 0) {
     return null; // No encontrado o no pertenece al usuario
   }
@@ -103,8 +123,37 @@ const validateOrderItems = async (items) => {
   return true;
 };
 
+/**
+ * Actualiza el número de pedido de venta del vendedor y el estado de confirmación para múltiples pedidos.
+ * @param {Array<object>} updates - Un array de objetos, cada uno con { id, vendorSalesOrderNumber, isConfirmed }.
+ * @returns {Promise<void>}
+ */
+const updateOrderDetails = async (updates) => {
+  const client = await pool2.connect();
+  try {
+    await client.query('BEGIN');
+    for (const update of updates) {
+      const { id, vendorSalesOrderNumber, isConfirmed } = update;
+      const query = `
+        UPDATE orders
+        SET vendor_sales_order_number = $1,
+            is_confirmed = $2
+        WHERE id = $3;
+      `;
+      await client.query(query, [vendorSalesOrderNumber, isConfirmed, id]);
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   validateOrderItems,
-  findOrders, // Actualizado a findOrders
+  findOrders,
   findOrderDetailsById,
+  updateOrderDetails,
 };

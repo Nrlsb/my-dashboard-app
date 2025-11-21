@@ -209,8 +209,17 @@ const fetchOrders = async (user) => { // Cambiar userId a user
  * @param {number} userId - El ID del usuario.
  * @returns {Promise<object|null>} - Una promesa que se resuelve con los detalles del pedido formateados o null.
  */
-const fetchOrderDetails = async (orderId, userId) => {
-  const orderDetails = await orderModel.findOrderDetailsById(orderId, userId);
+const fetchOrderDetails = async (orderId, user) => {
+  let allowedUserIds = [user.userId]; // Por defecto, el propio usuario
+
+  if (user.role === 'vendedor' && user.codigo) {
+    const clients = await userModel.findUsersByVendedorCodigo(user.codigo);
+    allowedUserIds = clients.map(client => client.id);
+    // Si el vendedor también puede ver sus propios pedidos, añadir user.userId
+    // allowedUserIds.push(user.userId);
+  }
+
+  const orderDetails = await orderModel.findOrderDetailsById(orderId, allowedUserIds);
 
   if (!orderDetails) {
     return null;
@@ -282,9 +291,22 @@ const downloadOrderPdf = async (orderId, userId) => {
   }
 };
 
+/**
+ * Actualiza los detalles de múltiples pedidos (número de pedido de venta del vendedor y estado de confirmación).
+ * @param {Array<object>} updatedOrders - Un array de objetos, cada uno con { id, vendorSalesOrderNumber, isConfirmed }.
+ * @returns {Promise<void>}
+ */
+const updateOrderDetails = async (updatedOrders) => {
+  if (!Array.isArray(updatedOrders) || updatedOrders.length === 0) {
+    throw new Error("No hay pedidos para actualizar.");
+  }
+  await orderModel.updateOrderDetails(updatedOrders);
+};
+
 module.exports = {
   createOrder,
   fetchOrders,
   fetchOrderDetails,
   downloadOrderPdf,
+  updateOrderDetails,
 };

@@ -312,7 +312,7 @@ const optionalAuthenticateToken = (req, res, next) => {
     console.log(`GET /api/orders/${req.params.id} -> Consultando detalles en DB...`);
     try {
       const orderId = req.params.id;
-      const orderDetails = await controllers.fetchProtheusOrderDetails(orderId, req.userId);
+      const orderDetails = await controllers.fetchProtheusOrderDetails(orderId, req.user);
       if (orderDetails) {
         res.json(orderDetails);
       } else {
@@ -354,6 +354,11 @@ const optionalAuthenticateToken = (req, res, next) => {
       console.error('Error en POST /api/orders:', error);
       res.status(500).json({ message: 'Error al guardar el pedido.' });
     }
+  });
+
+  router.put('/orders/update-details', authenticateToken, async (req, res) => {
+    console.log('PUT /api/orders/update-details -> Actualizando detalles de pedidos...');
+    await controllers.updateOrderDetailsController(req, res);
   });
   
   // --- Productos y Ofertas ---

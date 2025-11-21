@@ -213,6 +213,10 @@ const apiService = {
     return response.blob();
   },
 
+  updateOrderDetails(updatedOrders) {
+    return this.request('/orders/update-details', { method: 'PUT', body: { updatedOrders } });
+  },
+
   /**
    * Obtiene las ofertas activas.
    */

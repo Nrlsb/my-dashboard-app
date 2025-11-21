@@ -178,9 +178,9 @@ const fetchProtheusOrders = async (user) => { // Cambiar userId a user
 /**
  * Obtiene los detalles (incluyendo items) de un pedido específico de un usuario
  */
-const fetchProtheusOrderDetails = async (orderId, userId) => {
+const fetchProtheusOrderDetails = async (orderId, user) => {
   try {
-    return await orderService.fetchOrderDetails(orderId, userId);
+    return await orderService.fetchOrderDetails(orderId, user);
   } catch (error) {
     console.error(`Error en fetchProtheusOrderDetails (controller) para ID ${orderId}:`, error);
     throw error;
@@ -200,6 +200,20 @@ const saveProtheusOrder = async (orderData, userId) => {
     // El servicio ya loguea los errores internos, aquí solo relanzamos
     console.error('Error en el controlador saveProtheusOrder:', error.message);
     throw error;
+  }
+};
+
+/**
+ * Actualiza los detalles de múltiples pedidos (número de pedido de venta del vendedor y estado de confirmación).
+ */
+const updateOrderDetailsController = async (req, res) => {
+  try {
+    const { updatedOrders } = req.body;
+    await orderService.updateOrderDetails(updatedOrders);
+    res.status(200).json({ message: 'Pedidos actualizados exitosamente.' });
+  } catch (error) {
+    console.error('Error en updateOrderDetailsController:', error);
+    res.status(500).json({ message: 'Error interno al actualizar pedidos.' });
   }
 };
 
@@ -535,4 +549,5 @@ module.exports = {
   getProductGroupsForAdmin,
   toggleProductOfferStatus,
   changePasswordController,
+  updateOrderDetailsController,
 };
