@@ -2,9 +2,10 @@
 
 const bcrypt = require('bcryptjs');
 const userModel = require('../models/userModel');
+const vendedorModel = require('../models/vendedorModel'); // Importar el modelo de vendedor
 
 /**
- * Autentica a un usuario.
+ * Autentica a un usuario, sea cliente o vendedor, usando contraseña temporal o principal.
  * @param {string} email - El email del usuario.
  * @param {string} password - La contraseña del usuario.
  * @returns {Promise<object>}
@@ -12,27 +13,74 @@ const userModel = require('../models/userModel');
 const authenticateUser = async (email, password) => {
   try {
     console.log(`Buscando usuario con email: ${email}`);
-    const user = await userModel.findUserByEmail(email);
+    let userRecord = await userModel.findUserByEmail(email);
+    let userType = 'cliente';
+    let user;
 
-    if (!user) {
-      console.log('Usuario no encontrado.');
-      return { success: false, message: 'Usuario o contraseña incorrectos.' };
+    if (userRecord) {
+      user = { ...userRecord, role: 'cliente' };
+    } else {
+      console.log('Usuario no encontrado en la tabla de clientes, buscando en vendedores...');
+      const vendedorRecord = await vendedorModel.findVendedorByEmail(email);
+      if (!vendedorRecord) {
+        console.log('Usuario no encontrado tampoco en vendedores.');
+        return { success: false, message: 'Usuario o contraseña incorrectos.' };
+      }
+      
+      user = {
+        id: vendedorRecord.codigo,
+        password_hash: vendedorRecord.password,
+        temp_password_hash: vendedorRecord.temp_password_hash, // Incluir la nueva columna
+        full_name: vendedorRecord.nombre,
+        email: vendedorRecord.email,
+        a1_cod: vendedorRecord.codigo,
+        is_admin: false,
+        role: 'vendedor',
+        codigo: vendedorRecord.codigo,
+      };
+      userType = 'vendedor';
     }
 
-    const isMatch = await bcrypt.compare(password, user.password_hash);
+    console.log('[DEBUG] Objeto de usuario/vendedor recuperado:', JSON.stringify(user, null, 2));
 
+    // 1. Intentar con la contraseña temporal
+    if (user.temp_password_hash) {
+      console.log('[DEBUG] Intentando con la contraseña temporal...');
+      const isTempMatch = await bcrypt.compare(password, user.temp_password_hash);
+      console.log('[DEBUG] ¿La contraseña temporal coincide?:', isTempMatch);
+      if (isTempMatch) {
+        console.log(`Usuario ${user.id} (${userType}) autenticado con contraseña temporal.`);
+        
+        // Limpiar la contraseña temporal
+        if (userType === 'cliente') {
+          await userModel.clearTempPasswordHash(user.id);
+        } else {
+          await vendedorModel.clearTempPasswordHash(user.codigo);
+        }
+        
+        const { password_hash, temp_password_hash, ...userWithoutPassword } = user;
+        return { success: true, user: userWithoutPassword, first_login: true };
+      }
+    }
+
+    // 2. Si no hay contraseña temporal o no coincide, intentar con la principal
+    console.log('[DEBUG] Intentando con la contraseña principal...');
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+    console.log('[DEBUG] ¿La contraseña principal coincide?:', isMatch);
     if (!isMatch) {
       console.log('Contraseña incorrecta.');
       return { success: false, message: 'Usuario o contraseña incorrectos.' };
     }
 
-    console.log(`Usuario ${user.id} autenticado. Verificando permisos de admin...`);
-    const { password_hash, ...userWithoutPassword } = user;
+    console.log(`Usuario ${user.id} (${userType}) autenticado con contraseña principal.`);
+    const { password_hash, temp_password_hash, ...userWithoutPassword } = user;
 
-    userWithoutPassword.is_admin = await userModel.isUserAdmin(user.id);
-    console.log(`El usuario ${user.id} ${userWithoutPassword.is_admin ? 'ES' : 'NO ES'} administrador.`);
+    if (userType === 'cliente') {
+      userWithoutPassword.is_admin = await userModel.isUserAdmin(user.id);
+      console.log(`El usuario ${user.id} ${userWithoutPassword.is_admin ? 'ES' : 'NO ES'} administrador.`);
+    }
 
-    return { success: true, user: userWithoutPassword };
+    return { success: true, user: userWithoutPassword, first_login: false };
 
   } catch (error) {
     console.error('Error en authenticateUser (service):', error);
@@ -123,9 +171,62 @@ const updateUserProfile = async (userId, profileData) => {
   }
 };
 
+/**
+ * Obtiene los clientes asignados a un vendedor.
+ * @param {string} vendedorCodigo - El código del vendedor.
+ * @returns {Promise<Array<object>>}
+ */
+const getVendedorClients = async (vendedorCodigo) => {
+  try {
+    const clients = await userModel.findUsersByVendedorCodigo(vendedorCodigo);
+    return clients;
+  } catch (error) {
+    console.error('Error en getVendedorClients (service):', error);
+    throw error;
+  }
+};
+
+/**
+ * Cambia la contraseña de un usuario.
+ * @param {number} userId - El ID del usuario.
+ * @param {string} newPassword - La nueva contraseña.
+ * @returns {Promise<object>}
+ */
+const changePassword = async (userId, newPassword, userRole) => {
+  try {
+    // Validar la nueva contraseña (ej. longitud mínima)
+    if (!newPassword || newPassword.length < 8) {
+      throw new Error('La contraseña debe tener al menos 8 caracteres.');
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(newPassword, salt);
+
+    let success = false;
+    if (userRole === 'vendedor') {
+      success = await vendedorModel.updatePassword(userId, passwordHash);
+    } else {
+      success = await userModel.updatePassword(userId, passwordHash);
+    }
+
+    if (!success) {
+      throw new Error('No se pudo actualizar la contraseña.');
+    }
+
+    console.log(`Contraseña actualizada para el usuario: ${userId}`);
+    return { success: true, message: 'Contraseña actualizada correctamente.' };
+
+  } catch (error) {
+    console.error('Error en changePassword (service):', error);
+    throw error;
+  }
+};
+
 module.exports = {
   authenticateUser,
   registerUser,
   getUserProfile,
   updateUserProfile,
+  getVendedorClients,
+  changePassword,
 };

@@ -24,6 +24,9 @@ import DashboardSettingsPage from './pages/DashboardSettingsPage.jsx'; // (NUEVO
 import ManageOffersPage from './pages/ManageOffersPage.jsx'; // (NUEVO) Importar la página de gestión de ofertas
 import ClientGroupPermissionsPage from './pages/ClientGroupPermissionsPage.jsx'; // (NUEVO) Importar la página de permisos
 import ManageAdminsPage from './pages/ManageAdminsPage.jsx'; // (NUEVO) Importar la página de gestión de admins
+import VendedorDashboardPage from './pages/VendedorDashboardPage.jsx'; // (NUEVO) Importar panel de vendedor
+import ClientesPage from './pages/ClientesPage.jsx'; // (NUEVO) Importar página de clientes
+import ChangePasswordPage from './pages/ChangePasswordPage.jsx'; // (NUEVO) Importar página de cambio de contraseña
 import Header from './components/Header.jsx'; // Importa el Header unificado
 
 // Importar el hook del carrito
@@ -33,7 +36,7 @@ import { useAuth } from './context/AuthContext.jsx'; // (NUEVO) Importar useAuth
 
 // --- Componente Raíz (Maneja la autenticación y navegación) ---
 function App() {
-  const { isAuthenticated, user, loading, login, logout } = useAuth(); // (MODIFICADO) Usar useAuth
+  const { isAuthenticated, user, loading, login, logout, firstLogin } = useAuth(); // (MODIFICADO) Usar useAuth
   const [currentPage, setCurrentPage] = useState('login');
   
   // (ELIMINADO) const [currentUser, setCurrentUser] = useState(null); // Ya no necesitamos este estado duplicado
@@ -57,13 +60,19 @@ function App() {
   useEffect(() => {
     if (!loading && !initialPageSet.current) {
       if (isAuthenticated) {
-        setCurrentPage('dashboard');
+        if (firstLogin) {
+          setCurrentPage('change-password');
+        } else if (user?.role === 'vendedor') {
+          setCurrentPage('vendedor-dashboard');
+        } else {
+          setCurrentPage('dashboard');
+        }
       } else {
         setCurrentPage('login');
       }
       initialPageSet.current = true; // Marcar que la inicialización ya se hizo
     }
-  }, [loading, isAuthenticated]);
+  }, [loading, isAuthenticated, user, firstLogin]);
 
   // Función para cambiar de vista (nuestro "router" simple)
   const handleNavigate = (page) => {
@@ -100,11 +109,17 @@ function App() {
 
 
   const handleLogin = async (email, password) => { // (MODIFICADO) Ahora usa la función login del contexto
-    const success = await login(email, password);
-    if (success) {
-      setCurrentPage('dashboard');
+    const result = await login(email, password);
+    if (result.success) {
+      if (result.first_login) {
+        setCurrentPage('change-password');
+      } else if (result.user?.role === 'vendedor') {
+        setCurrentPage('vendedor-dashboard');
+      } else {
+        setCurrentPage('dashboard');
+      }
     }
-    return success;
+    return result;
   };
 
   const handleLogout = () => { // (MODIFICADO) Ahora usa la función logout del contexto
@@ -146,10 +161,24 @@ function App() {
       }
     }
 
+    if (isAuthenticated && firstLogin) {
+      return <ChangePasswordPage />;
+    }
+
     // Si está logueado, mostramos el resto de las páginas
     switch (currentPage) {
       case 'dashboard':
+        // (NUEVO) Si es vendedor, se renderiza su panel. Si no, el de cliente.
+        if (user?.role === 'vendedor') {
+          return <VendedorDashboardPage onNavigate={handleNavigate} />;
+        }
         return <DashboardPage onNavigate={handleNavigate} onNavigateToCategory={handleNavigateToCategory} onViewProductDetails={handleViewProductDetails} />;
+      // (NUEVO) Panel específico para vendedor
+      case 'vendedor-dashboard':
+        return <VendedorDashboardPage onNavigate={handleNavigate} />;
+      // (NUEVO) Página de clientes para el vendedor
+      case 'vendedor-clientes':
+        return <ClientesPage onNavigate={handleNavigate} />;
       case 'profile':
         // Pasamos el user del contexto
         return <ProfilePage onNavigate={handleNavigate} user={user} />; // (MODIFICADO)
@@ -240,6 +269,9 @@ function App() {
         }
         // Si no es admin, lo mandamos al dashboard
         return <DashboardPage onNavigate={handleNavigate} />;
+      
+      case 'change-password':
+        return <ChangePasswordPage />;
 
       default:
         // Fallback si la página no se conoce
@@ -258,7 +290,7 @@ function App() {
 
   return (
     <div className="app-container">
-      {isAuthenticated && ( // (MODIFICADO) Usamos isAuthenticated de useAuth
+      {isAuthenticated && !firstLogin && ( // (MODIFICADO) Usamos isAuthenticated de useAuth
         // El Header se renderiza aquí para todas las páginas logueadas
         <Header
           onNavigate={handleNavigate}

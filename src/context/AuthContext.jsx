@@ -7,6 +7,7 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [firstLogin, setFirstLogin] = useState(false);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -42,20 +43,23 @@ export const AuthProvider = ({ children }) => {
         apiService.setAuthToken(data.token); // Configurar token en el servicio
         setIsAuthenticated(true);
         setUser(data.user);
+        if (data.first_login) {
+          setFirstLogin(true);
+        }
         setLoading(false);
-        return true;
+        return data;
       } else {
         // El login falló, asegúrate de limpiar cualquier estado residual
         logout();
         console.error('Login failed:', data.message);
         setLoading(false);
-        return false;
+        return data;
       }
     } catch (error) {
       logout();
       console.error('Error during login API call:', error);
       setLoading(false);
-      return false;
+      return { success: false, message: error.message };
     }
   };
 
@@ -65,10 +69,11 @@ export const AuthProvider = ({ children }) => {
     apiService.setAuthToken(null); // Limpiar token del servicio
     setIsAuthenticated(false);
     setUser(null);
+    setFirstLogin(false);
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, loading, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, loading, login, logout, firstLogin }}>
       {children}
     </AuthContext.Provider>
   );

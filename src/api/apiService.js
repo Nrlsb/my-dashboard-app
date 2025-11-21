@@ -235,10 +235,30 @@ const apiService = {
   },
 
   /**
+   * Cambia la contraseña del usuario logueado.
+   * @param {string} newPassword - La nueva contraseña.
+   */
+  changePassword(newPassword) {
+    return this.request('/change-password', {
+      method: 'PUT',
+      body: { newPassword },
+    });
+  },
+
+  /**
    * Crea un nuevo pedido o presupuesto.
    */
   createOrder(orderData) {
     return this.request('/orders', { method: 'POST', body: orderData });
+  },
+
+  // --- (NUEVO) Métodos de Vendedor ---
+
+  /**
+   * Obtiene la lista de clientes asignados al vendedor logueado.
+   */
+  getVendedorClients() {
+    return this.request('/vendedor/clientes');
   },
 
   // --- Métodos de Administrador ---

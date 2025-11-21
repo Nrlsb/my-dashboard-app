@@ -78,10 +78,51 @@ const updateUser = async (userId, profileData) => {
   return result.rows[0] || null;
 };
 
+/**
+ * Busca todos los usuarios (clientes) asignados a un código de vendedor.
+ * @param {string} vendedorCodigo - El código del vendedor.
+ * @returns {Promise<Array<object>>}
+ */
+const findUsersByVendedorCodigo = async (vendedorCodigo) => {
+  const result = await pool.query('SELECT id, full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, a1_endereco FROM users WHERE vendedor_codigo = $1', [vendedorCodigo]);
+  return result.rows;
+};
+
+/**
+ * Limpia (pone a NULL) el hash de la contraseña temporal de un usuario.
+ * @param {number} userId - El ID del usuario.
+ * @returns {Promise<boolean>}
+ */
+const clearTempPasswordHash = async (userId) => {
+  const result = await pool.query('UPDATE users SET temp_password_hash = NULL WHERE id = $1', [userId]);
+  return result.rowCount > 0;
+};
+
+/**
+ * Actualiza la contraseña de un usuario y limpia los campos de contraseña temporal.
+ * @param {number} userId - El ID del usuario.
+ * @param {string} passwordHash - El nuevo hash de la contraseña.
+ * @returns {Promise<boolean>}
+ */
+const updatePassword = async (userId, passwordHash) => {
+  const query = `
+    UPDATE users 
+    SET 
+      password_hash = $1, 
+      temp_password_hash = NULL
+    WHERE id = $2
+  `;
+  const result = await pool.query(query, [passwordHash, userId]);
+  return result.rowCount > 0;
+};
+
 module.exports = {
   findUserByEmail,
   findUserById,
   createUser,
   isUserAdmin,
   updateUser,
+  findUsersByVendedorCodigo,
+  clearTempPasswordHash,
+  updatePassword,
 };

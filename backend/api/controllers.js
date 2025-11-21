@@ -77,6 +77,27 @@ const updateProfile = async (userId, profileData) => {
   }
 };
 
+/**
+ * (NUEVO) Obtiene los clientes asignados a un vendedor logueado.
+ */
+const getVendedorClientsController = async (req, res) => {
+  try {
+    // El middleware de autenticación debería haber puesto `user` en `req`.
+    // Asumimos que el objeto `user` para un vendedor tiene su `codigo`.
+    const { user } = req;
+
+    if (!user || user.role !== 'vendedor' || !user.codigo) {
+      return res.status(403).json({ message: 'Acceso denegado. Se requiere rol de vendedor.' });
+    }
+
+    const clients = await userService.getVendedorClients(user.codigo);
+    res.json(clients);
+  } catch (error) {
+    console.error('Error en getVendedorClientsController:', error);
+    res.status(500).json({ message: 'Error interno al obtener los clientes.' });
+  }
+};
+
 
 // =================================================================
 // --- Cuenta Corriente (Movements Table) ---
@@ -456,11 +477,34 @@ const toggleProductOfferStatus = async (req, res) => {
     }
 };
 
+/**
+ * (NUEVO) Cambia la contraseña de un usuario logueado.
+ */
+const changePasswordController = async (req, res) => {
+  try {
+    const userId = req.user.userId; // ID del usuario autenticado
+    const userRole = req.user.role; // Rol del usuario autenticado
+    const { newPassword } = req.body;
+
+    if (!newPassword) {
+      return res.status(400).json({ message: 'La nueva contraseña es obligatoria.' });
+    }
+
+    const result = await userService.changePassword(userId, newPassword, userRole);
+    res.json(result);
+
+  } catch (error) {
+    console.error('Error en changePasswordController:', error);
+    res.status(500).json({ message: error.message || 'Error interno al cambiar la contraseña.' });
+  }
+};
+
 module.exports = {
   authenticateProtheusUser,
   registerProtheusUser,
   getProfile,
   updateProfile,
+  getVendedorClientsController,
   fetchProtheusBalance,
   fetchProtheusMovements,
   createCreditNote,
@@ -490,4 +534,5 @@ module.exports = {
   removeAdmin,
   getProductGroupsForAdmin,
   toggleProductOfferStatus,
+  changePasswordController,
 };

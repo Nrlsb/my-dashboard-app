@@ -6,6 +6,7 @@ const { upload } = require('./middleware/upload'); // Importar config de Multer
 const controllers = require('./controllers'); // Importar todos los controladores
 const productService = require('./services/productService'); // Importar el servicio de productos
 const pool = require('./db'); // (NUEVO) Importamos pool para la db
+const vendedorModel = require('./models/vendedorModel'); // (NUEVO) Importar el modelo de vendedor
 
 // --- Rate Limiter for login ---
 const loginLimiter = rateLimit({
@@ -102,21 +103,29 @@ const optionalAuthenticateToken = (req, res, next) => {
       const result = await controllers.authenticateProtheusUser(email, password);
       if (result.success) {
         const user = result.user;
+
+        // El rol y el código de vendedor ahora vienen directamente del servicio de autenticación
         const payload = {
           userId: user.id,
-          name: user.nombre,
+          name: user.full_name,
           isAdmin: user.is_admin,
           codCliente: user.a1_cod,
+          role: user.role || 'cliente', // Usar el rol del servicio, con fallback a 'cliente'
+          codigo: user.codigo || null,   // Usar el código del servicio
         };
 
         const token = jwt.sign(payload, process.env.JWT_SECRET, {
           expiresIn: '7d',
         });
 
+        // Devolver el rol en el objeto de usuario para uso en el frontend
+        const userWithRole = { ...user, role: payload.role };
+
         res.json({
           success: true,
-          user: user,
+          user: userWithRole,
           token: token,
+          first_login: result.first_login, // Añadir la bandera para el frontend
         });
       } else {
         res.status(401).json({ message: result.message });
@@ -181,8 +190,22 @@ const optionalAuthenticateToken = (req, res, next) => {
       res.status(500).json({ message: 'Error interno del servidor.' });
     }
   });
+
+  // (NUEVO) Endpoint para cambiar la contraseña
+  router.put('/change-password', authenticateToken, async (req, res) => {
+    console.log(`PUT /api/change-password -> Usuario ${req.user.userId} cambiando su contraseña...`);
+    await controllers.changePasswordController(req, res);
+  });
   
   
+  // --- (NUEVO) Endpoints de Vendedor ---
+  router.get('/vendedor/clientes', authenticateToken, async (req, res) => {
+    console.log(`GET /api/vendedor/clientes -> Vendedor ${req.user.userId} consultando sus clientes...`);
+    // El controlador ahora se encarga de la respuesta.
+    await controllers.getVendedorClientsController(req, res);
+  });
+
+
   // --- Cuenta Corriente ---
   router.get('/balance', authenticateToken, async (req, res) => {
     console.log('GET /api/balance -> Consultando saldo en DB...');

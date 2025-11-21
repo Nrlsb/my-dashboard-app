@@ -3,7 +3,7 @@ import { Mail, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext'; // Importar useAuth
 
 // --- Componente de Login ---
-const LoginPage = ({ onNavigate }) => { 
+const LoginPage = ({ onNavigate, onLogin }) => { 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -17,14 +17,14 @@ const LoginPage = ({ onNavigate }) => {
     setIsLoading(true); 
 
     try {
-      const success = await login(email, password); // Llamar a la función login del AuthContext
-      if (success) {
+      const result = await onLogin(email, password); // Llamar a la función onLogin del App.jsx
+      if (result.success) {
         // Si el login es exitoso, AuthContext ya maneja el estado y el localStorage
         // No necesitamos hacer nada aquí, App.jsx detectará el cambio en isAuthenticated
       } else {
         // Si el login falla, el error ya se ha manejado en AuthContext
         // Podemos mostrar un mensaje genérico o el mensaje específico si AuthContext lo devuelve
-        setError('Credenciales inválidas. Inténtalo de nuevo.');
+        setError(result.message || 'Credenciales inválidas. Inténtalo de nuevo.');
       }
     } catch (err) {
       console.error(err);
