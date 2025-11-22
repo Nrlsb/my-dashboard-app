@@ -324,6 +324,44 @@ const downloadOrderPdf = async (orderId, user) => {
 };
 
 /**
+ * Prepara los datos de un pedido y genera su CSV.
+ * @param {number} orderId - El ID del pedido.
+ * @param {object} user - El objeto de usuario autenticado.
+ * @returns {Promise<Buffer>} - El contenido del CSV como un buffer.
+ */
+const downloadOrderCsv = async (orderId, user) => {
+  try {
+    // 1. Determinar los IDs de usuario permitidos (lógica idéntica a la de PDF)
+    let allowedUserIds = [user.userId];
+    if (user.role === 'vendedor' && user.codigo) {
+        const clients = await userModel.findUsersByVendedorCodigo(user.codigo);
+        allowedUserIds = clients.map(client => client.id);
+    }
+
+    // 2. Obtener detalles del pedido
+    const orderDetails = await orderModel.findOrderDetailsById(orderId, allowedUserIds);
+    if (!orderDetails) {
+      throw new Error('Pedido no encontrado o no le pertenece al usuario.');
+    }
+
+    // 3. Enriquecer items con el código de producto (necesario para el CSV)
+    // La función generateOrderCSV espera 'code' y 'quantity'
+    const enrichedItems = orderDetails.items.map(item => ({
+      code: item.product_code, // 'product_code' de la tabla order_items
+      quantity: item.quantity,
+    }));
+
+    // 4. Generar el CSV
+    const csvBuffer = await generateOrderCSV(enrichedItems);
+    return csvBuffer;
+
+  } catch (error) {
+    console.error(`Error en orderService.downloadOrderCsv para pedido ${orderId}:`, error);
+    throw error;
+  }
+};
+
+/**
  * Actualiza los detalles de múltiples pedidos (número de pedido de venta del vendedor y estado de confirmación).
  * @param {Array<object>} updatedOrders - Un array de objetos, cada uno con { id, vendorSalesOrderNumber, isConfirmed }.
  * @returns {Promise<void>}
@@ -418,4 +456,5 @@ module.exports = {
   fetchOrderDetails,
   downloadOrderPdf,
   updateOrderDetails,
+  downloadOrderCsv,
 };

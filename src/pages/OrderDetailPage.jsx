@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import apiService from '../api/apiService'; 
+import apiService from '../api/apiService';
+import { useAuth } from '../context/AuthContext';
+import './OrderDetailPage.css';
 
 const useCurrencyFormatter = () => {
   return new Intl.NumberFormat('es-AR', {
@@ -11,7 +13,9 @@ const useCurrencyFormatter = () => {
 
 function OrderDetailPage({ onNavigate, user, orderId }) {
   const formatter = useCurrencyFormatter();
-  const [isDownloading, setIsDownloading] = useState(false);
+  const { user: authUser } = useAuth(); // Obtener usuario autenticado del contexto
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [isDownloadingCsv, setIsDownloadingCsv] = useState(false);
 
   const { data: orderDetails, isLoading, error } = useQuery({
     queryKey: ['orderDetail', orderId],
@@ -20,29 +24,42 @@ function OrderDetailPage({ onNavigate, user, orderId }) {
   });
 
   const handleDownloadPDF = async () => {
-    setIsDownloading(true);
+    setIsDownloadingPdf(true);
     try {
       const pdfBlob = await apiService.downloadOrderPDF(orderId);
-      
-      // Crear una URL para el Blob
       const url = window.URL.createObjectURL(pdfBlob);
-      
-      // Crear un enlace temporal para iniciar la descarga
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Pedido_${orderId}.pdf`; // Nombre del archivo
-      document.body.appendChild(a); // Añadir el enlace al DOM
-      a.click(); // Simular clic
-      
-      // Limpiar
+      a.download = `Pedido_${orderId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-
     } catch (err) {
       console.error('Error al descargar el PDF:', err);
       alert(`No se pudo descargar el PDF: ${err.message}`);
     } finally {
-      setIsDownloading(false);
+      setIsDownloadingPdf(false);
+    }
+  };
+
+  const handleDownloadCSV = async () => {
+    setIsDownloadingCsv(true);
+    try {
+      const csvBlob = await apiService.downloadOrderCSV(orderId);
+      const url = window.URL.createObjectURL(csvBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Pedido_${orderId}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error al descargar el CSV:', err);
+      alert(`No se pudo descargar el CSV: ${err.message}`);
+    } finally {
+      setIsDownloadingCsv(false);
     }
   };
 
@@ -66,9 +83,14 @@ function OrderDetailPage({ onNavigate, user, orderId }) {
         <button onClick={() => onNavigate('order-history')} className="back-button">
           Volver al Historial
         </button>
-        <button onClick={handleDownloadPDF} className="download-pdf-button" disabled={isDownloading}>
-          {isDownloading ? 'Descargando...' : 'Descargar PDF'}
+        <button onClick={handleDownloadPDF} className="download-pdf-button" disabled={isDownloadingPdf}>
+          {isDownloadingPdf ? 'Descargando PDF...' : 'Descargar PDF'}
         </button>
+        {authUser?.role === 'vendedor' && (
+          <button onClick={handleDownloadCSV} className="download-csv-button" disabled={isDownloadingCsv} style={{ marginLeft: '10px' }}>
+            {isDownloadingCsv ? 'Descargando CSV...' : 'Descargar CSV'}
+          </button>
+        )}
       </div>
       
       <div className="order-info-box">

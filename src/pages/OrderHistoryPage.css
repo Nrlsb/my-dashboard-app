@@ -1,0 +1,120 @@
+.order-history-page {
+  padding: 2rem;
+  background-color: #f9f9f9;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.order-history-page h2 {
+  color: #333;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 0.5rem;
+}
+
+.back-button,
+.save-changes-button,
+.view-details-button {
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+  margin-right: 10px;
+}
+
+.back-button {
+  background-color: #6c757d;
+  color: white;
+}
+
+.back-button:hover {
+  background-color: #5a6268;
+}
+
+.save-changes-button {
+  background-color: #28a745;
+  color: white;
+}
+
+.save-changes-button:hover {
+  background-color: #218838;
+}
+
+.view-details-button {
+  background-color: #007bff;
+  color: white;
+  font-size: 0.8rem;
+}
+
+.view-details-button:hover {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.filters-container {
+  background-color: #fff;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  margin: 20px 0;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.filters-container input[type="text"],
+.filters-container select {
+  padding: 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+  min-width: 200px;
+}
+
+.order-list-container {
+  margin-top: 2rem;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  overflow-x: auto; /* Para tablas anchas en móviles */
+}
+
+.order-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.order-table th,
+.order-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.order-table th {
+  background-color: #f8f9fa;
+  color: #495057;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+
+.order-table tbody tr:hover {
+  background-color: #f1f3f5;
+}
+
+.order-table td input[type="text"],
+.order-table td input[type="checkbox"] {
+  padding: 0.4rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+}
+
+.order-table td input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}

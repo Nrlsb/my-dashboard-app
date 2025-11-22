@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import apiService from '../api/apiService'; 
 import { useAuth } from '../context/AuthContext';
+import './OrderHistoryPage.css';
 
 const useCurrencyFormatter = () => {
   return new Intl.NumberFormat('es-AR', {
@@ -17,6 +18,8 @@ function OrderHistoryPage({ onNavigate, user, onViewDetails }) {
 
   const [vendorSalesOrderNumbers, setVendorSalesOrderNumbers] = useState({});
   const [orderConfirmations, setOrderConfirmations] = useState({});
+  const [statusFilter, setStatusFilter] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const handleVendorSalesOrderNumberChange = (orderId, value) => {
     setVendorSalesOrderNumbers(prev => ({ ...prev, [orderId]: value }));
@@ -67,6 +70,15 @@ function OrderHistoryPage({ onNavigate, user, onViewDetails }) {
     updateOrderDetailsMutation.mutate(updatedOrdersData);
   };
 
+  const filteredOrders = orders?.filter(order => {
+    const statusMatch = statusFilter ? order.status === statusFilter : true;
+    const searchTermMatch = searchTerm
+      ? (order.client_name && order.client_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        String(order.id).includes(searchTerm)
+      : true;
+    return statusMatch && searchTermMatch;
+  }) || [];
+
   if (isLoading) {
     return <div>Cargando historial de pedidos...</div>;
   }
@@ -87,9 +99,28 @@ function OrderHistoryPage({ onNavigate, user, onViewDetails }) {
           Guardar Cambios
         </button>
       )}
+
+      {isVendor && (
+        <div className="filters-container" style={{ margin: '20px 0' }}>
+          <input
+            type="text"
+            placeholder="Buscar por Cliente o ID de Pedido"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ marginRight: '10px' }}
+          />
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">Todos los Estados</option>
+            <option value="Pendiente">Pendiente</option>
+            <option value="Confirmado">Confirmado</option>
+            <option value="Cancelado">Cancelado</option>
+            {/* Agrega más estados si es necesario */}
+          </select>
+        </div>
+      )}
       
       <div className="order-list-container">
-        {orders && orders.length > 0 ? (
+        {filteredOrders && filteredOrders.length > 0 ? (
           <table className="order-table">
             <thead>
               <tr>
@@ -105,7 +136,7 @@ function OrderHistoryPage({ onNavigate, user, onViewDetails }) {
               </tr>
             </thead>
             <tbody>
-              {orders.map((order) => (
+              {filteredOrders.map((order) => (
                 <tr key={order.id}>
                   <td>#{order.id}</td>
                   <td>{order.formatted_date}</td> 

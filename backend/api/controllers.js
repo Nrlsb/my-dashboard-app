@@ -398,6 +398,33 @@ const downloadOrderPDF = async (orderId, user) => {
   }
 };
 
+/**
+ * Genera y envía el CSV de un pedido.
+ * @param {object} req - El objeto de solicitud de Express.
+ * @param {object} res - El objeto de respuesta de Express.
+ */
+const downloadOrderCsvController = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const user = req.user; // Usuario autenticado desde el token
+
+    const csvBuffer = await orderService.downloadOrderCsv(orderId, user);
+
+    if (csvBuffer) {
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=Pedido_${orderId}.csv`);
+      res.send(csvBuffer);
+    } else {
+      // La lógica de permisos ya está en el servicio, así que esto es un fallback.
+      res.status(404).json({ message: 'Pedido no encontrado o no le pertenece.' });
+    }
+  } catch (error) {
+    console.error(`Error en /api/orders/${req.params.id}/csv:`, error);
+    const isNotFound = error.message.includes('Pedido no encontrado');
+    res.status(isNotFound ? 404 : 500).json({ message: error.message || 'Error al generar el CSV del pedido.' });
+  }
+};
+
 // =================================================================
 // --- (NUEVO) Wrappers para Administración (CORRECCIÓN CRÍTICA) ---
 // =================================================================
@@ -539,6 +566,7 @@ module.exports = {
   getProductGroupsDetails,
   fetchProductsByGroup,
   downloadOrderPDF,
+  downloadOrderCsvController,
   getDeniedProductGroups,
   fetchAdminOrderDetails,
   getUsersForAdmin,

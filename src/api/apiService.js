@@ -213,6 +213,27 @@ const apiService = {
     return response.blob();
   },
 
+  /**
+   * Descarga el CSV de un pedido.
+   */
+  async downloadOrderCSV(orderId) {
+    if (!orderId) throw new Error("ID de pedido requerido");
+
+    const headers = {};
+    if (this.authToken) {
+      headers['Authorization'] = `Bearer ${this.authToken}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/orders/${orderId}/csv`, { headers });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Error al descargar el CSV.' }));
+      throw new Error(errorData.message || 'Error en la solicitud de descarga.');
+    }
+
+    return response.blob();
+  },
+
   updateOrderDetails(updatedOrders) {
     return this.request('/orders/update-details', { method: 'PUT', body: { updatedOrders } });
   },

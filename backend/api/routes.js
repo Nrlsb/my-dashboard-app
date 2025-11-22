@@ -344,6 +344,8 @@ const optionalAuthenticateToken = (req, res, next) => {
     }
   });
   
+  router.get('/orders/:id/csv', authenticateToken, controllers.downloadOrderCsvController);
+  
   
   router.post('/orders', authenticateToken, async (req, res) => {
     console.log('POST /api/orders -> Guardando nuevo pedido/presupuesto en DB...');
