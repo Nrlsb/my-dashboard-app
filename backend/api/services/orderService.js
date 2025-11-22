@@ -1,7 +1,7 @@
 // backend/api/services/orderService.js
 
 const { pool, pool2 } = require('../db');
-const { sendOrderConfirmationEmail, sendNewOrderNotificationEmail } = require('../emailService');
+const { sendOrderConfirmationEmail, sendNewOrderNotificationEmail, sendOrderConfirmedByVendorEmail } = require('../emailService');
 const { generateOrderPDF, generateOrderCSV } = require('../utils/fileGenerator');
 const orderModel = require('../models/orderModel');
 const userModel = require('../models/userModel'); // Importar userModel
@@ -112,7 +112,7 @@ const createOrder = async (orderData, userId) => {
       console.log(`[Pedido #${newOrderId}] Enviando correos a ${user.email} y ${sellerEmail}...`);
 
       const orderDataForFiles = { user, newOrder, items: enrichedItems, total };
-      
+
       const pdfBuffer = await generateOrderPDF(orderDataForFiles);
       const csvBuffer = await generateOrderCSV(enrichedItems);
 
@@ -124,7 +124,7 @@ const createOrder = async (orderData, userId) => {
         filename: `Pedido_${newOrderId}.csv`,
         content: csvBuffer,
       };
-      
+
       await sendOrderConfirmationEmail(
         user.email,
         newOrderId,
@@ -142,7 +142,7 @@ const createOrder = async (orderData, userId) => {
         user,
         [pdfAttachment, csvAttachment]
       );
-      
+
       console.log(`[Pedido #${newOrderId}] Correos con adjuntos enviados con éxito.`);
     }
 
@@ -196,9 +196,11 @@ const fetchOrders = async (user) => { // Cambiar userId a user
   console.log(`[orderService] Buscando pedidos para targetUserIds:`, targetUserIds);
   const orders = await orderModel.findOrders(targetUserIds);
   console.log(`[orderService] Pedidos encontrados: ${orders.length}`);
-  
+
   return orders.map(order => ({
     ...order,
+    vendorSalesOrderNumber: order.vendor_sales_order_number,
+    isConfirmed: order.is_confirmed,
     formattedTotal: formatCurrency(order.total)
   }));
 };
@@ -300,7 +302,84 @@ const updateOrderDetails = async (updatedOrders) => {
   if (!Array.isArray(updatedOrders) || updatedOrders.length === 0) {
     throw new Error("No hay pedidos para actualizar.");
   }
-  await orderModel.updateOrderDetails(updatedOrders);
+
+  // 1. Obtener los IDs de los pedidos a actualizar
+  const orderIds = updatedOrders.map(o => o.id);
+
+  // 2. Buscar el estado actual de estos pedidos para comparar
+  // Usamos una query directa al modelo o pool para obtener el estado actual
+  // Asumimos que el usuario que hace esto es vendedor, pero aquí ya estamos en capa de servicio
+  // Podríamos usar orderModel.findOrdersByIds(orderIds) si existiera, o hacer una query directa.
+  // Para simplificar y no modificar tanto el modelo, haremos una query directa aquí o usaremos findOrderDetailsById en bucle (menos eficiente).
+  // Mejor opción: Query directa para obtener status e is_confirmed actual.
+
+  const currentOrdersResult = await pool2.query(`
+    SELECT id, is_confirmed, user_id, status FROM orders WHERE id = ANY($1::int[])
+  `, [orderIds]);
+
+  const currentOrdersMap = new Map(currentOrdersResult.rows.map(o => [o.id, o]));
+
+  const ordersToUpdate = [];
+  const emailsToSend = [];
+
+  for (const update of updatedOrders) {
+    const currentOrder = currentOrdersMap.get(update.id);
+    if (!currentOrder) continue;
+
+    let newStatus = null;
+    let shouldSendEmail = false;
+
+    // Lógica de cambio de estado
+    // Si antes no estaba confirmado y ahora SI viene confirmado
+    if (!currentOrder.is_confirmed && update.isConfirmed) {
+      newStatus = 'Confirmado';
+      shouldSendEmail = true;
+    }
+
+    ordersToUpdate.push({
+      ...update,
+      status: newStatus // Pasamos el nuevo status (o null si no cambia)
+    });
+
+    if (shouldSendEmail) {
+      emailsToSend.push({
+        orderId: update.id,
+        userId: currentOrder.user_id,
+        vendorSalesOrderNumber: update.vendorSalesOrderNumber
+      });
+    }
+  }
+
+  // 3. Actualizar en BD
+  await orderModel.updateOrderDetails(ordersToUpdate);
+
+  // 4. Enviar correos (asíncronamente para no bloquear)
+  // Necesitamos obtener el email del usuario para cada pedido
+  if (emailsToSend.length > 0) {
+    // Obtener emails de usuarios
+    const userIds = [...new Set(emailsToSend.map(e => e.userId))];
+    const usersResult = await pool.query('SELECT id, email, full_name FROM users WHERE id = ANY($1::int[])', [userIds]);
+    const usersMap = new Map(usersResult.rows.map(u => [u.id, u]));
+
+    Promise.allSettled(emailsToSend.map(async (emailInfo) => {
+      const user = usersMap.get(emailInfo.userId);
+      if (user && user.email) {
+        console.log(`[orderService] Enviando notificación de confirmación al usuario ${user.id} para pedido #${emailInfo.orderId}`);
+        await sendOrderConfirmedByVendorEmail(
+          user.email,
+          emailInfo.orderId,
+          user.full_name,
+          emailInfo.vendorSalesOrderNumber
+        );
+      }
+    })).then(results => {
+      results.forEach(result => {
+        if (result.status === 'rejected') {
+          console.error('[orderService] Error enviando email de confirmación:', result.reason);
+        }
+      });
+    });
+  }
 };
 
 module.exports = {

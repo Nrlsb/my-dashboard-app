@@ -37,7 +37,7 @@ const findOrders = async (userIds) => {
     `;
     values = [userIds];
   }
-  
+
   console.log(`[orderModel] Ejecutando query: ${query} con valores:`, values);
   const result = await pool2.query(query, values);
   console.log(`[orderModel] Query result rows: ${result.rows.length}`);
@@ -72,7 +72,7 @@ const findOrderDetailsById = async (orderId, allowedUserIds) => {
     `;
     values = [orderId, allowedUserIds];
   }
-  
+
   const orderResult = await pool2.query(orderQuery, values);
   if (orderResult.rows.length === 0) {
     return null; // No encontrado o no pertenece al usuario
@@ -133,14 +133,15 @@ const updateOrderDetails = async (updates) => {
   try {
     await client.query('BEGIN');
     for (const update of updates) {
-      const { id, vendorSalesOrderNumber, isConfirmed } = update;
+      const { id, vendorSalesOrderNumber, isConfirmed, status } = update;
       const query = `
         UPDATE orders
         SET vendor_sales_order_number = $1,
-            is_confirmed = $2
+            is_confirmed = $2,
+            status = COALESCE($4, status)
         WHERE id = $3;
       `;
-      await client.query(query, [vendorSalesOrderNumber, isConfirmed, id]);
+      await client.query(query, [vendorSalesOrderNumber, isConfirmed, id, status]);
     }
     await client.query('COMMIT');
   } catch (error) {

@@ -10,7 +10,7 @@
 */
 
 // Cargar variables de entorno
-require('dotenv').config(); 
+require('dotenv').config();
 const { Resend } = require('resend');
 const { formatCurrency } = require('./utils/helpers'); // Importar helper
 
@@ -33,7 +33,7 @@ const formatItemsToHTML = (items) => {
       </thead>
       <tbody>
   `;
-  
+
   items.forEach(item => {
     itemsHtml += `
       <tr>
@@ -156,8 +156,61 @@ const sendNewOrderNotificationEmail = async (toEmail, orderId, items, total, cus
   }
 };
 
+/**
+ * Envía un correo de confirmación al CLIENTE cuando el VENDEDOR confirma el pedido
+ */
+const sendOrderConfirmedByVendorEmail = async (toEmail, orderId, customerName, vendorSalesOrderNumber) => {
+  const subject = `Tu pedido #${orderId} ha sido confirmado`;
+
+  let salesOrderInfo = '';
+  if (vendorSalesOrderNumber) {
+    salesOrderInfo = `<p><strong>Número de Pedido de Venta: ${vendorSalesOrderNumber}</strong></p>`;
+  }
+
+  const htmlBody = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+      <h1 style="color: #333;">¡Tu pedido ha sido confirmado!</h1>
+      <p>Hola ${customerName},</p>
+      <p>Te informamos que tu pedido <strong>#${orderId}</strong> ha sido revisado y confirmado por tu vendedor.</p>
+      
+      ${salesOrderInfo}
+      
+      <p>El estado de tu pedido ha cambiado a <strong>Confirmado</strong>.</p>
+      <p>Pronto recibirás más novedades sobre el envío o entrega.</p>
+      
+      <p style="margin-top: 20px;">
+        Gracias por confiar en nosotros.
+      </p>
+      <p style="color: #777; font-size: 0.9em;">
+        Este es un correo automático, por favor no respondas a esta dirección.
+      </p>
+    </div>
+  `;
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: process.env.EMAIL_FROM,
+      to: [toEmail],
+      subject: subject,
+      html: htmlBody,
+    });
+
+    if (error) {
+      console.error(`Error al enviar email de confirmación por vendedor a ${toEmail}:`, error);
+      throw new Error(error.message);
+    }
+
+    console.log(`Email de confirmación por vendedor enviado a ${toEmail}. ID: ${data.id}`);
+    return data;
+
+  } catch (error) {
+    console.error('Error en sendOrderConfirmedByVendorEmail:', error);
+    throw error;
+  }
+};
 
 module.exports = {
   sendOrderConfirmationEmail,
   sendNewOrderNotificationEmail,
+  sendOrderConfirmedByVendorEmail,
 };
