@@ -328,7 +328,7 @@ const optionalAuthenticateToken = (req, res, next) => {
     console.log(`GET /api/orders/${req.params.id}/pdf -> Generando PDF...`);
     try {
       const orderId = req.params.id;
-      const pdfBuffer = await controllers.downloadOrderPDF(orderId, req.userId);
+      const pdfBuffer = await controllers.downloadOrderPDF(orderId, req.user);
       
       if (pdfBuffer) {
         res.setHeader('Content-Type', 'application/pdf');
@@ -339,7 +339,8 @@ const optionalAuthenticateToken = (req, res, next) => {
       }
     } catch (error) {
       console.error(`Error en /api/orders/${req.params.id}/pdf:`, error);
-      res.status(500).json({ message: 'Error al generar el PDF del pedido.' });
+      const isNotFound = error.message.includes('Pedido no encontrado');
+      res.status(isNotFound ? 404 : 500).json({ message: error.message || 'Error al generar el PDF del pedido.' });
     }
   });
   

@@ -386,12 +386,12 @@ const fetchProductsByGroup = async (groupCode, page, limit, userId) => {
 /**
  * Genera el PDF de un pedido.
  * @param {number} orderId - El ID del pedido.
- * @param {number} userId - El ID del usuario.
+ * @param {object} user - El objeto de usuario autenticado.
  * @returns {Promise<Buffer>} - El contenido del PDF como un buffer.
  */
-const downloadOrderPDF = async (orderId, userId) => {
+const downloadOrderPDF = async (orderId, user) => {
   try {
-    return await orderService.downloadOrderPdf(orderId, userId);
+    return await orderService.downloadOrderPdf(orderId, user);
   } catch (error) {
     console.error(`Error en downloadOrderPDF (controller) para pedido ${orderId}:`, error);
     throw error;
