@@ -95,6 +95,7 @@ function OrderHistoryPage({ onNavigate, user, onViewDetails }) {
               <tr>
                 <th>ID Pedido</th>
                 <th>Fecha</th>
+                {isVendor && <th>Cliente</th>}
                 <th>Total</th>
                 <th>Estado</th>
                 <th>Cant. Items</th> 
@@ -108,6 +109,7 @@ function OrderHistoryPage({ onNavigate, user, onViewDetails }) {
                 <tr key={order.id}>
                   <td>#{order.id}</td>
                   <td>{order.formatted_date}</td> 
+                  {isVendor && <td>{order.client_name}</td>}
                   <td>{order.formattedTotal}</td> 
                   <td>{order.status}</td>
                   <td>{order.item_count}</td>

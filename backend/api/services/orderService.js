@@ -197,6 +197,28 @@ const fetchOrders = async (user) => { // Cambiar userId a user
   const orders = await orderModel.findOrders(targetUserIds);
   console.log(`[orderService] Pedidos encontrados: ${orders.length}`);
 
+  // Si el usuario es un vendedor y hay pedidos, los enriquecemos con el nombre del cliente
+  if (user.role === 'vendedor' && orders.length > 0) {
+    const clientIds = [...new Set(orders.map(o => o.user_id))];
+    const usersResult = await pool.query(
+      'SELECT id, full_name FROM users WHERE id = ANY($1::int[])',
+      [clientIds]
+    );
+    const clientNamesMap = new Map(usersResult.rows.map(u => [u.id, u.full_name]));
+
+    const enrichedOrders = orders.map(order => ({
+      ...order,
+      client_name: clientNamesMap.get(order.user_id) || 'N/A'
+    }));
+
+    return enrichedOrders.map(order => ({
+      ...order,
+      vendorSalesOrderNumber: order.vendor_sales_order_number,
+      isConfirmed: order.is_confirmed,
+      formattedTotal: formatCurrency(order.total)
+    }));
+  }
+
   return orders.map(order => ({
     ...order,
     vendorSalesOrderNumber: order.vendor_sales_order_number,
