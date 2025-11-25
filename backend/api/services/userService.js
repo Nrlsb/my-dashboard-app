@@ -89,7 +89,11 @@ const authenticateUser = async (email, password) => {
     const { password_hash, temp_password_hash, ...userWithoutPassword } = user;
 
     // Asegurarse de que is_admin se establezca correctamente para todos los usuarios autenticados
-    userWithoutPassword.is_admin = await userModel.isUserAdmin(user.id);
+    if (userType === 'vendedor') {
+      userWithoutPassword.is_admin = false;
+    } else {
+      userWithoutPassword.is_admin = await userModel.isUserAdmin(user.id);
+    }
     console.log(
       `El usuario ${user.id} ${userWithoutPassword.is_admin ? 'ES' : 'NO ES'} administrador.`
     );
