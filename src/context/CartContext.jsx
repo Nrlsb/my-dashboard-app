@@ -31,21 +31,20 @@ export const CartProvider = ({ children }) => {
   };
 
   const removeFromCart = (productId) => {
-    setCart((prevCart) =>
-      prevCart.filter((item) => item.id !== productId)
-    );
+    setCart((prevCart) => prevCart.filter((item) => item.id !== productId));
   };
 
   const updateQuantity = (productId, quantity) => {
     const numQuantity = parseInt(quantity, 10);
     if (isNaN(numQuantity) || numQuantity < 0) return; // Evita cantidades inválidas
 
-    setCart((prevCart) =>
-      prevCart
-        .map((item) =>
-          item.id === productId ? { ...item, quantity: numQuantity } : item
-        )
-        .filter((item) => item.quantity > 0) // Elimina el item si la cantidad es 0
+    setCart(
+      (prevCart) =>
+        prevCart
+          .map((item) =>
+            item.id === productId ? { ...item, quantity: numQuantity } : item
+          )
+          .filter((item) => item.quantity > 0) // Elimina el item si la cantidad es 0
     );
   };
 
@@ -63,9 +62,5 @@ export const CartProvider = ({ children }) => {
     clearCart,
   };
 
-  return (
-    <CartContext.Provider value={value}>
-      {children}
-    </CartContext.Provider>
-  );
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 };

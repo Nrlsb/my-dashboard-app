@@ -1,0 +1,10 @@
+# Ignore dependencies and build outputs
+node_modules
+dist
+
+# Ignore package-lock files
+package-lock.json
+
+# Ignore large data files
+*.csv
+*.sql

@@ -25,7 +25,10 @@ const findDashboardPanels = async (isAdmin) => {
  */
 const isUserAdmin = async (userId) => {
   if (!userId) return false;
-  const userResult = await pool.query('SELECT is_admin FROM users WHERE id = $1', [userId]);
+  const userResult = await pool.query(
+    'SELECT is_admin FROM users WHERE id = $1',
+    [userId]
+  );
   return userResult.rows.length > 0 && userResult.rows[0].is_admin;
 };
 

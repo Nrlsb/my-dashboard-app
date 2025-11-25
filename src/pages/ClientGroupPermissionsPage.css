@@ -18,8 +18,8 @@
   margin-bottom: 2rem;
   display: flex;
   flex-direction: column; /* Stack items vertically */
-  align-items: stretch;   /* Make children fill the width */
-  gap: 0.75rem;         /* Adjust gap for vertical layout */
+  align-items: stretch; /* Make children fill the width */
+  gap: 0.75rem; /* Adjust gap for vertical layout */
 }
 
 .selection-container label {
@@ -28,7 +28,8 @@
 }
 
 .selection-container select,
-.selection-container input { /* Apply to both select and input */
+.selection-container input {
+  /* Apply to both select and input */
   padding: 0.5rem;
   border-radius: 4px;
   border: 1px solid #ccc;
@@ -76,7 +77,7 @@
   gap: 0.5rem;
 }
 
-.select-all-container input[type="checkbox"] {
+.select-all-container input[type='checkbox'] {
   width: 18px;
   height: 18px;
 }
@@ -98,7 +99,7 @@
   gap: 0.5rem;
 }
 
-.group-item input[type="checkbox"] {
+.group-item input[type='checkbox'] {
   width: 18px;
   height: 18px;
 }

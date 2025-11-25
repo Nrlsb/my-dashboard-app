@@ -1,10 +1,20 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext.jsx';
-import { 
-  ArrowLeft, Search, ShoppingCart, Trash2, Package, CheckCircle, 
-  ChevronLeft, ChevronRight, X, Plus, Minus
+import {
+  ArrowLeft,
+  Search,
+  ShoppingCart,
+  Trash2,
+  Package,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Plus,
+  Minus,
 } from 'lucide-react';
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from '../context/AuthContext.jsx';
 import apiService from '../api/apiService.js';
 
 const PRODUCTS_PER_PAGE = 20;
@@ -16,9 +26,10 @@ const formatCurrency = (amount) => {
   }).format(amount || 0);
 };
 
-const ProductModal = ({ product, onClose, onAddToCart, onViewDetails }) => {
+const ProductModal = ({ product, onClose, onAddToCart }) => {
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     setQuantity(1);
@@ -33,10 +44,15 @@ const ProductModal = ({ product, onClose, onAddToCart, onViewDetails }) => {
     }, 1500);
   };
 
+  const handleViewDetails = (productId) => {
+    navigate(`/product-detail/${productId}`);
+    onClose();
+  };
+
   if (!product) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-50"
       onClick={onClose}
     >
@@ -56,21 +72,28 @@ const ProductModal = ({ product, onClose, onAddToCart, onViewDetails }) => {
         </div>
 
         <div className="w-full md:w-1/2 p-8 flex flex-col justify-center overflow-y-auto">
-          <span className="text-sm font-medium text-blue-600 uppercase">{product.brand || 'Marca'}</span>
-          <h2 className="text-2xl font-bold text-gray-900 mt-1">{product.name}</h2>
-          
-          <p className="text-3xl font-extrabold text-gray-800 mt-3">{formatCurrency(product.price)}</p>
+          <span className="text-sm font-medium text-blue-600 uppercase">
+            {product.brand || 'Marca'}
+          </span>
+          <h2 className="text-2xl font-bold text-gray-900 mt-1">
+            {product.name}
+          </h2>
+
+          <p className="text-3xl font-extrabold text-gray-800 mt-3">
+            {formatCurrency(product.price)}
+          </p>
 
           <p className="text-gray-600 leading-relaxed my-4 text-sm">
-            {product.capacity_description || 'Descripción no disponible.'} 
-            Aquí tienes una descripción de producto para "Látex Interior Constructor Mate Blanco 20L" de Alba.
+            {product.capacity_description || 'Descripción no disponible.'}
+            Aquí tienes una descripción de producto para "Látex Interior
+            Constructor Mate Blanco 20L" de Alba.
           </p>
-          
+
           <div className="flex items-center space-x-4 my-4">
             <span className="font-medium text-gray-700">Cantidad:</span>
             <div className="flex items-center border border-gray-300 rounded-lg">
               <button
-                onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                 className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-l-lg"
               >
                 <Minus className="w-4 h-4" />
@@ -82,13 +105,15 @@ const ProductModal = ({ product, onClose, onAddToCart, onViewDetails }) => {
                 className="w-16 text-center border-y-0 border-x focus:ring-0"
               />
               <button
-                onClick={() => setQuantity(q => q + 1)}
+                onClick={() => setQuantity((q) => q + 1)}
                 className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-r-lg"
               >
                 <Plus className="w-4 h-4" />
               </button>
             </div>
-            <span className="text-sm text-gray-500">({product.stock} disponibles)</span>
+            <span className="text-sm text-gray-500">
+              ({product.stock} disponibles)
+            </span>
           </div>
 
           <button
@@ -114,7 +139,7 @@ const ProductModal = ({ product, onClose, onAddToCart, onViewDetails }) => {
           </button>
 
           <button
-            onClick={() => onViewDetails(product.id)}
+            onClick={() => handleViewDetails(product.id)}
             className="mt-4 text-center text-sm text-blue-600 hover:underline"
           >
             Ver detalles completos del producto
@@ -125,30 +150,31 @@ const ProductModal = ({ product, onClose, onAddToCart, onViewDetails }) => {
   );
 };
 
-const NewOrderPage = ({ onNavigate, onViewProductDetails }) => {
+const NewOrderPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [allProducts, setAllProducts] = useState([]);
   const [productMap, setProductMap] = useState(new Map());
   const [totalProducts, setTotalProducts] = useState(0);
   const [allBrands, setAllBrands] = useState([]);
-  
+
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [productError, setProductError] = useState(null);
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
-  
+
   const [selectedProduct, setSelectedProduct] = useState(null);
-  
+
   const { cart, addToCart, updateQuantity, removeFromCart } = useCart();
-  
+
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
 
   useEffect(() => {
     const fetchBrands = async () => {
       try {
-        const brandsData = await apiService.fetchProtheusBrands(); 
+        const brandsData = await apiService.fetchProtheusBrands();
         setAllBrands(brandsData);
       } catch (err) {
         console.error(err);
@@ -164,19 +190,22 @@ const NewOrderPage = ({ onNavigate, onViewProductDetails }) => {
       try {
         setLoadingProducts(true);
         setProductError(null);
-        
+
         const brandsParam = selectedBrand ? [selectedBrand] : [];
-        const data = await apiService.fetchProducts(currentPage, searchTerm, brandsParam);
-        
+        const data = await apiService.fetchProducts(
+          currentPage,
+          searchTerm,
+          brandsParam
+        );
+
         setAllProducts(data.products);
         setTotalProducts(data.totalProducts);
-        
-        setProductMap(prevMap => {
+
+        setProductMap((prevMap) => {
           const newMap = new Map(prevMap);
-          data.products.forEach(p => newMap.set(p.id, p));
+          data.products.forEach((p) => newMap.set(p.id, p));
           return newMap;
         });
-
       } catch (err) {
         console.error('Error al cargar productos:', err);
         setProductError(err.message);
@@ -188,34 +217,46 @@ const NewOrderPage = ({ onNavigate, onViewProductDetails }) => {
       loadProducts();
     }
   }, [currentPage, searchTerm, selectedBrand, user]);
-  
+
   const handleQuantityChange = (productId, quantityStr) => {
     const quantity = parseInt(quantityStr, 10);
-    updateQuantity(productId, isNaN(quantity) ? 0 : quantity); 
+    updateQuantity(productId, isNaN(quantity) ? 0 : quantity);
   };
-  
+
   const handleAddToCartClick = (product) => {
     addToCart(product, 1);
   };
 
   const totalPrice = useMemo(() => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    return cart.reduce((total, item) => total + item.price * item.quantity, 0);
   }, [cart]);
-  
+
   const renderProductList = () => {
     if (loadingProducts) {
-      return <div className="p-6 bg-white rounded-lg shadow-md text-center text-gray-500">Cargando productos...</div>;
+      return (
+        <div className="p-6 bg-white rounded-lg shadow-md text-center text-gray-500">
+          Cargando productos...
+        </div>
+      );
     }
     if (productError) {
-      return <div className="p-6 bg-white rounded-lg shadow-md text-center text-red-500">{productError}</div>;
+      return (
+        <div className="p-6 bg-white rounded-lg shadow-md text-center text-red-500">
+          {productError}
+        </div>
+      );
     }
     if (allProducts.length === 0) {
-      return <div className="p-6 bg-white rounded-lg shadow-md text-center text-gray-500">No se encontraron productos.</div>;
+      return (
+        <div className="p-6 bg-white rounded-lg shadow-md text-center text-gray-500">
+          No se encontraron productos.
+        </div>
+      );
     }
-    
-    return allProducts.map(product => (
-      <div 
-        key={product.id} 
+
+    return allProducts.map((product) => (
+      <div
+        key={product.id}
         className="flex items-center justify-between p-4 bg-white rounded-lg shadow-md cursor-pointer hover:shadow-lg transition-shadow"
         onClick={() => setSelectedProduct(product)}
       >
@@ -224,13 +265,19 @@ const NewOrderPage = ({ onNavigate, onViewProductDetails }) => {
             <Package className="w-6 h-6 text-gray-600" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-900">{product.name}</p>
-            <p className="text-sm text-gray-500">{product.brand} (Cód: {product.code})</p>
+            <p className="text-sm font-semibold text-gray-900">
+              {product.name}
+            </p>
+            <p className="text-sm text-gray-500">
+              {product.brand} (Cód: {product.code})
+            </p>
             <p className="text-sm text-gray-500">Stock: {product.stock}</p>
           </div>
         </div>
         <div className="text-right">
-          <p className="text-lg font-bold text-gray-800">{formatCurrency(product.price)}</p>
+          <p className="text-lg font-bold text-gray-800">
+            {formatCurrency(product.price)}
+          </p>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -251,13 +298,12 @@ const NewOrderPage = ({ onNavigate, onViewProductDetails }) => {
         product={selectedProduct}
         onClose={() => setSelectedProduct(null)}
         onAddToCart={addToCart}
-        onViewDetails={onViewProductDetails}
       />
-      
+
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         <div className="flex items-center mb-6">
           <button
-            onClick={() => onNavigate('dashboard')}
+            onClick={() => navigate('/dashboard')}
             className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
             aria-label="Volver al dashboard"
           >
@@ -267,30 +313,39 @@ const NewOrderPage = ({ onNavigate, onViewProductDetails }) => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
           <div className="lg:col-span-2 space-y-8">
             <div className="p-6 bg-white rounded-lg shadow-md">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
                 <div>
-                  <label htmlFor="brand-select" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label
+                    htmlFor="brand-select"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
                     Seleccionar Marca
                   </label>
                   <select
                     id="brand-select"
                     value={selectedBrand}
-                    onChange={(e) => { setSelectedBrand(e.target.value); setCurrentPage(1); }}
+                    onChange={(e) => {
+                      setSelectedBrand(e.target.value);
+                      setCurrentPage(1);
+                    }}
                     className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
                   >
                     <option value="">Todas las marcas</option>
                     {allBrands.map((brand) => (
-                      <option key={brand} value={brand}>{brand}</option>
+                      <option key={brand} value={brand}>
+                        {brand}
+                      </option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label htmlFor="search-product" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label
+                    htmlFor="search-product"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
                     Buscar Producto
                   </label>
                   <div className="relative mt-1">
@@ -298,7 +353,10 @@ const NewOrderPage = ({ onNavigate, onViewProductDetails }) => {
                       id="search-product"
                       type="text"
                       value={searchTerm}
-                      onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setCurrentPage(1);
+                      }}
                       className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
                       placeholder="Buscar por nombre, código..."
                     />
@@ -310,14 +368,12 @@ const NewOrderPage = ({ onNavigate, onViewProductDetails }) => {
               </div>
             </div>
 
-            <div className="space-y-4">
-              {renderProductList()}
-            </div>
-            
+            <div className="space-y-4">{renderProductList()}</div>
+
             {totalPages > 1 && (
               <div className="flex justify-between items-center p-4 bg-white rounded-lg shadow-md">
                 <button
-                  onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                  onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
                   disabled={currentPage === 1 || loadingProducts}
                   className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
                 >
@@ -328,7 +384,9 @@ const NewOrderPage = ({ onNavigate, onViewProductDetails }) => {
                   Página {currentPage} de {totalPages}
                 </span>
                 <button
-                  onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(p + 1, totalPages))
+                  }
                   disabled={currentPage === totalPages || loadingProducts}
                   className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
                 >
@@ -341,30 +399,47 @@ const NewOrderPage = ({ onNavigate, onViewProductDetails }) => {
 
           <div className="lg-col-span-1">
             <div className="sticky top-8 bg-white rounded-lg shadow-md flex flex-col max-h-[calc(100vh-4rem)]">
-              
               <div className="flex-shrink-0 p-6">
                 <div className="flex items-center mb-4">
                   <ShoppingCart className="w-6 h-6 text-gray-800 mr-3" />
-                  <h2 className="text-xl font-bold text-gray-800">Resumen del Pedido</h2>
+                  <h2 className="text-xl font-bold text-gray-800">
+                    Resumen del Pedido
+                  </h2>
                 </div>
               </div>
-              
+
               <div className="flex-1 divide-y divide-gray-200 overflow-y-auto px-6">
                 {cart.length === 0 && (
-                  <p className="py-4 text-center text-gray-500">Tu carrito está vacío.</p>
+                  <p className="py-4 text-center text-gray-500">
+                    Tu carrito está vacío.
+                  </p>
                 )}
-                {cart.map(item => (
-                  <div key={item.id} className="py-4 flex items-center space-x-3">
+                {cart.map((item) => (
+                  <div
+                    key={item.id}
+                    className="py-4 flex items-center space-x-3"
+                  >
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">{item.name}</p>
-                      <p className="text-sm text-gray-500">{formatCurrency(item.price)}</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {item.name}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {formatCurrency(item.price)}
+                      </p>
                       <div className="flex items-center mt-2">
-                        <label htmlFor={`qty-${item.id}`} className="text-xs text-gray-600 mr-2">Cant:</label>
+                        <label
+                          htmlFor={`qty-${item.id}`}
+                          className="text-xs text-gray-600 mr-2"
+                        >
+                          Cant:
+                        </label>
                         <input
                           id={`qty-${item.id}`}
                           type="number"
                           value={item.quantity}
-                          onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                          onChange={(e) =>
+                            handleQuantityChange(item.id, e.target.value)
+                          }
                           className="w-16 px-2 py-1 border border-gray-300 rounded-md text-sm"
                           min="0"
                           max={item.stock}
@@ -385,11 +460,15 @@ const NewOrderPage = ({ onNavigate, onViewProductDetails }) => {
               {cart.length > 0 && (
                 <div className="flex-shrink-0 p-6 border-t border-gray-200 space-y-3">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-lg font-medium text-gray-900">Total:</span>
-                    <span className="text-2xl font-bold text-gray-900">{formatCurrency(totalPrice)}</span>
+                    <span className="text-lg font-medium text-gray-900">
+                      Total:
+                    </span>
+                    <span className="text-2xl font-bold text-gray-900">
+                      {formatCurrency(totalPrice)}
+                    </span>
                   </div>
                   <button
-                    onClick={() => onNavigate('order-preview')} 
+                    onClick={() => navigate('/order-preview')}
                     disabled={cart.length === 0}
                     className="w-full inline-flex items-center justify-center px-6 py-3 font-semibold text-white bg-red-600 rounded-md shadow-sm hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -400,8 +479,7 @@ const NewOrderPage = ({ onNavigate, onViewProductDetails }) => {
               )}
             </div>
           </div>
-
-        </div>        
+        </div>
       </main>
     </div>
   );

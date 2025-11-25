@@ -1,13 +1,13 @@
 /*
-* =================================================================
-* SERVICIO DE EMAIL (Resend)
-* =================================================================
-*
-* Este archivo maneja la construcción y envío de correos
-* transaccionales utilizando Resend.
-*
-* =================================================================
-*/
+ * =================================================================
+ * SERVICIO DE EMAIL (Resend)
+ * =================================================================
+ *
+ * Este archivo maneja la construcción y envío de correos
+ * transaccionales utilizando Resend.
+ *
+ * =================================================================
+ */
 
 // Cargar variables de entorno
 require('dotenv').config();
@@ -34,7 +34,7 @@ const formatItemsToHTML = (items) => {
       <tbody>
   `;
 
-  items.forEach(item => {
+  items.forEach((item) => {
     itemsHtml += `
       <tr>
         <td style="border: 1px solid #ddd; padding: 8px;">
@@ -55,7 +55,14 @@ const formatItemsToHTML = (items) => {
 /**
  * Envía un correo de confirmación al COMPRADOR
  */
-const sendOrderConfirmationEmail = async (toEmail, orderId, items, total, customerName, attachments = []) => {
+const sendOrderConfirmationEmail = async (
+  toEmail,
+  orderId,
+  items,
+  total,
+  customerName,
+  attachments = []
+) => {
   const subject = `Confirmación de tu pedido #${orderId}`;
   const itemsHtml = formatItemsToHTML(items);
 
@@ -88,13 +95,15 @@ const sendOrderConfirmationEmail = async (toEmail, orderId, items, total, custom
     });
 
     if (error) {
-      console.error(`Error al enviar email de confirmación a ${toEmail}:`, error);
+      console.error(
+        `Error al enviar email de confirmación a ${toEmail}:`,
+        error
+      );
       throw new Error(error.message);
     }
 
     console.log(`Email de confirmación enviado a ${toEmail}. ID: ${data.id}`);
     return data;
-
   } catch (error) {
     console.error('Error en sendOrderConfirmationEmail:', error);
     throw error;
@@ -105,7 +114,14 @@ const sendOrderConfirmationEmail = async (toEmail, orderId, items, total, custom
  * Envía una notificación de nuevo pedido al VENDEDOR
  */
 // (CORREGIDO) Se eliminó el 'ac' al final de la línea de definición
-const sendNewOrderNotificationEmail = async (toEmail, orderId, items, total, customer, attachments = []) => {
+const sendNewOrderNotificationEmail = async (
+  toEmail,
+  orderId,
+  items,
+  total,
+  customer,
+  attachments = []
+) => {
   // (CORREGIDO) Se cambió 'customer.nombre' por 'customer.full_name'
   const subject = `¡Nuevo Pedido Recibido! #${orderId} de ${customer.full_name}`;
   const itemsHtml = formatItemsToHTML(items);
@@ -143,13 +159,15 @@ const sendNewOrderNotificationEmail = async (toEmail, orderId, items, total, cus
     });
 
     if (error) {
-      console.error(`Error al enviar email de notificación a ${toEmail}:`, error);
+      console.error(
+        `Error al enviar email de notificación a ${toEmail}:`,
+        error
+      );
       throw new Error(error.message);
     }
 
     console.log(`Email de notificación enviado a ${toEmail}. ID: ${data.id}`);
     return data;
-
   } catch (error) {
     console.error('Error en sendNewOrderNotificationEmail:', error);
     throw error;
@@ -159,7 +177,12 @@ const sendNewOrderNotificationEmail = async (toEmail, orderId, items, total, cus
 /**
  * Envía un correo de confirmación al CLIENTE cuando el VENDEDOR confirma el pedido
  */
-const sendOrderConfirmedByVendorEmail = async (toEmail, orderId, customerName, vendorSalesOrderNumber) => {
+const sendOrderConfirmedByVendorEmail = async (
+  toEmail,
+  orderId,
+  customerName,
+  vendorSalesOrderNumber
+) => {
   const subject = `Tu pedido #${orderId} ha sido confirmado`;
 
   let salesOrderInfo = '';
@@ -196,13 +219,17 @@ const sendOrderConfirmedByVendorEmail = async (toEmail, orderId, customerName, v
     });
 
     if (error) {
-      console.error(`Error al enviar email de confirmación por vendedor a ${toEmail}:`, error);
+      console.error(
+        `Error al enviar email de confirmación por vendedor a ${toEmail}:`,
+        error
+      );
       throw new Error(error.message);
     }
 
-    console.log(`Email de confirmación por vendedor enviado a ${toEmail}. ID: ${data.id}`);
+    console.log(
+      `Email de confirmación por vendedor enviado a ${toEmail}. ID: ${data.id}`
+    );
     return data;
-
   } catch (error) {
     console.error('Error en sendOrderConfirmedByVendorEmail:', error);
     throw error;

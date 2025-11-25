@@ -12,32 +12,35 @@ const productsToUpdate = [];
 console.log(`Iniciando la lectura de descripciones desde: ${filePath}`);
 
 fs.createReadStream(filePath)
-  .pipe(csv({
-    bom: true,
-    trim: true,
-    separator: ';', // <--- CAMBIO SOLICITADO
-    
-    // ======================================================
-    // --- Configuración del Parser (reutilizada) ---
-    // ======================================================
-    
-    // 1. Ignoramos las comillas (") como caracteres especiales
-    quote: '\b', 
-    
-    // 2. Limpiamos las comillas (") de los encabezados (headers)
-    mapHeaders: ({ header }) => header.trim().replace(/"/g, ''),
-    
-    // 3. Limpiamos las comillas (") de los valores (values)
-    mapValues: ({ header, index, value }) => value.trim().replace(/"/g, '')
-    // ======================================================
-    
-  }))
+  .pipe(
+    csv({
+      bom: true,
+      trim: true,
+      separator: ';', // <--- CAMBIO SOLICITADO
+
+      // ======================================================
+      // --- Configuración del Parser (reutilizada) ---
+      // ======================================================
+
+      // 1. Ignoramos las comillas (") como caracteres especiales
+      quote: '\b',
+
+      // 2. Limpiamos las comillas (") de los encabezados (headers)
+      mapHeaders: ({ header }) => header.trim().replace(/"/g, ''),
+
+      // 3. Limpiamos las comillas (") de los valores (values)
+      mapValues: ({ header, index, value }) => value.trim().replace(/"/g, ''),
+      // ======================================================
+    })
+  )
   .on('data', (row) => {
     productsToUpdate.push(row);
   })
   .on('end', async () => {
-    console.log(`Lectura de CSV completada. Se encontraron ${productsToUpdate.length} descripciones para actualizar.`);
-    
+    console.log(
+      `Lectura de CSV completada. Se encontraron ${productsToUpdate.length} descripciones para actualizar.`
+    );
+
     if (productsToUpdate.length === 0) {
       console.log('No se encontraron productos para actualizar.');
       pool.end();
@@ -50,21 +53,24 @@ fs.createReadStream(filePath)
     try {
       await client.query('BEGIN');
       console.log('Transacción de actualización iniciada.');
-      
+
       let updatedCount = 0;
       let failedCount = 0;
       let rowCounter = 0;
 
       for (const row of productsToUpdate) {
         rowCounter++;
-        
+
         // 2. Limpiar y preparar los datos
         // (La limpieza de comillas ahora la hace 'mapValues')
         const code = row['Codigo'];
         const capacityDesc = row['Desc Capacid']; // <-- NUEVA COLUMNA
-        
+
         if (!code) {
-          console.warn(`Fila ${rowCounter} omitida: El 'Codigo' está vacío o es nulo. Datos:`, row);
+          console.warn(
+            `Fila ${rowCounter} omitida: El 'Codigo' está vacío o es nulo. Datos:`,
+            row
+          );
           failedCount++;
           continue; // Omitir esta fila
         }
@@ -81,23 +87,28 @@ fs.createReadStream(filePath)
 
         try {
           const result = await client.query(query, values);
-          
+
           if (result.rowCount > 0) {
             updatedCount++;
           } else {
-            console.warn(`Fila ${rowCounter} (Cod: ${code}): No se encontró un producto coincidente en la BD para actualizar.`);
+            console.warn(
+              `Fila ${rowCounter} (Cod: ${code}): No se encontró un producto coincidente en la BD para actualizar.`
+            );
             failedCount++;
           }
-          
-          if (rowCounter % 500 === 0) {
-             console.log(`Procesados ${rowCounter} de ${productsToUpdate.length}...`);
-          }
 
+          if (rowCounter % 500 === 0) {
+            console.log(
+              `Procesados ${rowCounter} de ${productsToUpdate.length}...`
+            );
+          }
         } catch (updateError) {
-          console.error(`\n--- ERROR AL ACTUALIZAR LA FILA N° ${rowCounter} (Cod: ${code}) ---`);
-          console.error("Datos de la fila del CSV que falló:");
+          console.error(
+            `\n--- ERROR AL ACTUALIZAR LA FILA N° ${rowCounter} (Cod: ${code}) ---`
+          );
+          console.error('Datos de la fila del CSV que falló:');
           console.log(row);
-          console.error("Valores que se intentaron actualizar:");
+          console.error('Valores que se intentaron actualizar:');
           console.log(values);
           throw updateError; // Detener y hacer rollback
         }
@@ -105,11 +116,15 @@ fs.createReadStream(filePath)
 
       await client.query('COMMIT');
       console.log('¡Éxito! Transacción completada.');
-      console.log(`Resultados: ${updatedCount} descripciones actualizadas, ${failedCount} filas omitidas/no encontradas.`);
-
+      console.log(
+        `Resultados: ${updatedCount} descripciones actualizadas, ${failedCount} filas omitidas/no encontradas.`
+      );
     } catch (error) {
       await client.query('ROLLBACK');
-      console.error('Error durante la actualización. Se revirtió la transacción:', error.message);
+      console.error(
+        'Error durante la actualización. Se revirtió la transacción:',
+        error.message
+      );
     } finally {
       client.release();
       console.log('Conexión a la base de datos liberada.');

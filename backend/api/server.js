@@ -1,25 +1,25 @@
 /*
-* =================================================================
-* SERVIDOR API (Conectado a PostgreSQL)
-* =================================================================
-*
-* Estructura modularizada:
-* - server.js: (Este archivo) Configuración de Express y arranque.
-* - controllers.js: Lógica de negocio y consultas a la BD.
-* - routes.js: Definición de todos los endpoints de la API.
-* - middleware/upload.js: Configuración de Multer.
-* - utils/helpers.js: Funciones de ayuda (ej. formatCurrency).
-*
-* Para ejecutar:
-* 1. node server.js
-* =================================================================
-*/
+ * =================================================================
+ * SERVIDOR API (Conectado a PostgreSQL)
+ * =================================================================
+ *
+ * Estructura modularizada:
+ * - server.js: (Este archivo) Configuración de Express y arranque.
+ * - controllers.js: Lógica de negocio y consultas a la BD.
+ * - routes/: Rutas modulares unidas por 'index.js'.
+ * - middleware/upload.js: Configuración de Multer.
+ * - utils/helpers.js: Funciones de ayuda (ej. formatCurrency).
+ *
+ * Para ejecutar:
+ * 1. node server.js
+ * =================================================================
+ */
 
 require('dotenv').config(); // Cargar variables de .env
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const mainRoutes = require('./routes'); // (NUEVO) Importar todas las rutas
+const mainRoutes = require('./routes/index'); // (NUEVO) Importar el enrutador principal
 const helmet = require('helmet');
 
 const app = express();
@@ -35,7 +35,7 @@ const corsOptions = {
     // Lista de dominios permitidos
     const allowedOrigins = [
       'http://localhost:5173', // Desarrollo Frontend
-      'https://midashboard.com',   // Producción Frontend
+      'https://midashboard.com', // Producción Frontend
       'https://my-dashboard-app-lake.vercel.app', // (NUEVO) Frontend en Vercel
     ];
 

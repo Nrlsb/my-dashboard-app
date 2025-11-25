@@ -1,19 +1,18 @@
 import React, { useState } from 'react';
-// (ELIMINADO) Header ya no se importa
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send } from 'lucide-react';
+import apiService from '../api/apiService';
+import { useAuth } from '../context/AuthContext';
 
-const API_URL = 'http://localhost:3001';
-
-// --- Página de Envío de Consultas ---
-// (NUEVO) Acepta 'currentUser'
-const QueriesPage = ({ onNavigate, currentUser }) => {
+const QueriesPage = () => {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [isSent, setIsSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
 
-  // Opciones para el selector de "Asunto"
   const querySubjects = [
     'Consulta sobre un pedido',
     'Problema con un producto',
@@ -25,7 +24,7 @@ const QueriesPage = ({ onNavigate, currentUser }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!currentUser) {
-      setError("Error de autenticación. Por favor, inicie sesión de nuevo.");
+      setError('Error de autenticación. Por favor, inicie sesión de nuevo.');
       return;
     }
 
@@ -33,30 +32,17 @@ const QueriesPage = ({ onNavigate, currentUser }) => {
     setError(null);
 
     try {
-      // (MODIFICADO) Enviar el 'userId' en el body
-      const response = await fetch(`${API_URL}/api/queries`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          subject, 
-          message, 
-          userId: currentUser.id // <-- ID del usuario real
-        }),
+      await apiService.sendQuery({
+        subject,
+        message,
       });
 
-      if (!response.ok) throw new Error('No se pudo enviar la consulta.');
-
-      // Simulación de envío exitoso
       setIsSent(true);
-      
-      // Resetear y volver al dashboard después de 3 segundos
+
       setTimeout(() => {
         setIsSent(false);
-        onNavigate('dashboard');
+        navigate('/dashboard');
       }, 3000);
-
     } catch (err) {
       setError(err.message);
     } finally {
@@ -64,40 +50,45 @@ const QueriesPage = ({ onNavigate, currentUser }) => {
     }
   };
 
-  // Deshabilitar el botón si no hay asunto, mensaje, o está cargando
   const isButtonDisabled = !subject || message.trim() === '' || isLoading;
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      {/* (ELIMINADO) Header ya no se renderiza aquí */}
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
-        {/* Encabezado con Botón de Volver y Título */}
         <div className="flex items-center mb-6">
           <button
-            onClick={() => onNavigate('dashboard')}
+            onClick={() => navigate('/dashboard')}
             className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
             aria-label="Volver al dashboard"
           >
             <ArrowLeft className="w-6 h-6" />
           </button>
-          <h1 className="text-2xl font-bold text-gray-800">Envío de Consultas</h1>
+          <h1 className="text-2xl font-bold text-gray-800">
+            Envío de Consultas
+          </h1>
         </div>
 
-        {/* Contenedor del Formulario */}
         <div className="p-6 md:p-8 bg-white rounded-lg shadow-md">
           {isSent ? (
-            // Mensaje de éxito
             <div className="text-center p-8">
-              <h2 className="text-2xl font-semibold text-green-600 mb-4">¡Consulta Enviada!</h2>
-              <p className="text-gray-700">Tu mensaje ha sido recibido. Nos pondremos en contacto contigo pronto.</p>
-              <p className="text-gray-500 mt-4 text-sm">Serás redirigido al dashboard en 3 segundos...</p>
+              <h2 className="text-2xl font-semibold text-green-600 mb-4">
+                ¡Consulta Enviada!
+              </h2>
+              <p className="text-gray-700">
+                Tu mensaje ha sido recibido. Nos pondremos en contacto contigo
+                pronto.
+              </p>
+              <p className="text-gray-500 mt-4 text-sm">
+                Serás redirigido al dashboard en 3 segundos...
+              </p>
             </div>
           ) : (
-            // Formulario de consulta
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Selector de Asunto */}
               <div>
-                <label htmlFor="subject-select" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="subject-select"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Asunto
                 </label>
                 <select
@@ -109,14 +100,18 @@ const QueriesPage = ({ onNavigate, currentUser }) => {
                 >
                   <option value="">Selecciona un motivo...</option>
                   {querySubjects.map((s) => (
-                    <option key={s} value={s}>{s}</option>
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
                   ))}
                 </select>
               </div>
 
-              {/* Campo de Mensaje */}
               <div>
-                <label htmlFor="message-textarea" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="message-textarea"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Mensaje
                 </label>
                 <textarea
@@ -130,14 +125,12 @@ const QueriesPage = ({ onNavigate, currentUser }) => {
                 />
               </div>
 
-              {/* Mensaje de error */}
               {error && (
                 <div className="text-sm text-red-600 text-right">
                   Error: {error}
                 </div>
               )}
 
-              {/* Botón de Envío */}
               <div className="mt-6 text-right">
                 <button
                   type="submit"

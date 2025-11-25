@@ -1,8 +1,15 @@
 // backend/api/services/orderService.js
 
 const { pool, pool2 } = require('../db');
-const { sendOrderConfirmationEmail, sendNewOrderNotificationEmail, sendOrderConfirmedByVendorEmail } = require('../emailService');
-const { generateOrderPDF, generateOrderCSV } = require('../utils/fileGenerator');
+const {
+  sendOrderConfirmationEmail,
+  sendNewOrderNotificationEmail,
+  sendOrderConfirmedByVendorEmail,
+} = require('../emailService');
+const {
+  generateOrderPDF,
+  generateOrderCSV,
+} = require('../utils/fileGenerator');
 const orderModel = require('../models/orderModel');
 const userModel = require('../models/userModel'); // Importar userModel
 const { formatCurrency } = require('../utils/helpers');
@@ -20,7 +27,10 @@ const createOrder = async (orderData, userId) => {
   // --- 1. Obtener datos del usuario para el email ---
   let user;
   try {
-    const userResult = await pool.query('SELECT full_name, email, a1_cod FROM users WHERE id = $1', [userId]);
+    const userResult = await pool.query(
+      'SELECT full_name, email, a1_cod FROM users WHERE id = $1',
+      [userId]
+    );
     if (userResult.rows.length === 0) {
       throw new Error(`Usuario con ID ${userId} no encontrado.`);
     }
@@ -62,17 +72,19 @@ const createOrder = async (orderData, userId) => {
         item.id,
         item.quantity,
         item.price,
-        item.code
+        item.code,
       ];
       await client.query(itemInsertQuery, itemValues);
     }
 
     // Terminar Transacción en BD 2
     await client.query('COMMIT');
-
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Error en la transacción de guardado de pedido en BD2:', error);
+    console.error(
+      'Error en la transacción de guardado de pedido en BD2:',
+      error
+    );
     throw error;
   } finally {
     client.release();
@@ -87,18 +99,31 @@ const createOrder = async (orderData, userId) => {
           INSERT INTO account_movements (user_id, debit, description, order_ref, date)
           VALUES ($1, $2, $3, $4, CURRENT_DATE);
         `;
-        await pool.query(updateBalanceQuery, [userId, total, `Débito por Pedido #${newOrderId}`, newOrderId]);
+        await pool.query(updateBalanceQuery, [
+          userId,
+          total,
+          `Débito por Pedido #${newOrderId}`,
+          newOrderId,
+        ]);
       } catch (balanceError) {
-        console.error(`[ERROR CRÍTICO] Pedido #${newOrderId} guardado, pero falló la actualización de saldo para usuario ${userId}:`, balanceError);
+        console.error(
+          `[ERROR CRÍTICO] Pedido #${newOrderId} guardado, pero falló la actualización de saldo para usuario ${userId}:`,
+          balanceError
+        );
       }
     }
 
     // 5. Enviar correos y generar archivos
-    const productIds = items.map(item => item.id);
-    const productsResult = await pool.query('SELECT id, description FROM products WHERE id = ANY($1::int[])', [productIds]);
-    const productMap = new Map(productsResult.rows.map(p => [p.id, p.description]));
+    const productIds = items.map((item) => item.id);
+    const productsResult = await pool.query(
+      'SELECT id, description FROM products WHERE id = ANY($1::int[])',
+      [productIds]
+    );
+    const productMap = new Map(
+      productsResult.rows.map((p) => [p.id, p.description])
+    );
 
-    const enrichedItems = items.map(item => ({
+    const enrichedItems = items.map((item) => ({
       ...item,
       name: productMap.get(item.id) || 'Descripción no encontrada',
     }));
@@ -107,9 +132,13 @@ const createOrder = async (orderData, userId) => {
     const fromEmail = process.env.EMAIL_FROM;
 
     if (!sellerEmail || !fromEmail || !process.env.RESEND_API_KEY) {
-      console.warn(`[Pedido #${newOrderId}] Faltan variables .env (RESEND_API_KEY, SELLER_EMAIL o EMAIL_FROM). No se enviarán correos.`);
+      console.warn(
+        `[Pedido #${newOrderId}] Faltan variables .env (RESEND_API_KEY, SELLER_EMAIL o EMAIL_FROM). No se enviarán correos.`
+      );
     } else {
-      console.log(`[Pedido #${newOrderId}] Enviando correos a ${user.email} y ${sellerEmail}...`);
+      console.log(
+        `[Pedido #${newOrderId}] Enviando correos a ${user.email} y ${sellerEmail}...`
+      );
 
       const orderDataForFiles = { user, newOrder, items: enrichedItems, total };
 
@@ -143,14 +172,22 @@ const createOrder = async (orderData, userId) => {
         [pdfAttachment, csvAttachment]
       );
 
-      console.log(`[Pedido #${newOrderId}] Correos con adjuntos enviados con éxito.`);
+      console.log(
+        `[Pedido #${newOrderId}] Correos con adjuntos enviados con éxito.`
+      );
     }
-
   } catch (postTransactionError) {
-    console.error(`[ERROR POST-TRANSACCIÓN] Pedido #${newOrderId} guardado, pero fallaron operaciones posteriores (email/saldo):`, postTransactionError);
+    console.error(
+      `[ERROR POST-TRANSACCIÓN] Pedido #${newOrderId} guardado, pero fallaron operaciones posteriores (email/saldo):`,
+      postTransactionError
+    );
   }
 
-  return { success: true, message: 'Pedido guardado con éxito.', orderId: newOrderId };
+  return {
+    success: true,
+    message: 'Pedido guardado con éxito.',
+    orderId: newOrderId,
+  };
 };
 
 /**
@@ -159,7 +196,8 @@ const createOrder = async (orderData, userId) => {
  * @param {number} userId - El ID del usuario.
  * @returns {Promise<Array<object>>} - Una promesa que se resuelve con la lista de pedidos formateados.
  */
-const fetchOrders = async (user) => { // Cambiar userId a user
+const fetchOrders = async (user) => {
+  // Cambiar userId a user
   console.log(`[orderService] fetchOrders llamado para user:`, user);
   // CORRECCIÓN: Usar user.userId en lugar de user.id
   let targetUserIds = [user.userId]; // Por defecto, buscar pedidos del propio usuario (usando user.userId)
@@ -168,16 +206,22 @@ const fetchOrders = async (user) => { // Cambiar userId a user
   // No necesitamos llamar a userModel.findUserById(user.id) de nuevo aquí
   // porque ya tenemos la información del usuario autenticado.
 
-  if (!user) { // Esto ya no debería ser necesario si el middleware funciona
+  if (!user) {
+    // Esto ya no debería ser necesario si el middleware funciona
     throw new Error('Usuario no encontrado.');
   }
 
   // 2. Si el usuario es un vendedor, obtener los IDs de sus clientes
   if (user.role === 'vendedor' && user.codigo) {
-    console.log(`[orderService] Usuario ${user.userId} es VENDEDOR con codigo: ${user.codigo}`); // Usar user.userId
+    console.log(
+      `[orderService] Usuario ${user.userId} es VENDEDOR con codigo: ${user.codigo}`
+    ); // Usar user.userId
     const clients = await userModel.findUsersByVendedorCodigo(user.codigo);
-    console.log(`[orderService] Clientes encontrados para vendedor ${user.codigo}:`, clients.map(c => c.id));
-    targetUserIds = clients.map(client => client.id);
+    console.log(
+      `[orderService] Clientes encontrados para vendedor ${user.codigo}:`,
+      clients.map((c) => c.id)
+    );
+    targetUserIds = clients.map((client) => client.id);
     // Si el vendedor también es un cliente y tiene pedidos propios,
     // podríamos querer incluir su propio ID aquí si no está ya en la lista de clientes.
     // Por ahora, nos basamos en que findUsersByVendedorCodigo devuelve todos los clientes.
@@ -186,44 +230,53 @@ const fetchOrders = async (user) => { // Cambiar userId a user
     // Por la descripción, parece que solo quiere ver los de sus clientes.
 
     if (targetUserIds.length === 0) {
-      console.log(`[orderService] Vendedor ${user.userId} no tiene clientes asignados. Devolviendo array vacío.`); // Usar user.userId
+      console.log(
+        `[orderService] Vendedor ${user.userId} no tiene clientes asignados. Devolviendo array vacío.`
+      ); // Usar user.userId
       return [];
     }
   } else {
-    console.log(`[orderService] Usuario ${user.userId} NO es vendedor o no tiene codigo. Role: ${user.role}, Codigo: ${user.codigo}`); // Usar user.userId
+    console.log(
+      `[orderService] Usuario ${user.userId} NO es vendedor o no tiene codigo. Role: ${user.role}, Codigo: ${user.codigo}`
+    ); // Usar user.userId
   }
 
-  console.log(`[orderService] Buscando pedidos para targetUserIds:`, targetUserIds);
+  console.log(
+    `[orderService] Buscando pedidos para targetUserIds:`,
+    targetUserIds
+  );
   const orders = await orderModel.findOrders(targetUserIds);
   console.log(`[orderService] Pedidos encontrados: ${orders.length}`);
 
   // Si el usuario es un vendedor y hay pedidos, los enriquecemos con el nombre del cliente
   if (user.role === 'vendedor' && orders.length > 0) {
-    const clientIds = [...new Set(orders.map(o => o.user_id))];
+    const clientIds = [...new Set(orders.map((o) => o.user_id))];
     const usersResult = await pool.query(
       'SELECT id, full_name FROM users WHERE id = ANY($1::int[])',
       [clientIds]
     );
-    const clientNamesMap = new Map(usersResult.rows.map(u => [u.id, u.full_name]));
+    const clientNamesMap = new Map(
+      usersResult.rows.map((u) => [u.id, u.full_name])
+    );
 
-    const enrichedOrders = orders.map(order => ({
+    const enrichedOrders = orders.map((order) => ({
       ...order,
-      client_name: clientNamesMap.get(order.user_id) || 'N/A'
+      client_name: clientNamesMap.get(order.user_id) || 'N/A',
     }));
 
-    return enrichedOrders.map(order => ({
+    return enrichedOrders.map((order) => ({
       ...order,
       vendorSalesOrderNumber: order.vendor_sales_order_number,
       isConfirmed: order.is_confirmed,
-      formattedTotal: formatCurrency(order.total)
+      formattedTotal: formatCurrency(order.total),
     }));
   }
 
-  return orders.map(order => ({
+  return orders.map((order) => ({
     ...order,
     vendorSalesOrderNumber: order.vendor_sales_order_number,
     isConfirmed: order.is_confirmed,
-    formattedTotal: formatCurrency(order.total)
+    formattedTotal: formatCurrency(order.total),
   }));
 };
 
@@ -238,12 +291,15 @@ const fetchOrderDetails = async (orderId, user) => {
 
   if (user.role === 'vendedor' && user.codigo) {
     const clients = await userModel.findUsersByVendedorCodigo(user.codigo);
-    allowedUserIds = clients.map(client => client.id);
+    allowedUserIds = clients.map((client) => client.id);
     // Si el vendedor también puede ver sus propios pedidos, añadir user.userId
     // allowedUserIds.push(user.userId);
   }
 
-  const orderDetails = await orderModel.findOrderDetailsById(orderId, allowedUserIds);
+  const orderDetails = await orderModel.findOrderDetailsById(
+    orderId,
+    allowedUserIds
+  );
 
   if (!orderDetails) {
     return null;
@@ -252,12 +308,12 @@ const fetchOrderDetails = async (orderId, user) => {
   // Formatear y enriquecer
   return {
     ...orderDetails,
-    items: orderDetails.items.map(item => ({
+    items: orderDetails.items.map((item) => ({
       ...item,
       product_name: item.product_name,
-      formattedPrice: formatCurrency(item.unit_price)
+      formattedPrice: formatCurrency(item.unit_price),
     })),
-    formattedTotal: formatCurrency(orderDetails.total)
+    formattedTotal: formatCurrency(orderDetails.total),
   };
 };
 
@@ -272,30 +328,43 @@ const downloadOrderPdf = async (orderId, user) => {
     // 1. Determinar los IDs de usuario permitidos para la consulta
     let allowedUserIds = [user.userId]; // Por defecto, el propio usuario
     if (user.role === 'vendedor' && user.codigo) {
-        const clients = await userModel.findUsersByVendedorCodigo(user.codigo);
-        allowedUserIds = clients.map(client => client.id);
+      const clients = await userModel.findUsersByVendedorCodigo(user.codigo);
+      allowedUserIds = clients.map((client) => client.id);
     }
 
     // 2. Obtener detalles del pedido usando los IDs permitidos
-    const orderDetails = await orderModel.findOrderDetailsById(orderId, allowedUserIds);
+    const orderDetails = await orderModel.findOrderDetailsById(
+      orderId,
+      allowedUserIds
+    );
     if (!orderDetails) {
       throw new Error('Pedido no encontrado o no le pertenece al usuario.');
     }
 
     // 3. Obtener datos del usuario QUE HIZO EL PEDIDO (no el vendedor)
     const orderOwnerId = orderDetails.user_id; // El ID del dueño del pedido
-    const userResult = await pool.query('SELECT full_name, email, a1_cod FROM users WHERE id = $1', [orderOwnerId]);
+    const userResult = await pool.query(
+      'SELECT full_name, email, a1_cod FROM users WHERE id = $1',
+      [orderOwnerId]
+    );
     if (userResult.rows.length === 0) {
-      throw new Error(`El dueño del pedido con ID ${orderOwnerId} no fue encontrado.`);
+      throw new Error(
+        `El dueño del pedido con ID ${orderOwnerId} no fue encontrado.`
+      );
     }
     const orderOwner = userResult.rows[0];
 
     // 4. Enriquecer items con nombres de productos para el PDF
-    const productIds = orderDetails.items.map(item => item.product_id);
-    const productsResult = await pool.query('SELECT id, description FROM products WHERE id = ANY($1::int[])', [productIds]);
-    const productMap = new Map(productsResult.rows.map(p => [p.id, p.description]));
+    const productIds = orderDetails.items.map((item) => item.product_id);
+    const productsResult = await pool.query(
+      'SELECT id, description FROM products WHERE id = ANY($1::int[])',
+      [productIds]
+    );
+    const productMap = new Map(
+      productsResult.rows.map((p) => [p.id, p.description])
+    );
 
-    const enrichedItems = orderDetails.items.map(item => ({
+    const enrichedItems = orderDetails.items.map((item) => ({
       code: item.product_code,
       name: productMap.get(item.product_id) || 'Descripción no encontrada',
       quantity: item.quantity,
@@ -316,9 +385,11 @@ const downloadOrderPdf = async (orderId, user) => {
     // 6. Generar el PDF
     const pdfBuffer = await generateOrderPDF(orderDataForPdf);
     return pdfBuffer;
-
   } catch (error) {
-    console.error(`Error en orderService.downloadOrderPdf para pedido ${orderId}:`, error);
+    console.error(
+      `Error en orderService.downloadOrderPdf para pedido ${orderId}:`,
+      error
+    );
     throw error;
   }
 };
@@ -334,19 +405,22 @@ const downloadOrderCsv = async (orderId, user) => {
     // 1. Determinar los IDs de usuario permitidos (lógica idéntica a la de PDF)
     let allowedUserIds = [user.userId];
     if (user.role === 'vendedor' && user.codigo) {
-        const clients = await userModel.findUsersByVendedorCodigo(user.codigo);
-        allowedUserIds = clients.map(client => client.id);
+      const clients = await userModel.findUsersByVendedorCodigo(user.codigo);
+      allowedUserIds = clients.map((client) => client.id);
     }
 
     // 2. Obtener detalles del pedido
-    const orderDetails = await orderModel.findOrderDetailsById(orderId, allowedUserIds);
+    const orderDetails = await orderModel.findOrderDetailsById(
+      orderId,
+      allowedUserIds
+    );
     if (!orderDetails) {
       throw new Error('Pedido no encontrado o no le pertenece al usuario.');
     }
 
     // 3. Enriquecer items con el código de producto (necesario para el CSV)
     // La función generateOrderCSV espera 'code' y 'quantity'
-    const enrichedItems = orderDetails.items.map(item => ({
+    const enrichedItems = orderDetails.items.map((item) => ({
       code: item.product_code, // 'product_code' de la tabla order_items
       quantity: item.quantity,
     }));
@@ -354,9 +428,11 @@ const downloadOrderCsv = async (orderId, user) => {
     // 4. Generar el CSV
     const csvBuffer = await generateOrderCSV(enrichedItems);
     return csvBuffer;
-
   } catch (error) {
-    console.error(`Error en orderService.downloadOrderCsv para pedido ${orderId}:`, error);
+    console.error(
+      `Error en orderService.downloadOrderCsv para pedido ${orderId}:`,
+      error
+    );
     throw error;
   }
 };
@@ -368,11 +444,11 @@ const downloadOrderCsv = async (orderId, user) => {
  */
 const updateOrderDetails = async (updatedOrders) => {
   if (!Array.isArray(updatedOrders) || updatedOrders.length === 0) {
-    throw new Error("No hay pedidos para actualizar.");
+    throw new Error('No hay pedidos para actualizar.');
   }
 
   // 1. Obtener los IDs de los pedidos a actualizar
-  const orderIds = updatedOrders.map(o => o.id);
+  const orderIds = updatedOrders.map((o) => o.id);
 
   // 2. Buscar el estado actual de estos pedidos para comparar
   // Usamos una query directa al modelo o pool para obtener el estado actual
@@ -381,11 +457,16 @@ const updateOrderDetails = async (updatedOrders) => {
   // Para simplificar y no modificar tanto el modelo, haremos una query directa aquí o usaremos findOrderDetailsById en bucle (menos eficiente).
   // Mejor opción: Query directa para obtener status e is_confirmed actual.
 
-  const currentOrdersResult = await pool2.query(`
+  const currentOrdersResult = await pool2.query(
+    `
     SELECT id, is_confirmed, user_id, status FROM orders WHERE id = ANY($1::int[])
-  `, [orderIds]);
+  `,
+    [orderIds]
+  );
 
-  const currentOrdersMap = new Map(currentOrdersResult.rows.map(o => [o.id, o]));
+  const currentOrdersMap = new Map(
+    currentOrdersResult.rows.map((o) => [o.id, o])
+  );
 
   const ordersToUpdate = [];
   const emailsToSend = [];
@@ -406,14 +487,14 @@ const updateOrderDetails = async (updatedOrders) => {
 
     ordersToUpdate.push({
       ...update,
-      status: newStatus // Pasamos el nuevo status (o null si no cambia)
+      status: newStatus, // Pasamos el nuevo status (o null si no cambia)
     });
 
     if (shouldSendEmail) {
       emailsToSend.push({
         orderId: update.id,
         userId: currentOrder.user_id,
-        vendorSalesOrderNumber: update.vendorSalesOrderNumber
+        vendorSalesOrderNumber: update.vendorSalesOrderNumber,
       });
     }
   }
@@ -425,25 +506,35 @@ const updateOrderDetails = async (updatedOrders) => {
   // Necesitamos obtener el email del usuario para cada pedido
   if (emailsToSend.length > 0) {
     // Obtener emails de usuarios
-    const userIds = [...new Set(emailsToSend.map(e => e.userId))];
-    const usersResult = await pool.query('SELECT id, email, full_name FROM users WHERE id = ANY($1::int[])', [userIds]);
-    const usersMap = new Map(usersResult.rows.map(u => [u.id, u]));
+    const userIds = [...new Set(emailsToSend.map((e) => e.userId))];
+    const usersResult = await pool.query(
+      'SELECT id, email, full_name FROM users WHERE id = ANY($1::int[])',
+      [userIds]
+    );
+    const usersMap = new Map(usersResult.rows.map((u) => [u.id, u]));
 
-    Promise.allSettled(emailsToSend.map(async (emailInfo) => {
-      const user = usersMap.get(emailInfo.userId);
-      if (user && user.email) {
-        console.log(`[orderService] Enviando notificación de confirmación al usuario ${user.id} para pedido #${emailInfo.orderId}`);
-        await sendOrderConfirmedByVendorEmail(
-          user.email,
-          emailInfo.orderId,
-          user.full_name,
-          emailInfo.vendorSalesOrderNumber
-        );
-      }
-    })).then(results => {
-      results.forEach(result => {
+    Promise.allSettled(
+      emailsToSend.map(async (emailInfo) => {
+        const user = usersMap.get(emailInfo.userId);
+        if (user && user.email) {
+          console.log(
+            `[orderService] Enviando notificación de confirmación al usuario ${user.id} para pedido #${emailInfo.orderId}`
+          );
+          await sendOrderConfirmedByVendorEmail(
+            user.email,
+            emailInfo.orderId,
+            user.full_name,
+            emailInfo.vendorSalesOrderNumber
+          );
+        }
+      })
+    ).then((results) => {
+      results.forEach((result) => {
         if (result.status === 'rejected') {
-          console.error('[orderService] Error enviando email de confirmación:', result.reason);
+          console.error(
+            '[orderService] Error enviando email de confirmación:',
+            result.reason
+          );
         }
       });
     });

@@ -13,7 +13,7 @@ export const AuthProvider = ({ children }) => {
     const checkAuth = () => {
       const token = localStorage.getItem('authToken');
       const storedUser = localStorage.getItem('user');
-      
+
       if (token && storedUser) {
         try {
           const parsedUser = JSON.parse(storedUser);
@@ -73,7 +73,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, loading, login, logout, firstLogin }}>
+    <AuthContext.Provider
+      value={{ isAuthenticated, user, loading, login, logout, firstLogin }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -86,13 +86,16 @@ const findOrderDetailsById = async (orderId, allowedUserIds) => {
 
   // 3. Enriquecer items con descripción de productos de la otra DB
   if (items.length > 0) {
-    const productIds = items.map(item => item.product_id);
+    const productIds = items.map((item) => item.product_id);
     const productsQuery = `SELECT id, description FROM products WHERE id = ANY($1::int[]);`;
     const productsResult = await pool.query(productsQuery, [productIds]);
-    const productMap = new Map(productsResult.rows.map(p => [p.id, p.description]));
+    const productMap = new Map(
+      productsResult.rows.map((p) => [p.id, p.description])
+    );
 
-    items.forEach(item => {
-      item.product_name = productMap.get(item.product_id) || 'Descripción no disponible';
+    items.forEach((item) => {
+      item.product_name =
+        productMap.get(item.product_id) || 'Descripción no disponible';
     });
   }
 
@@ -141,7 +144,12 @@ const updateOrderDetails = async (updates) => {
             status = COALESCE($4, status)
         WHERE id = $3;
       `;
-      await client.query(query, [vendorSalesOrderNumber, isConfirmed, id, status]);
+      await client.query(query, [
+        vendorSalesOrderNumber,
+        isConfirmed,
+        id,
+        status,
+      ]);
     }
     await client.query('COMMIT');
   } catch (error) {

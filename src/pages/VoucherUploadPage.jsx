@@ -1,28 +1,37 @@
 import React, { useState, useRef } from 'react';
-// (ELIMINADO) Header ya no se importa
-import { ArrowLeft, UploadCloud, File as FileIcon, CheckCircle, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import {
+  ArrowLeft,
+  UploadCloud,
+  File as FileIcon,
+  CheckCircle,
+  AlertTriangle,
+} from 'lucide-react';
+import apiService from '../api/apiService';
+import { useAuth } from '../context/AuthContext';
 
-const API_URL = 'http://localhost:3001';
-
-// --- Página de Carga de Comprobantes ---
-// (NUEVO) Acepta 'currentUser'
-const VoucherUploadPage = ({ onNavigate, currentUser }) => {
+const VoucherUploadPage = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploaded, setIsUploaded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
+  const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
 
   const handleFileChange = (files) => {
     if (files && files[0]) {
-      // Validar tipo de archivo
       const file = files[0];
-      if (file.type === "image/png" || file.type === "image/jpeg" || file.type === "application/pdf") {
+      if (
+        file.type === 'image/png' ||
+        file.type === 'image/jpeg' ||
+        file.type === 'application/pdf'
+      ) {
         setSelectedFile(file);
         setError(null);
       } else {
-        setError("Tipo de archivo no permitido. Solo PNG, JPG o PDF.");
+        setError('Tipo de archivo no permitido. Solo PNG, JPG o PDF.');
         setSelectedFile(null);
       }
     }
@@ -49,44 +58,32 @@ const VoucherUploadPage = ({ onNavigate, currentUser }) => {
   };
 
   const openFileDialog = () => {
-    if (isLoading || isUploaded) return; // No abrir si está cargando
+    if (isLoading || isUploaded) return;
     fileInputRef.current?.click();
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedFile || !currentUser) {
-      if (!currentUser) setError("Error de autenticación.");
+      if (!currentUser) setError('Error de autenticación.');
       return;
     }
 
     setIsLoading(true);
     setError(null);
 
-    // Usamos FormData para enviar archivos
     const formData = new FormData();
-    formData.append('voucherFile', selectedFile); // 'voucherFile' debe coincidir con upload.single() en server.js
-    // (MODIFICADO) Añadimos el userId al FormData
-    formData.append('userId', currentUser.id);
+    formData.append('voucherFile', selectedFile);
 
     try {
-      const response = await fetch(`${API_URL}/api/upload-voucher`, {
-        method: 'POST',
-        body: formData, // No se necesita 'Content-Type', el navegador lo pone automáticamente
-      });
-
-      if (!response.ok) throw new Error('Error al subir el archivo.');
-
-      // Simulación de subida exitosa
+      await apiService.uploadVoucher(formData);
       setIsUploaded(true);
 
-      // Resetear y volver al dashboard después de 3 segundos
       setTimeout(() => {
         setIsUploaded(false);
         setSelectedFile(null);
-        onNavigate('dashboard');
+        navigate('/dashboard');
       }, 3000);
-
     } catch (err) {
       setError(err.message);
     } finally {
@@ -96,34 +93,36 @@ const VoucherUploadPage = ({ onNavigate, currentUser }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      {/* (ELIMINADO) Header ya no se renderiza aquí */}
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
-        {/* Encabezado con Botón de Volver y Título */}
         <div className="flex items-center mb-6">
           <button
-            onClick={() => onNavigate('dashboard')}
+            onClick={() => navigate('/dashboard')}
             className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
             aria-label="Volver al dashboard"
           >
             <ArrowLeft className="w-6 h-6" />
           </button>
-          <h1 className="text-2xl font-bold text-gray-800">Carga de Comprobantes</h1>
+          <h1 className="text-2xl font-bold text-gray-800">
+            Carga de Comprobantes
+          </h1>
         </div>
 
-        {/* Contenedor del Formulario de Carga */}
         <div className="p-6 md:p-8 bg-white rounded-lg shadow-md">
           {isUploaded ? (
-            // Mensaje de éxito
             <div className="text-center p-8">
               <CheckCircle className="w-16 h-16 mx-auto text-green-500 mb-4" />
-              <h2 className="text-2xl font-semibold text-green-600 mb-4">¡Archivo Subido!</h2>
-              <p className="text-gray-700">El comprobante se ha cargado correctamente.</p>
-              <p className="text-gray-500 mt-4 text-sm">Serás redirigido al dashboard en 3 segundos...</p>
+              <h2 className="text-2xl font-semibold text-green-600 mb-4">
+                ¡Archivo Subido!
+              </h2>
+              <p className="text-gray-700">
+                El comprobante se ha cargado correctamente.
+              </p>
+              <p className="text-gray-500 mt-4 text-sm">
+                Serás redirigido al dashboard en 3 segundos...
+              </p>
             </div>
           ) : (
-            // Formulario de Carga
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Zona de Arrastrar y Soltar (Dropzone) */}
               <div
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -131,7 +130,11 @@ const VoucherUploadPage = ({ onNavigate, currentUser }) => {
                 onClick={openFileDialog}
                 className={`flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-lg transition-colors
                   ${isDragging ? 'border-red-500 bg-red-50' : 'border-gray-300'}
-                  ${(isLoading || isUploaded) ? 'cursor-not-allowed bg-gray-50' : 'cursor-pointer hover:border-gray-400'}
+                  ${
+                    isLoading || isUploaded
+                      ? 'cursor-not-allowed bg-gray-50'
+                      : 'cursor-pointer hover:border-gray-400'
+                  }
                 `}
               >
                 <input
@@ -149,17 +152,16 @@ const VoucherUploadPage = ({ onNavigate, currentUser }) => {
                 <p className="text-sm text-gray-500">
                   o haz clic para seleccionar
                 </p>
-                <p className="text-xs text-gray-400 mt-2">
-                  (PNG, JPG o PDF)
-                </p>
+                <p className="text-xs text-gray-400 mt-2">(PNG, JPG o PDF)</p>
               </div>
 
-              {/* Archivo Seleccionado */}
               {selectedFile && (
                 <div className="flex items-center justify-between p-3 bg-gray-100 rounded-md border border-gray-200">
                   <div className="flex items-center space-x-2 overflow-hidden">
                     <FileIcon className="w-5 h-5 text-gray-600 flex-shrink-0" />
-                    <span className="text-sm font-medium text-gray-800 truncate">{selectedFile.name}</span>
+                    <span className="text-sm font-medium text-gray-800 truncate">
+                      {selectedFile.name}
+                    </span>
                   </div>
                   <button
                     type="button"
@@ -171,8 +173,7 @@ const VoucherUploadPage = ({ onNavigate, currentUser }) => {
                   </button>
                 </div>
               )}
-              
-              {/* Mensaje de error */}
+
               {error && (
                 <div className="flex items-center p-3 bg-red-100 text-red-700 rounded-md">
                   <AlertTriangle className="w-5 h-5 mr-2 flex-shrink-0" />
@@ -180,7 +181,6 @@ const VoucherUploadPage = ({ onNavigate, currentUser }) => {
                 </div>
               )}
 
-              {/* Botón de Envío */}
               <div className="mt-6 text-right">
                 <button
                   type="submit"

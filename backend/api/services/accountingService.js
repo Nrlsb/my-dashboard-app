@@ -11,11 +11,19 @@ const accountingModel = require('../models/accountingModel');
  * @param {number} adminUserId - ID del admin que crea la NC.
  * @returns {Promise<object>}
  */
-const createCreditNote = async (targetUserCod, reason, items, invoiceRefId, adminUserId) => {
+const createCreditNote = async (
+  targetUserCod,
+  reason,
+  items,
+  invoiceRefId,
+  adminUserId
+) => {
   // 1. Verificar que el cliente (targetUserCod) existe
   const user = await accountingModel.findUserByCustomerCode(targetUserCod);
   if (!user) {
-    throw new Error(`El cliente con código ${targetUserCod} no existe en la base de datos.`);
+    throw new Error(
+      `El cliente con código ${targetUserCod} no existe en la base de datos.`
+    );
   }
   const targetUserId = user.id;
 
@@ -31,11 +39,21 @@ const createCreditNote = async (targetUserCod, reason, items, invoiceRefId, admi
 
   // 3. Insertar el movimiento en 'account_movements'
   const description = `Nota de Crédito (Admin: ${adminUserId}): ${reason}. Ref Fact: ${invoiceRefId}.`;
-  const movement = await accountingModel.insertCreditNoteMovement(targetUserId, totalCreditAmount, description);
-  
-  console.log(`Nota de Crédito creada por Admin ${adminUserId} para Cliente ${targetUserCod}. Monto: ${totalCreditAmount}`);
-  
-  return { success: true, message: 'Nota de crédito creada exitosamente.', movement };
+  const movement = await accountingModel.insertCreditNoteMovement(
+    targetUserId,
+    totalCreditAmount,
+    description
+  );
+
+  console.log(
+    `Nota de Crédito creada por Admin ${adminUserId} para Cliente ${targetUserCod}. Monto: ${totalCreditAmount}`
+  );
+
+  return {
+    success: true,
+    message: 'Nota de crédito creada exitosamente.',
+    movement,
+  };
 };
 
 /**
@@ -44,7 +62,8 @@ const createCreditNote = async (targetUserCod, reason, items, invoiceRefId, admi
  * @returns {Promise<Array<object>>}
  */
 const fetchCustomerInvoices = async (customerCod) => {
-  const invoices = await accountingModel.findInvoicesByCustomerCode(customerCod);
+  const invoices =
+    await accountingModel.findInvoicesByCustomerCode(customerCod);
   if (invoices.length === 0) {
     console.log(`No se encontraron facturas para el código: ${customerCod}`);
   }

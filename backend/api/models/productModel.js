@@ -23,7 +23,7 @@ const getOnOfferProductIds = async () => {
       const result = await pool2.query(
         'SELECT product_id FROM product_offer_status WHERE is_on_offer = true'
       );
-      offerProductIds = result.rows.map(row => row.product_id);
+      offerProductIds = result.rows.map((row) => row.product_id);
       offersCache.set(offerIdsCacheKey, offerProductIds);
     } catch (error) {
       console.error('Error fetching on-offer product IDs:', error);
@@ -35,7 +35,6 @@ const getOnOfferProductIds = async () => {
   }
   return offerProductIds;
 };
-
 
 /**
  * Obtiene los grupos de productos denegados para un usuario específico.
@@ -60,11 +59,11 @@ const getDeniedProductGroups = async (userId) => {
       WHERE user_id = $1;
     `;
     const result = await pool2.query(query, [userId]);
-    const deniedGroups = result.rows.map(row => row.product_group);
-    
+    const deniedGroups = result.rows.map((row) => row.product_group);
+
     // Guardar el resultado en la caché antes de devolverlo
     permissionsCache.set(cacheKey, deniedGroups);
-    
+
     return deniedGroups;
   } catch (error) {
     console.error(`Error in getDeniedProductGroups for user ${userId}:`, error);
@@ -82,12 +81,19 @@ const getDeniedProductGroups = async (userId) => {
  * @param {string[]} [filters.deniedGroups] - Array de grupos de productos a excluir.
  * @returns {Promise<{products: object[], totalProducts: number}>} - Una promesa que se resuelve con los productos y el conteo total.
  */
-const findProducts = async ({ limit, offset, search, brands, deniedGroups }) => {
+const findProducts = async ({
+  limit,
+  offset,
+  search,
+  brands,
+  deniedGroups,
+}) => {
   let queryParams = [];
   let paramIndex = 1;
 
   // --- Query Base ---
-  let countQuery = 'SELECT COUNT(*) FROM products WHERE price > 0 AND description IS NOT NULL';
+  let countQuery =
+    'SELECT COUNT(*) FROM products WHERE price > 0 AND description IS NOT NULL';
   let dataQuery = `
     SELECT
       id, code, description, price, brand,
@@ -129,7 +135,11 @@ const findProducts = async ({ limit, offset, search, brands, deniedGroups }) => 
     const countResult = await pool.query(countQuery, queryParams);
     const totalProducts = parseInt(countResult.rows[0].count, 10);
 
-    const dataResult = await pool.query(dataQuery, [...queryParams, limit, offset]);
+    const dataResult = await pool.query(dataQuery, [
+      ...queryParams,
+      limit,
+      offset,
+    ]);
     const products = dataResult.rows;
 
     // --- Eliminada la consulta a pool2 ---
@@ -138,7 +148,7 @@ const findProducts = async ({ limit, offset, search, brands, deniedGroups }) => 
     const onOfferIdsSet = new Set(onOfferProductIds);
 
     // Adjuntar el estado de la oferta a cada producto, usando la lista en memoria
-    const productsWithOfferStatus = products.map(product => ({
+    const productsWithOfferStatus = products.map((product) => ({
       ...product,
       // la oferta será true si el ID del producto existe en el Set de ofertas
       oferta: onOfferIdsSet.has(product.id),
@@ -207,7 +217,7 @@ const findProductById = async (productId, deniedGroups = []) => {
       query += ` AND product_group NOT IN (SELECT unnest($${paramIndex}::varchar[])) `;
       queryParams.push(deniedGroups);
     }
-    
+
     const result = await pool.query(query, queryParams);
     return result.rows[0];
   } catch (error) {
@@ -232,9 +242,9 @@ const findUniqueBrands = async (deniedGroups = []) => {
     }
 
     query += ` ORDER BY brand ASC;`;
-    
+
     const result = await pool.query(query, queryParams);
-    return result.rows.map(row => row.brand);
+    return result.rows.map((row) => row.brand);
   } catch (error) {
     console.error('Error in findUniqueBrands:', error);
     throw error;
@@ -275,13 +285,19 @@ const findOffers = async (deniedGroups = []) => {
   }
 };
 
-const findProductsByGroup = async (groupCode, limit, offset, deniedGroups = []) => {
+const findProductsByGroup = async (
+  groupCode,
+  limit,
+  offset,
+  deniedGroups = []
+) => {
   if (deniedGroups.includes(groupCode)) {
     console.log(`[DEBUG] Acceso denegado al grupo ${groupCode}.`);
     return { products: [], totalProducts: 0, groupName: '' };
   }
 
-  const countQuery = 'SELECT COUNT(*) FROM products WHERE product_group = $1 AND price > 0 AND description IS NOT NULL';
+  const countQuery =
+    'SELECT COUNT(*) FROM products WHERE product_group = $1 AND price > 0 AND description IS NOT NULL';
   const dataQuery = `
     SELECT 
       id, code, description, price, brand, 
@@ -302,7 +318,10 @@ const findProductsByGroup = async (groupCode, limit, offset, deniedGroups = []) 
   if (products.length > 0) {
     groupName = products[0].brand;
   } else {
-    const groupNameResult = await pool.query('SELECT brand FROM products WHERE product_group = $1 AND brand IS NOT NULL LIMIT 1', [groupCode]);
+    const groupNameResult = await pool.query(
+      'SELECT brand FROM products WHERE product_group = $1 AND brand IS NOT NULL LIMIT 1',
+      [groupCode]
+    );
     if (groupNameResult.rows.length > 0) {
       groupName = groupNameResult.rows[0].brand;
     }
@@ -320,4 +339,5 @@ module.exports = {
   findUniqueBrands,
   findOffers,
   findProductsByGroup,
+  offersCache, // Exportar offersCache
 };

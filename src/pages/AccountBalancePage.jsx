@@ -1,5 +1,20 @@
 import React, { useState, useMemo } from 'react';
-import { DollarSign, ArrowDown, ArrowUp, ArrowLeft, FilePlus, X, Loader2, AlertTriangle, User, FileText, CheckCircle, Search, List } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import {
+  DollarSign,
+  ArrowDown,
+  ArrowUp,
+  ArrowLeft,
+  FilePlus,
+  X,
+  Loader2,
+  AlertTriangle,
+  User,
+  FileText,
+  CheckCircle,
+  Search,
+  List,
+} from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiService from '../api/apiService.js';
 
@@ -20,15 +35,17 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
   const [invoiceError, setInvoiceError] = useState('');
   const [invoiceItems, setInvoiceItems] = useState([]);
   const [itemFetchError, setItemFetchError] = useState('');
-  const [selectedItems, setSelectedItems] = useState(new Map()); 
-  
+  const [selectedItems, setSelectedItems] = useState(new Map());
+
   const queryClient = useQueryClient();
 
   const invoiceSearchMutation = useMutation({
     mutationFn: apiService.fetchCustomerInvoicesApi,
     onSuccess: (data) => {
       if (data.length === 0) {
-        setInvoiceError('No se encontraron facturas (débitos) con pedidos asociados para este cliente.');
+        setInvoiceError(
+          'No se encontraron facturas (débitos) con pedidos asociados para este cliente.'
+        );
         setCustomerInvoices([]);
       } else {
         setCustomerInvoices(data);
@@ -38,9 +55,9 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
     onError: (error) => {
       setInvoiceError(error.message || 'Error al buscar facturas.');
       setCustomerInvoices([]);
-    }
+    },
   });
-  
+
   const itemFetchMutation = useMutation({
     mutationFn: apiService.fetchAdminOrderDetailApi,
     onSuccess: (data) => {
@@ -49,15 +66,19 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
       setSelectedItems(new Map());
     },
     onError: (error) => {
-      setItemFetchError(error.message || 'Error al cargar los items de la factura.');
+      setItemFetchError(
+        error.message || 'Error al cargar los items de la factura.'
+      );
       setInvoiceItems([]);
-    }
+    },
   });
 
   const creditNoteMutation = useMutation({
     mutationFn: apiService.createCreditNoteApi,
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['accountBalance', adminUser.id] });
+      queryClient.invalidateQueries({
+        queryKey: ['accountBalance', adminUser.id],
+      });
       onSuccess(data.message || 'Nota de crédito creada con éxito.');
     },
   });
@@ -74,17 +95,19 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
     setSelectedItems(new Map());
     invoiceSearchMutation.mutate({ customerCod: targetUserCod });
   };
-  
+
   const handleInvoiceSelect = (e) => {
     const invoiceId = e.target.value;
     setSelectedInvoiceId(invoiceId);
-    
+
     setInvoiceItems([]);
     setSelectedItems(new Map());
     setItemFetchError('');
 
     if (invoiceId) {
-      const selected = customerInvoices.find(inv => inv.id.toString() === invoiceId);
+      const selected = customerInvoices.find(
+        (inv) => inv.id.toString() === invoiceId
+      );
       if (selected && selected.order_ref) {
         itemFetchMutation.mutate({ orderId: selected.order_ref });
         setReason(`Devolución/Anulación ref. Factura: ${selected.comprobante}`);
@@ -116,11 +139,11 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
     }
     setSelectedItems(newMap);
   };
-  
+
   const calculatedTotal = useMemo(() => {
     let total = 0;
     for (const [productId, quantity] of selectedItems.entries()) {
-      const item = invoiceItems.find(i => i.product_id === productId);
+      const item = invoiceItems.find((i) => i.product_id === productId);
       if (item) {
         total += item.unit_price * quantity;
       }
@@ -130,18 +153,24 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    creditNoteMutation.reset(); 
-    
+    creditNoteMutation.reset();
+
     if (!targetUserCod.trim()) {
-      creditNoteMutation.error = new Error('El Nº de Cliente (A1_COD) es obligatorio.');
+      creditNoteMutation.error = new Error(
+        'El Nº de Cliente (A1_COD) es obligatorio.'
+      );
       return;
     }
     if (!selectedInvoiceId) {
-      creditNoteMutation.error = new Error('Debe seleccionar una factura de referencia.');
+      creditNoteMutation.error = new Error(
+        'Debe seleccionar una factura de referencia.'
+      );
       return;
     }
     if (selectedItems.size === 0) {
-      creditNoteMutation.error = new Error('Debe seleccionar al menos un producto para la nota de crédito.');
+      creditNoteMutation.error = new Error(
+        'Debe seleccionar al menos un producto para la nota de crédito.'
+      );
       return;
     }
     if (!reason.trim()) {
@@ -149,20 +178,24 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
       return;
     }
 
-    const invoice = customerInvoices.find(inv => inv.id.toString() === selectedInvoiceId);
+    const invoice = customerInvoices.find(
+      (inv) => inv.id.toString() === selectedInvoiceId
+    );
     if (!invoice) {
-       creditNoteMutation.error = new Error('Error interno: No se encontró la factura seleccionada.');
-       return;
+      creditNoteMutation.error = new Error(
+        'Error interno: No se encontró la factura seleccionada.'
+      );
+      return;
     }
 
     const itemsToCredit = [];
     for (const [productId, quantity] of selectedItems.entries()) {
-      const originalItem = invoiceItems.find(i => i.product_id === productId);
+      const originalItem = invoiceItems.find((i) => i.product_id === productId);
       if (originalItem) {
         itemsToCredit.push({
           product_id: originalItem.product_id,
           quantity: quantity,
-          unit_price: originalItem.unit_price 
+          unit_price: originalItem.unit_price,
         });
       }
     }
@@ -174,8 +207,11 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
       invoiceRefId: invoice.id,
     });
   };
-  
-  const isFormDisabled = creditNoteMutation.isPending || invoiceSearchMutation.isPending || itemFetchMutation.isPending;
+
+  const isFormDisabled =
+    creditNoteMutation.isPending ||
+    invoiceSearchMutation.isPending ||
+    itemFetchMutation.isPending;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
@@ -194,10 +230,16 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+        <form
+          onSubmit={handleSubmit}
+          className="flex-1 flex flex-col overflow-hidden"
+        >
           <div className="flex-1 p-6 space-y-5 overflow-y-auto">
             <div>
-              <label htmlFor="targetUserCod" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="targetUserCod"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Nº de Cliente (A1_COD)
               </label>
               <div className="flex space-x-2">
@@ -231,7 +273,10 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
 
             {(customerInvoices.length > 0 || invoiceError) && (
               <div>
-                <label htmlFor="invoiceSelect" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="invoiceSelect"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Seleccionar Factura
                 </label>
                 <div className="relative">
@@ -244,7 +289,7 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
                     disabled={isFormDisabled}
                   >
                     <option value="">-- Seleccionar una factura --</option>
-                    {customerInvoices.map(invoice => (
+                    {customerInvoices.map((invoice) => (
                       <option key={invoice.id} value={invoice.id}>
                         {`${new Date(invoice.date).toLocaleDateString('es-AR')} - ${invoice.comprobante} - ${formatCurrency(invoice.importe)}`}
                       </option>
@@ -260,7 +305,9 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
             {itemFetchMutation.isPending && (
               <div className="flex justify-center items-center p-4">
                 <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                <span className="ml-2 text-gray-600">Cargando productos de la factura...</span>
+                <span className="ml-2 text-gray-600">
+                  Cargando productos de la factura...
+                </span>
               </div>
             )}
             {itemFetchError && (
@@ -268,19 +315,29 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
             )}
             {invoiceItems.length > 0 && (
               <div className="space-y-3 border border-gray-200 rounded-lg p-4">
-                <h4 className="text-md font-semibold text-gray-800 mb-3">Productos en la Factura</h4>
+                <h4 className="text-md font-semibold text-gray-800 mb-3">
+                  Productos en la Factura
+                </h4>
                 <div className="max-h-48 overflow-y-auto space-y-3 pr-2">
-                  {invoiceItems.map(item => (
-                    <div key={item.product_id} className="flex items-center space-x-3">
+                  {invoiceItems.map((item) => (
+                    <div
+                      key={item.product_id}
+                      className="flex items-center space-x-3"
+                    >
                       <input
                         type="checkbox"
                         id={`item-${item.product_id}`}
                         className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                         checked={selectedItems.has(item.product_id)}
-                        onChange={(e) => handleItemToggle(item, e.target.checked)}
+                        onChange={(e) =>
+                          handleItemToggle(item, e.target.checked)
+                        }
                         disabled={isFormDisabled}
                       />
-                      <label htmlFor={`item-${item.product_id}`} className="flex-1 text-sm text-gray-700">
+                      <label
+                        htmlFor={`item-${item.product_id}`}
+                        className="flex-1 text-sm text-gray-700"
+                      >
                         {item.product_name} ({formatCurrency(item.unit_price)})
                       </label>
                       <input
@@ -288,8 +345,12 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
                         min="1"
                         max={item.quantity}
                         value={selectedItems.get(item.product_id) || ''}
-                        onChange={(e) => handleItemQuantityChange(item, e.target.value)}
-                        disabled={!selectedItems.has(item.product_id) || isFormDisabled}
+                        onChange={(e) =>
+                          handleItemQuantityChange(item, e.target.value)
+                        }
+                        disabled={
+                          !selectedItems.has(item.product_id) || isFormDisabled
+                        }
                         className="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm disabled:bg-gray-100 disabled:text-gray-400"
                         placeholder={`Max: ${item.quantity}`}
                       />
@@ -300,7 +361,10 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
             )}
 
             <div>
-              <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="reason"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Concepto / Motivo
               </label>
               <div className="relative">
@@ -316,18 +380,24 @@ const CreditNoteModal = ({ adminUser, onClose, onSuccess }) => {
                 />
               </div>
             </div>
-            
+
             {calculatedTotal > 0 && (
               <div className="flex justify-between items-center p-3 bg-gray-100 rounded-lg">
-                <span className="text-lg font-semibold text-gray-800">Total N/C:</span>
-                <span className="text-2xl font-bold text-green-600">{formatCurrency(calculatedTotal)}</span>
+                <span className="text-lg font-semibold text-gray-800">
+                  Total N/C:
+                </span>
+                <span className="text-2xl font-bold text-green-600">
+                  {formatCurrency(calculatedTotal)}
+                </span>
               </div>
             )}
 
             {creditNoteMutation.isError && (
               <div className="flex items-center p-3 bg-red-100 text-red-700 rounded-lg">
                 <AlertTriangle className="w-5 h-5 mr-2 flex-shrink-0" />
-                <span className="text-sm">{creditNoteMutation.error.message}</span>
+                <span className="text-sm">
+                  {creditNoteMutation.error.message}
+                </span>
               </div>
             )}
           </div>
@@ -373,9 +443,13 @@ const LoadingSkeleton = () => (
 
 const ErrorMessage = ({ message }) => (
   <div className="flex flex-col items-center justify-center p-10 bg-white rounded-lg shadow-md">
-    <p className="text-red-500 font-semibold text-lg">Error al cargar el balance</p>
+    <p className="text-red-500 font-semibold text-lg">
+      Error al cargar el balance
+    </p>
     <p className="text-gray-600 mt-2">{message}</p>
-    <p className="text-gray-500 text-sm mt-4">Por favor, intente recargar la página o contacte a soporte.</p>
+    <p className="text-gray-500 text-sm mt-4">
+      Por favor, intente recargar la página o contacte a soporte.
+    </p>
   </div>
 );
 
@@ -388,7 +462,9 @@ const BalanceCard = ({ title, amount, bgColorClass }) => {
   return (
     <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">{title}</h3>
+        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">
+          {title}
+        </h3>
         <DollarSign className="w-6 h-6 text-gray-400" />
       </div>
       <p className={`text-3xl font-bold ${bgColorClass}`}>{formattedAmount}</p>
@@ -396,20 +472,29 @@ const BalanceCard = ({ title, amount, bgColorClass }) => {
   );
 };
 
-
-export default function AccountBalancePage({ user, onNavigate }) {
-  
+export default function AccountBalancePage({ user }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  
-  const { data: balanceData, isLoading: isLoadingBalance, isError: isErrorBalance, error: errorBalance } = useQuery({
-    queryKey: ['accountBalance', user?.id], 
+  const navigate = useNavigate();
+
+  const {
+    data: balanceData,
+    isLoading: isLoadingBalance,
+    isError: isErrorBalance,
+    error: errorBalance,
+  } = useQuery({
+    queryKey: ['accountBalance', user?.id],
     queryFn: () => apiService.fetchAccountBalance(),
-    enabled: !!user?.id, 
+    enabled: !!user?.id,
     staleTime: 1000 * 60 * 2,
   });
 
-  const { data: movementsData, isLoading: isLoadingMovements, isError: isErrorMovements, error: errorMovements } = useQuery({
+  const {
+    data: movementsData,
+    isLoading: isLoadingMovements,
+    isError: isErrorMovements,
+    error: errorMovements,
+  } = useQuery({
     queryKey: ['accountMovements', user?.id],
     queryFn: () => apiService.fetchAccountMovements(),
     enabled: !!user?.id,
@@ -421,8 +506,12 @@ export default function AccountBalancePage({ user, onNavigate }) {
     setIsModalOpen(false);
     setTimeout(() => setSuccessMessage(''), 3000);
   };
-  
-  const balance = balanceData?.balance || { total: 0, disponible: 0, pendiente: 0 };
+
+  const balance = balanceData?.balance || {
+    total: 0,
+    disponible: 0,
+    pendiente: 0,
+  };
   const movements = movementsData || [];
 
   if (isLoadingBalance) {
@@ -430,8 +519,8 @@ export default function AccountBalancePage({ user, onNavigate }) {
   }
 
   if (isErrorBalance) {
-    const errorMessage = !user?.id 
-      ? "No se ha podido identificar al usuario." 
+    const errorMessage = !user?.id
+      ? 'No se ha podido identificar al usuario.'
       : errorBalance.message;
     return <ErrorMessage message={errorMessage} />;
   }
@@ -439,29 +528,33 @@ export default function AccountBalancePage({ user, onNavigate }) {
   return (
     <>
       {isModalOpen && (
-        <CreditNoteModal 
-          adminUser={user} 
+        <CreditNoteModal
+          adminUser={user}
           onClose={() => setIsModalOpen(false)}
           onSuccess={handleModalSuccess}
         />
       )}
-    
+
       <div className="p-6 bg-gray-50 min-h-screen">
         <header className="mb-8 flex items-center justify-between">
           <div className="flex items-center">
             <button
-              onClick={() => onNavigate('dashboard')}
+              onClick={() => navigate('/dashboard')}
               className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
               aria-label="Volver al dashboard"
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
             <div>
-              <h1 className="text-3xl font-bold text-gray-800">Mi Cuenta Corriente</h1>
-              <p className="text-gray-600">Resumen de saldos y últimos movimientos.</p>
+              <h1 className="text-3xl font-bold text-gray-800">
+                Mi Cuenta Corriente
+              </h1>
+              <p className="text-gray-600">
+                Resumen de saldos y últimos movimientos.
+              </p>
             </div>
           </div>
-          
+
           {user?.is_admin && (
             <button
               onClick={() => setIsModalOpen(true)}
@@ -472,41 +565,76 @@ export default function AccountBalancePage({ user, onNavigate }) {
             </button>
           )}
         </header>
-        
+
         {successMessage && (
-            <div className="mb-6 flex items-center p-4 bg-green-100 text-green-700 rounded-lg shadow-md">
-              <CheckCircle className="w-5 h-5 mr-3 flex-shrink-0" />
-              <span className="text-sm font-medium">{successMessage}</span>
-            </div>
+          <div className="mb-6 flex items-center p-4 bg-green-100 text-green-700 rounded-lg shadow-md">
+            <CheckCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+            <span className="text-sm font-medium">{successMessage}</span>
+          </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <BalanceCard title="Saldo Total" amount={balance.total} bgColorClass={balance.total >= 0 ? "text-green-600" : "text-red-600"} />
-          <BalanceCard title="Disponible" amount={balance.disponible} bgColorClass="text-green-600" />
-          <BalanceCard title="Pendiente de Imputación" amount={balance.pendiente} bgColorClass="text-yellow-600" />
+          <BalanceCard
+            title="Saldo Total"
+            amount={balance.total}
+            bgColorClass={
+              balance.total >= 0 ? 'text-green-600' : 'text-red-600'
+            }
+          />
+          <BalanceCard
+            title="Disponible"
+            amount={balance.disponible}
+            bgColorClass="text-green-600"
+          />
+          <BalanceCard
+            title="Pendiente de Imputación"
+            amount={balance.pendiente}
+            bgColorClass="text-yellow-600"
+          />
         </div>
 
         <section>
-          <h2 className="text-2xl font-semibold text-gray-700 mb-4">Detalle de Movimientos</h2>
+          <h2 className="text-2xl font-semibold text-gray-700 mb-4">
+            Detalle de Movimientos
+          </h2>
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full bg-white">
                 <thead className="bg-gray-100 border-b border-gray-300">
                   <tr>
-                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Num. Titulo</th>
-                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fch Emision</th>
-                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fch. de Vencimien.</th>
-                    <th className="py-3 px-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Debitos</th>
-                    <th className="py-3 px-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Creditos</th>
-                    <th className="py-3 px-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Saldo Acumulados</th>
-                    <th className="py-3 px-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">% Canc.</th>
-                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">N° Recibo</th>
+                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Num. Titulo
+                    </th>
+                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Fch Emision
+                    </th>
+                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Fch. de Vencimien.
+                    </th>
+                    <th className="py-3 px-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Debitos
+                    </th>
+                    <th className="py-3 px-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Creditos
+                    </th>
+                    <th className="py-3 px-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Saldo Acumulados
+                    </th>
+                    <th className="py-3 px-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      % Canc.
+                    </th>
+                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      N° Recibo
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {isLoadingMovements ? (
                     <tr>
-                      <td colSpan="8" className="py-6 px-4 text-center text-gray-500">
+                      <td
+                        colSpan="8"
+                        className="py-6 px-4 text-center text-gray-500"
+                      >
                         <div className="flex justify-center items-center">
                           <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
                           <span className="ml-2">Cargando movimientos...</span>
@@ -515,16 +643,26 @@ export default function AccountBalancePage({ user, onNavigate }) {
                     </tr>
                   ) : isErrorMovements ? (
                     <tr>
-                      <td colSpan="8" className="py-6 px-4 text-center text-red-500">
-                        Error al cargar los movimientos: {errorMovements.message}
+                      <td
+                        colSpan="8"
+                        className="py-6 px-4 text-center text-red-500"
+                      >
+                        Error al cargar los movimientos:{' '}
+                        {errorMovements.message}
                       </td>
                     </tr>
                   ) : movements.length > 0 ? (
                     movements.map((mov) => (
                       <tr key={mov.id} className="hover:bg-gray-50">
-                        <td className="py-3 px-4 text-sm text-gray-700">{mov.titulo_num || '-'}</td>
-                        <td className="py-3 px-4 text-sm text-gray-700">{mov.formatted_date}</td>
-                        <td className="py-3 px-4 text-sm text-gray-700">{mov.formatted_fecha_vencimiento || '-'}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">
+                          {mov.titulo_num || '-'}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-700">
+                          {mov.formatted_date}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-700">
+                          {mov.formatted_fecha_vencimiento || '-'}
+                        </td>
                         <td className="py-3 px-4 text-sm font-semibold text-right text-red-600">
                           {mov.debit ? formatCurrency(mov.debit) : '-'}
                         </td>
@@ -534,13 +672,20 @@ export default function AccountBalancePage({ user, onNavigate }) {
                         <td className="py-3 px-4 text-sm font-bold text-right text-gray-800">
                           {formatCurrency(mov.balance)}
                         </td>
-                        <td className="py-3 px-4 text-sm text-right text-gray-700">{mov.porc_cancelado ? `${mov.porc_cancelado}%` : '-'}</td>
-                        <td className="py-3 px-4 text-sm text-gray-600">{mov.order_ref || '-'}</td>
+                        <td className="py-3 px-4 text-sm text-right text-gray-700">
+                          {mov.porc_cancelado ? `${mov.porc_cancelado}%` : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-600">
+                          {mov.order_ref || '-'}
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="8" className="py-6 px-4 text-center text-gray-500">
+                      <td
+                        colSpan="8"
+                        className="py-6 px-4 text-center text-gray-500"
+                      >
                         No se registraron movimientos.
                       </td>
                     </tr>
@@ -554,4 +699,3 @@ export default function AccountBalancePage({ user, onNavigate }) {
     </>
   );
 }
-

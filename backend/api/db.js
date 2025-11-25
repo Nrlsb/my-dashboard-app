@@ -18,9 +18,11 @@ const requiredDb2Vars = [
 ];
 
 let db2ConfigError = false;
-requiredDb2Vars.forEach(v => {
+requiredDb2Vars.forEach((v) => {
   if (!process.env[v]) {
-    console.error(`[DB2 Config Error] La variable de entorno ${v} no está definida. Revisa tu archivo .env.`);
+    console.error(
+      `[DB2 Config Error] La variable de entorno ${v} no está definida. Revisa tu archivo .env.`
+    );
     db2ConfigError = true;
   }
 });

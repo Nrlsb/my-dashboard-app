@@ -13,7 +13,7 @@ const fetchAdminOrderDetails = async (orderId) => {
       WHERE id = $1;
     `;
     const orderResult = await pool2.query(orderQuery, [orderId]);
-    
+
     if (orderResult.rows.length === 0) {
       return null; // Pedido no encontrado
     }
@@ -22,45 +22,52 @@ const fetchAdminOrderDetails = async (orderId) => {
     // 2. Obtener datos del usuario desde BD1
     const userQuery = `SELECT full_name as user_nombre, email as user_email FROM users WHERE id = $1;`;
     const userResult = await pool.query(userQuery, [order.user_id]);
-    const user = userResult.rows[0] || { user_nombre: 'N/A', user_email: 'N/A' };
-    
+    const user = userResult.rows[0] || {
+      user_nombre: 'N/A',
+      user_email: 'N/A',
+    };
+
     // 3. Obtener items del pedido desde BD2
     const itemsQuery = `SELECT * FROM order_items WHERE order_id = $1;`;
     const itemsResult = await pool2.query(itemsQuery, [orderId]);
     const items = itemsResult.rows;
 
     if (items.length > 0) {
-        // 4. Obtener los IDs de los productos
-        const productIds = items.map(item => item.product_id);
+      // 4. Obtener los IDs de los productos
+      const productIds = items.map((item) => item.product_id);
 
-        // 5. Obtener las descripciones de los productos desde BD1
-        const productsQuery = `SELECT id, description FROM products WHERE id = ANY($1::int[]);`;
-        const productsResult = await pool.query(productsQuery, [productIds]);
-        const productMap = new Map(productsResult.rows.map(p => [p.id, p.description]));
+      // 5. Obtener las descripciones de los productos desde BD1
+      const productsQuery = `SELECT id, description FROM products WHERE id = ANY($1::int[]);`;
+      const productsResult = await pool.query(productsQuery, [productIds]);
+      const productMap = new Map(
+        productsResult.rows.map((p) => [p.id, p.description])
+      );
 
-        // 6. Enriquecer los items con la descripción del producto
-        items.forEach(item => {
-            item.product_name = productMap.get(item.product_id) || 'Descripción no disponible';
-        });
+      // 6. Enriquecer los items con la descripción del producto
+      items.forEach((item) => {
+        item.product_name =
+          productMap.get(item.product_id) || 'Descripción no disponible';
+      });
     }
-    
+
     // 7. Combinar y formatear
     const orderDetails = {
       ...order,
       ...user,
-      items: items.map(item => ({
+      items: items.map((item) => ({
         ...item,
         product_name: item.product_name,
-        formattedPrice: formatCurrency(item.unit_price)
+        formattedPrice: formatCurrency(item.unit_price),
       })),
-      formattedTotal: formatCurrency(order.total)
+      formattedTotal: formatCurrency(order.total),
     };
-    
+
     return orderDetails;
-    
-  } catch (error)
- {
-    console.error(`Error en fetchAdminOrderDetails (Admin) para ID ${orderId}:`, error);
+  } catch (error) {
+    console.error(
+      `Error en fetchAdminOrderDetails (Admin) para ID ${orderId}:`,
+      error
+    );
     throw error;
   }
 };
@@ -84,7 +91,6 @@ const getUsersForAdmin = async () => {
   }
 };
 
-
 /**
  * (Admin) Actualiza los permisos de grupo para un usuario específico
  */
@@ -94,11 +100,15 @@ const updateUserGroupPermissions = async (userId, groups) => {
     await client.query('BEGIN');
 
     // 1. Delete old permissions
-    await client.query('DELETE FROM user_product_group_permissions WHERE user_id = $1', [userId]);
+    await client.query(
+      'DELETE FROM user_product_group_permissions WHERE user_id = $1',
+      [userId]
+    );
 
     // 2. Insert new permissions if any
     if (groups && groups.length > 0) {
-      const insertQuery = 'INSERT INTO user_product_group_permissions (user_id, product_group) VALUES ($1, $2)';
+      const insertQuery =
+        'INSERT INTO user_product_group_permissions (user_id, product_group) VALUES ($1, $2)';
       for (const group of groups) {
         await client.query(insertQuery, [userId, group]);
       }
@@ -109,7 +119,10 @@ const updateUserGroupPermissions = async (userId, groups) => {
     return { success: true, message: 'Permisos actualizados correctamente.' };
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error(`Error in updateUserGroupPermissions for user ${userId}:`, error);
+    console.error(
+      `Error in updateUserGroupPermissions for user ${userId}:`,
+      error
+    );
     throw error;
   } finally {
     client.release();
@@ -121,13 +134,18 @@ const updateUserGroupPermissions = async (userId, groups) => {
  */
 const getAdmins = async () => {
   try {
-    const adminIdsResult = await pool2.query('SELECT user_id FROM admins ORDER BY created_at DESC');
+    const adminIdsResult = await pool2.query(
+      'SELECT user_id FROM admins ORDER BY created_at DESC'
+    );
     if (adminIdsResult.rows.length === 0) {
       return [];
     }
-    const adminIds = adminIdsResult.rows.map(row => row.user_id);
+    const adminIds = adminIdsResult.rows.map((row) => row.user_id);
     // Busca la información de los usuarios en la DB1
-    const usersResult = await pool.query('SELECT id, full_name, email FROM users WHERE id = ANY($1::int[])', [adminIds]);
+    const usersResult = await pool.query(
+      'SELECT id, full_name, email FROM users WHERE id = ANY($1::int[])',
+      [adminIds]
+    );
     return usersResult.rows;
   } catch (error) {
     console.error('Error en getAdmins:', error);
@@ -141,12 +159,17 @@ const getAdmins = async () => {
 const addAdmin = async (userId) => {
   try {
     // 1. Verificar que el usuario existe en la DB1
-    const userResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    const userResult = await pool.query('SELECT id FROM users WHERE id = $1', [
+      userId,
+    ]);
     if (userResult.rows.length === 0) {
       throw new Error('El usuario no existe en la base de datos principal.');
     }
     // 2. Insertar en la tabla admins en DB2. ON CONFLICT evita duplicados.
-    await pool2.query('INSERT INTO admins (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING', [userId]);
+    await pool2.query(
+      'INSERT INTO admins (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING',
+      [userId]
+    );
     return { success: true, message: 'Usuario añadido como administrador.' };
   } catch (error) {
     console.error('Error en addAdmin:', error);
@@ -159,7 +182,9 @@ const addAdmin = async (userId) => {
  */
 const removeAdmin = async (userId) => {
   try {
-    const result = await pool2.query('DELETE FROM admins WHERE user_id = $1', [userId]);
+    const result = await pool2.query('DELETE FROM admins WHERE user_id = $1', [
+      userId,
+    ]);
     if (result.rowCount === 0) {
       // Esto puede pasar si el usuario ya no era admin, no es necesariamente un error.
       return { success: false, message: 'El usuario no era administrador.' };
@@ -171,6 +196,21 @@ const removeAdmin = async (userId) => {
   }
 };
 
+/**
+ * (Admin) Obtiene todos los grupos de productos y marcas de la tabla de productos.
+ */
+const getProductGroupsForAdmin = async () => {
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT product_group, brand FROM products WHERE product_group IS NOT NULL AND product_group != '' ORDER BY product_group ASC;`
+    );
+    return result.rows;
+  } catch (error) {
+    console.error('Error en getProductGroupsForAdmin (service):', error);
+    throw error;
+  }
+};
+
 module.exports = {
   fetchAdminOrderDetails,
   getUsersForAdmin,
@@ -178,4 +218,6 @@ module.exports = {
   getAdmins,
   addAdmin,
   removeAdmin,
+  getProductGroupsForAdmin,
 };
+

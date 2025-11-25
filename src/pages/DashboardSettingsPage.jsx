@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import apiService from '../api/apiService';
 import { ChevronRight } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
-const DashboardSettingsPage = ({ currentUser, onNavigate }) => {
+const DashboardSettingsPage = () => {
   const [panels, setPanels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchPanels = async () => {
-      if (!currentUser || !currentUser.is_admin) {
+      if (!user || !user.is_admin) {
         setError('Acceso denegado.');
         setLoading(false);
         return;
@@ -28,19 +32,21 @@ const DashboardSettingsPage = ({ currentUser, onNavigate }) => {
     };
 
     fetchPanels();
-  }, [currentUser]);
+  }, [user]);
 
   const handleToggle = async (panelId, newVisibility) => {
-    // Optimistic update
     const originalPanels = panels;
-    setPanels(panels.map(p => p.id === panelId ? { ...p, is_visible: newVisibility } : p));
+    setPanels(
+      panels.map((p) =>
+        p.id === panelId ? { ...p, is_visible: newVisibility } : p
+      )
+    );
 
     try {
       await apiService.updateDashboardPanel(panelId, newVisibility);
     } catch (err) {
       setError('Error al actualizar el panel.');
       console.error(err);
-      // Revert optimistic update on error
       setPanels(originalPanels);
     }
   };
@@ -60,31 +66,49 @@ const DashboardSettingsPage = ({ currentUser, onNavigate }) => {
       <h2 className="text-xl font-semibold mb-4 mt-8">Gestión de Contenido</h2>
       <div className="bg-white shadow rounded-lg mb-8">
         <button
-          onClick={() => onNavigate('manage-offers')}
+          onClick={() => navigate('/manage-offers')}
           className="p-4 flex justify-between items-center w-full text-left hover:bg-gray-50"
         >
           <div>
             <p className="font-semibold">Gestionar Ofertas de Productos</p>
-            <p className="text-sm text-gray-500">Activar o desactivar productos en oferta.</p>
+            <p className="text-sm text-gray-500">
+              Activar o desactivar productos en oferta.
+            </p>
           </div>
           <ChevronRight className="w-5 h-5 text-gray-400" />
         </button>
       </div>
 
-      <h2 className="text-xl font-semibold mb-4">Visibilidad de Paneles del Dashboard</h2>
+      <h2 className="text-xl font-semibold mb-4">
+        Visibilidad de Paneles del Dashboard
+      </h2>
       <div className="bg-white shadow rounded-lg">
         <ul className="divide-y divide-gray-200">
-          {panels.map(panel => (
-            <li key={panel.id} className="p-4 flex justify-between items-center">
+          {panels.map((panel) => (
+            <li
+              key={panel.id}
+              className="p-4 flex justify-between items-center"
+            >
               <div>
-                <p className="font-semibold">{panel.subtitle || 'Sin subtítulo'}</p>
-                <p className="text-sm text-gray-500">{panel.title || 'Sin título'}</p>
+                <p className="font-semibold">
+                  {panel.subtitle || 'Sin subtítulo'}
+                </p>
+                <p className="text-sm text-gray-500">
+                  {panel.title || 'Sin título'}
+                </p>
               </div>
               <div className="flex items-center">
-                <span className={`mr-3 text-sm font-medium ${panel.is_visible ? 'text-gray-900' : 'text-gray-400'}`}>
+                <span
+                  className={`mr-3 text-sm font-medium ${
+                    panel.is_visible ? 'text-gray-900' : 'text-gray-400'
+                  }`}
+                >
                   {panel.is_visible ? 'Visible' : 'Oculto'}
                 </span>
-                <label htmlFor={`toggle-${panel.id}`} className="flex items-center cursor-pointer">
+                <label
+                  htmlFor={`toggle-${panel.id}`}
+                  className="flex items-center cursor-pointer"
+                >
                   <div className="relative">
                     <input
                       type="checkbox"

@@ -9,14 +9,14 @@ const storage = multer.diskStorage({
     // que es `backend/api/`.
     // Creamos 'backend/api/uploads/' si no existe.
     const uploadDir = 'uploads/';
-    if (!fs.existsSync(uploadDir)){
-        fs.mkdirSync(uploadDir);
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir);
     }
     cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
     cb(null, Date.now() + '-' + file.originalname);
-  }
+  },
 });
 
 const upload = multer({ storage: storage });

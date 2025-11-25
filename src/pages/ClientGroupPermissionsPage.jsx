@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import apiService from '../api/apiService';
-import './ClientGroupPermissionsPage.css';
+
 
 const ClientGroupPermissionsPage = ({ currentUser }) => {
   const [clients, setClients] = useState([]);
@@ -26,13 +26,15 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
         setIsLoading(true);
         const [clientsData, groupsData] = await Promise.all([
           apiService.getAdminUsers(),
-          apiService.getAdminProductGroups()
+          apiService.getAdminProductGroups(),
         ]);
         setClients(clientsData);
         setProductGroups(groupsData);
         setError(null);
       } catch (err) {
-        setError('Error al cargar datos iniciales. Asegúrese de tener permisos de administrador.');
+        setError(
+          'Error al cargar datos iniciales. Asegúrese de tener permisos de administrador.'
+        );
         console.error(err);
       } finally {
         setIsLoading(false);
@@ -50,7 +52,8 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
       try {
         setIsLoading(true);
         setError(null);
-        const permissionsData = await apiService.getDeniedProductGroups(selectedClient);
+        const permissionsData =
+          await apiService.getDeniedProductGroups(selectedClient);
         setClientDeniedGroups(permissionsData);
       } catch (err) {
         setError(`Error al cargar los permisos para el cliente seleccionado.`);
@@ -63,8 +66,8 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
   }, [selectedClient, currentUser]);
 
   const handleCheckboxChange = (group) => {
-    setClientDeniedGroups(prev =>
-      prev.includes(group) ? prev.filter(p => p !== group) : [...prev, group]
+    setClientDeniedGroups((prev) =>
+      prev.includes(group) ? prev.filter((p) => p !== group) : [...prev, group]
     );
   };
 
@@ -74,14 +77,19 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
       return;
     }
     if (!currentUser || !currentUser.is_admin) {
-      setError('Acceso denegado. Requiere permisos de administrador para guardar.');
+      setError(
+        'Acceso denegado. Requiere permisos de administrador para guardar.'
+      );
       return;
     }
     try {
       setIsLoading(true);
       setError(null);
       setSuccess('');
-      await apiService.updateUserGroupPermissions(selectedClient, clientDeniedGroups);
+      await apiService.updateUserGroupPermissions(
+        selectedClient,
+        clientDeniedGroups
+      );
       setSuccess('Permisos guardados con éxito.');
     } catch (err) {
       setError('Error al guardar los permisos.');
@@ -91,32 +99,50 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
     }
   };
 
-  const filteredClients = clients.filter(client =>
-    (client.full_name && client.full_name.toLowerCase().includes(userSearch.toLowerCase())) ||
-    (client.email && client.email.toLowerCase().includes(userSearch.toLowerCase())) ||
-    (client.a1_cod && client.a1_cod.toLowerCase().includes(userSearch.toLowerCase()))
+  const filteredClients = clients.filter(
+    (client) =>
+      (client.full_name &&
+        client.full_name.toLowerCase().includes(userSearch.toLowerCase())) ||
+      (client.email &&
+        client.email.toLowerCase().includes(userSearch.toLowerCase())) ||
+      (client.a1_cod &&
+        client.a1_cod.toLowerCase().includes(userSearch.toLowerCase()))
   );
 
-  const filteredProductGroups = productGroups.filter(item =>
-    (item.product_group && item.product_group.toLowerCase().includes(filterText.toLowerCase())) ||
-    (item.brand && item.brand.toLowerCase().includes(filterText.toLowerCase()))
+  const filteredProductGroups = productGroups.filter(
+    (item) =>
+      (item.product_group &&
+        item.product_group.toLowerCase().includes(filterText.toLowerCase())) ||
+      (item.brand &&
+        item.brand.toLowerCase().includes(filterText.toLowerCase()))
   );
 
   const handleSelectAllChange = (e) => {
     const isChecked = e.target.checked;
     setSelectAll(isChecked);
 
-    const filteredGroupNames = filteredProductGroups.map(item => item.product_group);
+    const filteredGroupNames = filteredProductGroups.map(
+      (item) => item.product_group
+    );
 
     if (isChecked) {
-      setClientDeniedGroups(prev => [...new Set([...prev, ...filteredGroupNames])]);
+      setClientDeniedGroups((prev) => [
+        ...new Set([...prev, ...filteredGroupNames]),
+      ]);
     } else {
-      setClientDeniedGroups(prev => prev.filter(group => !filteredGroupNames.includes(group)));
+      setClientDeniedGroups((prev) =>
+        prev.filter((group) => !filteredGroupNames.includes(group))
+      );
     }
   };
 
   useEffect(() => {
-    if (filteredProductGroups.length > 0 && filteredProductGroups.every(item => clientDeniedGroups.includes(item.product_group))) {
+    if (
+      filteredProductGroups.length > 0 &&
+      filteredProductGroups.every((item) =>
+        clientDeniedGroups.includes(item.product_group)
+      )
+    ) {
       setSelectAll(true);
     } else {
       setSelectAll(false);
@@ -132,28 +158,38 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
   }
 
   if (!currentUser || !currentUser.is_admin) {
-    return <div className="text-center p-8 text-red-500">Acceso denegado. No tiene permisos de administrador para ver esta página.</div>;
+    return (
+      <div className="text-center p-8 text-red-500">
+        Acceso denegado. No tiene permisos de administrador para ver esta
+        página.
+      </div>
+    );
   }
 
   return (
-    <div className="permissions-page">
-      <h2>Gestionar Permisos por Grupo de Producto</h2>
-      {success && <p className="success-message">{success}</p>}
-      
-      <div className="selection-container">
-        <label htmlFor="user-search">Buscar Cliente:</label>
+    <div className="p-8 max-w-4xl mx-auto bg-gray-50 rounded-lg shadow-md">
+      <h2 className="text-center mb-8 text-gray-800">Gestionar Permisos por Grupo de Producto</h2>
+      {success && <p className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">{success}</p>}
+
+      <div className="mb-8 flex flex-col items-stretch gap-3">
+        <label htmlFor="user-search" className="font-bold">Buscar Cliente:</label>
         <input
           type="text"
           id="user-search"
           value={userSearch}
-          onChange={e => setUserSearch(e.target.value)}
+          onChange={(e) => setUserSearch(e.target.value)}
           placeholder="Filtrar por nombre, email o código..."
-          className="user-search-input"
+          className="p-2 rounded border border-gray-300 w-full"
         />
-        <label htmlFor="client-select">Seleccionar Cliente:</label>
-        <select id="client-select" value={selectedClient} onChange={e => setSelectedClient(e.target.value)}>
+        <label htmlFor="client-select" className="font-bold">Seleccionar Cliente:</label>
+        <select
+          id="client-select"
+          value={selectedClient}
+          onChange={(e) => setSelectedClient(e.target.value)}
+          className="p-2 rounded border border-gray-300 w-full"
+        >
           <option value="">-- Seleccione un cliente --</option>
-          {filteredClients.map(client => (
+          {filteredClients.map((client) => (
             <option key={client.id} value={client.id}>
               {client.full_name} ({client.email})
             </option>
@@ -162,43 +198,53 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
       </div>
 
       {selectedClient && (
-        <div className="permissions-container">
-          <div className="filter-container">
-            <label htmlFor="product-group-filter">Filtrar Grupos:</label>
+        <div className="mt-4 p-6 border border-gray-200 rounded-lg bg-white">
+          <div className="mb-6 flex items-center gap-4">
+            <label htmlFor="product-group-filter" className="font-bold">Filtrar Grupos:</label>
             <input
               type="text"
               id="product-group-filter"
               value={filterText}
-              onChange={e => setFilterText(e.target.value)}
+              onChange={(e) => setFilterText(e.target.value)}
               placeholder="Filtrar por grupo o marca..."
+              className="p-2 rounded border border-gray-300 flex-grow"
             />
           </div>
-          <div className="select-all-container">
+          <div className="mb-4 flex items-center gap-2">
             <input
               type="checkbox"
               id="select-all-groups"
               checked={selectAll}
               onChange={handleSelectAllChange}
+              className="w-5 h-5"
             />
-            <label htmlFor="select-all-groups">Seleccionar todos los grupos filtrados</label>
+            <label htmlFor="select-all-groups" className="font-bold">
+              Seleccionar todos los grupos filtrados
+            </label>
           </div>
-          <h3>Grupos de Productos Denegados</h3>
-          <div className="groups-list">
-            {filteredProductGroups.map(item => (
-              <div key={item.product_group} className="group-item">
+          <h3 className="mt-0 mb-6 border-b pb-4 text-xl font-semibold text-gray-700">Grupos de Productos Denegados</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
+            {filteredProductGroups.map((item) => (
+              <div key={item.product_group} className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   id={`group-${item.product_group}`}
                   checked={clientDeniedGroups.includes(item.product_group)}
                   onChange={() => handleCheckboxChange(item.product_group)}
+                  className="w-5 h-5"
                 />
                 <label htmlFor={`group-${item.product_group}`}>
-                  {item.product_group} <span className="brand-label">({item.brand})</span>
+                  {item.product_group}{' '}
+                  <span className="text-gray-600 text-sm ml-1">({item.brand})</span>
                 </label>
               </div>
             ))}
           </div>
-          <button onClick={handleSave} disabled={isLoading}>
+          <button
+            onClick={handleSave}
+            disabled={isLoading}
+            className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
             Guardar Permisos
           </button>
         </div>

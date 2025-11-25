@@ -4,39 +4,48 @@ import apiService from '../api/apiService';
 
 const ClientesPage = () => {
   const containerStyle = {
-    padding: '20px'
+    padding: '20px',
   };
 
   const tableStyle = {
     width: '100%',
     marginTop: '20px',
-    borderCollapse: 'collapse'
+    borderCollapse: 'collapse',
   };
 
   const thTdStyle = {
     border: '1px solid #ddd',
     padding: '8px',
-    textAlign: 'left'
+    textAlign: 'left',
   };
 
   const thStyle = {
     ...thTdStyle,
-    backgroundColor: '#f2f2f2'
+    backgroundColor: '#f2f2f2',
   };
 
   // Usar React Query para obtener los clientes del vendedor
-  const { data: clients, isLoading, isError, error } = useQuery({
+  const {
+    data: clients,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ['vendedorClients'],
-    queryFn: apiService.getVendedorClients
+    queryFn: apiService.getVendedorClients,
   });
 
   return (
     <div style={containerStyle}>
       <h1>Gestión de Clientes</h1>
       <p>Aquí podrás ver, buscar y administrar tus clientes.</p>
-      
+
       {isLoading && <p>Cargando clientes...</p>}
-      {isError && <p style={{ color: 'red' }}>Error al cargar clientes: {error.message}</p>}
+      {isError && (
+        <p style={{ color: 'red' }}>
+          Error al cargar clientes: {error.message}
+        </p>
+      )}
 
       {!isLoading && !isError && (
         <table style={tableStyle}>
@@ -51,7 +60,7 @@ const ClientesPage = () => {
           </thead>
           <tbody>
             {clients && clients.length > 0 ? (
-              clients.map(client => (
+              clients.map((client) => (
                 <tr key={client.id}>
                   <td style={thTdStyle}>{client.a1_cod}</td>
                   <td style={thTdStyle}>{client.full_name}</td>

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardCard from '/src/components/DashboardCard.jsx';
 import AccessoryCarousel from '../components/AccessoryCarousel';
-import ProductGroupCarousel from '../components/ProductGroupCarousel'; // Import the new component
+import ProductGroupCarousel from '../components/ProductGroupCarousel';
 import apiService from '../api/apiService';
-import { useAuth } from '../context/AuthContext'; // Import useAuth
+import { useAuth } from '../context/AuthContext';
 import {
   ShoppingCart,
   Clock,
@@ -13,7 +14,6 @@ import {
   HelpCircle,
 } from 'lucide-react';
 
-// Mapa para convertir los nombres de los iconos de la BD a componentes
 const iconMap = {
   ShoppingCart,
   Clock,
@@ -23,9 +23,9 @@ const iconMap = {
   HelpCircle,
 };
 
-// El Contenido del Dashboard
-const Dashboard = ({ onNavigate }) => {
-  const { user } = useAuth(); // Use the useAuth hook
+const Dashboard = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -33,13 +33,12 @@ const Dashboard = ({ onNavigate }) => {
   useEffect(() => {
     const fetchPanels = async () => {
       if (!user) {
-        // No user logged in, fetch public panels
         setLoading(false);
         return;
       }
       try {
         setLoading(true);
-        const fetchedPanels = await apiService.getDashboardPanels(); // No user.id needed
+        const fetchedPanels = await apiService.getDashboardPanels();
         setCards(fetchedPanels);
         setError(null);
       } catch (err) {
@@ -51,7 +50,7 @@ const Dashboard = ({ onNavigate }) => {
     };
 
     fetchPanels();
-  }, [user]); // Depend on user to re-fetch if user changes
+  }, [user]);
 
   if (loading) {
     return <div className="text-center p-8">Cargando paneles...</div>;
@@ -68,24 +67,23 @@ const Dashboard = ({ onNavigate }) => {
           key={card.id}
           title={card.title}
           subTitle={card.subtitle}
-          icon={iconMap[card.icon] || HelpCircle} // Usa el icono del mapa o uno por defecto
+          icon={iconMap[card.icon] || HelpCircle}
           tag={card.tag}
-          bgColor="bg-gray-700" // El color es consistente
-          onClick={() => onNavigate(card.navigation_path)}
+          bgColor="bg-gray-700"
+          onClick={() => navigate(`/${card.navigation_path.startsWith('/') ? card.navigation_path.substring(1) : card.navigation_path}`)}
         />
       ))}
     </div>
   );
 };
 
-// --- Página Principal del Dashboard ---
-const DashboardPage = ({ onNavigate, onNavigateToCategory, onViewProductDetails }) => {
+const DashboardPage = () => {
   return (
     <div className="font-sans">
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
-        <Dashboard onNavigate={onNavigate} />
-        <ProductGroupCarousel onNavigateToCategory={onNavigateToCategory} />
-        <AccessoryCarousel onViewProductDetails={onViewProductDetails} />
+        <Dashboard />
+        <ProductGroupCarousel />
+        <AccessoryCarousel />
       </main>
     </div>
   );

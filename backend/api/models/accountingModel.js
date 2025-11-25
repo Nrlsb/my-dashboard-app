@@ -9,7 +9,9 @@ const { formatCurrency } = require('../utils/helpers');
  * @returns {Promise<object|null>} El usuario encontrado o null.
  */
 const findUserByCustomerCode = async (customerCod) => {
-  const result = await pool.query('SELECT id FROM users WHERE a1_cod = $1', [customerCod]);
+  const result = await pool.query('SELECT id FROM users WHERE a1_cod = $1', [
+    customerCod,
+  ]);
   return result.rows[0] || null;
 };
 
@@ -51,16 +53,16 @@ const findInvoicesByCustomerCode = async (customerCod) => {
     ORDER BY am.date DESC;
   `;
   const result = await pool.query(query, [customerCod]);
-  
+
   // Formatear para que coincida con lo que el frontend podría esperar
-  return result.rows.map(inv => ({
+  return result.rows.map((inv) => ({
     id: inv.id,
     created_at: inv.date,
     amount: -inv.debit,
     formattedAmount: formatCurrency(-inv.debit),
     description: inv.description,
     formatted_date: inv.formatted_date,
-    invoiceId: inv.order_ref
+    invoiceId: inv.order_ref,
   }));
 };
 

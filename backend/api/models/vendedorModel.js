@@ -8,7 +8,8 @@ const { pool } = require('../db');
  * @returns {Promise<object|null>}
  */
 const findVendedorByEmail = async (email) => {
-  const query = 'SELECT codigo, nombre, email, telefono, password, temp_password_hash FROM vendedores WHERE email = $1';
+  const query =
+    'SELECT codigo, nombre, email, telefono, password, temp_password_hash FROM vendedores WHERE email = $1';
   const result = await pool.query(query, [email]);
   return result.rows[0] || null;
 };
@@ -19,7 +20,10 @@ const findVendedorByEmail = async (email) => {
  * @returns {Promise<boolean>}
  */
 const clearTempPasswordHash = async (vendedorCodigo) => {
-  const result = await pool.query('UPDATE vendedores SET temp_password_hash = NULL WHERE codigo = $1', [vendedorCodigo.trim()]);
+  const result = await pool.query(
+    'UPDATE vendedores SET temp_password_hash = NULL WHERE codigo = $1',
+    [vendedorCodigo.trim()]
+  );
   return result.rowCount > 0;
 };
 

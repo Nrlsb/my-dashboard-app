@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import apiService from '../api/apiService';
-import './ProductGroupCarousel.css';
 
-const ProductGroupCarousel = ({ onNavigateToCategory }) => {
+
+const ProductGroupCarousel = () => {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const carouselRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchGroupDetails = async () => {
@@ -31,7 +33,8 @@ const ProductGroupCarousel = ({ onNavigateToCategory }) => {
     if (!carousel || loading) return;
 
     const intervalId = setInterval(() => {
-      const atEnd = carousel.scrollLeft + carousel.offsetWidth >= carousel.scrollWidth - 1;
+      const atEnd =
+        carousel.scrollLeft + carousel.offsetWidth >= carousel.scrollWidth - 1;
 
       if (atEnd) {
         carousel.scrollTo({ left: 0, behavior: 'smooth' });
@@ -44,9 +47,7 @@ const ProductGroupCarousel = ({ onNavigateToCategory }) => {
   }, [groups, loading]);
 
   const handleCardClick = (groupCode) => {
-    if (onNavigateToCategory) {
-      onNavigateToCategory(groupCode);
-    }
+    navigate(`/category/${groupCode}`);
   };
 
   if (loading) {
@@ -62,18 +63,22 @@ const ProductGroupCarousel = ({ onNavigateToCategory }) => {
   }
 
   return (
-    <div className="product-group-carousel-container">
+    <div className="relative py-4 mt-8">
       <h2 className="text-2xl font-bold mb-4 text-white">Categorías</h2>
-      <div className="product-group-carousel" ref={carouselRef}>
+      <div className="flex overflow-x-auto gap-4 pb-4" ref={carouselRef}>
         {groups.map((group) => (
           <div
             key={group.group_code}
-            className="product-group-card cursor-pointer transform hover:scale-105 transition-transform duration-200"
+            className="flex-none w-44 bg-gray-800 rounded-lg overflow-hidden cursor-pointer transition-transform duration-200 ease-in-out hover:-translate-y-1"
             onClick={() => handleCardClick(group.group_code)}
           >
-            <img src={group.image_url} alt={group.name} className="product-group-image" />
-            <div className="product-group-info">
-              <h3 className="product-group-name">{group.name}</h3>
+            <img
+              src={group.image_url}
+              alt={group.name}
+              className="w-full h-32 object-cover"
+            />
+            <div className="p-4">
+              <h3 className="text-base font-semibold text-white whitespace-nowrap overflow-hidden text-ellipsis">{group.name}</h3>
             </div>
           </div>
         ))}

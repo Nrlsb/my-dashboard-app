@@ -14,14 +14,16 @@ const getDashboardPanels = async (userId) => {
   let panels = await dashboardModel.findDashboardPanels(isAdmin);
 
   // Comprobar si el panel de ofertas debe mostrarse
-  const offersPanelIndex = panels.findIndex(panel => panel.navigation_path === 'offers');
+  const offersPanelIndex = panels.findIndex(
+    (panel) => panel.navigation_path === 'offers'
+  );
 
   if (offersPanelIndex > -1) {
     // Reutilizamos el servicio de productos para ver si hay ofertas
     const offers = await productService.fetchProtheusOffers(userId);
     if (offers.length === 0) {
       // Si no hay ofertas, filtramos el panel de la lista
-      panels = panels.filter(panel => panel.navigation_path !== 'offers');
+      panels = panels.filter((panel) => panel.navigation_path !== 'offers');
     }
   }
 
@@ -33,7 +35,9 @@ const getDashboardPanels = async (userId) => {
  */
 const getAdminDashboardPanels = async () => {
   try {
-    const result = await pool2.query('SELECT * FROM dashboard_panels ORDER BY id');
+    const result = await pool2.query(
+      'SELECT * FROM dashboard_panels ORDER BY id'
+    );
     return result.rows;
   } catch (error) {
     console.error('Error en getAdminDashboardPanels:', error);
@@ -54,13 +58,17 @@ const updateDashboardPanel = async (panelId, isVisible) => {
     `;
     const values = [isVisible, panelId];
     const result = await pool2.query(query, values);
-    
+
     if (result.rows.length === 0) {
       throw new Error('Panel no encontrado al actualizar.');
     }
-    
+
     console.log(`Visibilidad del panel ${panelId} actualizada a ${isVisible}`);
-    return { success: true, message: 'Visibilidad del panel actualizada.', panel: result.rows[0] };
+    return {
+      success: true,
+      message: 'Visibilidad del panel actualizada.',
+      panel: result.rows[0],
+    };
   } catch (error) {
     console.error('Error en updateDashboardPanel:', error);
     throw error;

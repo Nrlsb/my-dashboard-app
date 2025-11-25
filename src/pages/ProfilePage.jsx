@@ -1,11 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, Building, Save, Home, AlertTriangle, CheckCircle, Loader2, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import {
+  User,
+  Mail,
+  Phone,
+  Building,
+  Save,
+  Home,
+  AlertTriangle,
+  CheckCircle,
+  Loader2,
+  ArrowLeft,
+} from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiService from '../api/apiService.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const ProfileInput = ({ icon: Icon, label, id, ...props }) => (
   <div>
-    <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
+    <label
+      htmlFor={id}
+      className="block text-sm font-medium text-gray-700 mb-1"
+    >
       {label}
     </label>
     <div className="relative">
@@ -41,12 +57,14 @@ const LoadingSkeleton = () => (
 
 const ErrorMessage = ({ message }) => (
   <div className="flex flex-col items-center justify-center p-10 bg-white rounded-lg shadow-md">
-    <p className="text-red-500 font-semibold text-lg">Error al cargar el perfil</p>
+    <p className="text-red-500 font-semibold text-lg">
+      Error al cargar el perfil
+    </p>
     <p className="text-gray-600 mt-2">{message}</p>
   </div>
 );
 
-export default function ProfilePage({ user, onNavigate }) {
+export default function ProfilePage() {
   const [formData, setFormData] = useState({
     A1_COD: '',
     A1_LOJA: '',
@@ -56,18 +74,19 @@ export default function ProfilePage({ user, onNavigate }) {
     A1_CGC: '',
     A1_END: '',
   });
-  
+
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const { 
-    data: profileData, 
+  const {
+    data: profileData,
     isLoading: isLoadingProfile,
-    isError, 
+    isError,
     error,
-    isSuccess 
+    isSuccess,
   } = useQuery({
     queryKey: ['userProfile', user?.id],
     queryFn: () => apiService.fetchUserProfile(),
@@ -95,7 +114,7 @@ export default function ProfilePage({ user, onNavigate }) {
       setSuccessMessage('¡Perfil actualizado con éxito!');
       setErrorMessage('');
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['currentUser'] }); 
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
     },
     onError: (error) => {
       setErrorMessage(error.message || 'Error al guardar los cambios.');
@@ -120,7 +139,7 @@ export default function ProfilePage({ user, onNavigate }) {
       <div className="p-6 bg-gray-50 min-h-screen">
         <header className="mb-6 flex items-center">
           <button
-            onClick={() => onNavigate('dashboard')}
+            onClick={() => navigate('/dashboard')}
             className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
             aria-label="Volver al dashboard"
           >
@@ -128,7 +147,9 @@ export default function ProfilePage({ user, onNavigate }) {
           </button>
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Mi Perfil</h1>
-            <p className="text-gray-600">Actualiza tu información personal y de contacto.</p>
+            <p className="text-gray-600">
+              Actualiza tu información personal y de contacto.
+            </p>
           </div>
         </header>
         <div className="bg-white p-8 rounded-lg shadow-md max-w-4xl mx-auto">
@@ -139,16 +160,16 @@ export default function ProfilePage({ user, onNavigate }) {
   }
 
   if (isError) {
-    const errorMessageText = !user?.id 
-      ? "No se ha podido identificar al usuario." 
+    const errorMessageText = !user?.id
+      ? 'No se ha podido identificar al usuario.'
       : error.message;
     return (
-        <div className="p-6 bg-gray-50 min-h-screen">
-            <header className="mb-6">
-                <h1 className="text-3xl font-bold text-gray-800">Mi Perfil</h1>
-            </header>
-            <ErrorMessage message={errorMessageText} />
-        </div>
+      <div className="p-6 bg-gray-50 min-h-screen">
+        <header className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-800">Mi Perfil</h1>
+        </header>
+        <ErrorMessage message={errorMessageText} />
+      </div>
     );
   }
 
@@ -156,7 +177,7 @@ export default function ProfilePage({ user, onNavigate }) {
     <div className="p-6 bg-gray-50 min-h-screen">
       <header className="mb-6 flex items-center">
         <button
-          onClick={() => onNavigate('dashboard')}
+          onClick={() => navigate('/dashboard')}
           className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
           aria-label="Volver al dashboard"
         >
@@ -164,7 +185,9 @@ export default function ProfilePage({ user, onNavigate }) {
         </button>
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Mi Perfil</h1>
-          <p className="text-gray-600">Actualiza tu información personal y de contacto.</p>
+          <p className="text-gray-600">
+            Actualiza tu información personal y de contacto.
+          </p>
         </div>
       </header>
 
@@ -197,7 +220,7 @@ export default function ProfilePage({ user, onNavigate }) {
             onChange={handleChange}
             disabled={mutation.isPending}
           />
-          
+
           <ProfileInput
             icon={User}
             label="CUIT"
@@ -206,7 +229,7 @@ export default function ProfilePage({ user, onNavigate }) {
             onChange={handleChange}
             disabled={mutation.isPending}
           />
-          
+
           <ProfileInput
             icon={Home}
             label="Dirección"
@@ -236,14 +259,14 @@ export default function ProfilePage({ user, onNavigate }) {
               disabled={mutation.isPending}
             />
           </div>
-          
+
           {errorMessage && (
             <div className="flex items-center p-3 bg-red-100 text-red-700 rounded-md">
               <AlertTriangle className="w-5 h-5 mr-2 flex-shrink-0" />
               <span className="text-sm">{errorMessage}</span>
             </div>
           )}
-          
+
           {successMessage && (
             <div className="flex items-center p-3 bg-green-100 text-green-700 rounded-md">
               <CheckCircle className="w-5 h-5 mr-2 flex-shrink-0" />

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Tag, ArrowLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import apiService from '../api/apiService.js';
@@ -14,7 +15,9 @@ const LoadingSkeleton = () => (
 
 const ErrorMessage = ({ message }) => (
   <div className="flex flex-col items-center justify-center p-10 bg-white rounded-lg shadow-md">
-    <p className="text-red-500 font-semibold text-lg">Error al cargar las ofertas</p>
+    <p className="text-red-500 font-semibold text-lg">
+      Error al cargar las ofertas
+    </p>
     <p className="text-gray-600 mt-2">{message}</p>
   </div>
 );
@@ -28,7 +31,8 @@ const OfferCard = ({ offer }) => (
       </div>
       <p className="text-gray-600 text-sm mb-4">{offer.descripcion}</p>
       <div className="text-sm text-gray-500">
-        <span className="font-medium">Válido hasta:</span> {new Date(offer.valido_hasta).toLocaleDateString('es-AR')}
+        <span className="font-medium">Válido hasta:</span>{' '}
+        {new Date(offer.valido_hasta).toLocaleDateString('es-AR')}
       </div>
       <button className="mt-4 w-full bg-blue-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-600 transition-colors duration-200">
         Ver productos
@@ -37,14 +41,15 @@ const OfferCard = ({ offer }) => (
   </div>
 );
 
-export default function OffersPage({ onNavigate }) {
+export default function OffersPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
-  const { 
+  const {
     data: offers = [],
-    isLoading, 
-    isError, 
-    error 
+    isLoading,
+    isError,
+    error,
   } = useQuery({
     queryKey: ['offers', user?.id],
     queryFn: () => apiService.fetchOffers(),
@@ -56,8 +61,12 @@ export default function OffersPage({ onNavigate }) {
     if (!user?.id) {
       return (
         <div className="text-center py-20 bg-white rounded-lg shadow-md">
-          <h3 className="mt-4 text-lg font-medium text-gray-900">Inicia sesión para ver las ofertas</h3>
-          <p className="mt-1 text-sm text-gray-500">Necesitas estar autenticado para acceder a esta sección.</p>
+          <h3 className="mt-4 text-lg font-medium text-gray-900">
+            Inicia sesión para ver las ofertas
+          </h3>
+          <p className="mt-1 text-sm text-gray-500">
+            Necesitas estar autenticado para acceder a esta sección.
+          </p>
         </div>
       );
     }
@@ -74,8 +83,12 @@ export default function OffersPage({ onNavigate }) {
       return (
         <div className="text-center py-20 bg-white rounded-lg shadow-md">
           <Tag className="mx-auto w-16 h-16 text-gray-400" />
-          <h3 className="mt-4 text-lg font-medium text-gray-900">No hay ofertas disponibles</h3>
-          <p className="mt-1 text-sm text-gray-500">Vuelve a consultar más tarde para ver nuevas promociones.</p>
+          <h3 className="mt-4 text-lg font-medium text-gray-900">
+            No hay ofertas disponibles
+          </h3>
+          <p className="mt-1 text-sm text-gray-500">
+            Vuelve a consultar más tarde para ver nuevas promociones.
+          </p>
         </div>
       );
     }
@@ -93,18 +106,22 @@ export default function OffersPage({ onNavigate }) {
     <div className="p-6 bg-gray-50 min-h-screen">
       <header className="mb-6 flex items-center">
         <button
-          onClick={() => onNavigate('dashboard')}
+          onClick={() => navigate('/dashboard')}
           className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
           aria-label="Volver al dashboard"
         >
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Ofertas y Promociones</h1>
-          <p className="text-gray-600">Descubre los descuentos vigentes que tenemos para ti.</p>
+          <h1 className="text-3xl font-bold text-gray-800">
+            Ofertas y Promociones
+          </h1>
+          <p className="text-gray-600">
+            Descubre los descuentos vigentes que tenemos para ti.
+          </p>
         </div>
       </header>
-      
+
       {renderContent()}
     </div>
   );

@@ -17,14 +17,13 @@ const getBalance = async (userId) => {
       WHERE user_id = $1;
     `;
     const result = await pool.query(query, [userId]);
-    
+
     const balance = parseFloat(result.rows[0].total_balance);
-    
+
     return {
       balance: balance,
-      formattedBalance: formatCurrency(balance)
+      formattedBalance: formatCurrency(balance),
     };
-    
   } catch (error) {
     console.error('Error en getBalance (service):', error);
     throw error;
@@ -47,8 +46,8 @@ const getMovements = async (userId) => {
       ORDER BY date DESC, created_at DESC;
     `;
     const result = await pool.query(query, [userId]);
-    
-    const formattedMovements = result.rows.map(mov => {
+
+    const formattedMovements = result.rows.map((mov) => {
       const amount = mov.credit - mov.debit;
       return {
         ...mov,
@@ -56,9 +55,8 @@ const getMovements = async (userId) => {
         formattedAmount: formatCurrency(amount),
       };
     });
-    
+
     return formattedMovements;
-    
   } catch (error) {
     console.error('Error en getMovements (service):', error);
     throw error;

@@ -1,12 +1,12 @@
 /*
-* =================================================================
-* CONTROLADORES (Lógica de Negocio)
-* =================================================================
-*
-* Conecta la lógica de la API (rutas) con la base de datos (db).
-*
-* =================================================================
-*/
+ * =================================================================
+ * CONTROLADORES (Lógica de Negocio)
+ * =================================================================
+ *
+ * Conecta la lógica de la API (rutas) con la base de datos (db).
+ *
+ * =================================================================
+ */
 
 const { pool, pool2 } = require('./db'); // Importar el pool de conexiones
 const productService = require('./services/productService'); // (NUEVO) Importar el servicio de productos
@@ -20,60 +20,212 @@ const supportService = require('./services/supportService'); // (NUEVO) Importar
 const { getDeniedProductGroups } = require('./models/productModel'); //(NUEVO) Importar funcion de productModel
 
 // (NUEVO) Importar el servicio de email
-const { sendOrderConfirmationEmail, sendNewOrderNotificationEmail } = require('./emailService');
+const {
+  sendOrderConfirmationEmail,
+  sendNewOrderNotificationEmail,
+} = require('./emailService');
 const { generateOrderPDF, generateOrderCSV } = require('./utils/fileGenerator');
+const jwt = require('jsonwebtoken');
 
+// =================================================================
+// --- (NUEVO) Controladores de Autenticación ---
+// =================================================================
+
+const loginController = async (req, res) => {
+  console.log('POST /api/login -> Autenticando contra DB...');
+  try {
+    let email = req.body.email; // Obtener email
+    const password = req.body.password; // Obtener password
+
+    if (typeof email === 'object' && email !== null && email.email) {
+      email = email.email;
+    }
+
+    if (
+      !email ||
+      typeof email !== 'string' ||
+      email.trim() === '' ||
+      !password ||
+      typeof password !== 'string' ||
+      password.trim() === ''
+    ) {
+      return res
+        .status(400)
+        .json({ message: 'Email y contraseña son obligatorios.' });
+    }
+
+    const result = await userService.authenticateUser(email, password);
+    if (result.success) {
+      const user = result.user;
+
+      const payload = {
+        userId: user.id,
+        name: user.full_name,
+        isAdmin: user.is_admin,
+        codCliente: user.a1_cod,
+        role: user.role || 'cliente',
+        codigo: user.codigo || null,
+      };
+
+      const token = jwt.sign(payload, process.env.JWT_SECRET, {
+        expiresIn: '7d',
+      });
+
+      const userWithRole = { ...user, role: payload.role };
+
+      res.json({
+        success: true,
+        user: userWithRole,
+        token: token,
+        first_login: result.first_login,
+      });
+    } else {
+      res.status(401).json({ message: result.message });
+    }
+  } catch (error) {
+    console.error('Error en /api/login:', error);
+    res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+};
+
+const registerController = async (req, res) => {
+  console.log('POST /api/register -> Registrando nuevo usuario en DB...');
+  try {
+    const { nombre, email, password } = req.body;
+
+    if (!nombre || !email || !password) {
+      return res
+        .status(400)
+        .json({ message: 'Nombre, email y contraseña son obligatorios.' });
+    }
+
+    const newUser = await userService.registerUser(req.body);
+    res.status(201).json({ success: true, user: newUser });
+  } catch (error) {
+    console.error('Error en /api/register:', error);
+    if (error.message.includes('email ya está registrado')) {
+      return res.status(409).json({ message: error.message });
+    }
+    if (error.code === '23505') {
+      return res.status(409).json({ message: 'El email ya está registrado.' });
+    }
+    res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+};
+
+const getProfileController = async (req, res) => {
+  console.log('GET /api/profile -> Consultando perfil de usuario en DB...');
+  try {
+    // req.userId es añadido por el middleware authenticateToken
+    const profileData = await userService.getUserProfile(req.userId);
+
+    if (!profileData) {
+      return res.status(404).json({ message: 'Usuario no encontrado.' });
+    }
+
+    res.json(profileData);
+  } catch (error) {
+    console.error('Error en /api/profile (GET):', error);
+    res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+};
+
+const updateProfileController = async (req, res) => {
+  console.log('PUT /api/profile -> Actualizando perfil en DB...');
+  try {
+    const result = await userService.updateUserProfile(req.userId, req.body);
+    res.json(result);
+  } catch (error) {
+    console.error('Error en /api/profile (PUT):', error);
+    res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+};
 
 // =================================================================
 // --- (NUEVO) Autenticación y Perfil (Users Table) ---
 // =================================================================
 
 /**
- * Autentica un usuario contra la tabla 'users'
+ * (NUEVO) Autentica un usuario contra el sistema Protheus.
+ * Placeholder: Implementar lógica de autenticación Protheus aquí.
  */
-const authenticateProtheusUser = async (email, password) => {
+const authenticateProtheusUser = async (req, res) => {
+  console.log('POST /api/protheus-login -> Autenticando contra Protheus...');
   try {
-    return await userService.authenticateUser(email, password);
+    // Lógica de autenticación Protheus
+    // Por ahora, solo un placeholder
+    res.status(501).json({ message: 'Funcionalidad de autenticación Protheus no implementada.' });
   } catch (error) {
-    console.error('Error en authenticateProtheusUser (controller):', error);
-    throw error;
+    console.error('Error en authenticateProtheusUser:', error);
+    res.status(500).json({ message: 'Error interno del servidor.' });
   }
 };
 
 /**
- * Registra un nuevo usuario en la tabla 'users'
+ * (NUEVO) Registra un usuario en el sistema Protheus.
+ * Placeholder: Implementar lógica de registro Protheus aquí.
  */
-const registerProtheusUser = async (userData) => {
+const registerProtheusUser = async (req, res) => {
+  console.log('POST /api/protheus-register -> Registrando usuario en Protheus...');
   try {
-    return await userService.registerUser(userData);
+    // Lógica de registro Protheus
+    // Por ahora, solo un placeholder
+    res.status(501).json({ message: 'Funcionalidad de registro Protheus no implementada.' });
   } catch (error) {
-    console.error('Error en registerProtheusUser (controller):', error);
-    throw error;
-  }
-};
-
-
-/**
- * Obtiene los datos del perfil de un usuario
- */
-const getProfile = async (userId) => {
-  try {
-    return await userService.getUserProfile(userId);
-  } catch (error) {
-    console.error('Error en getProfile (controller):', error);
-    throw error;
+    console.error('Error en registerProtheusUser:', error);
+    res.status(500).json({ message: 'Error interno del servidor.' });
   }
 };
 
 /**
- * Actualiza los datos del perfil de un usuario
+ * (NUEVO) Obtiene el perfil de un usuario del sistema Protheus.
+ * Placeholder: Implementar lógica para obtener perfil Protheus aquí.
  */
-const updateProfile = async (userId, profileData) => {
+const getProfile = async (req, res) => {
+  console.log('GET /api/protheus-profile -> Consultando perfil Protheus...');
   try {
-    return await userService.updateUserProfile(userId, profileData);
+    // Lógica para obtener perfil Protheus
+    // Por ahora, solo un placeholder
+    res.status(501).json({ message: 'Funcionalidad de obtener perfil Protheus no implementada.' });
   } catch (error) {
-    console.error('Error en updateProfile (controller):', error);
-    throw error;
+    console.error('Error en getProfile (Protheus):', error);
+    res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+};
+
+/**
+ * (NUEVO) Actualiza el perfil de un usuario en el sistema Protheus.
+ * Placeholder: Implementar lógica para actualizar perfil Protheus aquí.
+ */
+const updateProfile = async (req, res) => {
+  console.log('PUT /api/protheus-profile -> Actualizando perfil Protheus...');
+  try {
+    // Lógica para actualizar perfil Protheus
+    // Por ahora, solo un placeholder
+    res.status(501).json({ message: 'Funcionalidad de actualizar perfil Protheus no implementada.' });
+  } catch (error) {
+    console.error('Error en updateProfile (Protheus):', error);
+    res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+};
+
+// =================================================================
+// --- Cuenta Corriente (Movements Table) ---
+// =================================================================
+
+/**
+ * (NUEVO) Obtiene el saldo de un usuario del sistema Protheus.
+ * Placeholder: Implementar lógica para obtener saldo Protheus aquí.
+ */
+const fetchProtheusBalance = async (req, res) => {
+  console.log('GET /api/protheus-balance -> Consultando saldo Protheus...');
+  try {
+    // Lógica para obtener saldo Protheus
+    // Por ahora, solo un placeholder
+    res.status(501).json({ message: 'Funcionalidad de obtener saldo Protheus no implementada.' });
+  } catch (error) {
+    console.error('Error en fetchProtheusBalance:', error);
+    res.status(500).json({ message: 'Error interno del servidor.' });
   }
 };
 
@@ -87,7 +239,9 @@ const getVendedorClientsController = async (req, res) => {
     const { user } = req;
 
     if (!user || user.role !== 'vendedor' || !user.codigo) {
-      return res.status(403).json({ message: 'Acceso denegado. Se requiere rol de vendedor.' });
+      return res
+        .status(403)
+        .json({ message: 'Acceso denegado. Se requiere rol de vendedor.' });
     }
 
     const clients = await userService.getVendedorClients(user.codigo);
@@ -98,63 +252,18 @@ const getVendedorClientsController = async (req, res) => {
   }
 };
 
-
 // =================================================================
 // --- Cuenta Corriente (Movements Table) ---
 // =================================================================
 
-/**
- * Obtiene el saldo total (SUMA) de los movimientos de un usuario
- */
-const fetchProtheusBalance = async (userId) => {
-  try {
-    return await movementService.getBalance(userId);
-  } catch (error) {
-    console.error('Error en fetchProtheusBalance (controller):', error);
-    throw error;
-  }
-};
 
 
-/**
- * Obtiene el historial de movimientos de un usuario
- */
-const fetchProtheusMovements = async (userId) => {
-  try {
-    return await movementService.getMovements(userId);
-  } catch (error) {
-    console.error('Error en fetchProtheusMovements (controller):', error);
-    throw error;
-  }
-};
+
 
 // =================================================================
 // --- (NUEVO) Administración de Cuenta Corriente ---
 // =================================================================
 
-/**
- * (Admin) Crea una Nota de Crédito (NC) para un cliente
- */
-const createCreditNote = async (targetUserCod, reason, items, invoiceRefId, adminUserId) => {
-  try {
-    return await accountingService.createCreditNote(targetUserCod, reason, items, invoiceRefId, adminUserId);
-  } catch (error) {
-    console.error('Error en createCreditNote (controller):', error);
-    throw error;
-  }
-};
-
-/**
- * (Admin) Busca facturas de un cliente (para referencia de NC)
- */
-const fetchCustomerInvoices = async (customerCod) => {
-  try {
-    return await accountingService.fetchCustomerInvoices(customerCod);
-  } catch (error) {
-    console.error(`Error en fetchCustomerInvoices (controller) para ${customerCod}:`, error);
-    throw error;
-  }
-};
 
 
 
@@ -163,45 +272,11 @@ const fetchCustomerInvoices = async (customerCod) => {
 // --- Pedidos (Orders Tables) ---
 // =================================================================
 
-/**
- * Obtiene el historial de pedidos de un usuario
- */
-const fetchProtheusOrders = async (user) => { // Cambiar userId a user
-  try {
-    return await orderService.fetchOrders(user); // Pasar user completo
-  } catch (error) {
-    console.error('Error en fetchProtheusOrders (controller):', error);
-    throw error;
-  }
-};
-
-/**
- * Obtiene los detalles (incluyendo items) de un pedido específico de un usuario
- */
-const fetchProtheusOrderDetails = async (orderId, user) => {
-  try {
-    return await orderService.fetchOrderDetails(orderId, user);
-  } catch (error) {
-    console.error(`Error en fetchProtheusOrderDetails (controller) para ID ${orderId}:`, error);
-    throw error;
-  }
-};
 
 
-/**
- * Guarda un nuevo pedido (y sus items) en la base de datos
- */
-const saveProtheusOrder = async (orderData, userId) => {
-  try {
-    // La lógica compleja ahora está en el servicio
-    const result = await orderService.createOrder(orderData, userId);
-    return result;
-  } catch (error) {
-    // El servicio ya loguea los errores internos, aquí solo relanzamos
-    console.error('Error en el controlador saveProtheusOrder:', error.message);
-    throw error;
-  }
-};
+
+
+
 
 /**
  * Actualiza los detalles de múltiples pedidos (número de pedido de venta del vendedor y estado de confirmación).
@@ -217,130 +292,410 @@ const updateOrderDetailsController = async (req, res) => {
   }
 };
 
+const getProductsController = async (req, res) => {
+  console.log('GET /api/products -> Consultando productos en DB (paginado)...');
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      search = '',
+      brand = '',
+      moneda = '0',
+    } = req.query;
+    const data = await productService.fetchProducts({
+      page,
+      limit,
+      search,
+      brand,
+      moneda,
+      userId: req.userId, // req.userId es opcional aquí
+    });
+    res.json(data);
+  } catch (error) {
+    console.error('Error en /api/products:', error);
+    res.status(500).json({ message: 'Error al obtener productos.' });
+  }
+};
+
+const getProductsByGroupController = async (req, res) => {
+  console.log(
+    `GET /api/products/group/${req.params.groupCode} -> Consultando productos por grupo...`
+  );
+  try {
+    const { groupCode } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+    const data = await productService.fetchProductsByGroup(
+      groupCode,
+      page,
+      limit,
+      req.userId // Opcional
+    );
+    res.json(data);
+  } catch (error) {
+    console.error(
+      `Error en /api/products/group/${req.params.groupCode}:`,
+      error
+    );
+    res
+      .status(500)
+      .json({ message: 'Error al obtener productos por grupo.' });
+  }
+};
+
+const getBrandsController = async (req, res) => {
+  console.log('GET /api/brands -> Consultando lista de marcas...');
+  try {
+    const brands = await productService.fetchProtheusBrands(req.userId);
+    res.json(brands);
+  } catch (error) {
+    console.error('Error en /api/brands:', error);
+    res.status(500).json({ message: 'Error al obtener marcas.' });
+  }
+};
+
+const getOffersController = async (req, res) => {
+  console.log('GET /api/offers -> Consultando ofertas en DB...');
+  try {
+    const offers = await productService.fetchProtheusOffers(req.userId);
+    res.json(offers);
+  } catch (error) {
+    console.error('Error en /api/offers:', error);
+    res.status(500).json({ message: 'Error al obtener ofertas.' });
+  }
+};
+
+const getProductByIdController = async (req, res) => {
+  const productId = req.params.id;
+  console.log(
+    `GET /api/products/${productId} -> Consultando producto individual...`
+  );
+  try {
+    const product = await productService.fetchProductDetails(
+      productId,
+      req.userId // Opcional
+    );
+    if (product) {
+      res.json(product);
+    } else {
+      res.status(404).json({ message: 'Producto no encontrado.' });
+    }
+  } catch (error) {
+    console.error(`Error en /api/products/${productId}:`, error);
+    res.status(500).json({ message: 'Error al obtener el producto.' });
+  }
+};
+
+const getOrdersController = async (req, res) => {
+  console.log('GET /api/orders -> Consultando pedidos en DB...');
+  try {
+    const orders = await orderService.fetchOrders(req.user);
+    res.json(orders);
+  } catch (error) {
+    console.error('Error en /api/orders:', error);
+    res.status(500).json({ message: 'Error al obtener pedidos.' });
+  }
+};
+
+const createOrderController = async (req, res) => {
+  console.log(
+    'POST /api/orders -> Guardando nuevo pedido/presupuesto en DB...'
+  );
+  try {
+    const { userId, ...orderData } = req.body;
+    const result = await orderService.createOrder(orderData, req.userId);
+    res.json(result);
+  } catch (error) {
+    console.error('Error en POST /api/orders:', error);
+    res.status(500).json({ message: 'Error al guardar el pedido.' });
+  }
+};
+
+const getOrderByIdController = async (req, res) => {
+  console.log(
+    `GET /api/orders/${req.params.id} -> Consultando detalles en DB...`
+  );
+  try {
+    const orderId = req.params.id;
+    const orderDetails = await orderService.fetchOrderDetails(
+      orderId,
+      req.user
+    );
+    if (orderDetails) {
+      res.json(orderDetails);
+    } else {
+      res.status(404).json({ message: 'Pedido no encontrado.' });
+    }
+  } catch (error) {
+    console.error(`Error en /api/orders/${req.params.id}:`, error);
+    res
+      .status(500)
+      .json({
+        message: error.message || 'Error al obtener detalles del pedido.',
+      });
+  }
+};
+
+const downloadOrderPdfController = async (req, res) => {
+  console.log(`GET /api/orders/${req.params.id}/pdf -> Generando PDF...`);
+  try {
+    const orderId = req.params.id;
+    const pdfBuffer = await orderService.downloadOrderPdf(orderId, req.user);
+
+    if (pdfBuffer) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename=Pedido_${orderId}.pdf`
+      );
+      res.send(pdfBuffer);
+    } else {
+      res
+        .status(404)
+        .json({ message: 'Pedido no encontrado o no le pertenece.' });
+    }
+  } catch (error) {
+    console.error(`Error en /api/orders/${req.params.id}/pdf:`, error);
+    const isNotFound = error.message.includes('Pedido no encontrado');
+    res
+      .status(isNotFound ? 404 : 500)
+      .json({
+        message: error.message || 'Error al generar el PDF del pedido.',
+      });
+  }
+};
+
+const getExchangeRatesController = async (req, res) => {
+  console.log(
+    'GET /api/exchange-rates -> Consultando cotizaciones del dólar...'
+  );
+  try {
+    const rates = await require('../utils/exchangeRateService').getExchangeRates();
+    res.json(rates);
+  } catch (error) {
+    console.error('Error en /api/exchange-rates:', error);
+    res.status(500).json({ message: 'Error al obtener las cotizaciones.' });
+  }
+};
+
+const createProtheusQueryController = async (req, res) => {
+  console.log('POST /api/queries -> Guardando consulta en DB...');
+  try {
+    const { userId, ...queryData } = req.body;
+    const result = await supportService.saveProtheusQuery(queryData, req.userId);
+    res.json(result);
+  } catch (error) {
+    console.error('Error en /api/queries:', error);
+    res.status(500).json({ message: 'Error al enviar la consulta.' });
+  }
+};
+
+const uploadVoucherController = async (req, res) => {
+  console.log(
+    'POST /api/upload-voucher -> Archivo recibido, guardando en DB...'
+  );
+  try {
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({ message: 'No se recibió ningún archivo.' });
+    }
+
+    const fileInfo = {
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      path: req.file.path,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+    };
+
+    const result = await supportService.saveProtheusVoucher(
+      fileInfo,
+      req.userId
+    );
+    res.json({ success: true, fileInfo: result });
+  } catch (error) {
+    console.error('Error en /api/upload-voucher:', error);
+    res.status(500).json({ message: 'Error al procesar el archivo.' });
+  }
+};
+
+const getDashboardPanelsController = async (req, res) => {
+  console.log('GET /api/dashboard-panels -> Consultando paneles visibles...');
+  try {
+    const panels = await dashboardService.getDashboardPanels(req.userId);
+    res.json(panels);
+  } catch (error) {
+    console.error('Error en /api/dashboard-panels:', error);
+    res
+      .status(500)
+      .json({ message: 'Error al obtener los paneles del dashboard.' });
+  }
+};
+
+const createCreditNoteController = async (req, res) => {
+  console.log(`POST /api/credit-note -> Admin ${req.userId} creando NC...`);
+  try {
+    const { targetUserCod, reason, items, invoiceRefId } = req.body;
+    const adminUserId = req.userId;
+
+    if (
+      !targetUserCod ||
+      !reason ||
+      !items ||
+      !invoiceRefId ||
+      !Array.isArray(items) ||
+      items.length === 0
+    ) {
+      return res
+        .status(400)
+        .json({
+          message:
+            'Faltan campos: targetUserCod, reason, invoiceRefId, y un array de items son obligatorios.',
+        });
+    }
+
+    const result = await accountingService.createCreditNote(
+      targetUserCod,
+      reason,
+      items,
+      invoiceRefId,
+      adminUserId
+    );
+    res.json(result);
+  } catch (error) {
+    console.error('Error en /api/credit-note:', error);
+    res
+      .status(500)
+      .json({ message: error.message || 'Error interno del servidor.' });
+  }
+};
+
+const getCustomerInvoicesController = async (req, res) => {
+  console.log(
+    `GET /api/customer-invoices/${req.params.cod} -> Buscando facturas...`
+  );
+  try {
+    const customerCod = req.params.cod;
+    const invoices = await accountingService.fetchCustomerInvoices(customerCod);
+    res.json(invoices);
+  } catch (error) {
+    console.error('Error en /api/customer-invoices:', error);
+    res
+      .status(error.message.includes('no existe') ? 404 : 500)
+      .json({ message: error.message });
+  }
+};
+
+const getDeniedProductGroupsByUserController = async (req, res) => {
+  const { userId } = req.params;
+  console.log(
+    `GET /api/admin/users/${userId}/product-groups -> Admin ${req.userId} fetching permissions...`
+  );
+  try {
+    const permissions = await getDeniedProductGroups(userId);
+    res.json(permissions);
+  } catch (error) {
+    console.error(
+      `Error in /api/admin/users/${userId}/product-groups:`,
+      error
+    );
+    res
+      .status(500)
+      .json({ message: 'Error al obtener los permisos del usuario.' });
+  }
+};
+
+const getAdminDashboardPanelsController = async (req, res) => {
+  console.log(
+    'GET /api/admin/dashboard-panels -> Admin consultando todos los paneles...'
+  );
+  try {
+    const panels = await dashboardService.getAdminDashboardPanels();
+    res.json(panels);
+  } catch (error) {
+    console.error('Error en /api/admin/dashboard-panels:', error);
+    res
+      .status(500)
+      .json({
+        message: 'Error al obtener los paneles del dashboard para admin.',
+      });
+  }
+};
+
+const updateDashboardPanelController = async (req, res) => {
+  const panelId = req.params.id;
+  const { is_visible } = req.body;
+  console.log(
+    `PUT /api/admin/dashboard-panels/${panelId} -> Admin actualizando visibilidad...`
+  );
+  try {
+    if (typeof is_visible !== 'boolean') {
+      return res
+        .status(400)
+        .json({
+          message:
+            'El campo is_visible es obligatorio y debe ser un booleano.',
+        });
+    }
+    const result = await dashboardService.updateDashboardPanel(
+      panelId,
+      is_visible
+    );
+    res.json(result);
+  } catch (error) {
+    console.error(`Error en /api/admin/dashboard-panels/${panelId}:`, error);
+    res
+      .status(500)
+      .json({ message: 'Error al actualizar el panel del dashboard.' });
+  }
+};
+
+const getBalanceController = async (req, res) => {
+  console.log('GET /api/balance -> Consultando saldo en DB...');
+  try {
+    const balanceData = await movementService.getBalance(req.userId);
+    res.json(balanceData);
+  } catch (error) {
+    console.error('Error en /api/balance:', error);
+    res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+};
+
+const getMovementsController = async (req, res) => {
+  console.log('GET /api/movements -> Consultando movimientos en DB...');
+  try {
+    const movementsData = await movementService.getMovements(req.userId);
+    res.json(movementsData);
+  } catch (error) {
+    console.error('Error en /api/movements:', error);
+    res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+};
+
 // =================================================================
 // --- Productos y Ofertas (Products Table) ---
 // =================================================================
 
-/**
- * Obtiene la lista de productos (paginada y con búsqueda)
- */
-const fetchProtheusProducts = async (page = 1, limit = 20, search = '', brand = '', userId = null) => {
-  console.log(`[DEBUG] fetchProtheusProducts llamado con: page=${page}, limit=${limit}, search='${search}', brand='${brand}', userId=${userId}`);
-  try {
-    const result = await productService.fetchProducts({ page, limit, search, brand, userId });
-    return result;
-  } catch (error) {
-    console.error('[DEBUG] Error en fetchProtheusProducts (controller):', error);
-    throw error;
-  }
-};
-
-/**
- * (NUEVO) Obtiene el detalle de un solo producto
- */
-const fetchProductDetails = async (productId, userId = null) => {
-  try {
-    const productDetails = await productService.fetchProductDetails(productId, userId);
-    return productDetails;
-  } catch (error) {
-    console.error(`Error en fetchProductDetails (controller) para ID ${productId}:`, error);
-    throw error;
-  }
-};
 
 
-/**
- * Obtiene la lista de marcas únicas
- */
-const fetchProtheusBrands = async (userId = null) => {
-  try {
-    const brands = await productService.fetchProtheusBrands(userId);
-    return brands;
-  } catch (error) {
-    console.error('Error en fetchProtheusBrands (controller):', error);
-    throw error;
-  }
-};
 
-/**
- * Obtiene la lista de ofertas (ej. productos con descuento)
- */
-const fetchProtheusOffers = async (userId = null) => {
-  try {
-    return await productService.fetchProtheusOffers(userId);
-  } catch (error) {
-    console.error('Error en fetchProtheusOffers (controller):', error);
-    throw error;
-  }
-};
+
+
+
 
 // =================================================================
 // --- Consultas y Carga de Archivos ---
 // =================================================================
 
-/**
- * Guarda una nueva consulta de un usuario
- */
-const saveProtheusQuery = async (queryData, userId) => {
-  try {
-    return await supportService.saveProtheusQuery(queryData, userId);
-  } catch (error) {
-    console.error('Error en saveProtheusQuery (controller):', error);
-    throw error;
-  }
-};
 
-/**
- * Guarda la información de un comprobante subido
- */
-const saveProtheusVoucher = async (fileInfo, userId) => {
-  try {
-    return await supportService.saveProtheusVoucher(fileInfo, userId);
-  } catch (error) {
-    console.error('Error en saveProtheusVoucher (controller):', error);
-    throw error;
-  }
-};
 
-// =================================================================
-// --- (NUEVO) Dashboard Panels ---
-// =================================================================
 
-/**
- * Obtiene los paneles del dashboard para un usuario específico.
- */
-const getDashboardPanels = async (userId) => {
-  try {
-    return await dashboardService.getDashboardPanels(userId);
-  } catch (error) {
-    console.error('Error en getDashboardPanels (controller):', error);
-    throw error;
-  }
-};
 
-/**
- * Obtiene los paneles del dashboard para administradores.
- */
-const getAdminDashboardPanels = async () => {
-  try {
-    return await dashboardService.getAdminDashboardPanels();
-  } catch (error) {
-    console.error('Error en getAdminDashboardPanels (controller):', error);
-    throw error;
-  }
-};
 
-/**
- * Actualiza un panel del dashboard.
- */
-const updateDashboardPanel = async (panelId, updates) => {
-  try {
-    return await dashboardService.updateDashboardPanel(panelId, updates);
-  } catch (error) {
-    console.error('Error en updateDashboardPanel (controller):', error);
-    throw error;
-  }
-};
+
+
+
+
 
 /**
  * Obtiene los accesorios.
@@ -366,37 +721,15 @@ const getProductGroupsDetails = async (req, res) => {
     res.json(groupDetails);
   } catch (error) {
     console.error('Error en getProductGroupsDetails (controller):', error);
-    res.status(500).json({ message: 'Error al obtener detalles de grupos de productos' });
+    res
+      .status(500)
+      .json({ message: 'Error al obtener detalles de grupos de productos' });
   }
 };
 
-/**
- * Obtiene productos por grupo.
- */
-const fetchProductsByGroup = async (groupCode, page, limit, userId) => {
-  try {
-    const result = await productService.fetchProductsByGroup(groupCode, page, limit, userId);
-    return result;
-  } catch (error) {
-    console.error('Error en fetchProductsByGroup (controller):', error);
-    throw error;
-  }
-};
 
-/**
- * Genera el PDF de un pedido.
- * @param {number} orderId - El ID del pedido.
- * @param {object} user - El objeto de usuario autenticado.
- * @returns {Promise<Buffer>} - El contenido del PDF como un buffer.
- */
-const downloadOrderPDF = async (orderId, user) => {
-  try {
-    return await orderService.downloadOrderPdf(orderId, user);
-  } catch (error) {
-    console.error(`Error en downloadOrderPDF (controller) para pedido ${orderId}:`, error);
-    throw error;
-  }
-};
+
+
 
 /**
  * Genera y envía el CSV de un pedido.
@@ -412,16 +745,25 @@ const downloadOrderCsvController = async (req, res) => {
 
     if (csvBuffer) {
       res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename=Pedido_${orderId}.csv`);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename=Pedido_${orderId}.csv`
+      );
       res.send(csvBuffer);
     } else {
       // La lógica de permisos ya está en el servicio, así que esto es un fallback.
-      res.status(404).json({ message: 'Pedido no encontrado o no le pertenece.' });
+      res
+        .status(404)
+        .json({ message: 'Pedido no encontrado o no le pertenece.' });
     }
   } catch (error) {
     console.error(`Error en /api/orders/${req.params.id}/csv:`, error);
     const isNotFound = error.message.includes('Pedido no encontrado');
-    res.status(isNotFound ? 404 : 500).json({ message: error.message || 'Error al generar el CSV del pedido.' });
+    res
+      .status(isNotFound ? 404 : 500)
+      .json({
+        message: error.message || 'Error al generar el CSV del pedido.',
+      });
   }
 };
 
@@ -457,7 +799,10 @@ const updateUserGroupPermissions = async (req, res) => {
   try {
     const { userId } = req.params;
     const { groups } = req.body;
-    const result = await adminService.updateUserGroupPermissions(userId, groups);
+    const result = await adminService.updateUserGroupPermissions(
+      userId,
+      groups
+    );
     res.json(result);
   } catch (error) {
     console.error('Error en updateUserGroupPermissions controller:', error);
@@ -498,24 +843,24 @@ const removeAdmin = async (req, res) => {
 };
 
 const getProductGroupsForAdmin = async (req, res) => {
-    try {
-        const result = await pool.query(`SELECT DISTINCT product_group, brand FROM products WHERE product_group IS NOT NULL AND product_group != '' ORDER BY product_group ASC;`);
-        res.json(result.rows);
-    } catch (error) {
-        console.error('Error en getProductGroupsForAdmin:', error);
-        res.status(500).json({ message: 'Error interno' });
-    }
+  try {
+    const result = await adminService.getProductGroupsForAdmin();
+    res.json(result);
+  } catch (error) {
+    console.error('Error en getProductGroupsForAdmin (controller):', error);
+    res.status(500).json({ message: 'Error interno del servidor.' });
+  }
 };
 
 const toggleProductOfferStatus = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const result = await productService.toggleProductOfferStatus(id);
-        res.json(result);
-    } catch (error) {
-        console.error('Error en toggleProductOfferStatus:', error);
-        res.status(500).json({ message: error.message });
-    }
+  try {
+    const { id } = req.params;
+    const result = await productService.toggleProductOfferStatus(id);
+    res.json(result);
+  } catch (error) {
+    console.error('Error en toggleProductOfferStatus:', error);
+    res.status(500).json({ message: error.message });
+  }
 };
 
 /**
@@ -528,44 +873,65 @@ const changePasswordController = async (req, res) => {
     const { newPassword } = req.body;
 
     if (!newPassword) {
-      return res.status(400).json({ message: 'La nueva contraseña es obligatoria.' });
+      return res
+        .status(400)
+        .json({ message: 'La nueva contraseña es obligatoria.' });
     }
 
-    const result = await userService.changePassword(userId, newPassword, userRole);
+    const result = await userService.changePassword(
+      userId,
+      newPassword,
+      userRole
+    );
     res.json(result);
-
   } catch (error) {
     console.error('Error en changePasswordController:', error);
-    res.status(500).json({ message: error.message || 'Error interno al cambiar la contraseña.' });
+    res
+      .status(500)
+      .json({
+        message: error.message || 'Error interno al cambiar la contraseña.',
+      });
+  }
+};
+
+
+/**
+ * (NUEVO) Obtiene todos los clientes registrados en el sistema.
+ * Solo accesible para administradores.
+ */
+const getAllClientsController = async (req, res) => {
+  try {
+    console.log('GET /api/admin/clients -> Admin consultando todos los clientes...');
+    // No se filtra por vendedor_codigo, se obtienen todos.
+    const clients = await userService.getAllClients();
+    res.json(clients);
+  } catch (error) {
+    console.error('Error en getAllClientsController:', error);
+    res.status(500).json({ message: 'Error interno al obtener todos los clientes.' });
   }
 };
 
 module.exports = {
+  loginController,
+  registerController,
+  getProfileController,
+  updateProfileController,
   authenticateProtheusUser,
   registerProtheusUser,
   getProfile,
   updateProfile,
   getVendedorClientsController,
   fetchProtheusBalance,
-  fetchProtheusMovements,
-  createCreditNote,
-  fetchCustomerInvoices,
-  fetchProtheusOrders,
-  fetchProtheusOrderDetails,
-  saveProtheusOrder,
-  fetchProtheusProducts,
-  fetchProductDetails,
-  fetchProtheusBrands,
-  fetchProtheusOffers,
-  saveProtheusQuery,
-  saveProtheusVoucher,
-  getDashboardPanels,
-  getAdminDashboardPanels,
-  updateDashboardPanel,
+
+
+
+
+
+
+
   getAccessories,
   getProductGroupsDetails,
-  fetchProductsByGroup,
-  downloadOrderPDF,
+
   downloadOrderCsvController,
   getDeniedProductGroups,
   fetchAdminOrderDetails,
@@ -578,4 +944,25 @@ module.exports = {
   toggleProductOfferStatus,
   changePasswordController,
   updateOrderDetailsController,
+  getProductsController,
+  getProductsByGroupController,
+  getBrandsController,
+  getOffersController,
+  getProductByIdController,
+  getOrdersController,
+  createOrderController,
+  getOrderByIdController,
+  downloadOrderPdfController,
+  getExchangeRatesController,
+  createProtheusQueryController,
+  uploadVoucherController,
+  getDashboardPanelsController,
+  createCreditNoteController,
+  getCustomerInvoicesController,
+  getDeniedProductGroupsByUserController,
+  getAdminDashboardPanelsController,
+  updateDashboardPanelController,
+  getBalanceController,
+  getMovementsController,
+  getAllClientsController, // Add the new controller to the exports
 };

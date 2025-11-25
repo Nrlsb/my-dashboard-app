@@ -1,9 +1,19 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useParams, useNavigate } from 'react-router-dom';
 import apiService from '../api/apiService.js';
 import { useCart } from '../context/CartContext.jsx';
-import { useAuth } from "../context/AuthContext.jsx";
-import { ArrowLeft, Package, DollarSign, CheckCircle, AlertTriangle, Loader2, ShoppingCart, Info } from 'lucide-react';
+import { useAuth } from '../context/AuthContext.jsx';
+import {
+  ArrowLeft,
+  Package,
+  DollarSign,
+  CheckCircle,
+  AlertTriangle,
+  Loader2,
+  ShoppingCart,
+  Info,
+} from 'lucide-react';
 
 // Formateador de moneda
 const formatCurrency = (amount) => {
@@ -33,18 +43,27 @@ const LoadingSkeleton = () => (
 const ErrorMessage = ({ message }) => (
   <div className="flex flex-col items-center justify-center p-10 bg-white rounded-lg shadow-md">
     <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
-    <p className="text-red-500 font-semibold text-lg">Error al cargar el producto</p>
+    <p className="text-red-500 font-semibold text-lg">
+      Error al cargar el producto
+    </p>
     <p className="text-gray-600 mt-2">{message}</p>
   </div>
 );
 
-export default function ProductDetailPage({ productId, onNavigate }) {
+export default function ProductDetailPage() {
+  const { productId } = useParams();
+  const navigate = useNavigate();
   const { addToCart } = useCart();
   const { user } = useAuth();
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
 
-  const { data: product, isLoading, isError, error } = useQuery({
+  const {
+    data: product,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ['product', productId, user?.id],
     queryFn: () => apiService.fetchProductById(productId),
     enabled: !!productId,
@@ -75,29 +94,39 @@ export default function ProductDetailPage({ productId, onNavigate }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="flex items-center justify-center bg-gray-100 rounded-lg h-80 md:h-96">
             <Package className="w-24 h-24 text-gray-400" />
-            <span className="absolute text-gray-500 text-sm">Imagen de producto</span>
+            <span className="absolute text-gray-500 text-sm">
+              Imagen de producto
+            </span>
           </div>
 
           <div className="flex flex-col justify-center space-y-4">
-            <span className="text-sm font-medium text-blue-600 uppercase">{product.brand || 'Marca'}</span>
+            <span className="text-sm font-medium text-blue-600 uppercase">
+              {product.brand || 'Marca'}
+            </span>
             <h2 className="text-3xl font-bold text-gray-900">{product.name}</h2>
-            
+
             <div className="flex items-center">
-              <span className="text-sm text-gray-500">(Sin calificaciones)</span>
+              <span className="text-sm text-gray-500">
+                (Sin calificaciones)
+              </span>
             </div>
 
-            <p className="text-4xl font-extrabold text-gray-800">{formatCurrency(product.price)}</p>
+            <p className="text-4xl font-extrabold text-gray-800">
+              {formatCurrency(product.price)}
+            </p>
 
             <p className="text-gray-600 leading-relaxed">
-              {product.capacity_description || 'Detalles del producto no disponibles.'} 
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+              {product.capacity_description ||
+                'Detalles del producto no disponibles.'}
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
+              eiusmod tempor incididunt ut labore et dolore magna aliqua.
             </p>
 
             <div className="flex items-center space-x-4">
               <span className="font-medium text-gray-700">Cantidad:</span>
               <div className="flex items-center border border-gray-300 rounded-lg">
                 <button
-                  onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                   className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-l-lg"
                 >
                   -
@@ -105,12 +134,14 @@ export default function ProductDetailPage({ productId, onNavigate }) {
                 <input
                   type="number"
                   value={quantity}
-                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                  onChange={(e) =>
+                    setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))
+                  }
                   className="w-16 text-center border-none focus:ring-0"
                   min="1"
                 />
                 <button
-                  onClick={() => setQuantity(q => q + 1)}
+                  onClick={() => setQuantity((q) => q + 1)}
                   className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-r-lg"
                 >
                   +
@@ -138,10 +169,12 @@ export default function ProductDetailPage({ productId, onNavigate }) {
                 </span>
               )}
             </button>
-            
+
             <div className="flex items-center text-sm text-gray-500">
-                <Info className="w-4 h-4 mr-2" />
-                <span>Cód: {product.code} | Stock: {product.stock}</span>
+              <Info className="w-4 h-4 mr-2" />
+              <span>
+                Cód: {product.code} | Stock: {product.stock}
+              </span>
             </div>
           </div>
         </div>
@@ -153,17 +186,19 @@ export default function ProductDetailPage({ productId, onNavigate }) {
     <div className="p-6 bg-gray-50 min-h-screen">
       <header className="mb-6 flex items-center">
         <button
-          onClick={() => onNavigate('new-order')}
+          onClick={() => navigate(-1)}
           className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
-          aria-label="Volver a Nuevo Pedido"
+          aria-label="Volver"
         >
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Detalle del Producto</h1>
+          <h1 className="text-3xl font-bold text-gray-800">
+            Detalle del Producto
+          </h1>
         </div>
       </header>
-      
+
       {renderContent()}
     </div>
   );

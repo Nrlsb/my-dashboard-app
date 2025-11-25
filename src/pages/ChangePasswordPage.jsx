@@ -31,7 +31,9 @@ const ChangePasswordPage = () => {
     try {
       const result = await apiService.changePassword(newPassword);
       if (result.success) {
-        setSuccess('Contraseña actualizada con éxito. Serás desconectado para que inicies sesión nuevamente.');
+        setSuccess(
+          'Contraseña actualizada con éxito. Serás desconectado para que inicies sesión nuevamente.'
+        );
         setTimeout(() => {
           logout(); // Desloguear al usuario para que inicie sesión con la nueva contraseña
         }, 3000);
@@ -50,18 +52,25 @@ const ChangePasswordPage = () => {
     <div className="flex items-center justify-center min-h-screen bg-gray-100 font-sans">
       <div className="w-full max-w-sm p-8 space-y-6 bg-white rounded-lg shadow-xl">
         <div className="text-center">
-          <span className="text-3xl font-bold text-red-600">Pintureria Mercurio</span>
+          <span className="text-3xl font-bold text-red-600">
+            Pintureria Mercurio
+          </span>
         </div>
-        
-        <h2 className="text-2xl font-bold text-center text-gray-800">Establecer Nueva Contraseña</h2>
+
+        <h2 className="text-2xl font-bold text-center text-gray-800">
+          Establecer Nueva Contraseña
+        </h2>
         <p className="text-sm text-center text-gray-600">
-          Este es tu primer inicio de sesión. Por favor, establece una contraseña permanente.
+          Este es tu primer inicio de sesión. Por favor, establece una
+          contraseña permanente.
         </p>
-        
+
         <form className="space-y-6" onSubmit={handleSubmit}>
-          
           <div>
-            <label htmlFor="new-password" aname="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="new-password"
+              aname="block text-sm font-medium text-gray-700"
+            >
               Nueva Contraseña
             </label>
             <div className="relative mt-1">
@@ -80,9 +89,12 @@ const ChangePasswordPage = () => {
               />
             </div>
           </div>
-          
+
           <div>
-            <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="confirm-password"
+              className="block text-sm font-medium text-gray-700"
+            >
               Confirmar Contraseña
             </label>
             <div className="relative mt-1">
@@ -101,9 +113,11 @@ const ChangePasswordPage = () => {
               />
             </div>
           </div>
-          
+
           {error && <p className="text-sm text-center text-red-600">{error}</p>}
-          {success && <p className="text-sm text-center text-green-600">{success}</p>}
+          {success && (
+            <p className="text-sm text-center text-green-600">{success}</p>
+          )}
 
           <button
             type="submit"

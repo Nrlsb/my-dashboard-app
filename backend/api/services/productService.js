@@ -2,6 +2,7 @@ const productModel = require('../models/productModel');
 const { getExchangeRates } = require('../utils/exchangeRateService');
 const { formatCurrency } = require('../utils/helpers');
 const { pool, pool2 } = require('../db'); // Solo para verificar si el usuario es admin
+const { offersCache } = require('../models/productModel'); // Importar offersCache desde productModel
 
 /**
  * Servicio para manejar la lógica de negocio de productos.
@@ -13,7 +14,13 @@ const { pool, pool2 } = require('../db'); // Solo para verificar si el usuario e
  * @param {number|null} [options.userId=null] - ID del usuario para verificar permisos.
  * @returns {Promise<{products: object[], totalProducts: number}>} - Productos procesados y el conteo total.
  */
-const fetchProducts = async ({ page = 1, limit = 20, search = '', brand = '', userId = null }) => {
+const fetchProducts = async ({
+  page = 1,
+  limit = 20,
+  search = '',
+  brand = '',
+  userId = null,
+}) => {
   try {
     // 1. Obtener cotizaciones
     const exchangeRates = await getExchangeRates();
@@ -24,18 +31,22 @@ const fetchProducts = async ({ page = 1, limit = 20, search = '', brand = '', us
     let deniedGroups = [];
     if (userId) {
       // Verificar si el usuario es admin
-      const userResult = await pool.query('SELECT is_admin FROM users WHERE id = $1', [userId]);
-      const isUserAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin;
+      const userResult = await pool.query(
+        'SELECT is_admin FROM users WHERE id = $1',
+        [userId]
+      );
+      const isUserAdmin =
+        userResult.rows.length > 0 && userResult.rows[0].is_admin;
 
       if (!isUserAdmin) {
         deniedGroups = await productModel.getDeniedProductGroups(userId);
       }
     }
-    
+
     // 3. Preparar filtros para el modelo
     const offset = (page - 1) * limit;
     const brands = brand ? brand.split(',') : [];
-    
+
     const filters = {
       limit,
       offset,
@@ -45,16 +56,19 @@ const fetchProducts = async ({ page = 1, limit = 20, search = '', brand = '', us
     };
 
     // 4. Obtener datos crudos del modelo
-    const { products: rawProducts, totalProducts } = await productModel.findProducts(filters);
+    const { products: rawProducts, totalProducts } =
+      await productModel.findProducts(filters);
 
     // 5. Aplicar lógica de negocio (cálculo de precios, formato)
-    const products = rawProducts.map(prod => {
+    const products = rawProducts.map((prod) => {
       let originalPrice = prod.price;
       let finalPrice = prod.price;
 
-      if (prod.moneda === 2) { // Dólar Billete
+      if (prod.moneda === 2) {
+        // Dólar Billete
         finalPrice = originalPrice * ventaBillete;
-      } else if (prod.moneda === 3) { // Dólar Divisa
+      } else if (prod.moneda === 3) {
+        // Dólar Divisa
         finalPrice = originalPrice * ventaDivisa;
       }
 
@@ -69,7 +83,12 @@ const fetchProducts = async ({ page = 1, limit = 20, search = '', brand = '', us
         capacityDesc: prod.capacity_description,
         capacityValue: null,
         moneda: prod.moneda,
-        cotizacion: prod.moneda === 2 ? ventaBillete : (prod.moneda === 3 ? ventaDivisa : 1),
+        cotizacion:
+          prod.moneda === 2
+            ? ventaBillete
+            : prod.moneda === 3
+              ? ventaDivisa
+              : 1,
         originalPrice: originalPrice,
         product_group: prod.product_group,
         oferta: prod.oferta, // El estado de la oferta ya viene del modelo
@@ -88,12 +107,32 @@ const fetchProducts = async ({ page = 1, limit = 20, search = '', brand = '', us
 
 const getAccessories = async (userId) => {
   try {
-    let accessoryGroups = ['0102', '0103', '0114', '0120', '0121', '0125', '0128', '0136', '0140', '0143', '0144', '0148', '0149', '0166', '0177', '0186', '0187'];
+    let accessoryGroups = [
+      '0102',
+      '0103',
+      '0114',
+      '0120',
+      '0121',
+      '0125',
+      '0128',
+      '0136',
+      '0140',
+      '0143',
+      '0144',
+      '0148',
+      '0149',
+      '0166',
+      '0177',
+      '0186',
+      '0187',
+    ];
 
     if (userId) {
       const deniedGroups = await productModel.getDeniedProductGroups(userId);
       if (deniedGroups.length > 0) {
-        accessoryGroups = accessoryGroups.filter(group => !deniedGroups.includes(group));
+        accessoryGroups = accessoryGroups.filter(
+          (group) => !deniedGroups.includes(group)
+        );
       }
     }
 
@@ -102,19 +141,18 @@ const getAccessories = async (userId) => {
     }
 
     const rawAccessories = await productModel.findAccessories(accessoryGroups);
-    
-    const accessories = rawAccessories.map(prod => ({
+
+    const accessories = rawAccessories.map((prod) => ({
       id: prod.id,
       code: prod.code,
       name: prod.description,
       price: prod.price,
       formattedPrice: formatCurrency(prod.price),
-      image_url: `https://via.placeholder.com/150/2D3748/FFFFFF?text=${encodeURIComponent(prod.description.split(' ')[0])}`,
+      image_url: `https://placehold.co/150/2D3748/FFFFFF?text=${encodeURIComponent(prod.description.split(' ')[0])}`,
       group_code: prod.product_group,
     }));
-    
+
     return accessories;
-    
   } catch (error) {
     console.error('Error en getAccessories (service):', error);
     throw error;
@@ -122,13 +160,31 @@ const getAccessories = async (userId) => {
 };
 
 const getProductGroupsDetails = async (userId) => {
-  let groupCodes = ['0102', '0103', '0114', '0120', '0121', '0125', '0128', '0136', '0140', '0143', '0144', '0148', '0149', '0166', '0177', '0186', '0187'];
-  
+  let groupCodes = [
+    '0102',
+    '0103',
+    '0114',
+    '0120',
+    '0121',
+    '0125',
+    '0128',
+    '0136',
+    '0140',
+    '0143',
+    '0144',
+    '0148',
+    '0149',
+    '0166',
+    '0177',
+    '0186',
+    '0187',
+  ];
+
   try {
     if (userId) {
       const deniedGroups = await productModel.getDeniedProductGroups(userId);
       if (deniedGroups.length > 0) {
-        groupCodes = groupCodes.filter(code => !deniedGroups.includes(code));
+        groupCodes = groupCodes.filter((code) => !deniedGroups.includes(code));
       }
     }
 
@@ -136,29 +192,31 @@ const getProductGroupsDetails = async (userId) => {
       return [];
     }
 
-    const groupDetailsFromDb = await productModel.findProductGroupsDetails(groupCodes);
-    const groupDetailsMap = new Map(groupDetailsFromDb.map(g => [g.product_group, g]));
+    const groupDetailsFromDb =
+      await productModel.findProductGroupsDetails(groupCodes);
+    const groupDetailsMap = new Map(
+      groupDetailsFromDb.map((g) => [g.product_group, g])
+    );
 
-    const groupDetails = groupCodes.map(code => {
+    const groupDetails = groupCodes.map((code) => {
       const detail = groupDetailsMap.get(code);
-      let imageUrl = `https://via.placeholder.com/150/2D3748/FFFFFF?text=${encodeURIComponent(code)}`;
+      let imageUrl = `https://placehold.co/150/2D3748/FFFFFF?text=${encodeURIComponent(code)}`;
       let name = `Grupo ${code}`;
 
       if (detail) {
-        name = detail.brand; 
+        name = detail.brand;
         const imageName = detail.description || name;
-        imageUrl = `https://via.placeholder.com/150/2D3748/FFFFFF?text=${encodeURIComponent(imageName.split(' ')[0])}`;
+        imageUrl = `https://placehold.co/150/2D3748/FFFFFF?text=${encodeURIComponent(imageName.split(' ')[0])}`;
       }
-      
+
       return {
         group_code: code,
-        name: name, 
+        name: name,
         image_url: imageUrl,
       };
     });
-    
+
     return groupDetails;
-    
   } catch (error) {
     console.error('Error en getProductGroupsDetails (service):', error);
     throw error;
@@ -169,8 +227,12 @@ const fetchProductDetails = async (productId, userId = null) => {
   try {
     let deniedGroups = [];
     if (userId) {
-      const userResult = await pool.query('SELECT is_admin FROM users WHERE id = $1', [userId]);
-      const isUserAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin;
+      const userResult = await pool.query(
+        'SELECT is_admin FROM users WHERE id = $1',
+        [userId]
+      );
+      const isUserAdmin =
+        userResult.rows.length > 0 && userResult.rows[0].is_admin;
       if (!isUserAdmin) {
         deniedGroups = await productModel.getDeniedProductGroups(userId);
       }
@@ -189,17 +251,19 @@ const fetchProductDetails = async (productId, userId = null) => {
       price: prod.price,
       formattedPrice: formatCurrency(prod.price),
       brand: prod.brand,
-      imageUrl: null, 
+      imageUrl: null,
       capacityDesc: prod.capacity_description,
-      capacityValue: null, 
+      capacityValue: null,
       additionalInfo: {},
-      product_group: prod.product_group
+      product_group: prod.product_group,
     };
-    
-    return productDetails;
 
+    return productDetails;
   } catch (error) {
-    console.error(`Error in fetchProductDetails (service) for ID ${productId}:`, error);
+    console.error(
+      `Error in fetchProductDetails (service) for ID ${productId}:`,
+      error
+    );
     throw error;
   }
 };
@@ -208,8 +272,12 @@ const fetchProtheusBrands = async (userId = null) => {
   try {
     let deniedGroups = [];
     if (userId) {
-      const userResult = await pool.query('SELECT is_admin FROM users WHERE id = $1', [userId]);
-      const isUserAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin;
+      const userResult = await pool.query(
+        'SELECT is_admin FROM users WHERE id = $1',
+        [userId]
+      );
+      const isUserAdmin =
+        userResult.rows.length > 0 && userResult.rows[0].is_admin;
       if (!isUserAdmin) {
         deniedGroups = await productModel.getDeniedProductGroups(userId);
       }
@@ -227,8 +295,12 @@ const fetchProtheusOffers = async (userId = null) => {
   try {
     let deniedGroups = [];
     if (userId) {
-      const userResult = await pool.query('SELECT is_admin FROM users WHERE id = $1', [userId]);
-      const isUserAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin;
+      const userResult = await pool.query(
+        'SELECT is_admin FROM users WHERE id = $1',
+        [userId]
+      );
+      const isUserAdmin =
+        userResult.rows.length > 0 && userResult.rows[0].is_admin;
       if (!isUserAdmin) {
         deniedGroups = await productModel.getDeniedProductGroups(userId);
       }
@@ -244,13 +316,15 @@ const fetchProtheusOffers = async (userId = null) => {
     const ventaBillete = exchangeRates.venta_billete;
     const ventaDivisa = exchangeRates.venta_divisa;
 
-    const offers = rawOffers.map(prod => {
+    const offers = rawOffers.map((prod) => {
       let originalPrice = prod.price;
       let finalPrice = prod.price;
 
-      if (prod.moneda === 2) { // Dólar Billete
+      if (prod.moneda === 2) {
+        // Dólar Billete
         finalPrice = originalPrice * ventaBillete;
-      } else if (prod.moneda === 3) { // Dólar Divisa
+      } else if (prod.moneda === 3) {
+        // Dólar Divisa
         finalPrice = originalPrice * ventaDivisa;
       }
 
@@ -264,22 +338,31 @@ const fetchProtheusOffers = async (userId = null) => {
         imageUrl: null,
         capacityDesc: prod.capacity_description,
         moneda: prod.moneda,
-        cotizacion: prod.moneda === 2 ? ventaBillete : (prod.moneda === 3 ? ventaDivisa : 1),
+        cotizacion:
+          prod.moneda === 2
+            ? ventaBillete
+            : prod.moneda === 3
+              ? ventaDivisa
+              : 1,
         originalPrice: originalPrice,
         product_group: prod.product_group,
-        oferta: true
+        oferta: true,
       };
     });
 
     return offers;
-
   } catch (error) {
     console.error('Error in fetchProtheusOffers (service):', error);
     throw error;
   }
 };
 
-const fetchProductsByGroup = async (groupCode, page = 1, limit = 20, userId = null) => {
+const fetchProductsByGroup = async (
+  groupCode,
+  page = 1,
+  limit = 20,
+  userId = null
+) => {
   try {
     const exchangeRates = await getExchangeRates();
     const ventaBillete = exchangeRates.venta_billete;
@@ -288,22 +371,37 @@ const fetchProductsByGroup = async (groupCode, page = 1, limit = 20, userId = nu
     const offset = (page - 1) * limit;
     let deniedGroups = [];
     if (userId) {
-      const userResult = await pool.query('SELECT is_admin FROM users WHERE id = $1', [userId]);
-      const isUserAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin;
+      const userResult = await pool.query(
+        'SELECT is_admin FROM users WHERE id = $1',
+        [userId]
+      );
+      const isUserAdmin =
+        userResult.rows.length > 0 && userResult.rows[0].is_admin;
       if (!isUserAdmin) {
         deniedGroups = await productModel.getDeniedProductGroups(userId);
       }
     }
 
-    const { products: rawProducts, totalProducts, groupName } = await productModel.findProductsByGroup(groupCode, limit, offset, deniedGroups);
+    const {
+      products: rawProducts,
+      totalProducts,
+      groupName,
+    } = await productModel.findProductsByGroup(
+      groupCode,
+      limit,
+      offset,
+      deniedGroups
+    );
 
-    const products = rawProducts.map(prod => {
+    const products = rawProducts.map((prod) => {
       let originalPrice = prod.price;
       let finalPrice = prod.price;
 
-      if (prod.moneda === 2) { // Dólar Billete
+      if (prod.moneda === 2) {
+        // Dólar Billete
         finalPrice = originalPrice * ventaBillete;
-      } else if (prod.moneda === 3) { // Dólar Divisa
+      } else if (prod.moneda === 3) {
+        // Dólar Divisa
         finalPrice = originalPrice * ventaDivisa;
       }
 
@@ -336,14 +434,20 @@ const fetchProductsByGroup = async (groupCode, page = 1, limit = 20, userId = nu
 const toggleProductOfferStatus = async (productId) => {
   try {
     // 1. Verificar si el producto existe en DB1 (solo lectura)
-    const productResult = await pool.query('SELECT id, description, code, price FROM products WHERE id = $1', [productId]);
+    const productResult = await pool.query(
+      'SELECT id, description, code, price FROM products WHERE id = $1',
+      [productId]
+    );
     if (productResult.rows.length === 0) {
       throw new Error('Producto no encontrado en la base de datos principal.');
     }
     const productDetails = productResult.rows[0];
 
     // 2. Intentar obtener el estado de oferta del producto desde DB2
-    const existingOffer = await pool2.query('SELECT is_on_offer FROM product_offer_status WHERE product_id = $1', [productId]);
+    const existingOffer = await pool2.query(
+      'SELECT is_on_offer FROM product_offer_status WHERE product_id = $1',
+      [productId]
+    );
 
     let newOfferStatus;
     if (existingOffer.rows.length > 0) {
@@ -362,7 +466,12 @@ const toggleProductOfferStatus = async (productId) => {
       );
     }
 
-    console.log(`Estado de oferta para producto ${productId} cambiado a ${newOfferStatus} en DB2.`);
+    console.log(
+      `Estado de oferta para producto ${productId} cambiado a ${newOfferStatus} en DB2.`
+    );
+
+    // Invalidar la caché de ofertas
+    offersCache.del('on_offer_product_ids');
 
     // Devolver la información del producto combinada con el nuevo estado de oferta
     return {
@@ -372,9 +481,11 @@ const toggleProductOfferStatus = async (productId) => {
       price: productDetails.price,
       oferta: newOfferStatus, // Usamos 'oferta' para compatibilidad con el frontend
     };
-
   } catch (error) {
-    console.error(`Error en toggleProductOfferStatus para producto ${productId}:`, error);
+    console.error(
+      `Error en toggleProductOfferStatus para producto ${productId}:`,
+      error
+    );
     throw error;
   }
 };

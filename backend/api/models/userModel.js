@@ -8,7 +8,9 @@ const { pool, pool2 } = require('../db');
  * @returns {Promise<object|null>}
  */
 const findUserByEmail = async (email) => {
-  const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+  const result = await pool.query('SELECT * FROM users WHERE email = $1', [
+    email,
+  ]);
   return result.rows[0] || null;
 };
 
@@ -19,13 +21,18 @@ const findUserByEmail = async (email) => {
  */
 const findUserById = async (userId) => {
   // Convertir userId a entero para asegurar la comparación correcta con la columna ID numérica
-  const numericUserId = parseInt(userId, 10); 
+  const numericUserId = parseInt(userId, 10);
   if (isNaN(numericUserId)) {
-    console.error(`[userModel] Invalid userId provided to findUserById: ${userId}`);
+    console.error(
+      `[userModel] Invalid userId provided to findUserById: ${userId}`
+    );
     return null;
   }
 
-  const result = await pool.query('SELECT id, full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, a1_endereco, is_admin, vendedor_codigo FROM users WHERE id = $1', [numericUserId]);
+  const result = await pool.query(
+    'SELECT id, full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, a1_endereco, is_admin, vendedor_codigo FROM users WHERE id = $1',
+    [numericUserId]
+  );
   const user = result.rows[0] || null;
 
   if (user) {
@@ -34,7 +41,17 @@ const findUserById = async (userId) => {
       user.codigo = user.vendedor_codigo;
     }
   }
-  console.log(`[userModel] findUserById(${userId}) -> user:`, user ? { id: user.id, role: user.role, codigo: user.codigo, vendedor_codigo: user.vendedor_codigo } : 'null');
+  console.log(
+    `[userModel] findUserById(${userId}) -> user:`,
+    user
+      ? {
+          id: user.id,
+          role: user.role,
+          codigo: user.codigo,
+          vendedor_codigo: user.vendedor_codigo,
+        }
+      : 'null'
+  );
   return user;
 };
 
@@ -53,7 +70,16 @@ const createUser = async (userData, passwordHash) => {
       ($1, $2, $3, $4, $5, $6, $7, $8)
     RETURNING *;
   `;
-  const values = [nombre, email, passwordHash, a1_cod, a1_loja, a1_cgc, a1_tel, false];
+  const values = [
+    nombre,
+    email,
+    passwordHash,
+    a1_cod,
+    a1_loja,
+    a1_cgc,
+    a1_tel,
+    false,
+  ];
   const result = await pool.query(query, values);
   return result.rows[0];
 };
@@ -65,10 +91,16 @@ const createUser = async (userData, passwordHash) => {
  */
 const isUserAdmin = async (userId) => {
   try {
-    const adminCheck = await pool2.query('SELECT 1 FROM admins WHERE user_id = $1', [userId]);
+    const adminCheck = await pool2.query(
+      'SELECT 1 FROM admins WHERE user_id = $1',
+      [userId]
+    );
     return adminCheck.rows.length > 0;
   } catch (adminDbError) {
-    console.error('Error al consultar la tabla de administradores en DB2:', adminDbError);
+    console.error(
+      'Error al consultar la tabla de administradores en DB2:',
+      adminDbError
+    );
     // Es más seguro asumir que no es admin si la DB2 falla.
     return false;
   }
@@ -89,7 +121,7 @@ const updateUser = async (userId, profileData) => {
     RETURNING *;
   `;
   const values = [A1_NOME, A1_NUMBER, A1_EMAIL, A1_END || null, A1_CGC, userId];
-  
+
   const result = await pool.query(query, values);
   return result.rows[0] || null;
 };
@@ -100,8 +132,14 @@ const updateUser = async (userId, profileData) => {
  * @returns {Promise<Array<object>>}
  */
 const findUsersByVendedorCodigo = async (vendedorCodigo) => {
-  const result = await pool.query('SELECT id, full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, a1_endereco FROM users WHERE vendedor_codigo = $1', [vendedorCodigo]);
-  console.log(`[userModel] findUsersByVendedorCodigo(${vendedorCodigo}) -> found ${result.rows.length} clients. IDs:`, result.rows.map(r => r.id));
+  const result = await pool.query(
+    'SELECT id, full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, a1_endereco FROM users WHERE vendedor_codigo = $1',
+    [vendedorCodigo]
+  );
+  console.log(
+    `[userModel] findUsersByVendedorCodigo(${vendedorCodigo}) -> found ${result.rows.length} clients. IDs:`,
+    result.rows.map((r) => r.id)
+  );
   return result.rows;
 };
 
@@ -111,7 +149,10 @@ const findUsersByVendedorCodigo = async (vendedorCodigo) => {
  * @returns {Promise<boolean>}
  */
 const clearTempPasswordHash = async (userId) => {
-  const result = await pool.query('UPDATE users SET temp_password_hash = NULL WHERE id = $1', [userId]);
+  const result = await pool.query(
+    'UPDATE users SET temp_password_hash = NULL WHERE id = $1',
+    [userId]
+  );
   return result.rowCount > 0;
 };
 
@@ -133,6 +174,23 @@ const updatePassword = async (userId, passwordHash) => {
   return result.rowCount > 0;
 };
 
+
+/**
+ * Busca todos los usuarios con rol de cliente en la base de datos.
+ * Excluye a los que tienen 'vendedor_codigo' establecido o 'is_admin' en true (si queremos separar roles).
+ * Para este caso, solo buscaremos todos los usuarios en la tabla 'users' que no sean administradores.
+ * @returns {Promise<Array<object>>}
+ */
+const findAllClients = async () => {
+  const result = await pool.query(
+    'SELECT id, full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, a1_endereco FROM users WHERE is_admin = FALSE'
+  );
+  console.log(
+    `[userModel] findAllClients -> found ${result.rows.length} clients.`
+  );
+  return result.rows;
+};
+
 module.exports = {
   findUserByEmail,
   findUserById,
@@ -142,4 +200,5 @@ module.exports = {
   findUsersByVendedorCodigo,
   clearTempPasswordHash,
   updatePassword,
+  findAllClients, // Add the new function to the export
 };

@@ -20,13 +20,15 @@ const authenticateUser = async (email, password) => {
     if (userRecord) {
       user = { ...userRecord, role: 'cliente' };
     } else {
-      console.log('Usuario no encontrado en la tabla de clientes, buscando en vendedores...');
+      console.log(
+        'Usuario no encontrado en la tabla de clientes, buscando en vendedores...'
+      );
       const vendedorRecord = await vendedorModel.findVendedorByEmail(email);
       if (!vendedorRecord) {
         console.log('Usuario no encontrado tampoco en vendedores.');
         return { success: false, message: 'Usuario o contraseña incorrectos.' };
       }
-      
+
       user = {
         id: vendedorRecord.codigo,
         password_hash: vendedorRecord.password,
@@ -41,24 +43,33 @@ const authenticateUser = async (email, password) => {
       userType = 'vendedor';
     }
 
-    console.log('[DEBUG] Objeto de usuario/vendedor recuperado:', JSON.stringify(user, null, 2));
+    console.log(
+      '[DEBUG] Objeto de usuario/vendedor recuperado:',
+      JSON.stringify(user, null, 2)
+    );
 
     // 1. Intentar con la contraseña temporal
     if (user.temp_password_hash) {
       console.log('[DEBUG] Intentando con la contraseña temporal...');
-      const isTempMatch = await bcrypt.compare(password, user.temp_password_hash);
+      const isTempMatch = await bcrypt.compare(
+        password,
+        user.temp_password_hash
+      );
       console.log('[DEBUG] ¿La contraseña temporal coincide?:', isTempMatch);
       if (isTempMatch) {
-        console.log(`Usuario ${user.id} (${userType}) autenticado con contraseña temporal.`);
-        
+        console.log(
+          `Usuario ${user.id} (${userType}) autenticado con contraseña temporal.`
+        );
+
         // Limpiar la contraseña temporal
         if (userType === 'cliente') {
           await userModel.clearTempPasswordHash(user.id);
         } else {
           await vendedorModel.clearTempPasswordHash(user.codigo);
         }
-        
-        const { password_hash, temp_password_hash, ...userWithoutPassword } = user;
+
+        const { password_hash, temp_password_hash, ...userWithoutPassword } =
+          user;
         return { success: true, user: userWithoutPassword, first_login: true };
       }
     }
@@ -72,16 +83,18 @@ const authenticateUser = async (email, password) => {
       return { success: false, message: 'Usuario o contraseña incorrectos.' };
     }
 
-    console.log(`Usuario ${user.id} (${userType}) autenticado con contraseña principal.`);
+    console.log(
+      `Usuario ${user.id} (${userType}) autenticado con contraseña principal.`
+    );
     const { password_hash, temp_password_hash, ...userWithoutPassword } = user;
 
-    if (userType === 'cliente') {
-      userWithoutPassword.is_admin = await userModel.isUserAdmin(user.id);
-      console.log(`El usuario ${user.id} ${userWithoutPassword.is_admin ? 'ES' : 'NO ES'} administrador.`);
-    }
+    // Asegurarse de que is_admin se establezca correctamente para todos los usuarios autenticados
+    userWithoutPassword.is_admin = await userModel.isUserAdmin(user.id);
+    console.log(
+      `El usuario ${user.id} ${userWithoutPassword.is_admin ? 'ES' : 'NO ES'} administrador.`
+    );
 
     return { success: true, user: userWithoutPassword, first_login: false };
-
   } catch (error) {
     console.error('Error en authenticateUser (service):', error);
     throw error;
@@ -110,7 +123,6 @@ const registerUser = async (userData) => {
     console.log(`Nuevo usuario registrado: ${userToReturn.email}`);
 
     return userToReturn;
-
   } catch (error) {
     console.error('Error en registerUser (service):', error);
     throw error;
@@ -128,18 +140,17 @@ const getUserProfile = async (userId) => {
     if (!user) {
       return null;
     }
-    
+
     // Mapear nombres de columnas a los esperados por el frontend si es necesario
     return {
-      "A1_NOME": user.full_name,
-      "A1_EMAIL": user.email,
-      "A1_COD": user.a1_cod,
-      "A1_LOJA": user.a1_loja,
-      "A1_CGC": user.a1_cgc,
-      "A1_NUMBER": user.a1_tel,
-      "A1_END": user.a1_endereco
+      A1_NOME: user.full_name,
+      A1_EMAIL: user.email,
+      A1_COD: user.a1_cod,
+      A1_LOJA: user.a1_loja,
+      A1_CGC: user.a1_cgc,
+      A1_NUMBER: user.a1_tel,
+      A1_END: user.a1_endereco,
     };
-
   } catch (error) {
     console.error('Error en getUserProfile (service):', error);
     throw error;
@@ -164,7 +175,6 @@ const updateUserProfile = async (userId, profileData) => {
     console.log(`Perfil actualizado para usuario: ${updatedUser.email}`);
 
     return { success: true, message: 'Perfil actualizado.', user: updatedUser };
-
   } catch (error) {
     console.error('Error en updateUserProfile (service):', error);
     throw error;
@@ -178,7 +188,13 @@ const updateUserProfile = async (userId, profileData) => {
  */
 const getVendedorClients = async (vendedorCodigo) => {
   try {
+    console.log(
+      `[userService] getVendedorClients -> Buscando clientes para vendedorCodigo: ${vendedorCodigo}`
+    );
     const clients = await userModel.findUsersByVendedorCodigo(vendedorCodigo);
+    console.log(
+      `[userService] getVendedorClients -> Encontrados ${clients.length} clientes para vendedorCodigo: ${vendedorCodigo}`
+    );
     return clients;
   } catch (error) {
     console.error('Error en getVendedorClients (service):', error);
@@ -215,9 +231,27 @@ const changePassword = async (userId, newPassword, userRole) => {
 
     console.log(`Contraseña actualizada para el usuario: ${userId}`);
     return { success: true, message: 'Contraseña actualizada correctamente.' };
-
   } catch (error) {
     console.error('Error en changePassword (service):', error);
+    throw error;
+  }
+};
+
+
+/**
+ * Obtiene todos los clientes registrados en el sistema.
+ * @returns {Promise<Array<object>>} Una lista de todos los usuarios con rol de cliente.
+ */
+const getAllClients = async () => {
+  try {
+    console.log('[userService] getAllClients -> Buscando todos los clientes...');
+    const clients = await userModel.findAllClients(); // Asume que esta función existe en userModel
+    console.log(
+      `[userService] getAllClients -> Encontrados ${clients.length} clientes.`
+    );
+    return clients;
+  } catch (error) {
+    console.error('Error en getAllClients (service):', error);
     throw error;
   }
 };
@@ -229,4 +263,5 @@ module.exports = {
   updateUserProfile,
   getVendedorClients,
   changePassword,
+  getAllClients, // Add the new function to the export
 };
