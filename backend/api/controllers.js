@@ -364,7 +364,7 @@ const getOffersController = async (req, res) => {
   }
 };
 
-const getProductByIdController = async (req, res) => {
+const getProductsByIdController = async (req, res) => {
   const productId = req.params.id;
   console.log(
     `GET /api/products/${productId} -> Consultando producto individual...`
@@ -383,6 +383,11 @@ const getProductByIdController = async (req, res) => {
     console.error(`Error en /api/products/${productId}:`, error);
     res.status(500).json({ message: 'Error al obtener el producto.' });
   }
+};
+
+const getProductsOrdersController = async (req, res) => {
+  console.log('GET /api/products/orders -> Endpoint para /api/products/orders alcanzado.');
+  res.status(404).json({ message: 'Endpoint /api/products/orders no implementado o no válido para productos.' });
 };
 
 const getOrdersController = async (req, res) => {
@@ -948,8 +953,9 @@ module.exports = {
   getProductsByGroupController,
   getBrandsController,
   getOffersController,
-  getProductByIdController,
+  getProductsByIdController,
   getOrdersController,
+  getProductsOrdersController,
   createOrderController,
   getOrderByIdController,
   downloadOrderPdfController,

@@ -69,7 +69,7 @@ function AppRoutes({ onCompleteOrder }) {
         <Route path="/vendedor-dashboard" element={<ProtectedRoute>{user?.role === 'vendedor' ? <VendedorDashboardPage /> : <Navigate to="/dashboard" />}</ProtectedRoute>} />
         <Route path="/vendedor-clients" element={<ProtectedRoute>{user?.role === 'vendedor' ? <VendedorClientsPage /> : <Navigate to="/dashboard" />}</ProtectedRoute>} />
         <Route path="/vendedor-cuentas-corrientes" element={<ProtectedRoute>{user?.role === 'vendedor' ? <VendedorAccountBalancePage /> : <Navigate to="/dashboard" />}</ProtectedRoute>} />
-        <Route path="/vendedor-pedidos-ventas" element={<ProtectedRoute>{user?.role === 'vendedor' ? <VendedorOrderHistoryPage /> : <Navigate to="/dashboard" />}</ProtectedRoute>} />
+        <Route path="/vendedor-pedidos-ventas" element={<ProtectedRoute>{user?.role === 'vendedor' ? <OrderHistoryPage /> : <Navigate to="/dashboard" />}</ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         <Route path="/price-list" element={<ProtectedRoute><PriceListPage /></ProtectedRoute>} />
         <Route path="/new-order" element={<ProtectedRoute><NewOrderPage /></ProtectedRoute>} />

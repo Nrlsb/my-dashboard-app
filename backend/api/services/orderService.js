@@ -469,76 +469,26 @@ const updateOrderDetails = async (updatedOrders) => {
   );
 
   const ordersToUpdate = [];
-  const emailsToSend = [];
+
 
   for (const update of updatedOrders) {
     const currentOrder = currentOrdersMap.get(update.id);
     if (!currentOrder) continue;
 
-    let newStatus = null;
-    let shouldSendEmail = false;
-
-    // Lógica de cambio de estado
-    // Si antes no estaba confirmado y ahora SI viene confirmado
-    if (!currentOrder.is_confirmed && update.isConfirmed) {
-      newStatus = 'Confirmado';
-      shouldSendEmail = true;
-    }
+    const newStatus = update.status || currentOrder.status; // Usar el status del update o el actual
+    const newIsConfirmed = newStatus === 'Confirmado'; // Derivar is_confirmed del status
 
     ordersToUpdate.push({
       ...update,
-      status: newStatus, // Pasamos el nuevo status (o null si no cambia)
+      status: newStatus,
+      isConfirmed: newIsConfirmed,
     });
-
-    if (shouldSendEmail) {
-      emailsToSend.push({
-        orderId: update.id,
-        userId: currentOrder.user_id,
-        vendorSalesOrderNumber: update.vendorSalesOrderNumber,
-      });
-    }
   }
 
   // 3. Actualizar en BD
   await orderModel.updateOrderDetails(ordersToUpdate);
 
-  // 4. Enviar correos (asíncronamente para no bloquear)
-  // Necesitamos obtener el email del usuario para cada pedido
-  if (emailsToSend.length > 0) {
-    // Obtener emails de usuarios
-    const userIds = [...new Set(emailsToSend.map((e) => e.userId))];
-    const usersResult = await pool.query(
-      'SELECT id, email, full_name FROM users WHERE id = ANY($1::int[])',
-      [userIds]
-    );
-    const usersMap = new Map(usersResult.rows.map((u) => [u.id, u]));
 
-    Promise.allSettled(
-      emailsToSend.map(async (emailInfo) => {
-        const user = usersMap.get(emailInfo.userId);
-        if (user && user.email) {
-          console.log(
-            `[orderService] Enviando notificación de confirmación al usuario ${user.id} para pedido #${emailInfo.orderId}`
-          );
-          await sendOrderConfirmedByVendorEmail(
-            user.email,
-            emailInfo.orderId,
-            user.full_name,
-            emailInfo.vendorSalesOrderNumber
-          );
-        }
-      })
-    ).then((results) => {
-      results.forEach((result) => {
-        if (result.status === 'rejected') {
-          console.error(
-            '[orderService] Error enviando email de confirmación:',
-            result.reason
-          );
-        }
-      });
-    });
-  }
 };
 
 module.exports = {

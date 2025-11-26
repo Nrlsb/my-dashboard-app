@@ -7,7 +7,8 @@ const {
   getProductsByGroupController,
   getBrandsController,
   getOffersController,
-  getProductByIdController,
+  getProductsByIdController, // Nombre corregido
+  getProductsOrdersController, // Nuevo controlador importado
   toggleProductOfferStatus,
 } = require('../controllers');
 const {
@@ -31,7 +32,9 @@ router.get('/brands', getBrandsController);
 
 router.get('/offers', getOffersController);
 
-router.get('/:id', getProductByIdController);
+router.get('/orders', getProductsOrdersController); // Nueva ruta para /api/products/orders
+
+router.get('/:id', getProductsByIdController);
 
 // Esta ruta requiere permisos de administrador.
 router.put(

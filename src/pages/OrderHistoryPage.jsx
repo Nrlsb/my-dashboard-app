@@ -19,7 +19,7 @@ function OrderHistoryPage() {
   const queryClient = useQueryClient();
 
   const [vendorSalesOrderNumbers, setVendorSalesOrderNumbers] = useState({});
-  const [orderConfirmations, setOrderConfirmations] = useState({});
+  const [orderStatus, setOrderStatus] = useState({});
   const [statusFilter, setStatusFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -27,8 +27,8 @@ function OrderHistoryPage() {
     setVendorSalesOrderNumbers((prev) => ({ ...prev, [orderId]: value }));
   };
 
-  const handleOrderConfirmationChange = (orderId, checked) => {
-    setOrderConfirmations((prev) => ({ ...prev, [orderId]: checked }));
+  const handleOrderStatusChange = (orderId, value) => {
+    setOrderStatus((prev) => ({ ...prev, [orderId]: value }));
   };
 
   const {
@@ -44,14 +44,13 @@ function OrderHistoryPage() {
 
   useEffect(() => {
     if (orders) {
-      const initialSalesOrderNumbers = {};
-      const initialConfirmations = {};
+      const initialStatus = {};
       orders.forEach((order) => {
         initialSalesOrderNumbers[order.id] = order.vendorSalesOrderNumber || '';
-        initialConfirmations[order.id] = order.isConfirmed || false;
+        initialStatus[order.id] = order.status; // Usar el status del pedido
       });
       setVendorSalesOrderNumbers(initialSalesOrderNumbers);
-      setOrderConfirmations(initialConfirmations);
+      setOrderStatus(initialStatus); // Actualizar el nuevo estado
     }
   }, [orders]);
 
@@ -70,7 +69,7 @@ function OrderHistoryPage() {
     const updatedOrdersData = orders.map((order) => ({
       id: order.id,
       vendorSalesOrderNumber: vendorSalesOrderNumbers[order.id],
-      isConfirmed: orderConfirmations[order.id],
+      status: orderStatus[order.id], // Usar el nuevo estado
     }));
     updateOrderDetailsMutation.mutate(updatedOrdersData);
   };
@@ -146,7 +145,7 @@ function OrderHistoryPage() {
                 <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">Estado</th>
                 <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">Cant. Items</th>
                 {isVendor && <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">N° Pedido Venta</th>}
-                {isVendor && <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">Confirmar Pedido</th>}
+                {isVendor && <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">Estado del Pedido</th>}
                 <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">Acciones</th>
               </tr>
             </thead>
@@ -177,17 +176,18 @@ function OrderHistoryPage() {
                   )}
                   {isVendor && (
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 text-center">
-                      <input
-                        type="checkbox"
-                        checked={orderConfirmations[order.id] || false}
+                      <select
+                        value={orderStatus[order.id] || ''}
                         onChange={(e) =>
-                          handleOrderConfirmationChange(
-                            order.id,
-                            e.target.checked
-                          )
+                          handleOrderStatusChange(order.id, e.target.value)
                         }
-                        className="form-checkbox h-4 w-4 text-blue-600 transition duration-150 ease-in-out"
-                      />
+                        className="p-1 border border-gray-300 rounded-md text-center text-sm w-32"
+                      >
+                        <option value="Pendiente">Pendiente</option>
+                        <option value="Aprobado">Aprobado</option>
+                        <option value="Rechazado">Rechazado</option>
+                        <option value="Confirmado">Confirmado</option>
+                      </select>
                     </td>
                   )}
                   <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium text-center">
