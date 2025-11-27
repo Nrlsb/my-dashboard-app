@@ -45,6 +45,7 @@ function OrderHistoryPage() {
   useEffect(() => {
     if (orders) {
       const initialStatus = {};
+      const initialSalesOrderNumbers = {};
       orders.forEach((order) => {
         initialSalesOrderNumbers[order.id] = order.vendorSalesOrderNumber || '';
         initialStatus[order.id] = order.status; // Usar el status del pedido
