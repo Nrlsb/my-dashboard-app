@@ -9,7 +9,7 @@ router.use('/', require('./auth.routes'));
 router.use('/', require('./user.routes'));
 router.use('/', require('./accounting.routes'));
 router.use('/', require('./misc.routes'));
-router.use('/', require('./product.routes')); // Contiene /products, /brands, /offers, etc.
+router.use('/products', require('./product.routes'));
 
 router.use('/vendedor', require('./vendedor.routes'));
 router.use('/orders', require('./order.routes'));

@@ -116,15 +116,15 @@ const apiService = {
   },
 
   fetchProtheusBrands() {
-    return this.request('/brands');
+    return this.request('/products/brands');
   },
 
   getAccessories() {
-    return this.request('/accessories');
+    return this.request('/products/accessories');
   },
 
   getProductGroupsDetails() {
-    return this.request('/product-groups-details');
+    return this.request('/products/product-groups-details');
   },
 
   fetchProductsByGroup(groupCode, page) {
@@ -205,7 +205,7 @@ const apiService = {
   },
 
   fetchOffers() {
-    return this.request('/offers');
+    return this.request('/products/offers');
   },
 
   fetchUserProfile() {
