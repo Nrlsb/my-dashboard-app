@@ -23,9 +23,18 @@ const fetchProducts = async ({
 }) => {
   try {
     // 1. Obtener cotizaciones
-    const exchangeRates = await getExchangeRates();
-    const ventaBillete = exchangeRates.venta_billete;
-    const ventaDivisa = exchangeRates.venta_divisa;
+    let exchangeRates;
+    try {
+      exchangeRates = await getExchangeRates();
+    } catch (error) {
+      console.error(
+        '[WARNING] Failed to fetch exchange rates. Using default values.',
+        error
+      );
+      exchangeRates = { venta_billete: 1, venta_divisa: 1 }; // Fallback
+    }
+    const ventaBillete = exchangeRates.venta_billete || 1; // Ensure not null
+    const ventaDivisa = exchangeRates.venta_divisa || 1; // Ensure not null
 
     // 2. Determinar permisos
     let deniedGroups = [];
@@ -87,8 +96,8 @@ const fetchProducts = async ({
           prod.moneda === 2
             ? ventaBillete
             : prod.moneda === 3
-              ? ventaDivisa
-              : 1,
+            ? ventaDivisa
+            : 1,
         originalPrice: originalPrice,
         product_group: prod.product_group,
         oferta: prod.oferta, // El estado de la oferta ya viene del modelo
@@ -312,9 +321,18 @@ const fetchProtheusOffers = async (userId = null) => {
       return [];
     }
 
-    const exchangeRates = await getExchangeRates();
-    const ventaBillete = exchangeRates.venta_billete;
-    const ventaDivisa = exchangeRates.venta_divisa;
+    let exchangeRates;
+    try {
+      exchangeRates = await getExchangeRates();
+    } catch (error) {
+      console.error(
+        '[WARNING] Failed to fetch exchange rates for offers. Using default values.',
+        error
+      );
+      exchangeRates = { venta_billete: 1, venta_divisa: 1 }; // Fallback
+    }
+    const ventaBillete = exchangeRates.venta_billete || 1; // Ensure not null
+    const ventaDivisa = exchangeRates.venta_divisa || 1; // Ensure not null
 
     const offers = rawOffers.map((prod) => {
       let originalPrice = prod.price;
@@ -342,8 +360,8 @@ const fetchProtheusOffers = async (userId = null) => {
           prod.moneda === 2
             ? ventaBillete
             : prod.moneda === 3
-              ? ventaDivisa
-              : 1,
+            ? ventaDivisa
+            : 1,
         originalPrice: originalPrice,
         product_group: prod.product_group,
         oferta: true,
@@ -364,9 +382,18 @@ const fetchProductsByGroup = async (
   userId = null
 ) => {
   try {
-    const exchangeRates = await getExchangeRates();
-    const ventaBillete = exchangeRates.venta_billete;
-    const ventaDivisa = exchangeRates.venta_divisa;
+    let exchangeRates;
+    try {
+      exchangeRates = await getExchangeRates();
+    } catch (error) {
+      console.error(
+        '[WARNING] Failed to fetch exchange rates for group. Using default values.',
+        error
+      );
+      exchangeRates = { venta_billete: 1, venta_divisa: 1 }; // Fallback
+    }
+    const ventaBillete = exchangeRates.venta_billete || 1;
+    const ventaDivisa = exchangeRates.venta_divisa || 1;
 
     const offset = (page - 1) * limit;
     let deniedGroups = [];
