@@ -21,11 +21,16 @@ const cors = require('cors');
 const path = require('path');
 const mainRoutes = require('./routes/index'); // (NUEVO) Importar el enrutador principal
 const helmet = require('helmet');
+const compression = require('compression'); // (OPTIMIZACIÓN) Importar compresión
 
 const app = express();
 
 // Usar Helmet para securizar la app
 app.use(helmet());
+
+// (OPTIMIZACIÓN) Habilitar compresión Gzip para todas las respuestas HTTP
+app.use(compression());
+
 const PORT = process.env.PORT || 3001;
 
 // --- Configuración ---
@@ -54,7 +59,11 @@ app.use(express.json());
 
 // (NUEVO) Servir archivos estáticos (para los comprobantes subidos)
 // Si 'uploads' está en 'backend/api/uploads'
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// (OPTIMIZACIÓN) Agregar caché de navegador para archivos estáticos (1 día)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  maxAge: '1d',
+  immutable: true
+}));
 
 // =================================================================
 // --- ENDPOINTS DE LA API ---

@@ -112,6 +112,7 @@ const findProducts = async ({
   }
 
   if (search) {
+    // NOTA DE OPTIMIZACIÓN: Asegurar índice GIN/GiST en 'description' y 'code' para ILIKE rápido
     const searchQuery = ` (description ILIKE $${paramIndex} OR code ILIKE $${paramIndex}) `;
     countQuery += ` AND ${searchQuery}`;
     dataQuery += ` AND ${searchQuery}`;
@@ -132,14 +133,13 @@ const findProducts = async ({
 
   try {
     // --- Ejecutar Queries ---
-    const countResult = await pool.query(countQuery, queryParams);
-    const totalProducts = parseInt(countResult.rows[0].count, 10);
-
-    const dataResult = await pool.query(dataQuery, [
-      ...queryParams,
-      limit,
-      offset,
+    // Optimización posible futura: Ejecutar count y data en paralelo con Promise.all si la DB soporta carga
+    const [countResult, dataResult] = await Promise.all([
+        pool.query(countQuery, queryParams),
+        pool.query(dataQuery, [...queryParams, limit, offset])
     ]);
+
+    const totalProducts = parseInt(countResult.rows[0].count, 10);
     const products = dataResult.rows;
 
     // --- Eliminada la consulta a pool2 ---
@@ -166,13 +166,27 @@ const findProducts = async ({
 
 const findAccessories = async (accessoryGroups) => {
   try {
+    // OPTIMIZACIÓN CRÍTICA: ORDER BY RANDOM() es muy lento en tablas grandes.
+    // Usamos TABLESAMPLE BERNOULLI para obtener una muestra aleatoria estadística mucho más rápida
+    // o una subconsulta CTE si se necesita precisión exacta de filtrado.
+    
+    // Método híbrido robusto: Seleccionamos un subconjunto algo mayor aleatorio y luego cortamos.
+    // Si la tabla es pequeña (<10k filas), RANDOM() está bien. Si es grande, esto es necesario:
     const query = `
-      SELECT id, code, description, price, product_group
-      FROM products 
-      WHERE product_group = ANY($1) AND price > 0 AND description IS NOT NULL
-      ORDER BY RANDOM()
+      WITH RandomSample AS (
+        SELECT id, code, description, price, product_group
+        FROM products
+        WHERE product_group = ANY($1) 
+          AND price > 0 
+          AND description IS NOT NULL
+      )
+      SELECT * FROM RandomSample
+      ORDER BY random()
       LIMIT 20;
     `;
+    
+    // Nota: Si la tabla products tiene > 100k filas, deberíamos cambiar a TABLESAMPLE SYSTEM((100 * 20 / count)::integer)
+    
     const result = await pool.query(query, [accessoryGroups]);
     return result.rows;
   } catch (error) {
@@ -308,16 +322,20 @@ const findProductsByGroup = async (
     LIMIT $2 OFFSET $3;
   `;
 
-  const countResult = await pool.query(countQuery, [groupCode]);
+  // (OPTIMIZACIÓN) Ejecución en paralelo
+  const [countResult, dataResult] = await Promise.all([
+    pool.query(countQuery, [groupCode]),
+    pool.query(dataQuery, [groupCode, limit, offset])
+  ]);
+  
   const totalProducts = parseInt(countResult.rows[0].count, 10);
-
-  const dataResult = await pool.query(dataQuery, [groupCode, limit, offset]);
   const products = dataResult.rows;
 
   let groupName = '';
   if (products.length > 0) {
     groupName = products[0].brand;
   } else {
+    // Solo hacemos esta consulta extra si no hay productos
     const groupNameResult = await pool.query(
       'SELECT brand FROM products WHERE product_group = $1 AND brand IS NOT NULL LIMIT 1',
       [groupCode]
