@@ -179,11 +179,13 @@ const sendNewOrderNotificationEmail = async (
  */
 const sendOrderConfirmedByVendorEmail = async (
   toEmail,
-  orderId,
   customerName,
-  vendorSalesOrderNumber
+  orderId,
+  vendorSalesOrderNumber,
+  items = []
 ) => {
   const subject = `Tu pedido #${orderId} ha sido confirmado`;
+  const itemsHtml = formatItemsToHTML(items); // Generar el HTML de los items
 
   let salesOrderInfo = '';
   if (vendorSalesOrderNumber) {
@@ -198,6 +200,9 @@ const sendOrderConfirmedByVendorEmail = async (
       
       ${salesOrderInfo}
       
+      <h2 style="color: #333; border-bottom: 2px solid #eee; padding-bottom: 5px;">Resumen del Pedido</h2>
+      ${itemsHtml}
+
       <p>El estado de tu pedido ha cambiado a <strong>Confirmado</strong>.</p>
       <p>Pronto recibirás más novedades sobre el envío o entrega.</p>
       

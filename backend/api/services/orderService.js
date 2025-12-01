@@ -447,15 +447,7 @@ const updateOrderDetails = async (updatedOrders) => {
     throw new Error('No hay pedidos para actualizar.');
   }
 
-  // 1. Obtener los IDs de los pedidos a actualizar
   const orderIds = updatedOrders.map((o) => o.id);
-
-  // 2. Buscar el estado actual de estos pedidos para comparar
-  // Usamos una query directa al modelo o pool para obtener el estado actual
-  // Asumimos que el usuario que hace esto es vendedor, pero aquí ya estamos en capa de servicio
-  // Podríamos usar orderModel.findOrdersByIds(orderIds) si existiera, o hacer una query directa.
-  // Para simplificar y no modificar tanto el modelo, haremos una query directa aquí o usaremos findOrderDetailsById en bucle (menos eficiente).
-  // Mejor opción: Query directa para obtener status e is_confirmed actual.
 
   const currentOrdersResult = await pool2.query(
     `
@@ -469,14 +461,23 @@ const updateOrderDetails = async (updatedOrders) => {
   );
 
   const ordersToUpdate = [];
-
+  const notificationsToSend = [];
 
   for (const update of updatedOrders) {
     const currentOrder = currentOrdersMap.get(update.id);
     if (!currentOrder) continue;
 
-    const newStatus = update.status || currentOrder.status; // Usar el status del update o el actual
-    const newIsConfirmed = newStatus === 'Confirmado'; // Derivar is_confirmed del status
+    const newStatus = update.status || currentOrder.status;
+    const newIsConfirmed = newStatus === 'Confirmado';
+
+    // Si el pedido se está confirmando AHORA, y ANTES no lo estaba...
+    if (newIsConfirmed && !currentOrder.is_confirmed) {
+      notificationsToSend.push({
+        orderId: currentOrder.id,
+        userId: currentOrder.user_id,
+        vendorSalesOrderNumber: update.vendorSalesOrderNumber,
+      });
+    }
 
     ordersToUpdate.push({
       ...update,
@@ -485,10 +486,43 @@ const updateOrderDetails = async (updatedOrders) => {
     });
   }
 
-  // 3. Actualizar en BD
-  await orderModel.updateOrderDetails(ordersToUpdate);
+  // 1. Actualizar la base de datos primero.
+  if (ordersToUpdate.length > 0) {
+    await orderModel.updateOrderDetails(ordersToUpdate);
+  }
 
+  // 2. Si las actualizaciones fueron exitosas, enviar los correos.
+  if (notificationsToSend.length > 0) {
+    for (const notification of notificationsToSend) {
+      try {
+        // Obtenemos los datos frescos del cliente y del pedido para el correo.
+        const user = await userModel.findUserById(notification.userId);
+        const orderDetails = await orderModel.findOrderDetailsById(
+          notification.orderId,
+          [notification.userId] // Asegura que solo buscamos este pedido si pertenece al usuario.
+        );
 
+        if (user && orderDetails) {
+          await sendOrderConfirmedByVendorEmail(
+            user.email,
+            user.full_name,
+            orderDetails.id,
+            notification.vendorSalesOrderNumber,
+            orderDetails.items
+          );
+          console.log(
+            `Correo de confirmación para pedido #${orderDetails.id} enviado a ${user.email}`
+          );
+        }
+      } catch (emailError) {
+        console.error(
+          `[ERROR DE EMAIL] Falló el envío de correo para el pedido #${notification.orderId}:`,
+          emailError
+        );
+        // No relanzamos el error para no detener el proceso si otros correos deben enviarse.
+      }
+    }
+  }
 };
 
 module.exports = {
