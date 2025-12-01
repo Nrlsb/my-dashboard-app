@@ -2,19 +2,16 @@ const Papa = require('papaparse');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs');
 const path = require('path');
+const { formatCurrency } = require('./helpers');
 
 /**
  * Generates a CSV buffer from the order items.
- * The CSV will contain: product row, product code, and quantity.
  * @param {Array<Object>} items - The items of the order.
  * @returns {Buffer} - The CSV content as a buffer.
  */
 async function generateOrderCSV(items) {
   try {
-    // 1. Definir la cabecera personalizada
     const customHeader = 'CANAL;C6_ITEM;C6_PRODUTO;C6_QTDVEN';
-
-    // 2. Mapear los datos a un array de arrays para papaparse
     const dataRows = items.map((item, index) => [
       'CS6', // CANAL
       index + 1, // C6_ITEM
@@ -22,32 +19,21 @@ async function generateOrderCSV(items) {
       item.quantity, // C6_QTDVEN
     ]);
 
-    // 3. Convertir los datos a CSV usando ';' como delimitador y sin cabecera automática
     const csvBody = Papa.unparse(dataRows, {
       delimiter: ';',
       header: false,
     });
 
-    // 4. Unir la cabecera personalizada con el cuerpo del CSV
-    const csvString = `${customHeader}\n${csvBody}`;
-
-    // 5. Convertir la cadena final a un Buffer para el adjunto del correo
-    return Buffer.from(csvString, 'utf-8');
+    return Buffer.from(`${customHeader}\n${csvBody}`, 'utf-8');
   } catch (error) {
     console.error('Error generating CSV:', error);
     throw new Error('Could not generate order CSV.');
   }
 }
 
-const { formatCurrency } = require('./helpers');
-
 /**
- * Generates a "Pedido de Venta" style PDF for the order.
+ * Generates a "Pedido de Venta" style PDF for the order using pdf-lib.
  * @param {Object} orderData - The complete order data.
- * @param {Object} orderData.user - Customer data { full_name, a1_cod, a1_dom, a1_loc, a1_prov, a1_cuit, a1_iva, a1_tel, a1_vend, a1_condpago }.
- * @param {Object} orderData.newOrder - Order metadata { id, created_at }.
- * @param {Array<Object>} orderData.items - Array of products in the order.
- * @param {number} orderData.total - The total amount of the order.
  * @returns {Promise<Buffer>} - The PDF content as a buffer.
  */
 async function generateOrderPDF(orderData) {
@@ -58,7 +44,7 @@ async function generateOrderPDF(orderData) {
     const invoiceData = {
         numero: newOrder.id,
         fechaEmision: new Date(newOrder.created_at).toLocaleDateString('es-AR'),
-        sucursal: '', // Not available in orderData, can be added if needed
+        sucursal: '', 
         cliente: {
             nombre: user.full_name,
             domicilio: user.a1_dom || '',
@@ -71,16 +57,16 @@ async function generateOrderPDF(orderData) {
             condPago: user.a1_condpago || '',
             vendedor: user.a1_vend || '',
         },
-        transporte: { // This data is not in orderData, so it's empty
-            codigo: '',
-            nombre: '',
-            cuil: ''
+        transporte: { 
+            codigo: newOrder.transportCode || '',
+            nombre: newOrder.transportName || '',
+            cuil: newOrder.transportCuil || ''
         },
         items: items.map(item => ({
             codigo: item.code,
             descripcion: item.name,
             cantidad: item.quantity,
-            cantRes: '' // Not available in orderData
+            cantRes: item.reservedQuantity || ''
         }))
     };
     
@@ -112,36 +98,48 @@ async function generateOrderPDF(orderData) {
         });
     };
 
+    // Helper to center text in a specific width
+    const drawCenteredText = (text, xStart, boxWidth, yPos, options = {}) => {
+        const textStr = String(text || '');
+        const currentFont = options.bold ? boldFont : font;
+        const currentSize = options.size || normalTextSize;
+        const textWidth = currentFont.widthOfTextAtSize(textStr, currentSize);
+        const centerX = xStart + (boxWidth - textWidth) / 2;
+        
+        page.drawText(textStr, {
+            x: centerX,
+            y: yPos,
+            font: currentFont,
+            size: currentSize,
+            color: options.color || rgb(0, 0, 0),
+        });
+    };
+
     // === Header ===
     y -= 10;
     
-    // Embed Logo
-    const logoPath = path.join(__dirname, '../../../../src/assets/logo.png');
+    // Logo Check
+    const logoPath = path.join(__dirname, '../../../src/assets/logo.png');
+    
     if (fs.existsSync(logoPath)) {
-        const logoImageBytes = fs.readFileSync(logoPath);
-        const logoImage = await pdfDoc.embedPng(logoImageBytes);
-        const logoDims = logoImage.scale(0.5); // Scale if needed
-        page.drawImage(logoImage, {
-            x: margin,
-            y: y - logoDims.height + 20,
-            width: logoDims.width,
-            height: logoDims.height,
-        });
-    } else {
-        // Fallback to placeholder if logo not found
-        page.drawRectangle({
-            x: margin,
-            y: y - 50,
-            width: 180,
-            height: 50,
-            borderColor: rgb(0.8, 0.8, 0.8),
-            borderWidth: 1,
-        });
-        drawText('Logo not found', margin + 50, y - 30, { size: smallTextSize, color: rgb(0.5, 0.5, 0.5) });
+        try {
+            const logoImageBytes = fs.readFileSync(logoPath);
+            const logoImage = await pdfDoc.embedPng(logoImageBytes);
+            const logoDims = logoImage.scale(0.5); 
+            
+            page.drawImage(logoImage, {
+                x: margin,
+                y: y - logoDims.height + 20,
+                width: logoDims.width,
+                height: logoDims.height,
+            });
+        } catch (imgErr) {
+            console.error("Error embedding logo:", imgErr);
+        }
     }
 
 
-    // Invoice Info Box
+    // === Invoice Info Box (CENTRADO MEJORADO) ===
     const infoBoxWidth = 220;
     const infoBoxX = width - margin - infoBoxWidth;
     
@@ -155,9 +153,8 @@ async function generateOrderPDF(orderData) {
     });
     
     const title = 'PEDIDO DE VENTA';
-    const titleWidth = boldFont.widthOfTextAtSize(title, titleTextSize);
-    const titleX = infoBoxX + (infoBoxWidth - titleWidth) / 2;
-    drawText(title, titleX, y - 15, { bold: true, size: titleTextSize });
+    // Centrado horizontal del título
+    drawCenteredText(title, infoBoxX, infoBoxWidth, y - 17, { bold: true, size: titleTextSize });
     
     page.drawLine({
         start: { x: infoBoxX + 5, y: y - 22 },
@@ -165,15 +162,29 @@ async function generateOrderPDF(orderData) {
         thickness: 0.5,
     });
     
-    let infoY = y - 35;
-    drawText('Nro:', infoBoxX + 10, infoY, { bold: true, size: smallTextSize });
-    drawText(String(numero), infoBoxX + 90, infoY, { bold: true, size: smallTextSize });
-    infoY -= lineSpacing;
-    drawText('Fecha Emisión:', infoBoxX + 10, infoY, { bold: true, size: smallTextSize });
-    drawText(fechaEmision, infoBoxX + 90, infoY, { size: smallTextSize });
-    infoY -= lineSpacing;
-    drawText('Nro.Ped.Suc:', infoBoxX + 10, infoY, { bold: true, size: smallTextSize });
-    drawText(sucursal, infoBoxX + 90, infoY, { size: smallTextSize });
+    // Ajuste de coordenadas para CENTRAR el bloque de texto dentro del cuadro
+    // Cuadro ancho: 220. Bloque estimado: ~130-140px. 
+    // Margen izquierdo calculado: ~40px. Margen para valores: ~115px.
+    const labelX = infoBoxX + 40; 
+    const valueX = infoBoxX + 115;
+    
+    // Ajuste vertical compacto para que entren las 3 líneas
+    let infoY = y - 34; // Subimos un punto para dar aire abajo
+    const infoLineSpacing = 12; // Espaciado ligeramente menor para este bloque
+
+    // Línea 1
+    drawText('Nro:', labelX, infoY, { bold: true, size: smallTextSize });
+    drawText(String(numero), valueX, infoY, { bold: true, size: smallTextSize });
+    
+    // Línea 2
+    infoY -= infoLineSpacing;
+    drawText('Fecha Emisión:', labelX, infoY, { bold: true, size: smallTextSize });
+    drawText(fechaEmision, valueX, infoY, { size: smallTextSize });
+    
+    // Línea 3
+    infoY -= infoLineSpacing;
+    drawText('Nro.Ped.Suc:', labelX, infoY, { bold: true, size: smallTextSize });
+    drawText(sucursal, valueX, infoY, { size: smallTextSize });
 
     y -= 80;
 
@@ -244,7 +255,7 @@ async function generateOrderPDF(orderData) {
     // === Items Table ===
     const tableTop = y;
     const tableHeaderY = y - 15;
-    const colWidths = [100, 250, 80, 80];
+    const colWidths = [80, 270, 80, 80]; 
     const tableCols = [
         margin, 
         margin + colWidths[0], 
@@ -253,32 +264,30 @@ async function generateOrderPDF(orderData) {
     ];
 
     page.drawLine({ start: { x: margin, y: tableTop }, end: { x: width - margin, y: tableTop }, thickness: 1.5 });
+    
+    // Encabezados
     drawText('Código', tableCols[0] + 5, tableHeaderY, { bold: true, size: smallTextSize });
     drawText('Descripción', tableCols[1] + 5, tableHeaderY, { bold: true, size: smallTextSize });
-    drawText('Cantidad', tableCols[2] + 15, tableHeaderY, { bold: true, size: smallTextSize });
-    drawText('Cant. Res.', tableCols[3] + 15, tableHeaderY, { bold: true, size: smallTextSize });
+    drawCenteredText('Cantidad', tableCols[2], colWidths[2], tableHeaderY, { bold: true, size: smallTextSize });
+    drawCenteredText('Cant. Res.', tableCols[3], colWidths[3], tableHeaderY, { bold: true, size: smallTextSize });
+
     page.drawLine({ start: { x: margin, y: tableHeaderY - 8 }, end: { x: width - margin, y: tableHeaderY - 8 }, thickness: 1.5 });
     
     let itemY = tableHeaderY - 20;
-    let totalItems = 0;
-    let totalUnits = 0;
 
     (mappedItems || []).forEach(item => {
-        if (itemY < margin + 120) { 
-            // Simplified check for new page logic
-        }
         drawText(item.codigo, tableCols[0] + 5, itemY, { size: smallTextSize });
         drawText((item.descripcion || '').substring(0, 50), tableCols[1] + 5, itemY, { size: smallTextSize });
-        drawText(String(item.cantidad || ''), tableCols[2] + 25, itemY, { size: smallTextSize });
-        drawText(String(item.cantRes || ''), tableCols[3] + 25, itemY, { size: smallTextSize });
+        
+        drawCenteredText(String(item.cantidad || ''), tableCols[2], colWidths[2], itemY, { size: smallTextSize });
+        drawCenteredText(String(item.cantRes || ''), tableCols[3], colWidths[3], itemY, { size: smallTextSize });
+        
         itemY -= lineSpacing;
-        totalItems += 1;
-        totalUnits += Number(item.cantidad) || 0;
     });
 
-    y = margin + 110;
+    // === Transport Block (CENTRED) ===
+    y = margin + 110; 
     
-    // === Transport Block ===
     page.drawRectangle({
         x: margin,
         y: y - 60,
@@ -288,22 +297,31 @@ async function generateOrderPDF(orderData) {
         borderWidth: 1,
     });
 
-    let transportY = y - 15;
+    // CÁLCULO DE CENTRADO TRANSPORTE
+    const transportBlockWidth = 300; 
+    const boxWidth = width - margin * 2;
+    const transportStartX = margin + (boxWidth - transportBlockWidth) / 2;
+
+    let transportY = y - 20; // Ajustado para centrado vertical dentro de la caja de 50 de alto
     const transportLabelWidth = 120;
+
+    // Fila 1
     drawText('Codigo de Transporte:', margin + 10, transportY, { bold: true, size: smallTextSize });
     drawText(transporte.codigo, margin + 10 + transportLabelWidth, transportY, { size: smallTextSize });
+    
+    // Fila 2
     transportY -= lineSpacing;
     drawText('Nombre Transporte:', margin + 10, transportY, { bold: true, size: smallTextSize });
     drawText(transporte.nombre, margin + 10 + transportLabelWidth, transportY, { size: smallTextSize });
+    
+    // Fila 3
     transportY -= lineSpacing;
     drawText('CUIL Transporte:', margin + 10, transportY, { bold: true, size: smallTextSize });
     drawText(transporte.cuil, margin + 10 + transportLabelWidth, transportY, { size: smallTextSize });
     
-    // === Footer Totals ===
+    // === Footer Line ===
     const footerY = margin + 20;
     page.drawLine({ start: { x: margin, y: footerY + 15 }, end: { x: width - margin, y: footerY + 15 }, thickness: 1.5 });
-    drawText(`Total Items: ${totalItems}`, margin, footerY, { bold: true, size: normalTextSize });
-    drawText(`Total Unidades: ${totalUnits}`, margin + 200, footerY, { bold: true, size: normalTextSize });
 
     const pdfBytes = await pdfDoc.save();
     return Buffer.from(pdfBytes);
