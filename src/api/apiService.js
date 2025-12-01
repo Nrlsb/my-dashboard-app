@@ -2,7 +2,7 @@
 // Utiliza un interceptor para adjuntar el token JWT a las peticiones.
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+  'http://localhost:3001/api' || import.meta.env.VITE_API_URL;
 
 const handleResponse = async (response) => {
   const data = await response.json().catch(() => ({
