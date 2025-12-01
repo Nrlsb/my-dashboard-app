@@ -94,7 +94,6 @@ const AccessoryCarousel = () => {
             />
             <div className="p-3">
               <h3 className="text-sm font-semibold text-white whitespace-nowrap truncate">{item.name}</h3>
-              <p className="text-sm text-gray-400 mt-1">{item.formattedPrice}</p>
             </div>
           </div>
         ))}
