@@ -35,6 +35,13 @@ const VendedorDashboardPage = () => {
           <h2 className="text-xl font-semibold text-blue-600 mb-4">Clientes</h2>
           <p className="text-base text-gray-700 leading-relaxed">Gestiona y visualiza la información detallada de tus clientes.</p>
         </div>
+        <div
+          onClick={() => navigate('/vendedor-price-list')}
+          className="bg-white border border-gray-200 rounded-xl p-8 text-center text-inherit transition-all duration-300 ease-in-out cursor-pointer shadow-lg hover:-translate-y-2 hover:shadow-xl hover:border-blue-500"
+        >
+          <h2 className="text-xl font-semibold text-blue-600 mb-4">Lista de Precios</h2>
+          <p className="text-base text-gray-700 leading-relaxed">Consulta la lista de precios actualizada.</p>
+        </div>
       </div>
     </div>
   );
