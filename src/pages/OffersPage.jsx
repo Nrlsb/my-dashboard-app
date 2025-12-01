@@ -22,24 +22,40 @@ const ErrorMessage = ({ message }) => (
   </div>
 );
 
-const OfferCard = ({ offer }) => (
-  <div className="bg-white rounded-lg shadow-lg overflow-hidden transform transition-transform hover:scale-105 duration-300">
-    <div className="p-6">
-      <div className="flex items-center mb-3">
-        <Tag className="w-5 h-5 text-blue-500 mr-2" />
-        <h3 className="text-lg font-semibold text-gray-800">{offer.titulo}</h3>
+const ProductOfferCard = ({ product }) => {
+  const navigate = useNavigate();
+
+  return (
+    <div className="bg-white rounded-lg shadow-lg overflow-hidden transform transition-transform hover:scale-105 duration-300 flex flex-col justify-between">
+      <div className="p-6">
+        <div className="flex items-start justify-between mb-3">
+          <span className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full uppercase">
+            {product.brand || 'Marca'}
+          </span>
+          <Tag className="w-6 h-6 text-blue-500" />
+        </div>
+        <h3
+          className="text-base font-semibold text-gray-800 mb-2 h-12 overflow-hidden"
+          title={product.name}
+        >
+          {product.name}
+        </h3>
+        <p className="text-sm text-gray-500 mb-4 font-mono">{product.code}</p>
+        <p className="text-2xl font-bold text-gray-900">
+          {product.formattedPrice}
+        </p>
       </div>
-      <p className="text-gray-600 text-sm mb-4">{offer.descripcion}</p>
-      <div className="text-sm text-gray-500">
-        <span className="font-medium">Válido hasta:</span>{' '}
-        {new Date(offer.valido_hasta).toLocaleDateString('es-AR')}
+      <div className="p-4 bg-gray-50">
+        <button
+          onClick={() => navigate(`/product/${product.id}`)}
+          className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-600 transition-colors duration-200"
+        >
+          Ver Detalle
+        </button>
       </div>
-      <button className="mt-4 w-full bg-blue-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-600 transition-colors duration-200">
-        Ver productos
-      </button>
     </div>
-  </div>
-);
+  );
+};
 
 export default function OffersPage() {
   const { user } = useAuth();
@@ -54,7 +70,7 @@ export default function OffersPage() {
     queryKey: ['offers', user?.id],
     queryFn: () => apiService.fetchOffers(),
     enabled: !!user?.id,
-    staleTime: 1000 * 60 * 15,
+    staleTime: 1000 * 60 * 5, // Reducido a 5 min por la naturaleza de las ofertas
   });
 
   const renderContent = () => {
@@ -94,9 +110,9 @@ export default function OffersPage() {
     }
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {offers.map((offer) => (
-          <OfferCard key={offer.id} offer={offer} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {offers.map((product) => (
+          <ProductOfferCard key={product.id} product={product} />
         ))}
       </div>
     );
@@ -117,7 +133,7 @@ export default function OffersPage() {
             Ofertas y Promociones
           </h1>
           <p className="text-gray-600">
-            Descubre los descuentos vigentes que tenemos para ti.
+            Descubre los productos con descuentos vigentes que tenemos para ti.
           </p>
         </div>
       </header>
