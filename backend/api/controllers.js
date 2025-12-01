@@ -527,7 +527,7 @@ const uploadVoucherController = async (req, res) => {
 const getDashboardPanelsController = async (req, res) => {
   console.log('GET /api/dashboard-panels -> Consultando paneles visibles...');
   try {
-    const panels = await dashboardService.getDashboardPanels(req.userId);
+    const panels = await dashboardService.getDashboardPanels(req.user);
     res.json(panels);
   } catch (error) {
     console.error('Error en /api/dashboard-panels:', error);

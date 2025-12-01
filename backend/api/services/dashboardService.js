@@ -9,21 +9,28 @@ const productService = require('./productService');
  * @param {number} userId - El ID del usuario.
  * @returns {Promise<Array<object>>} - Una promesa que se resuelve con la lista de paneles filtrada.
  */
-const getDashboardPanels = async (userId) => {
-  const isAdmin = await dashboardModel.isUserAdmin(userId);
-  let panels = await dashboardModel.findDashboardPanels(isAdmin);
+const getDashboardPanels = async (user) => {
+  const isAdmin = user.isAdmin;
+  const isVendedor = user.role === 'vendedor';
+
+  let panels = await dashboardModel.findDashboardPanels(isAdmin, isVendedor);
 
   // Comprobar si el panel de ofertas debe mostrarse
   const offersPanelIndex = panels.findIndex(
-    (panel) => panel.navigation_path === 'offers'
+    (panel) =>
+      panel.navigation_path === 'offers' || panel.navigation_path === '/offers'
   );
 
   if (offersPanelIndex > -1) {
     // Reutilizamos el servicio de productos para ver si hay ofertas
-    const offers = await productService.fetchProtheusOffers(userId);
+    const offers = await productService.fetchProtheusOffers(user.userId);
     if (offers.length === 0) {
       // Si no hay ofertas, filtramos el panel de la lista
-      panels = panels.filter((panel) => panel.navigation_path !== 'offers');
+      panels = panels.filter(
+        (panel) =>
+          panel.navigation_path !== 'offers' &&
+          panel.navigation_path !== '/offers'
+      );
     }
   }
 
