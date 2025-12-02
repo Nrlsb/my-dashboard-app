@@ -16,25 +16,33 @@ const {
   authenticateToken,
   requireAdmin,
 } = require('../middleware/auth');
+const cache = require('../middleware/cache');
 
 // La mayoría de las rutas GET aquí son públicas o con autenticación opcional.
 router.use(optionalAuthenticateToken);
 
-router.get('/', getProductsController);
+// Cachear listado general por 5 minutos (300s)
+router.get('/', cache(300), getProductsController);
 
-router.get('/accessories', getAccessories);
+// Cachear accesorios por 10 minutos (600s)
+router.get('/accessories', cache(600), getAccessories);
 
-router.get('/product-groups-details', getProductGroupsDetails);
+// Cachear detalles de grupos por 1 hora (3600s) - Cambia muy poco
+router.get('/product-groups-details', cache(3600), getProductGroupsDetails);
 
-router.get('/group/:groupCode', getProductsByGroupController);
+// Cachear productos por grupo por 10 minutos (600s)
+router.get('/group/:groupCode', cache(600), getProductsByGroupController);
 
-router.get('/brands', getBrandsController);
+// Cachear marcas por 1 hora (3600s)
+router.get('/brands', cache(3600), getBrandsController);
 
-router.get('/offers', getOffersController);
+// Cachear ofertas por 5 minutos (300s)
+router.get('/offers', cache(300), getOffersController);
 
 router.get('/orders', getProductsOrdersController); // Nueva ruta para /api/products/orders
 
-router.get('/:id', getProductsByIdController);
+// Cachear producto individual por 5 minutos (300s)
+router.get('/:id', cache(300), getProductsByIdController);
 
 // Esta ruta requiere permisos de administrador.
 router.put(
