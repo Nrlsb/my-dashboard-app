@@ -3,18 +3,22 @@ const router = express.Router();
 const {
   createCreditNoteController,
   getCustomerInvoicesController,
+} = require('../controllers/accountingController');
+const {
   fetchAdminOrderDetails,
   getUsersForAdmin,
   getProductGroupsForAdmin,
   getDeniedProductGroupsByUserController,
   updateUserGroupPermissions,
-  getAdminDashboardPanelsController,
-  updateDashboardPanelController,
   getAdmins,
   addAdmin,
   removeAdmin,
-  getAllClientsController, // Import the new controller
-} = require('../controllers');
+  getAllClientsController,
+} = require('../controllers/adminController');
+const {
+  getAdminDashboardPanelsController,
+  updateDashboardPanelController,
+} = require('../controllers/dashboardController');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 // Todas las rutas en este archivo requieren autenticación y permisos de administrador.

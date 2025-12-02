@@ -7,7 +7,7 @@ const {
   getOrderByIdController,
   downloadOrderPdfController,
   downloadOrderCsvController,
-} = require('../controllers');
+} = require('../controllers/orderController');
 const { authenticateToken } = require('../middleware/auth');
 
 // Todas las rutas de pedidos requieren autenticación

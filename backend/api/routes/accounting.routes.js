@@ -1,9 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const {
+  getCustomerInvoicesController,
+} = require('../controllers/accountingController');
+const {
   getBalanceController,
   getMovementsController,
-} = require('../controllers');
+} = require('../controllers/movementController');
 const { authenticateToken } = require('../middleware/auth');
 
 // Todas las rutas de contabilidad requieren autenticación

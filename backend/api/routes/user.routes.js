@@ -4,7 +4,7 @@ const {
   getProfileController,
   updateProfileController,
   changePasswordController,
-} = require('../controllers');
+} = require('../controllers/userController');
 const { authenticateToken } = require('../middleware/auth');
 
 // Todas las rutas en este archivo requieren autenticación.

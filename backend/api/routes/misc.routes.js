@@ -5,8 +5,10 @@ const {
   getExchangeRatesController,
   createProtheusQueryController,
   uploadVoucherController,
+} = require('../controllers/supportController');
+const {
   getDashboardPanelsController,
-} = require('../controllers');
+} = require('../controllers/dashboardController');
 const {
   authenticateToken,
   optionalAuthenticateToken,

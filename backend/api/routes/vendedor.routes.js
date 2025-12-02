@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const controllers = require('../controllers');
+const controllers = require('../controllers/userController');
 const { authenticateToken } = require('../middleware/auth');
 
 // Todas las rutas de vendedor requieren autenticación
