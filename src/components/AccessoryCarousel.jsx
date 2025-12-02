@@ -20,8 +20,8 @@ const AccessoryCarousel = () => {
       const filteredAccessories =
         user && user.restricted_groups
           ? data.filter(
-              (acc) => !user.restricted_groups.includes(acc.group_code)
-            )
+            (acc) => !user.restricted_groups.includes(acc.group_code)
+          )
           : data;
 
       if (carouselRef.current) {
@@ -79,12 +79,12 @@ const AccessoryCarousel = () => {
 
   return (
     <div className="relative py-4 mt-8">
-      <h2 className="text-2xl font-bold mb-4 text-white">Accesorios</h2>
+      <h2 className="text-2xl font-bold mb-4 text-espint-blue">Accesorios</h2>
       <div className="flex overflow-x-auto gap-4 pb-4" ref={carouselRef}>
         {accessories.map((item) => (
           <div
             key={item.id}
-            className="flex-none w-40 bg-gray-800 rounded-lg overflow-hidden transition-transform duration-200 ease-in-out cursor-pointer hover:-translate-y-[5px]"
+            className="flex-none w-40 bg-espint-blue rounded-lg overflow-hidden transition-transform duration-200 ease-in-out cursor-pointer hover:-translate-y-[5px]"
             onClick={() => handleAccessoryClick(item.id)}
           >
             <img

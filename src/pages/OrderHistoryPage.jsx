@@ -80,10 +80,10 @@ function OrderHistoryPage() {
       const statusMatch = statusFilter ? order.status === statusFilter : true;
       const searchTermMatch = searchTerm
         ? (order.client_name &&
-            order.client_name
-              .toLowerCase()
-              .includes(searchTerm.toLowerCase())) ||
-          String(order.id).includes(searchTerm)
+          order.client_name
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase())) ||
+        String(order.id).includes(searchTerm)
         : true;
       return statusMatch && searchTermMatch;
     }) || [];
@@ -105,7 +105,7 @@ function OrderHistoryPage() {
           Volver al Dashboard
         </button>
         {isVendor && (
-          <button onClick={handleSaveChanges} className="flex-grow sm:flex-grow-0 w-full sm:w-auto px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors duration-200 font-semibold">
+          <button onClick={handleSaveChanges} className="flex-grow sm:flex-grow-0 w-full sm:w-auto px-4 py-2 bg-espint-green text-white rounded-md hover:bg-green-600 transition-colors duration-200 font-semibold">
             Guardar Cambios
           </button>
         )}
@@ -139,15 +139,15 @@ function OrderHistoryPage() {
           <table className="min-w-full divide-y divide-gray-200 table-collapse">
             <thead className="bg-gray-50">
               <tr>
-                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">ID Pedido</th>
-                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">Fecha</th>
-                {isVendor && <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">Cliente</th>}
-                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">Total</th>
-                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">Estado</th>
-                <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">Cant. Items</th>
-                {isVendor && <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">N° Pedido Venta</th>}
-                {isVendor && <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">Estado del Pedido</th>}
-                <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">Acciones</th>
+                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider border-b border-gray-200">ID Pedido</th>
+                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider border-b border-gray-200">Fecha</th>
+                {isVendor && <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider border-b border-gray-200">Cliente</th>}
+                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider border-b border-gray-200">Total</th>
+                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider border-b border-gray-200">Estado</th>
+                <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-espint-blue uppercase tracking-wider border-b border-gray-200">Cant. Items</th>
+                {isVendor && <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-espint-blue uppercase tracking-wider border-b border-gray-200">N° Pedido Venta</th>}
+                {isVendor && <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-espint-blue uppercase tracking-wider border-b border-gray-200">Estado del Pedido</th>}
+                <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-espint-blue uppercase tracking-wider border-b border-gray-200">Acciones</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -194,7 +194,7 @@ function OrderHistoryPage() {
                   <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium text-center">
                     <button
                       onClick={() => navigate(`/order-detail/${order.id}`)}
-                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                      className="inline-flex items-center px-3 py-1.5 border border-espint-blue text-xs font-medium rounded-md shadow-sm text-espint-blue bg-transparent hover:bg-espint-blue hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-espint-blue transition-colors duration-200"
                     >
                       Ver Detalle
                     </button>

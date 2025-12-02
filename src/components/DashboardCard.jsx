@@ -7,7 +7,7 @@ const DashboardCard = ({
   subTitle,
   icon: Icon,
   tag,
-  bgColor = 'bg-gray-700',
+  bgColor = 'bg-espint-blue',
   ...props
 }) => {
   return (
@@ -16,13 +16,13 @@ const DashboardCard = ({
       {...props} // <-- onClick se aplicará aquí
     >
       {tag && (
-        <span className="absolute top-0 right-0 px-3 py-1 text-xs font-bold text-white bg-red-600 rounded-bl-lg">
+        <span className="absolute top-0 right-0 px-3 py-1 text-xs font-bold text-white bg-espint-magenta rounded-bl-lg">
           {tag}
         </span>
       )}
 
       <div className="flex items-center justify-center w-16 h-16 mb-4">
-        <Icon className="w-12 h-12 text-gray-700" />
+        <Icon className="w-12 h-12 text-espint-magenta" />
       </div>
 
       <h3 className="text-sm font-semibold text-gray-500 uppercase">{title}</h3>

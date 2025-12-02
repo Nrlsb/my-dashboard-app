@@ -293,7 +293,7 @@ export default function PriceListPage() {
         <button
           onClick={handleGeneratePDF}
           disabled={pdfMutation.isPending}
-          className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-colors disabled:opacity-50"
+          className="inline-flex items-center justify-center px-4 py-2 bg-espint-green text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-colors disabled:opacity-50"
         >
           {pdfMutation.isPending ? (
             <Loader2 className="w-5 h-5 mr-2 animate-spin" />
@@ -316,7 +316,7 @@ export default function PriceListPage() {
             value={searchTerm}
             onChange={handleSearchChange}
             placeholder="Buscar por nombre o código..."
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-espint-blue"
           />
         </div>
 
@@ -328,13 +328,12 @@ export default function PriceListPage() {
             id="brand-dropdown"
             onClick={() => setIsBrandDropdownOpen(!isBrandDropdownOpen)}
             disabled={isBrandsLoading}
-            className="w-full flex justify-between items-center text-left bg-white pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full flex justify-between items-center text-left bg-white pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-espint-blue"
           >
             <span className="truncate">{getBrandButtonLabel()}</span>
             <ChevronDown
-              className={`w-5 h-5 text-gray-400 transition-transform ${
-                isBrandDropdownOpen ? 'rotate-180' : ''
-              }`}
+              className={`w-5 h-5 text-gray-400 transition-transform ${isBrandDropdownOpen ? 'rotate-180' : ''
+                }`}
             />
           </button>
           {isBrandDropdownOpen && (
@@ -349,7 +348,7 @@ export default function PriceListPage() {
                       type="checkbox"
                       checked={selectedBrands.includes(brand)}
                       onChange={() => handleBrandChange(brand)}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="h-4 w-4 rounded border-gray-300 text-espint-blue focus:ring-espint-blue"
                     />
                     <span className="ml-3 text-sm text-gray-700">{brand}</span>
                   </label>
@@ -363,7 +362,7 @@ export default function PriceListPage() {
         <div className="mb-6">
           <button
             onClick={handleClearFilters}
-            className="flex items-center text-sm text-blue-600 hover:text-blue-800"
+            className="flex items-center text-sm text-espint-blue hover:text-blue-800"
           >
             <X className="w-4 h-4 mr-1" />
             Limpiar filtros
@@ -376,28 +375,28 @@ export default function PriceListPage() {
           <table className="min-w-full bg-white">
             <thead className="bg-gray-100 border-b border-gray-300">
               <tr>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider">
                   Código
                 </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider">
                   Descripción
                 </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider">
                   Marca
                 </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider">
                   Grupo
                 </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">
+                <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider text-right">
                   Moneda
                 </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">
+                <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider text-right">
                   Cotización
                 </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">
+                <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider text-right">
                   Precio (USD)
                 </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">
+                <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider text-right">
                   Precio Final (ARS)
                 </th>
               </tr>
@@ -447,7 +446,7 @@ export default function PriceListPage() {
             <button
               onClick={() => fetchNextPage()}
               disabled={isFetchingNextPage}
-              className="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center mx-auto"
+              className="mt-4 px-6 py-2 bg-espint-blue text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center mx-auto"
             >
               {isFetchingNextPage ? (
                 <>

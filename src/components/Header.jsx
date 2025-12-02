@@ -11,6 +11,7 @@ import {
   Users,
   UserCog,
 } from 'lucide-react';
+import logo from '../assets/logo.png';
 
 const Header = ({ onLogout, currentUser }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -31,27 +32,26 @@ const Header = ({ onLogout, currentUser }) => {
   };
 
   return (
-    <header className="bg-white shadow-md relative">
+    <header className="bg-espint-blue shadow-md relative">
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           <div className="flex-shrink-0">
             <button
               onClick={() => handleNavigation('/dashboard')}
-              className="text-2xl font-bold text-blue-600 hover:text-blue-700 transition-colors"
             >
-              Pintureria Mercurio
+              <img src={logo} alt="Espint Distribuidora" className="h-12" />
             </button>
           </div>
 
           <div className="flex items-center space-x-4">
             <button
               onClick={() => handleNavigation('/order-preview')}
-              className="relative p-2 text-gray-600 hover:text-red-600 hover:bg-gray-100 rounded-full transition-colors"
+              className="relative p-2 text-white hover:text-espint-green hover:bg-white/10 rounded-full transition-colors"
               aria-label="Ver carrito"
             >
               <ShoppingCart className="w-6 h-6" />
               {totalItems > 0 && (
-                <span className="absolute top-0 right-0 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-600 rounded-full">
+                <span className="absolute top-0 right-0 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-espint-green rounded-full">
                   {totalItems}
                 </span>
               )}
@@ -60,23 +60,22 @@ const Header = ({ onLogout, currentUser }) => {
             <div className="relative">
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white/10 transition-colors"
               >
-                <div className="p-2 bg-gray-100 rounded-full">
-                  <Building className="w-6 h-6 text-gray-600" />
+                <div className="p-2 bg-white/20 rounded-full">
+                  <Building className="w-6 h-6 text-white" />
                 </div>
                 <div className="text-right hidden sm:block">
-                  <p className="text-sm font-medium text-gray-800">
+                  <p className="text-sm font-medium text-white">
                     {currentUser?.full_name || 'Usuario'}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-200">
                     {currentUser?.email || 'Mi Cuenta'}
                   </p>
                 </div>
                 <ChevronDown
-                  className={`w-5 h-5 text-gray-600 transition-transform ${
-                    isDropdownOpen ? 'rotate-180' : ''
-                  }`}
+                  className={`w-5 h-5 text-white transition-transform ${isDropdownOpen ? 'rotate-180' : ''
+                    }`}
                 />
               </button>
 
@@ -134,7 +133,7 @@ const Header = ({ onLogout, currentUser }) => {
           </div>
         </div>
       </div>
-    </header>
+    </header >
   );
 };
 

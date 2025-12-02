@@ -64,12 +64,12 @@ const ProductGroupCarousel = () => {
 
   return (
     <div className="relative py-4 mt-8">
-      <h2 className="text-2xl font-bold mb-4 text-white">Categorías</h2>
+      <h2 className="text-2xl font-bold mb-4 text-espint-blue">Categorías</h2>
       <div className="flex overflow-x-auto gap-4 pb-4" ref={carouselRef}>
         {groups.map((group) => (
           <div
             key={group.group_code}
-            className="flex-none w-44 bg-gray-800 rounded-lg overflow-hidden cursor-pointer transition-transform duration-200 ease-in-out hover:-translate-y-1"
+            className="flex-none w-44 bg-espint-blue rounded-lg overflow-hidden cursor-pointer transition-transform duration-200 ease-in-out hover:-translate-y-1"
             onClick={() => handleCardClick(group.group_code)}
           >
             <img

@@ -119,11 +119,10 @@ const ProductModal = ({ product, onClose, onAddToCart }) => {
           <button
             onClick={handleAddToCartClick}
             disabled={isAdded}
-            className={`w-full py-3 px-6 rounded-lg text-white font-semibold transition-colors duration-300 ${
-              isAdded
-                ? 'bg-green-500 hover:bg-green-600'
-                : 'bg-blue-600 hover:bg-blue-700'
-            }`}
+            className={`w-full py-3 px-6 rounded-lg text-white font-semibold transition-colors duration-300 ${isAdded
+                ? 'bg-espint-green hover:bg-green-600'
+                : 'bg-espint-blue hover:bg-blue-700'
+              }`}
           >
             {isAdded ? (
               <span className="flex items-center justify-center">
@@ -283,7 +282,7 @@ const NewOrderPage = () => {
               e.stopPropagation();
               handleAddToCartClick(product);
             }}
-            className="mt-2 px-4 py-1 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+            className="mt-2 px-4 py-1 text-sm font-medium text-white bg-espint-green rounded-md hover:bg-green-600 transition-colors"
           >
             Añadir
           </button>
@@ -330,7 +329,7 @@ const NewOrderPage = () => {
                       setSelectedBrand(e.target.value);
                       setCurrentPage(1);
                     }}
-                    className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
+                    className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-espint-blue focus:border-espint-blue"
                   >
                     <option value="">Todas las marcas</option>
                     {allBrands.map((brand) => (
@@ -357,7 +356,7 @@ const NewOrderPage = () => {
                         setSearchTerm(e.target.value);
                         setCurrentPage(1);
                       }}
-                      className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
+                      className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-espint-blue focus:border-espint-blue"
                       placeholder="Buscar por nombre, código..."
                     />
                     <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -398,7 +397,7 @@ const NewOrderPage = () => {
           </div>
 
           <div className="lg-col-span-1">
-            <div className="sticky top-8 bg-white rounded-lg shadow-md flex flex-col max-h-[calc(100vh-4rem)]">
+            <div className="sticky top-8 bg-white rounded-lg shadow-md flex flex-col max-h-[calc(100vh-4rem)] border-t-4 border-espint-magenta">
               <div className="flex-shrink-0 p-6">
                 <div className="flex items-center mb-4">
                   <ShoppingCart className="w-6 h-6 text-gray-800 mr-3" />
@@ -470,7 +469,7 @@ const NewOrderPage = () => {
                   <button
                     onClick={() => navigate('/order-preview')}
                     disabled={cart.length === 0}
-                    className="w-full inline-flex items-center justify-center px-6 py-3 font-semibold text-white bg-red-600 rounded-md shadow-sm hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full inline-flex items-center justify-center px-6 py-3 font-semibold text-white bg-espint-magenta rounded-md shadow-sm hover:bg-pink-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />
                     Revisar Pedido
