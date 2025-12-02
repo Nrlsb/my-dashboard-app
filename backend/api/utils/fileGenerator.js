@@ -11,10 +11,7 @@ const { formatCurrency } = require('./helpers');
  */
 async function generateOrderCSV(items) {
   try {
-    const customHeader = 'CANAL;C6_ITEM;C6_PRODUTO;C6_QTDVEN';
-    const dataRows = items.map((item, index) => [
-      'CS6', // CANAL
-      index + 1, // C6_ITEM
+    const dataRows = items.map(item => [
       item.code, // C6_PRODUTO
       item.quantity, // C6_QTDVEN
     ]);
@@ -24,7 +21,7 @@ async function generateOrderCSV(items) {
       header: false,
     });
 
-    return Buffer.from(`${customHeader}\n${csvBody}`, 'utf-8');
+    return Buffer.from(csvBody, 'utf-8');
   } catch (error) {
     console.error('Error generating CSV:', error);
     throw new Error('Could not generate order CSV.');
