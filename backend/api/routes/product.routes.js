@@ -10,7 +10,7 @@ const {
   getProductsByIdController, // Nombre corregido
   getProductsOrdersController, // Nuevo controlador importado
   toggleProductOfferStatus,
-} = require('../controllers');
+} = require('../controllers/productController');
 const {
   optionalAuthenticateToken,
   authenticateToken,

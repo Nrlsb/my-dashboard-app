@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
-const { loginController, registerController } = require('../controllers'); // Importar controladores específicos
+const { loginController, registerController } = require('../controllers/authController'); // Importar controladores específicos
 
 // --- Rate Limiter for login ---
 const loginLimiter = rateLimit({
