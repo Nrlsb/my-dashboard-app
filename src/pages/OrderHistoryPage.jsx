@@ -139,24 +139,24 @@ function OrderHistoryPage() {
           <table className="min-w-full divide-y divide-gray-200 table-collapse">
             <thead className="bg-gray-50">
               <tr>
-                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider border-b border-gray-200">ID Pedido</th>
-                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider border-b border-gray-200">Fecha</th>
-                {isVendor && <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider border-b border-gray-200">Cliente</th>}
-                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider border-b border-gray-200">Total</th>
-                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider border-b border-gray-200">Estado</th>
-                <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-espint-blue uppercase tracking-wider border-b border-gray-200">Cant. Items</th>
-                {isVendor && <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-espint-blue uppercase tracking-wider border-b border-gray-200">N° Pedido Venta</th>}
-                {isVendor && <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-espint-blue uppercase tracking-wider border-b border-gray-200">Estado del Pedido</th>}
-                <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-espint-blue uppercase tracking-wider border-b border-gray-200">Acciones</th>
+                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">ID Pedido</th>
+                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Fecha</th>
+                {isVendor && <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Cliente</th>}
+                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Total</th>
+                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Estado</th>
+                <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Cant. Items</th>
+                {isVendor && <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">N° Pedido Venta</th>}
+                {isVendor && <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Estado del Pedido</th>}
+                <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Acciones</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredOrders.map((order) => (
                 <tr key={order.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">#{order.id}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-mono">#{order.id}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{order.formatted_date}</td>
                   {isVendor && <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{order.client_name}</td>}
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{order.formattedTotal}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-mono">{order.formattedTotal}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{order.status}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 text-center">{order.item_count}</td>
                   {isVendor && (

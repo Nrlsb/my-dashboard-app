@@ -120,8 +120,8 @@ const ProductModal = ({ product, onClose, onAddToCart }) => {
             onClick={handleAddToCartClick}
             disabled={isAdded}
             className={`w-full py-3 px-6 rounded-lg text-white font-semibold transition-colors duration-300 ${isAdded
-                ? 'bg-espint-green hover:bg-green-600'
-                : 'bg-espint-blue hover:bg-blue-700'
+              ? 'bg-espint-green hover:bg-green-600'
+              : 'bg-espint-blue hover:bg-blue-700'
               }`}
           >
             {isAdded ? (
@@ -264,7 +264,7 @@ const NewOrderPage = () => {
             <Package className="w-6 h-6 text-gray-600" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-900">
+            <p className="text-sm font-semibold text-gray-900 min-h-[3rem] line-clamp-2">
               {product.name}
             </p>
             <p className="text-sm text-gray-500">
@@ -274,7 +274,7 @@ const NewOrderPage = () => {
           </div>
         </div>
         <div className="text-right">
-          <p className="text-lg font-bold text-gray-800">
+          <p className="text-lg font-bold text-[#0B3D68]">
             {formatCurrency(product.price)}
           </p>
           <button
@@ -282,7 +282,7 @@ const NewOrderPage = () => {
               e.stopPropagation();
               handleAddToCartClick(product);
             }}
-            className="mt-2 px-4 py-1 text-sm font-medium text-white bg-espint-green rounded-md hover:bg-green-600 transition-colors"
+            className="mt-2 px-4 py-1 text-sm font-medium text-white bg-[#8CB818] rounded-md hover:bg-[#7aa315] transition-colors"
           >
             Añadir
           </button>
@@ -469,7 +469,7 @@ const NewOrderPage = () => {
                   <button
                     onClick={() => navigate('/order-preview')}
                     disabled={cart.length === 0}
-                    className="w-full inline-flex items-center justify-center px-6 py-3 font-semibold text-white bg-espint-magenta rounded-md shadow-sm hover:bg-pink-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full inline-flex items-center justify-center px-6 py-3 font-semibold text-white bg-[#8CB818] rounded-md shadow-sm hover:bg-[#7aa315] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />
                     Revisar Pedido

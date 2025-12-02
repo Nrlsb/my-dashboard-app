@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/logo.png';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -35,10 +36,8 @@ const LoginPage = () => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 font-sans">
       <div className="w-full max-w-sm p-8 space-y-6 bg-white rounded-lg shadow-xl">
-        <div className="text-center">
-          <span className="text-3xl font-bold text-red-600">
-            Pintureria Mercurio
-          </span>
+        <div className="text-center flex justify-center">
+          <img src={logo} alt="Espint Logo" className="h-16 w-auto" />
         </div>
 
         <h2 className="text-2xl font-bold text-center text-gray-800">
@@ -62,7 +61,7 @@ const LoginPage = () => {
                 name="email"
                 type="email"
                 required
-                className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
+                className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#0B3D68] focus:border-[#0B3D68]"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tu@email.com"
@@ -87,7 +86,7 @@ const LoginPage = () => {
                 name="password"
                 type="password"
                 required
-                className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
+                className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#0B3D68] focus:border-[#0B3D68]"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -100,7 +99,7 @@ const LoginPage = () => {
 
           <button
             type="submit"
-            className="w-full px-4 py-2 font-semibold text-white bg-red-600 rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-4 py-2 font-semibold text-white bg-[#0B3D68] rounded-md shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[#0B3D68] focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isLoading}
           >
             {isLoading ? 'Ingresando...' : 'Ingresar'}
@@ -111,7 +110,7 @@ const LoginPage = () => {
           ¿No tienes una cuenta?{' '}
           <button
             onClick={() => navigate('/register')}
-            className="font-medium text-red-600 hover:text-red-500"
+            className="font-medium text-[#D10074] hover:text-[#a0005a]"
             disabled={isLoading}
           >
             Regístrate aquí

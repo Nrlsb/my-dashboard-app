@@ -10,9 +10,15 @@ const DashboardCard = ({
   bgColor = 'bg-espint-blue',
   ...props
 }) => {
+  let borderColorClass = '';
+  if (title === 'CUENTAS') borderColorClass = 'border-t-4 border-t-[#0B3D68]'; // Navy Blue
+  else if (title === 'PEDIDOS') borderColorClass = 'border-t-4 border-t-[#8CB818]'; // Green
+  else if (title === 'CLIENTES') borderColorClass = 'border-t-4 border-t-[#D10074]'; // Magenta
+  else borderColorClass = 'border-t-4 border-t-gray-200';
+
   return (
     <div
-      className="relative flex flex-col items-center justify-center p-4 pt-8 text-center bg-white border border-gray-200 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer overflow-hidden"
+      className={`relative flex flex-col items-center justify-center p-4 pt-8 text-center bg-white border border-gray-200 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer overflow-hidden ${borderColorClass}`}
       {...props} // <-- onClick se aplicará aquí
     >
       {tag && (
