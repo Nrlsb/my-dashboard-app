@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import apiService from '../api/apiService';
 
 
+import CarouselSkeleton from './CarouselSkeleton';
+
 const ProductGroupCarousel = () => {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +53,7 @@ const ProductGroupCarousel = () => {
   };
 
   if (loading) {
-    return <div className="p-4">Cargando grupos...</div>;
+    return <CarouselSkeleton title="Categorías" />;
   }
 
   if (error) {

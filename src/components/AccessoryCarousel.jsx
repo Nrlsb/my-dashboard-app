@@ -4,6 +4,8 @@ import apiService from '../api/apiService';
 import { useAuth } from '../context/AuthContext';
 
 
+import CarouselSkeleton from './CarouselSkeleton';
+
 const AccessoryCarousel = () => {
   const [accessories, setAccessories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +68,7 @@ const AccessoryCarousel = () => {
   };
 
   if (loading && accessories.length === 0) {
-    return <div className="p-4">Cargando accesorios...</div>;
+    return <CarouselSkeleton title="Accesorios" />;
   }
 
   if (error) {

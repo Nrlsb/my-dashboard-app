@@ -23,6 +23,8 @@ const iconMap = {
   HelpCircle,
 };
 
+import DashboardSkeleton from '../components/DashboardSkeleton';
+
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -53,7 +55,7 @@ const Dashboard = () => {
   }, [user]);
 
   if (loading) {
-    return <div className="text-center p-8">Cargando paneles...</div>;
+    return <DashboardSkeleton />;
   }
 
   if (error) {
