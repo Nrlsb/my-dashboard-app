@@ -69,6 +69,13 @@ const fetchProducts = async ({
       await productModel.findProducts(filters);
 
     // 5. Aplicar lógica de negocio (cálculo de precios, formato)
+    // Obtener IDs de productos que cambiaron de precio recientemente
+    const productIds = rawProducts.map(p => p.id);
+    console.log('[DEBUG] Checking changes for product IDs:', productIds);
+    const recentlyChangedIds = await productModel.getRecentlyChangedProducts(productIds);
+    console.log('[DEBUG] Recently changed IDs found:', recentlyChangedIds);
+    const recentlyChangedSet = new Set(recentlyChangedIds);
+
     const products = rawProducts.map((prod) => {
       let originalPrice = prod.price;
       let finalPrice = prod.price;
@@ -96,11 +103,12 @@ const fetchProducts = async ({
           prod.moneda === 2
             ? ventaBillete
             : prod.moneda === 3
-            ? ventaDivisa
-            : 1,
+              ? ventaDivisa
+              : 1,
         originalPrice: originalPrice,
         product_group: prod.product_group,
         oferta: prod.oferta, // El estado de la oferta ya viene del modelo
+        recentlyChanged: recentlyChangedSet.has(prod.id), // Nueva bandera
       };
     });
 
@@ -360,8 +368,8 @@ const fetchProtheusOffers = async (userId = null) => {
           prod.moneda === 2
             ? ventaBillete
             : prod.moneda === 3
-            ? ventaDivisa
-            : 1,
+              ? ventaDivisa
+              : 1,
         originalPrice: originalPrice,
         product_group: prod.product_group,
         oferta: true,

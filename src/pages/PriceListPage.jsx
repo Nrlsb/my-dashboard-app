@@ -37,12 +37,17 @@ const formatMoneda = (moneda) => {
 
 // --- Componentes de UI Internos ---
 const ProductRow = ({ product }) => (
-  <tr className="border-b border-gray-200 hover:bg-gray-50">
+  <tr className={`border-b border-gray-200 hover:bg-gray-50 ${product.recentlyChanged ? 'bg-yellow-50' : ''}`}>
     <td className="py-3 px-4 text-sm text-gray-500 font-mono">
       {product.code}
     </td>
     <td className="py-3 px-4 text-sm text-gray-900 font-medium">
       {product.name}
+      {product.recentlyChanged && (
+        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+          Precio modificado
+        </span>
+      )}
     </td>
     <td className="py-3 px-4 text-sm text-gray-500">{product.brand}</td>
     <td className="py-3 px-4 text-sm text-gray-500">{product.product_group}</td>

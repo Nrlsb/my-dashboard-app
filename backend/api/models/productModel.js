@@ -135,8 +135,8 @@ const findProducts = async ({
     // --- Ejecutar Queries ---
     // Optimización posible futura: Ejecutar count y data en paralelo con Promise.all si la DB soporta carga
     const [countResult, dataResult] = await Promise.all([
-        pool.query(countQuery, queryParams),
-        pool.query(dataQuery, [...queryParams, limit, offset])
+      pool.query(countQuery, queryParams),
+      pool.query(dataQuery, [...queryParams, limit, offset])
     ]);
 
     const totalProducts = parseInt(countResult.rows[0].count, 10);
@@ -169,7 +169,7 @@ const findAccessories = async (accessoryGroups) => {
     // OPTIMIZACIÓN CRÍTICA: ORDER BY RANDOM() es muy lento en tablas grandes.
     // Usamos TABLESAMPLE BERNOULLI para obtener una muestra aleatoria estadística mucho más rápida
     // o una subconsulta CTE si se necesita precisión exacta de filtrado.
-    
+
     // Método híbrido robusto: Seleccionamos un subconjunto algo mayor aleatorio y luego cortamos.
     // Si la tabla es pequeña (<10k filas), RANDOM() está bien. Si es grande, esto es necesario:
     const query = `
@@ -184,9 +184,9 @@ const findAccessories = async (accessoryGroups) => {
       ORDER BY random()
       LIMIT 20;
     `;
-    
+
     // Nota: Si la tabla products tiene > 100k filas, deberíamos cambiar a TABLESAMPLE SYSTEM((100 * 20 / count)::integer)
-    
+
     const result = await pool.query(query, [accessoryGroups]);
     return result.rows;
   } catch (error) {
@@ -327,7 +327,7 @@ const findProductsByGroup = async (
     pool.query(countQuery, [groupCode]),
     pool.query(dataQuery, [groupCode, limit, offset])
   ]);
-  
+
   const totalProducts = parseInt(countResult.rows[0].count, 10);
   const products = dataResult.rows;
 
@@ -348,6 +348,30 @@ const findProductsByGroup = async (
   return { products, totalProducts, groupName };
 };
 
+/**
+ * Obtiene los IDs de productos que han cambiado de precio en los últimos 7 días.
+ * @param {number[]} productIds - Array de IDs de productos a verificar.
+ * @returns {Promise<number[]>} - Array de IDs de productos que cambiaron recientemente.
+ */
+const getRecentlyChangedProducts = async (productIds) => {
+  if (!productIds || productIds.length === 0) return [];
+
+  try {
+    const query = `
+      SELECT product_id 
+      FROM product_price_snapshots 
+      WHERE product_id = ANY($1::int[]) 
+        AND last_change_timestamp >= NOW() - INTERVAL '7 days'
+    `;
+    const result = await pool2.query(query, [productIds]);
+    return result.rows.map(row => row.product_id);
+  } catch (error) {
+    console.error('Error in getRecentlyChangedProducts:', error);
+    // En caso de error, retornamos array vacío para no romper la app
+    return [];
+  }
+};
+
 module.exports = {
   findProducts,
   getDeniedProductGroups,
@@ -357,5 +381,6 @@ module.exports = {
   findUniqueBrands,
   findOffers,
   findProductsByGroup,
-  offersCache, // Exportar offersCache
+  getRecentlyChangedProducts, // Exportar nueva función
+  offersCache,
 };

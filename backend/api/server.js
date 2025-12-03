@@ -71,6 +71,10 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
 // (NUEVO) Monta todas las rutas definidas en routes.js bajo el prefijo /api
 app.use('/api', mainRoutes);
 
+// (NUEVO) Inicializar el programador de tareas (Cron Jobs)
+const { initScheduler } = require('./services/schedulerService');
+initScheduler();
+
 // --- Iniciar el servidor ---
 app.listen(PORT, () => {
   console.log(`=======================================================`);
