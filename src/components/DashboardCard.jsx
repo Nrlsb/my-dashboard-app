@@ -14,55 +14,44 @@ const DashboardCard = ({
   // Normalize text for matching
   const fullText = `${title || ''} ${subTitle || ''}`.toUpperCase();
 
-  // Default state
+  // Default state (Clean White)
   let hoverColorClass = 'hover:bg-gray-50';
-  let iconColorClass = 'text-gray-500 bg-gray-100';
-  let textColorClass = 'group-hover:text-gray-800'; // Default text color on hover
-  let subTextColorClass = 'group-hover:text-gray-600';
-  let iconHoverClass = 'group-hover:scale-110';
+  let iconColorClass = 'text-espint-blue bg-gray-50 group-hover:bg-white/20 group-hover:text-white group-hover:scale-110';
+  let textColorClass = 'text-espint-blue group-hover:text-espint-blue';
+  let subTextColorClass = 'text-gray-400 group-hover:text-gray-600';
+  let arrowColorClass = 'text-espint-green group-hover:text-espint-green';
 
-  // Define specific colors based on content
+  // Define specific colors based on content for HOVER state
   if (fullText.includes('PEDIDOS')) {
-    // Nuevo Pedido, Histórico de Pedidos
-    iconColorClass = 'text-[#D10074] bg-pink-50';
-    hoverColorClass = 'hover:bg-[#D10074]'; // Magenta
-    textColorClass = 'group-hover:text-white';
-    subTextColorClass = 'group-hover:text-white/90';
-    iconHoverClass = 'group-hover:bg-white/20 group-hover:text-white group-hover:scale-110';
+    // Histórico de Pedidos -> Magenta
+    hoverColorClass = 'hover:bg-espint-magenta';
+    textColorClass = 'text-espint-blue group-hover:text-white';
+    subTextColorClass = 'text-gray-400 group-hover:text-white/90';
+    arrowColorClass = 'text-espint-green group-hover:text-white';
   } else if (fullText.includes('PRECIO')) {
-    // Lista de Precios
-    iconColorClass = 'text-[#FFC20E] bg-yellow-50';
-    hoverColorClass = 'hover:bg-[#FFC20E]'; // Yellow
-    // Yellow background might need dark text for better contrast, but user asked for "company colors". 
-    // Usually yellow needs dark text. Let's keep it white for consistency unless it's too light.
-    // #FFC20E is quite bright. Let's try dark text for Yellow or keep white if it's the brand style.
-    // Given the other cards use white, let's stick to white but maybe add a slight shadow if needed.
-    // Actually, for accessibility, dark text on yellow is better.
-    textColorClass = 'group-hover:text-white';
-    subTextColorClass = 'group-hover:text-white/90';
-    iconHoverClass = 'group-hover:bg-white/20 group-hover:text-white group-hover:scale-110';
+    // Lista de Precios -> Yellow
+    hoverColorClass = 'hover:bg-[#FFC20E]';
+    textColorClass = 'text-espint-blue group-hover:text-white';
+    subTextColorClass = 'text-gray-400 group-hover:text-white/90';
+    arrowColorClass = 'text-espint-green group-hover:text-white';
   } else if (fullText.includes('CUENTA') || fullText.includes('SALDO')) {
-    // Cuenta Corriente, Saldo Cuenta, Cuentas
-    iconColorClass = 'text-[#183050] bg-blue-50';
-    hoverColorClass = 'hover:bg-[#183050]'; // Navy
-    textColorClass = 'group-hover:text-white';
-    subTextColorClass = 'group-hover:text-white/90';
-    iconHoverClass = 'group-hover:bg-white/20 group-hover:text-white group-hover:scale-110';
+    // Cuenta Corriente -> Navy Blue
+    hoverColorClass = 'hover:bg-espint-blue';
+    textColorClass = 'text-espint-blue group-hover:text-white';
+    subTextColorClass = 'text-gray-400 group-hover:text-white/90';
+    arrowColorClass = 'text-espint-green group-hover:text-white';
   } else if (fullText.includes('CONSULTA') || fullText.includes('CLIENTE')) {
-    // Consultas, Clientes
-    iconColorClass = 'text-[#D10074] bg-pink-50';
-    hoverColorClass = 'hover:bg-[#D10074]'; // Magenta
-    textColorClass = 'group-hover:text-white';
-    subTextColorClass = 'group-hover:text-white/90';
-    iconHoverClass = 'group-hover:bg-white/20 group-hover:text-white group-hover:scale-110';
+    // Consultas -> Magenta
+    hoverColorClass = 'hover:bg-espint-magenta';
+    textColorClass = 'text-espint-blue group-hover:text-white';
+    subTextColorClass = 'text-gray-400 group-hover:text-white/90';
+    arrowColorClass = 'text-espint-green group-hover:text-white';
   } else if (fullText.includes('PEDIDO')) {
-    // Explicit check for Historico if it didn't match Pedido (though it likely matched Pedido)
-    // If we want a different color for Historico:
-    iconColorClass = 'text-[#8CB818] bg-green-50';
-    hoverColorClass = 'hover:bg-[#8CB818]'; // Green
-    textColorClass = 'group-hover:text-white';
-    subTextColorClass = 'group-hover:text-white/90';
-    iconHoverClass = 'group-hover:bg-white/20 group-hover:text-white group-hover:scale-110';
+    // Nuevo Pedido -> Green
+    hoverColorClass = 'hover:bg-espint-green';
+    textColorClass = 'text-espint-blue group-hover:text-white';
+    subTextColorClass = 'text-gray-400 group-hover:text-white/90';
+    arrowColorClass = 'text-espint-green group-hover:text-white';
   }
 
   // Override title for "Nuevo Pedido"
@@ -77,7 +66,8 @@ const DashboardCard = ({
       className={`
         group relative flex-1 flex flex-col items-center justify-center p-6 h-40
         cursor-pointer transition-all duration-500 ease-in-out
-        hover:flex-[2] ${hoverColorClass}
+        bg-white
+        ${hoverColorClass}
         ${!isLast ? 'border-r border-gray-100' : ''}
       `}
       {...props}
@@ -88,16 +78,16 @@ const DashboardCard = ({
         </span>
       )}
 
-      <div className={`p-3 rounded-full mb-3 ${iconColorClass} ${iconHoverClass} transition-all duration-300`}>
+      <div className={`p-3 rounded-full mb-3 transition-all duration-300 ${iconColorClass}`}>
         <Icon className="w-6 h-6 md:w-8 md:h-8" />
       </div>
 
-      <h3 className={`text-xs font-bold tracking-wider text-gray-400 uppercase mb-1 text-center whitespace-nowrap ${subTextColorClass} transition-colors duration-300`}>{displayTitle}</h3>
+      <h3 className={`text-xs font-bold tracking-wider uppercase mb-1 text-center whitespace-nowrap transition-colors duration-300 ${subTextColorClass}`}>{displayTitle}</h3>
 
       {/* Content that appears/expands on hover */}
       <div className="max-h-0 opacity-0 group-hover:max-h-20 group-hover:opacity-100 transition-all duration-500 overflow-hidden flex flex-col items-center">
-        <p className={`text-sm md:text-base font-semibold text-gray-800 text-center whitespace-nowrap px-2 ${textColorClass} transition-colors duration-300`}>{subTitle}</p>
-        <div className={`mt-2 text-xs font-medium text-blue-600 flex items-center ${subTextColorClass} transition-colors duration-300`}>
+        <p className={`text-sm md:text-base font-semibold text-center whitespace-nowrap px-2 transition-colors duration-300 ${textColorClass}`}>{subTitle}</p>
+        <div className={`mt-2 text-xs font-medium flex items-center transition-colors duration-300 ${arrowColorClass}`}>
           Acceder <span className="ml-1">&rarr;</span>
         </div>
       </div>

@@ -86,7 +86,7 @@ const AccessoryCarousel = () => {
         {accessories.map((item) => (
           <div
             key={item.id}
-            className="flex-none w-40 bg-espint-blue rounded-lg overflow-hidden transition-transform duration-200 ease-in-out cursor-pointer hover:-translate-y-[5px]"
+            className="flex-none w-40 bg-white rounded-lg overflow-hidden transition-all duration-200 ease-in-out cursor-pointer hover:-translate-y-1 shadow-sm hover:shadow-md border-b-[3px] border-espint-green group"
             onClick={() => handleAccessoryClick(item.id)}
           >
             <img
@@ -95,7 +95,7 @@ const AccessoryCarousel = () => {
               className="w-full h-30 object-cover"
             />
             <div className="p-3">
-              <h3 className="text-sm font-semibold text-white whitespace-nowrap truncate">{item.name}</h3>
+              <h3 className="text-sm font-bold text-espint-blue whitespace-nowrap truncate">{item.name}</h3>
             </div>
           </div>
         ))}

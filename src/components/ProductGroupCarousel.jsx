@@ -71,7 +71,7 @@ const ProductGroupCarousel = () => {
         {groups.map((group) => (
           <div
             key={group.group_code}
-            className="flex-none w-44 bg-[#0B3D68] rounded-lg overflow-hidden cursor-pointer transition-all duration-200 ease-in-out hover:-translate-y-1 hover:bg-white hover:border-2 hover:border-[#8CB818] group"
+            className="flex-none w-44 bg-white rounded-lg overflow-hidden cursor-pointer transition-all duration-200 ease-in-out hover:-translate-y-1 shadow-sm hover:shadow-md border-b-[3px] border-espint-green group"
             onClick={() => handleCardClick(group.group_code)}
           >
             <img
@@ -80,7 +80,7 @@ const ProductGroupCarousel = () => {
               className="w-full h-32 object-cover"
             />
             <div className="p-4">
-              <h3 className="text-base font-semibold text-white group-hover:text-black whitespace-nowrap overflow-hidden text-ellipsis">{group.name}</h3>
+              <h3 className="text-base font-bold text-espint-blue whitespace-nowrap overflow-hidden text-ellipsis">{group.name}</h3>
             </div>
           </div>
         ))}
