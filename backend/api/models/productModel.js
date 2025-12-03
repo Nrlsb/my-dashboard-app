@@ -112,14 +112,31 @@ const findProducts = async ({
     paramIndex++;
   }
 
-  if (search) {
-    // NOTA DE OPTIMIZACIÓN: Asegurar índice GIN/GiST en 'description' y 'code' para ILIKE rápido
-    const searchQuery = ` (description ILIKE $${paramIndex} OR code ILIKE $${paramIndex}) `;
-    countQuery += ` AND ${searchQuery}`;
-    dataQuery += ` AND ${searchQuery}`;
-    queryParams.push(`%${search}%`);
-    paramIndex++;
+  // SMART SEARCH IMPLEMENTATION
+  // Split search into terms and filter out empty strings
+  const searchTerms = search ? search.trim().split(/\s+/).filter(term => term.length > 0) : [];
+
+  if (searchTerms.length > 0) {
+    // Create a condition for EACH term: (description LIKE %term% OR code LIKE %term%)
+    // All conditions must be true (AND logic)
+    const termConditions = searchTerms.map(() => {
+      const currentParamIndex = paramIndex;
+      paramIndex++; // Increment for the next term
+      return `(description ILIKE $${currentParamIndex} OR code ILIKE $${currentParamIndex})`;
+    });
+
+    // Join all term conditions with AND
+    const finalSearchQuery = ` (${termConditions.join(' AND ')}) `;
+
+    countQuery += ` AND ${finalSearchQuery}`;
+    dataQuery += ` AND ${finalSearchQuery}`;
+
+    // Add each term to queryParams
+    searchTerms.forEach(term => {
+      queryParams.push(`%${term}%`);
+    });
   }
+
 
   if (brands && brands.length > 0) {
     const brandQuery = ` brand = ANY($${paramIndex}::varchar[]) `;
