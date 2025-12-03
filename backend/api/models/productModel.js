@@ -415,6 +415,23 @@ const getRecentlyChangedProducts = async (productIds) => {
   }
 };
 
+const updateProductOfferDetails = async (productId, { custom_title, custom_description, custom_image_url }) => {
+  try {
+    await pool2.query(
+      `UPDATE product_offer_status 
+       SET custom_title = $1, custom_description = $2, custom_image_url = $3, updated_at = CURRENT_TIMESTAMP
+       WHERE product_id = $4`,
+      [custom_title, custom_description, custom_image_url, productId]
+    );
+    offersCache.del('on_offer_data');
+    offersCache.del('on_offer_product_ids');
+    return { success: true };
+  } catch (error) {
+    console.error(`Error updating offer details for product ${productId}:`, error);
+    throw error;
+  }
+};
+
 module.exports = {
   findProducts,
   getDeniedProductGroups,
