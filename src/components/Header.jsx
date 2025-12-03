@@ -32,7 +32,7 @@ const Header = ({ onLogout, currentUser }) => {
   };
 
   return (
-    <header className="bg-espint-blue shadow-md relative">
+    <header className="bg-espint-blue/95 backdrop-blur-sm shadow-md relative z-50">
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           <div className="flex-shrink-0">

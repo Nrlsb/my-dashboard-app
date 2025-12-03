@@ -34,8 +34,8 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 font-sans">
-      <div className="w-full max-w-sm p-8 space-y-6 bg-white rounded-lg shadow-xl">
+    <div className="flex items-center justify-center min-h-screen bg-[#F3F4F6] font-sans">
+      <div className="w-full max-w-sm p-8 space-y-6 bg-white rounded-xl shadow-xl border border-gray-100">
         <div className="text-center flex justify-center">
           <img src={logo} alt="Espint Logo" className="h-16 w-auto" />
         </div>
