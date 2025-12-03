@@ -186,7 +186,6 @@ function OrderHistoryPage() {
                         className="p-1 border border-gray-300 rounded-md text-center text-sm w-32"
                       >
                         <option value="Pendiente">Pendiente</option>
-                        <option value="Aprobado">Aprobado</option>
                         <option value="Rechazado">Rechazado</option>
                         <option value="Confirmado">Confirmado</option>
                       </select>
