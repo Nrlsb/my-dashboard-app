@@ -113,8 +113,24 @@ const ProductModal = ({ product, onClose, onAddToCart }) => {
               </button>
             </div>
             <span className="text-sm text-gray-500">
-              ({product.stock} disponibles)
+              ({product.stock_disponible} disponibles)
             </span>
+            {product.stock_disponible <= 0 ? (
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                <div className="w-2 h-2 bg-red-500 rounded-full mr-1"></div>
+                Sin Stock
+              </span>
+            ) : product.stock_disponible <= (product.stock_de_seguridad || 0) ? (
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                <div className="w-2 h-2 bg-yellow-500 rounded-full mr-1"></div>
+                Stock Bajo
+              </span>
+            ) : (
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                Disponible
+              </span>
+            )}
           </div>
 
           <button
@@ -267,7 +283,28 @@ const NewOrderPage = () => {
             <p className="text-sm text-gray-500">
               {product.brand} (Cód: {product.code})
             </p>
-            <p className="text-sm text-gray-500">Stock: {product.stock}</p>
+            <p className="text-sm text-gray-500">
+              {product.brand} (Cód: {product.code})
+            </p>
+            <div className="flex items-center mt-1">
+              <span className="text-sm text-gray-500 mr-2">Stock: {product.stock_disponible}</span>
+              {product.stock_disponible <= 0 ? (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                  <div className="w-2 h-2 bg-red-500 rounded-full mr-1"></div>
+                  Sin Stock
+                </span>
+              ) : product.stock_disponible <= (product.stock_de_seguridad || 0) ? (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                  <div className="w-2 h-2 bg-yellow-500 rounded-full mr-1"></div>
+                  Bajo
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                  Disponible
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div className="text-right">
@@ -438,7 +475,7 @@ const NewOrderPage = () => {
                           }
                           className="w-16 px-2 py-1 border border-gray-300 rounded-md text-sm"
                           min="0"
-                          max={item.stock}
+                          max={item.stock_disponible}
                         />
                       </div>
                     </div>

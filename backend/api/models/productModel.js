@@ -97,7 +97,8 @@ const findProducts = async ({
   let dataQuery = `
     SELECT
       id, code, description, price, brand,
-      capacity_description, moneda, cotizacion, product_group
+      capacity_description, moneda, cotizacion, product_group,
+      stock_disponible, stock_de_seguridad
     FROM products
     WHERE price > 0 AND description IS NOT NULL
   `;
@@ -220,7 +221,8 @@ const findProductById = async (productId, deniedGroups = []) => {
     let query = `
       SELECT 
         id, code, description, price, brand, 
-        capacity_description, product_group
+        capacity_description, product_group,
+        stock_disponible, stock_de_seguridad
       FROM products
       WHERE id = $1 AND price > 0 AND description IS NOT NULL
     `;
@@ -277,7 +279,8 @@ const findOffers = async (deniedGroups = []) => {
     let query = `
       SELECT
         id, code, description, price, brand,
-        capacity_description, moneda, cotizacion, product_group
+        capacity_description, moneda, cotizacion, product_group,
+        stock_disponible, stock_de_seguridad
       FROM products
       WHERE id = ANY($1::int[]) AND price > 0 AND description IS NOT NULL
     `;
@@ -315,7 +318,8 @@ const findProductsByGroup = async (
   const dataQuery = `
     SELECT 
       id, code, description, price, brand, 
-      capacity_description, moneda, cotizacion, product_group
+      capacity_description, moneda, cotizacion, product_group,
+      stock_disponible, stock_de_seguridad
     FROM products
     WHERE product_group = $1 AND price > 0 AND description IS NOT NULL
     ORDER BY description ASC 
