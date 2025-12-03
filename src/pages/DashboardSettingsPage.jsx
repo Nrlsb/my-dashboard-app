@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import apiService from '../api/apiService';
 import { ChevronRight } from 'lucide-react';
@@ -52,7 +53,7 @@ const DashboardSettingsPage = () => {
   };
 
   if (loading) {
-    return <div className="text-center p-8">Cargando...</div>;
+    return <LoadingSpinner text="Cargando..." />;
   }
 
   if (error) {
@@ -99,9 +100,8 @@ const DashboardSettingsPage = () => {
               </div>
               <div className="flex items-center">
                 <span
-                  className={`mr-3 text-sm font-medium ${
-                    panel.is_visible ? 'text-gray-900' : 'text-gray-400'
-                  }`}
+                  className={`mr-3 text-sm font-medium ${panel.is_visible ? 'text-gray-900' : 'text-gray-400'
+                    }`}
                 >
                   {panel.is_visible ? 'Visible' : 'Oculto'}
                 </span>

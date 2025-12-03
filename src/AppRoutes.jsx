@@ -1,4 +1,5 @@
 import React, { Suspense, lazy } from 'react';
+import LoadingSpinner from './components/LoadingSpinner';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 import { useAuth } from './context/AuthContext.jsx';
@@ -31,9 +32,7 @@ const VendedorOrderHistoryPage = lazy(() => import('./pages/VendedorOrderHistory
 
 // --- Componente de Carga para Suspense ---
 const LoadingFallback = () => (
-  <div className="flex items-center justify-center min-h-screen bg-gray-100">
-    <div className="text-lg font-semibold text-gray-700">Cargando...</div>
-  </div>
+  <LoadingSpinner text="Cargando..." />
 );
 
 // --- Componente para Rutas Protegidas ---

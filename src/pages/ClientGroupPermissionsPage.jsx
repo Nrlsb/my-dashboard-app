@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import LoadingSpinner from '../components/LoadingSpinner';
 import apiService from '../api/apiService';
 
 
@@ -150,7 +151,7 @@ const ClientGroupPermissionsPage = ({ currentUser }) => {
   }, [filteredProductGroups, clientDeniedGroups]);
 
   if (isLoading && !error) {
-    return <div className="text-center p-8">Cargando...</div>;
+    return <LoadingSpinner text="Cargando..." />;
   }
 
   if (error) {

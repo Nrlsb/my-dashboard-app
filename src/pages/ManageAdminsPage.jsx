@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import LoadingSpinner from '../components/LoadingSpinner';
 import apiService from '../api/apiService';
 
 
@@ -60,7 +61,7 @@ const ManageAdminsPage = () => {
   };
 
   if (loading) {
-    return <div>Cargando...</div>;
+    return <LoadingSpinner text="Cargando..." />;
   }
 
   if (error) {
@@ -68,7 +69,7 @@ const ManageAdminsPage = () => {
   }
 
   return (
-<div className="p-8 max-w-4xl mx-auto my-8 bg-gray-50 rounded-lg shadow-md">
+    <div className="p-8 max-w-4xl mx-auto my-8 bg-gray-50 rounded-lg shadow-md">
       <h2 className="text-center mb-8 text-gray-800 text-2xl font-bold">Gestionar Administradores</h2>
 
       <div className="mb-10 p-6 border border-gray-200 rounded-lg bg-white">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import LoadingSpinner from './LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import apiService from '../api/apiService';
 import { useAuth } from '../context/AuthContext';
@@ -100,7 +101,11 @@ const AccessoryCarousel = () => {
           </div>
         ))}
       </div>
-      {loading && <div className="absolute top-0 left-0 right-0 bottom-0 bg-gray-900/70 text-white flex justify-center items-center text-[1.2rem] rounded-lg z-10 transition-opacity duration-300 ease-in-out">Cargando...</div>}
+      {loading && (
+        <div className="absolute top-0 left-0 right-0 bottom-0 bg-gray-900/70 flex justify-center items-center z-10 rounded-lg">
+          <LoadingSpinner text="Cargando..." />
+        </div>
+      )}
     </div>
   );
 };

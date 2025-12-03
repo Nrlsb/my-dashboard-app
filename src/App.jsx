@@ -1,4 +1,5 @@
 import React from 'react';
+import LoadingSpinner from './components/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -29,11 +30,7 @@ function App() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <div className="text-lg font-semibold text-gray-700">Cargando...</div>
-      </div>
-    );
+    return <LoadingSpinner text="Iniciando aplicación..." />;
   }
 
   return (

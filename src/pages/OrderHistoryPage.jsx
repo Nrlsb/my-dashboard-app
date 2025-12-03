@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiService from '../api/apiService';
@@ -89,7 +90,7 @@ function OrderHistoryPage() {
     }) || [];
 
   if (isLoading) {
-    return <div>Cargando historial de pedidos...</div>;
+    return <LoadingSpinner text="Cargando historial..." />;
   }
 
   if (error) {

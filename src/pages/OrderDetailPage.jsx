@@ -4,6 +4,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import apiService from '../api/apiService';
 import { useAuth } from '../context/AuthContext';
 
+import LoadingSpinner from '../components/LoadingSpinner';
+
 const useCurrencyFormatter = () => {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
@@ -70,7 +72,7 @@ function OrderDetailPage() {
   };
 
   if (isLoading) {
-    return <div>Cargando detalles del pedido...</div>;
+    return <LoadingSpinner text="Cargando detalles del pedido..." />;
   }
 
   if (error) {

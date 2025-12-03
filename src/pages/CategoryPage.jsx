@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useParams, useNavigate } from 'react-router-dom';
 import apiService from '../api/apiService';
 import { useAuth } from '../context/AuthContext';
@@ -56,7 +57,7 @@ const CategoryPage = () => {
   };
 
   if (loading) {
-    return <div className="p-4 text-center">Cargando productos...</div>;
+    return <LoadingSpinner text="Cargando productos..." />;
   }
 
   if (error) {

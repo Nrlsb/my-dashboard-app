@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import {
   useInfiniteQuery,
@@ -15,15 +16,13 @@ const ToggleSwitch = ({ checked, onChange, disabled }) => (
     type="button"
     onClick={onChange}
     disabled={disabled}
-    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-      checked ? 'bg-green-600' : 'bg-gray-300'
-    } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${checked ? 'bg-green-600' : 'bg-gray-300'
+      } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
     aria-label={checked ? 'Desactivar oferta' : 'Activar oferta'}
   >
     <span
-      className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 ease-in-out ${
-        checked ? 'translate-x-6' : 'translate-x-1'
-      }`}
+      className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 ease-in-out ${checked ? 'translate-x-6' : 'translate-x-1'
+        }`}
     />
   </button>
 );
@@ -193,8 +192,8 @@ export default function ManageOffersPage() {
             <tbody className="divide-y divide-gray-200">
               {isLoading && (
                 <tr>
-                  <td colSpan="4" className="p-8 text-center text-gray-500">
-                    Cargando productos...
+                  <td colSpan="4" className="p-0">
+                    <LoadingSpinner text="Cargando productos..." />
                   </td>
                 </tr>
               )}

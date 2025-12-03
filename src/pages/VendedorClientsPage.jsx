@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import apiService from '../api/apiService';
 import { useAuth } from '../context/AuthContext';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const VendedorClientsPage = () => {
   const { user: authUser } = useAuth();
@@ -51,7 +52,7 @@ const VendedorClientsPage = () => {
       <h1 className="text-4xl font-bold text-gray-800 mb-6 text-center">
         {authUser && authUser.is_admin ? 'Todos los Clientes' : 'Mis Clientes'}
       </h1>
-      {loading && <p>Cargando clientes...</p>}
+      {loading && <LoadingSpinner text="Cargando clientes..." />}
       {error && <p className="text-red-500 text-center text-lg mt-4">{error}</p>}
       {!loading &&
         !error &&

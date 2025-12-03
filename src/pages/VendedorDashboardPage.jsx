@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import apiService from '../api/apiService';
 
+import LoadingSpinner from '../components/LoadingSpinner';
+
 const VendedorDashboardPage = () => {
   const navigate = useNavigate();
 
@@ -17,7 +19,7 @@ const VendedorDashboardPage = () => {
   });
 
   if (isLoading) {
-    return <div className="text-center p-8">Cargando...</div>;
+    return <LoadingSpinner text="Cargando dashboard..." />;
   }
 
   if (error) {

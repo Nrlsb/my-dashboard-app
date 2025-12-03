@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext.jsx';
 import {
@@ -232,11 +233,7 @@ const NewOrderPage = () => {
 
   const renderProductList = () => {
     if (loadingProducts) {
-      return (
-        <div className="p-6 bg-white rounded-lg shadow-md text-center text-gray-500">
-          Cargando productos...
-        </div>
-      );
+      return <LoadingSpinner text="Cargando productos..." />;
     }
     if (productError) {
       return (

@@ -1,4 +1,5 @@
 import React from 'react';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useQuery } from '@tanstack/react-query';
 import apiService from '../api/apiService';
 
@@ -40,7 +41,7 @@ const ClientesPage = () => {
       <h1>Gestión de Clientes</h1>
       <p>Aquí podrás ver, buscar y administrar tus clientes.</p>
 
-      {isLoading && <p>Cargando clientes...</p>}
+      {isLoading && <LoadingSpinner text="Cargando clientes..." />}
       {isError && (
         <p style={{ color: 'red' }}>
           Error al cargar clientes: {error.message}

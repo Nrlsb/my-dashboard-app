@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import {
   DollarSign,
@@ -635,9 +636,8 @@ export default function AccountBalancePage({ user }) {
                         colSpan="8"
                         className="py-6 px-4 text-center text-gray-500"
                       >
-                        <div className="flex justify-center items-center">
-                          <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                          <span className="ml-2">Cargando movimientos...</span>
+                        <div className="flex justify-center items-center p-0">
+                          <LoadingSpinner text="Cargando movimientos..." />
                         </div>
                       </td>
                     </tr>
