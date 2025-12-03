@@ -10,6 +10,7 @@ const {
   getProductsByIdController, // Nombre corregido
   getProductsOrdersController, // Nuevo controlador importado
   toggleProductOfferStatus,
+  updateProductOfferDetails,
 } = require('../controllers/productController');
 const {
   optionalAuthenticateToken,
@@ -50,6 +51,13 @@ router.put(
   authenticateToken,
   requireAdmin,
   toggleProductOfferStatus
+);
+
+router.put(
+  '/:id/offer-details',
+  authenticateToken,
+  requireAdmin,
+  updateProductOfferDetails
 );
 
 module.exports = router;

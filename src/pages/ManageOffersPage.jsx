@@ -6,7 +6,7 @@ import {
   useQueryClient,
   useMutation,
 } from '@tanstack/react-query';
-import { Loader2, ArrowLeft, Search, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, Search, CheckCircle, XCircle, Edit2, Save, X } from 'lucide-react';
 import apiService from '../api/apiService.js';
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -27,14 +27,124 @@ const ToggleSwitch = ({ checked, onChange, disabled }) => (
   </button>
 );
 
+// --- Modal de Edición ---
+const EditOfferModal = ({ product, onClose, onSave, isSaving }) => {
+  const [formData, setFormData] = useState({
+    custom_title: product.custom_title || '',
+    custom_description: product.custom_description || '',
+    custom_image_url: product.custom_image_url || '',
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(product.id, formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+          <h3 className="text-lg font-semibold text-gray-800">Editar Oferta</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Título Personalizado
+            </label>
+            <input
+              type="text"
+              name="custom_title"
+              value={formData.custom_title}
+              onChange={handleChange}
+              placeholder={product.name}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">Dejar en blanco para usar el nombre original.</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Descripción Personalizada
+            </label>
+            <textarea
+              name="custom_description"
+              value={formData.custom_description}
+              onChange={handleChange}
+              rows="3"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              URL de Imagen Personalizada
+            </label>
+            <input
+              type="text"
+              name="custom_image_url"
+              value={formData.custom_image_url}
+              onChange={handleChange}
+              placeholder="https://ejemplo.com/imagen.jpg"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="pt-4 flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 flex items-center disabled:opacity-50"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Guardar Cambios
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 // --- Componente para la Fila de Producto ---
-const ProductRow = ({ product, onToggle, isToggling }) => (
+const ProductRow = ({ product, onToggle, isToggling, onEdit }) => (
   <tr className="border-b border-gray-200 hover:bg-gray-50">
     <td className="py-3 px-4 text-sm text-gray-500 font-mono">
       {product.code}
     </td>
     <td className="py-3 px-4 text-sm text-gray-900 font-medium">
-      {product.name}
+      <div>
+        {product.custom_title || product.name}
+        {product.custom_title && (
+          <span className="ml-2 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+            Personalizado
+          </span>
+        )}
+      </div>
     </td>
     <td className="py-3 px-4 text-sm text-gray-500">
       {product.oferta ? (
@@ -50,11 +160,22 @@ const ProductRow = ({ product, onToggle, isToggling }) => (
       )}
     </td>
     <td className="py-3 px-4 text-center">
-      <ToggleSwitch
-        checked={product.oferta}
-        onChange={onToggle}
-        disabled={isToggling}
-      />
+      <div className="flex items-center justify-center space-x-4">
+        <ToggleSwitch
+          checked={product.oferta}
+          onChange={onToggle}
+          disabled={isToggling}
+        />
+        {product.oferta && (
+          <button
+            onClick={() => onEdit(product)}
+            className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+            title="Editar detalles de oferta"
+          >
+            <Edit2 className="w-5 h-5" />
+          </button>
+        )}
+      </div>
     </td>
   </tr>
 );
@@ -63,6 +184,7 @@ const ProductRow = ({ product, onToggle, isToggling }) => (
 export default function ManageOffersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
+  const [editingProduct, setEditingProduct] = useState(null);
   const debounceTimeout = useRef(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -131,6 +253,35 @@ export default function ManageOffersPage() {
     },
   });
 
+  // Mutación para guardar detalles personalizados
+  const { mutate: saveOfferDetails, isPending: isSavingDetails } = useMutation({
+    mutationFn: ({ productId, details }) => apiService.updateProductOfferDetails(productId, details),
+    onSuccess: (data, variables) => {
+      // Actualizar caché local
+      queryClient.setQueryData(
+        ['products', debounceSearchTerm, []],
+        (oldData) => {
+          if (!oldData) return oldData;
+          return {
+            ...oldData,
+            pages: oldData.pages.map((page) => ({
+              ...page,
+              products: page.products.map((p) =>
+                p.id === variables.productId
+                  ? { ...p, ...variables.details }
+                  : p
+              ),
+            })),
+          };
+        }
+      );
+      setEditingProduct(null);
+    },
+    onError: (err) => {
+      alert(`Error al guardar los detalles: ${err.message}`);
+    },
+  });
+
   const allProducts = data?.pages.flatMap((page) => page.products) || [];
 
   if (!user?.is_admin) {
@@ -153,7 +304,7 @@ export default function ManageOffersPage() {
               Gestionar Ofertas
             </h1>
             <p className="text-gray-500">
-              Activa o desactiva productos en oferta.
+              Activa o desactiva productos en oferta y personaliza su apariencia.
             </p>
           </div>
         </div>
@@ -185,7 +336,7 @@ export default function ManageOffersPage() {
                   Estado Actual
                 </th>
                 <th className="py-3 px-4 text-center text-xs font-semibold text-gray-600 uppercase">
-                  Poner en Oferta
+                  Acciones
                 </th>
               </tr>
             </thead>
@@ -217,6 +368,7 @@ export default function ManageOffersPage() {
                   product={product}
                   onToggle={() => toggleOffer(product.id)}
                   isToggling={isToggling}
+                  onEdit={setEditingProduct}
                 />
               ))}
             </tbody>
@@ -237,6 +389,15 @@ export default function ManageOffersPage() {
           )}
         </div>
       </div>
+
+      {editingProduct && (
+        <EditOfferModal
+          product={editingProduct}
+          onClose={() => setEditingProduct(null)}
+          onSave={(productId, details) => saveOfferDetails({ productId, details })}
+          isSaving={isSavingDetails}
+        />
+      )}
     </div>
   );
 }

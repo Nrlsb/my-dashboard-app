@@ -86,3 +86,14 @@ exports.toggleProductOfferStatus = catchAsync(async (req, res) => {
     const result = await productService.toggleProductOfferStatus(id);
     res.json(result);
 });
+
+exports.updateProductOfferDetails = catchAsync(async (req, res) => {
+    const { id } = req.params;
+    const { custom_title, custom_description, custom_image_url } = req.body;
+    const result = await productService.updateProductOfferDetails(id, {
+        custom_title,
+        custom_description,
+        custom_image_url,
+    });
+    res.json(result);
+});

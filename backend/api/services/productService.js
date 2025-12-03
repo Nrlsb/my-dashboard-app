@@ -373,6 +373,9 @@ const fetchProtheusOffers = async (userId = null) => {
         originalPrice: originalPrice,
         product_group: prod.product_group,
         oferta: true,
+        custom_title: prod.custom_title,
+        custom_description: prod.custom_description,
+        custom_image_url: prod.custom_image_url,
       };
     });
 
@@ -545,6 +548,18 @@ const getProductGroupsForAdmin = async () => {
   }
 };
 
+/**
+ * (Admin) Actualiza los detalles personalizados de una oferta.
+ */
+const updateProductOfferDetails = async (productId, details) => {
+  try {
+    return await productModel.updateProductOfferDetails(productId, details);
+  } catch (error) {
+    console.error('Error in updateProductOfferDetails (service):', error);
+    throw error;
+  }
+};
+
 module.exports = {
   fetchProducts,
   getAccessories,
@@ -554,5 +569,6 @@ module.exports = {
   fetchProtheusOffers,
   fetchProductsByGroup,
   toggleProductOfferStatus,
+  updateProductOfferDetails, // Exportar nueva función
   getProductGroupsForAdmin,
 };

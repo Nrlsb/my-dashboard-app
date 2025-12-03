@@ -26,8 +26,17 @@ const ProductOfferCard = ({ product }) => {
   const navigate = useNavigate();
 
   return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden transform transition-transform hover:scale-105 duration-300 flex flex-col justify-between">
-      <div className="p-6">
+    <div className="bg-white rounded-lg shadow-lg overflow-hidden transform transition-transform hover:scale-105 duration-300 flex flex-col justify-between h-full">
+      {product.custom_image_url && (
+        <div className="h-48 w-full overflow-hidden">
+          <img
+            src={product.custom_image_url}
+            alt={product.custom_title || product.name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      )}
+      <div className="p-6 flex-grow flex flex-col">
         <div className="flex items-start justify-between mb-3">
           <span className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full uppercase">
             {product.brand || 'Marca'}
@@ -35,19 +44,26 @@ const ProductOfferCard = ({ product }) => {
           <Tag className="w-6 h-6 text-blue-500" />
         </div>
         <h3
-          className="text-base font-semibold text-gray-800 mb-2 h-12 overflow-hidden"
-          title={product.name}
+          className={`text-base font-semibold text-gray-800 mb-2 ${!product.custom_description ? 'h-12 overflow-hidden' : ''}`}
+          title={product.custom_title || product.name}
         >
-          {product.name}
+          {product.custom_title || product.name}
         </h3>
+        {product.custom_description && (
+          <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+            {product.custom_description}
+          </p>
+        )}
         <p className="text-sm text-gray-500 mb-4 font-mono">{product.code}</p>
-        <p className="text-2xl font-bold text-gray-900">
-          {product.formattedPrice}
-        </p>
+        <div className="mt-auto">
+          <p className="text-2xl font-bold text-gray-900">
+            {product.formattedPrice}
+          </p>
+        </div>
       </div>
-      <div className="p-4 bg-gray-50">
+      <div className="p-4 bg-gray-50 mt-auto">
         <button
-          onClick={() => navigate(`/product/${product.id}`)}
+          onClick={() => navigate(`/product-detail/${product.id}`)}
           className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-600 transition-colors duration-200"
         >
           Ver Detalle

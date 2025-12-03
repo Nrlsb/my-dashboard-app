@@ -65,7 +65,7 @@ const apiService = {
       body: JSON.stringify(credentials),
     }).then(handleResponse);
   },
-  
+
   register(userData) {
     return fetch(`${API_BASE_URL}/register`, {
       method: 'POST',
@@ -271,6 +271,14 @@ const apiService = {
     if (!productId) throw new Error('ID de producto requerido');
     return this.request(`/products/${productId}/toggle-offer`, {
       method: 'PUT',
+    });
+  },
+
+  updateProductOfferDetails(productId, details) {
+    if (!productId) throw new Error('ID de producto requerido');
+    return this.request(`/products/${productId}/offer-details`, {
+      method: 'PUT',
+      body: details,
     });
   },
 

@@ -9,31 +9,37 @@ const permissionsCache = new NodeCache({ stdTTL: 600, checkperiod: 120 });
 const offersCache = new NodeCache({ stdTTL: 120, checkperiod: 60 });
 
 /**
- * Función interna para obtener los IDs de productos en oferta.
+ * Función interna para obtener los datos de productos en oferta.
  * Centraliza el acceso a la caché de ofertas.
+ * @returns {Promise<object[]>} - Una promesa que se resuelve con un array de objetos de oferta.
+ */
+const getOnOfferData = async () => {
+  const offerDataCacheKey = 'on_offer_data';
+  let offerData = offersCache.get(offerDataCacheKey);
+
+  if (offerData === undefined) {
+    try {
+      const result = await pool2.query(
+        'SELECT product_id, custom_title, custom_description, custom_image_url FROM product_offer_status WHERE is_on_offer = true'
+      );
+      offerData = result.rows;
+      offersCache.set(offerDataCacheKey, offerData);
+    } catch (error) {
+      console.error('Error fetching on-offer data:', error);
+      return [];
+    }
+  }
+  return offerData;
+};
+
+/**
+ * Función interna para obtener solo los IDs de productos en oferta.
+ * Wrapper sobre getOnOfferData para compatibilidad.
  * @returns {Promise<number[]>} - Una promesa que se resuelve con un array de IDs de productos.
  */
 const getOnOfferProductIds = async () => {
-  const offerIdsCacheKey = 'on_offer_product_ids';
-  let offerProductIds = offersCache.get(offerIdsCacheKey);
-
-  if (offerProductIds === undefined) {
-    // console.log('[Cache MISS] Central: Lista de IDs de ofertas.');
-    try {
-      const result = await pool2.query(
-        'SELECT product_id FROM product_offer_status WHERE is_on_offer = true'
-      );
-      offerProductIds = result.rows.map((row) => row.product_id);
-      offersCache.set(offerIdsCacheKey, offerProductIds);
-    } catch (error) {
-      console.error('Error fetching on-offer product IDs:', error);
-      // En caso de error, devolver un array vacío para no romper la app
-      return [];
-    }
-  } else {
-    // console.log('[Cache HIT] Central: Lista de IDs de ofertas.');
-  }
-  return offerProductIds;
+  const data = await getOnOfferData();
+  return data.map(item => item.product_id);
 };
 
 /**
@@ -286,12 +292,16 @@ const findUniqueBrands = async (deniedGroups = []) => {
 
 const findOffers = async (deniedGroups = []) => {
   try {
-    // Usar la función centralizada para obtener los IDs de oferta
-    const offerProductIds = await getOnOfferProductIds();
+    // Usar la función centralizada para obtener los datos de oferta
+    const offerData = await getOnOfferData();
 
-    if (offerProductIds.length === 0) {
+    if (offerData.length === 0) {
       return [];
     }
+
+    const offerProductIds = offerData.map(o => o.product_id);
+    // Crear un mapa para acceso rápido a los detalles custom
+    const offerDetailsMap = new Map(offerData.map(o => [o.product_id, o]));
 
     let query = `
       SELECT
@@ -312,7 +322,19 @@ const findOffers = async (deniedGroups = []) => {
     query += ` ORDER BY description ASC;`;
 
     const result = await pool.query(query, queryParams);
-    return result.rows;
+
+    // Combinar con los datos custom
+    const productsWithDetails = result.rows.map(product => {
+      const details = offerDetailsMap.get(product.id);
+      return {
+        ...product,
+        custom_title: details?.custom_title || null,
+        custom_description: details?.custom_description || null,
+        custom_image_url: details?.custom_image_url || null
+      };
+    });
+
+    return productsWithDetails;
   } catch (error) {
     console.error('Error in findOffers:', error);
     throw error;
@@ -402,6 +424,7 @@ module.exports = {
   findUniqueBrands,
   findOffers,
   findProductsByGroup,
-  getRecentlyChangedProducts, // Exportar nueva función
+  getRecentlyChangedProducts,
+  updateProductOfferDetails, // Exportar nueva función
   offersCache,
 };
