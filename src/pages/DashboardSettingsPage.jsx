@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { useNavigate } from 'react-router-dom';
+
 import apiService from '../api/apiService';
-import { ChevronRight } from 'lucide-react';
+
 import { useAuth } from '../context/AuthContext';
 
 const DashboardSettingsPage = () => {
   const [panels, setPanels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
+
   const { user } = useAuth();
 
   useEffect(() => {
@@ -64,21 +64,7 @@ const DashboardSettingsPage = () => {
     <div className="p-4 md:p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Configuración del Sitio</h1>
 
-      <h2 className="text-xl font-semibold mb-4 mt-8">Gestión de Contenido</h2>
-      <div className="bg-white shadow rounded-lg mb-8">
-        <button
-          onClick={() => navigate('/manage-offers')}
-          className="p-4 flex justify-between items-center w-full text-left hover:bg-gray-50"
-        >
-          <div>
-            <p className="font-semibold">Gestionar Ofertas de Productos</p>
-            <p className="text-sm text-gray-500">
-              Activar o desactivar productos en oferta.
-            </p>
-          </div>
-          <ChevronRight className="w-5 h-5 text-gray-400" />
-        </button>
-      </div>
+
 
       <h2 className="text-xl font-semibold mb-4">
         Visibilidad de Paneles del Dashboard
