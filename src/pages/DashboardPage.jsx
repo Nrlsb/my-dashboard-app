@@ -63,15 +63,15 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-      {cards.map((card) => (
+    <div className="flex w-full bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
+      {cards.map((card, index) => (
         <DashboardCard
           key={card.id}
           title={card.title}
           subTitle={card.subtitle}
           icon={iconMap[card.icon] || HelpCircle}
           tag={card.tag}
-          bgColor="bg-gray-700"
+          isLast={index === cards.length - 1}
           onClick={() => navigate(`/${card.navigation_path.startsWith('/') ? card.navigation_path.substring(1) : card.navigation_path}`)}
         />
       ))}
