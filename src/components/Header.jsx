@@ -10,6 +10,7 @@ import {
   Settings,
   Users,
   UserCog,
+  Tag,
 } from 'lucide-react';
 import logo from '../assets/espintBlanco.svg';
 
@@ -100,6 +101,13 @@ const Header = ({ onLogout, currentUser }) => {
                         >
                           <Settings className="w-5 h-5 mr-3 text-gray-500" />
                           Config. Dashboard
+                        </button>
+                        <button
+                          onClick={() => handleNavigation('/manage-offers')}
+                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <Tag className="w-5 h-5 mr-3 text-gray-500" />
+                          Gestionar Ofertas
                         </button>
                         <button
                           onClick={() =>
