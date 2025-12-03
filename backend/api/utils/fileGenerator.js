@@ -116,7 +116,7 @@ async function generateOrderPDF(orderData) {
     y -= 10;
     
     // Logo Check
-    const logoPath = path.join(__dirname, '../../../src/assets/logo.png');
+    const logoPath = path.join(__dirname, '../../../src/assets/espintBlanco.svg');
     
     if (fs.existsSync(logoPath)) {
         try {

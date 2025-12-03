@@ -11,7 +11,7 @@ import {
   Users,
   UserCog,
 } from 'lucide-react';
-import logo from '../assets/logo.png';
+import logo from '../assets/espintBlanco.svg';
 
 const Header = ({ onLogout, currentUser }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
