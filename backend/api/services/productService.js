@@ -2,7 +2,7 @@ const productModel = require('../models/productModel');
 const { getExchangeRates } = require('../utils/exchangeRateService');
 const { formatCurrency } = require('../utils/helpers');
 const { pool, pool2 } = require('../db'); // Solo para verificar si el usuario es admin
-const { offersCache } = require('../utils/cache'); // Importar offersCache desde cache centralizado
+const { clearCacheByPattern } = require('../redisClient'); // Importar el nuevo invalidador de caché
 
 /**
  * Servicio para manejar la lógica de negocio de productos.
@@ -510,9 +510,12 @@ const toggleProductOfferStatus = async (productId) => {
       `Estado de oferta para producto ${productId} cambiado a ${newOfferStatus} en DB2.`
     );
 
-    // Invalidar la caché de ofertas
-    const deletedCount = offersCache.del('on_offer_data');
-    console.log(`[DEBUG] Cache invalidation for 'on_offer_data': ${deletedCount} keys deleted.`);
+    // Invalidar la caché de Redis para productos y ofertas
+    await Promise.all([
+      clearCacheByPattern('*__express__/api/products*'),
+      clearCacheByPattern('*__express__/api/offers*')
+    ]);
+    console.log(`[Cache] Invalidación de caché de Redis iniciada para productos y ofertas.`);
 
     // Devolver la información del producto combinada con el nuevo estado de oferta
     return {
@@ -556,7 +559,16 @@ const getProductGroupsForAdmin = async () => {
  */
 const updateProductOfferDetails = async (productId, details) => {
   try {
-    return await productModel.updateProductOfferDetails(productId, details);
+    const updatedProduct = await productModel.updateProductOfferDetails(productId, details);
+    
+    // Invalidar la caché de Redis para productos y ofertas
+    await Promise.all([
+      clearCacheByPattern('*__express__/api/products*'),
+      clearCacheByPattern('*__express__/api/offers*')
+    ]);
+    console.log(`[Cache] Invalidación de caché de Redis iniciada para productos y ofertas tras actualizar detalles.`);
+    
+    return updatedProduct;
   } catch (error) {
     console.error('Error in updateProductOfferDetails (service):', error);
     throw error;
