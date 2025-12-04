@@ -2,7 +2,7 @@ const productModel = require('../models/productModel');
 const { getExchangeRates } = require('../utils/exchangeRateService');
 const { formatCurrency } = require('../utils/helpers');
 const { pool, pool2 } = require('../db'); // Solo para verificar si el usuario es admin
-const { offersCache } = require('../models/productModel'); // Importar offersCache desde productModel
+const { offersCache } = require('../utils/cache'); // Importar offersCache desde cache centralizado
 
 /**
  * Servicio para manejar la lógica de negocio de productos.
@@ -509,7 +509,8 @@ const toggleProductOfferStatus = async (productId) => {
     );
 
     // Invalidar la caché de ofertas
-    offersCache.del('on_offer_data');
+    const deletedCount = offersCache.del('on_offer_data');
+    console.log(`[DEBUG] Cache invalidation for 'on_offer_data': ${deletedCount} keys deleted.`);
 
     // Devolver la información del producto combinada con el nuevo estado de oferta
     return {

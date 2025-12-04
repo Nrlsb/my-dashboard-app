@@ -18,6 +18,7 @@ exports.getProductsController = catchAsync(async (req, res) => {
         moneda,
         userId: req.userId,
     });
+    res.set('Cache-Control', 'no-store');
     res.json(data);
 });
 
@@ -45,6 +46,7 @@ exports.getBrandsController = catchAsync(async (req, res) => {
 exports.getOffersController = catchAsync(async (req, res) => {
     console.log('GET /api/offers -> Consultando ofertas en DB...');
     const offers = await productService.fetchProtheusOffers(req.userId);
+    res.set('Cache-Control', 'no-store');
     res.json(offers);
 });
 

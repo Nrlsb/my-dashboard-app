@@ -1,12 +1,7 @@
 const { pool, pool2 } = require('../db');
 const NodeCache = require('node-cache');
 
-// stdTTL: tiempo de vida en segundos para cada registro. 600s = 10 minutos.
-// checkperiod: cada cuántos segundos se revisan y eliminan los registros expirados. 120s = 2 minutos.
-const permissionsCache = new NodeCache({ stdTTL: 600, checkperiod: 120 });
-
-// Caché para datos que cambian más a menudo, como las ofertas. TTL de 2 minutos.
-const offersCache = new NodeCache({ stdTTL: 120, checkperiod: 60 });
+const { permissionsCache, offersCache } = require('../utils/cache');
 
 /**
  * Función interna para obtener los datos de productos en oferta.
@@ -18,12 +13,14 @@ const getOnOfferData = async () => {
   let offerData = offersCache.get(offerDataCacheKey);
 
   if (offerData === undefined) {
+    console.log('[DEBUG] Cache MISS for on_offer_data. Fetching from DB...');
     try {
       const result = await pool2.query(
         'SELECT product_id, custom_title, custom_description, custom_image_url FROM product_offer_status WHERE is_on_offer = true'
       );
       offerData = result.rows;
       offersCache.set(offerDataCacheKey, offerData);
+      console.log(`[DEBUG] Cache SET for on_offer_data. Items: ${offerData.length}`);
     } catch (error) {
       console.error('Error fetching on-offer data:', error);
       return [];
