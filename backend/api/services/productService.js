@@ -126,11 +126,20 @@ const fetchProducts = async ({
 
 const getAccessories = async (userId) => {
   try {
-    // 1. Try to fetch from DB configuration
+    // 1. Fetch from DB configuration
     const dbAccessories = await productModel.findCarouselAccessories();
 
     if (dbAccessories.length > 0) {
-      return dbAccessories.map((prod) => ({
+      // Filter by denied groups if user is restricted
+      let filteredAccessories = dbAccessories;
+      if (userId) {
+        const deniedGroups = await productModel.getDeniedProductGroups(userId);
+        if (deniedGroups.length > 0) {
+          filteredAccessories = dbAccessories.filter(acc => !deniedGroups.includes(acc.product_group));
+        }
+      }
+
+      return filteredAccessories.map((prod) => ({
         id: prod.id,
         code: prod.code,
         name: prod.description,
@@ -141,52 +150,7 @@ const getAccessories = async (userId) => {
       }));
     }
 
-    let accessoryGroups = [
-      '0102',
-      '0103',
-      '0114',
-      '0120',
-      '0121',
-      '0125',
-      '0128',
-      '0136',
-      '0140',
-      '0143',
-      '0144',
-      '0148',
-      '0149',
-      '0166',
-      '0177',
-      '0186',
-      '0187',
-    ];
-
-    if (userId) {
-      const deniedGroups = await productModel.getDeniedProductGroups(userId);
-      if (deniedGroups.length > 0) {
-        accessoryGroups = accessoryGroups.filter(
-          (group) => !deniedGroups.includes(group)
-        );
-      }
-    }
-
-    if (accessoryGroups.length === 0) {
-      return []; // No hay grupos de accesorios para mostrar
-    }
-
-    const rawAccessories = await productModel.findAccessories(accessoryGroups);
-
-    const accessories = rawAccessories.map((prod) => ({
-      id: prod.id,
-      code: prod.code,
-      name: prod.description,
-      price: prod.price,
-      formattedPrice: formatCurrency(prod.price),
-      image_url: `https://placehold.co/150/2D3748/FFFFFF?text=${encodeURIComponent(prod.description.split(' ')[0])}`,
-      group_code: prod.product_group,
-    }));
-
-    return accessories;
+    return [];
   } catch (error) {
     console.error('Error en getAccessories (service):', error);
     throw error;
@@ -195,7 +159,7 @@ const getAccessories = async (userId) => {
 
 const getProductGroupsDetails = async (userId) => {
   try {
-    // 1. Try to fetch from DB configuration
+    // 1. Fetch from DB configuration
     const dbGroups = await productModel.findCarouselGroups();
 
     if (dbGroups.length > 0) {
@@ -208,7 +172,7 @@ const getProductGroupsDetails = async (userId) => {
         groupDetailsMap = new Map(details.map(g => [g.product_group, g]));
       }
 
-      return dbGroups.map(group => {
+      let finalGroups = dbGroups.map(group => {
         if (group.type === 'static_group') {
           const detail = groupDetailsMap.get(group.reference_id);
           let name = group.name || (detail ? detail.brand : `Grupo ${group.reference_id}`);
@@ -237,70 +201,24 @@ const getProductGroupsDetails = async (userId) => {
           };
         }
       });
-    }
 
-    let groupCodes = [
-      '0102',
-      '0103',
-      '0114',
-      '0120',
-      '0121',
-      '0125',
-      '0128',
-      '0136',
-      '0140',
-      '0143',
-      '0144',
-      '0148',
-      '0149',
-      '0166',
-      '0177',
-      '0186',
-      '0187',
-    ];
-
-    try {
+      // Filter denied groups for static groups
       if (userId) {
         const deniedGroups = await productModel.getDeniedProductGroups(userId);
         if (deniedGroups.length > 0) {
-          groupCodes = groupCodes.filter((code) => !deniedGroups.includes(code));
+          finalGroups = finalGroups.filter(g => {
+            if (g.type === 'static_group') {
+              return !deniedGroups.includes(g.group_code);
+            }
+            return true; // Custom collections might need their own permission logic, but for now allow them
+          });
         }
       }
 
-      if (groupCodes.length === 0) {
-        return [];
-      }
-
-      const groupDetailsFromDb =
-        await productModel.findProductGroupsDetails(groupCodes);
-      const groupDetailsMap = new Map(
-        groupDetailsFromDb.map((g) => [g.product_group, g])
-      );
-
-      const groupDetails = groupCodes.map((code) => {
-        const detail = groupDetailsMap.get(code);
-        let imageUrl = `https://placehold.co/150/2D3748/FFFFFF?text=${encodeURIComponent(code)}`;
-        let name = `Grupo ${code}`;
-
-        if (detail) {
-          name = detail.brand;
-          const imageName = detail.description || name;
-          imageUrl = `https://placehold.co/150/2D3748/FFFFFF?text=${encodeURIComponent(imageName.split(' ')[0])}`;
-        }
-
-        return {
-          group_code: code,
-          name: name,
-          image_url: imageUrl,
-          type: 'static_group'
-        };
-      });
-
-      return groupDetails;
-    } catch (error) {
-      console.error('Error en getProductGroupsDetails (service):', error);
-      throw error;
+      return finalGroups;
     }
+
+    return [];
   } catch (error) {
     console.error('Error en getProductGroupsDetails (service):', error);
     throw error;
