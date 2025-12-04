@@ -307,7 +307,338 @@ const getProductGroupsDetails = async (userId) => {
   }
 };
 
-// ... (rest of the file content until exports)
+const fetchProductDetails = async (productId, userId = null) => {
+  try {
+    let deniedGroups = [];
+    if (userId) {
+      const userResult = await pool.query(
+        'SELECT is_admin FROM users WHERE id = $1',
+        [userId]
+      );
+      const isUserAdmin =
+        userResult.rows.length > 0 && userResult.rows[0].is_admin;
+      if (!isUserAdmin) {
+        deniedGroups = await productModel.getDeniedProductGroups(userId);
+      }
+    }
+
+    const prod = await productModel.findProductById(productId, deniedGroups);
+
+    if (!prod) {
+      return null;
+    }
+
+    const productDetails = {
+      id: prod.id,
+      code: prod.code,
+      name: prod.description,
+      price: prod.price,
+      formattedPrice: formatCurrency(prod.price),
+      brand: prod.brand,
+      imageUrl: null,
+      capacityDesc: prod.capacity_description,
+      capacityValue: null,
+      additionalInfo: {},
+      product_group: prod.product_group,
+    };
+
+    return productDetails;
+  } catch (error) {
+    console.error(
+      `Error in fetchProductDetails (service) for ID ${productId}:`,
+      error
+    );
+    throw error;
+  }
+};
+
+const fetchProtheusBrands = async (userId = null) => {
+  try {
+    let deniedGroups = [];
+    if (userId) {
+      const userResult = await pool.query(
+        'SELECT is_admin FROM users WHERE id = $1',
+        [userId]
+      );
+      const isUserAdmin =
+        userResult.rows.length > 0 && userResult.rows[0].is_admin;
+      if (!isUserAdmin) {
+        deniedGroups = await productModel.getDeniedProductGroups(userId);
+      }
+    }
+
+    const brands = await productModel.findUniqueBrands(deniedGroups);
+    return brands;
+  } catch (error) {
+    console.error('Error in fetchProtheusBrands (service):', error);
+    throw error;
+  }
+};
+
+const fetchProtheusOffers = async (userId = null) => {
+  try {
+    let deniedGroups = [];
+    if (userId) {
+      const userResult = await pool.query(
+        'SELECT is_admin FROM users WHERE id = $1',
+        [userId]
+      );
+      const isUserAdmin =
+        userResult.rows.length > 0 && userResult.rows[0].is_admin;
+      if (!isUserAdmin) {
+        deniedGroups = await productModel.getDeniedProductGroups(userId);
+      }
+    }
+
+    const rawOffers = await productModel.findOffers(deniedGroups);
+
+    if (rawOffers.length === 0) {
+      return [];
+    }
+
+    let exchangeRates;
+    try {
+      exchangeRates = await getExchangeRates();
+    } catch (error) {
+      console.error(
+        '[WARNING] Failed to fetch exchange rates for offers. Using default values.',
+        error
+      );
+      exchangeRates = { venta_billete: 1, venta_divisa: 1 }; // Fallback
+    }
+    const ventaBillete = exchangeRates.venta_billete || 1; // Ensure not null
+    const ventaDivisa = exchangeRates.venta_divisa || 1; // Ensure not null
+
+    const offers = rawOffers.map((prod) => {
+      let originalPrice = prod.price;
+      let finalPrice = prod.price;
+
+      if (prod.moneda === 2) {
+        // Dólar Billete
+        finalPrice = originalPrice * ventaBillete;
+      } else if (prod.moneda === 3) {
+        // Dólar Divisa
+        finalPrice = originalPrice * ventaDivisa;
+      }
+
+      return {
+        id: prod.id,
+        code: prod.code,
+        name: prod.description,
+        price: finalPrice,
+        formattedPrice: formatCurrency(finalPrice),
+        brand: prod.brand,
+        imageUrl: null,
+        capacityDesc: prod.capacity_description,
+        moneda: prod.moneda,
+        cotizacion:
+          prod.moneda === 2
+            ? ventaBillete
+            : prod.moneda === 3
+              ? ventaDivisa
+              : 1,
+        originalPrice: originalPrice,
+        product_group: prod.product_group,
+        oferta: true,
+        custom_title: prod.custom_title,
+        custom_description: prod.custom_description,
+        custom_image_url: prod.custom_image_url,
+      };
+    });
+
+    return offers;
+  } catch (error) {
+    console.error('Error in fetchProtheusOffers (service):', error);
+    throw error;
+  }
+};
+
+const fetchProductsByGroup = async (
+  groupCode,
+  page = 1,
+  limit = 20,
+  userId = null
+) => {
+  try {
+    let exchangeRates;
+    try {
+      exchangeRates = await getExchangeRates();
+    } catch (error) {
+      console.error(
+        '[WARNING] Failed to fetch exchange rates for group. Using default values.',
+        error
+      );
+      exchangeRates = { venta_billete: 1, venta_divisa: 1 }; // Fallback
+    }
+    const ventaBillete = exchangeRates.venta_billete || 1;
+    const ventaDivisa = exchangeRates.venta_divisa || 1;
+
+    const offset = (page - 1) * limit;
+    let deniedGroups = [];
+    if (userId) {
+      const userResult = await pool.query(
+        'SELECT is_admin FROM users WHERE id = $1',
+        [userId]
+      );
+      const isUserAdmin =
+        userResult.rows.length > 0 && userResult.rows[0].is_admin;
+      if (!isUserAdmin) {
+        deniedGroups = await productModel.getDeniedProductGroups(userId);
+      }
+    }
+
+    const {
+      products: rawProducts,
+      totalProducts,
+      groupName,
+    } = await productModel.findProductsByGroup(
+      groupCode,
+      limit,
+      offset,
+      deniedGroups
+    );
+
+    const products = rawProducts.map((prod) => {
+      let originalPrice = prod.price;
+      let finalPrice = prod.price;
+
+      if (prod.moneda === 2) {
+        // Dólar Billete
+        finalPrice = originalPrice * ventaBillete;
+      } else if (prod.moneda === 3) {
+        // Dólar Divisa
+        finalPrice = originalPrice * ventaDivisa;
+      }
+
+      return {
+        id: prod.id,
+        code: prod.code,
+        name: prod.description,
+        price: finalPrice,
+        formattedPrice: formatCurrency(finalPrice),
+        brand: prod.brand,
+        imageUrl: null,
+        capacityDesc: prod.capacity_description,
+      };
+    });
+
+    return {
+      products,
+      totalProducts,
+      groupName,
+    };
+  } catch (error) {
+    console.error('[DEBUG] Error in fetchProductsByGroup (service):', error);
+    throw error;
+  }
+};
+
+/**
+ * (Admin) Cambia el estado de 'oferta' de un producto.
+ */
+const toggleProductOfferStatus = async (productId) => {
+  try {
+    // 1. Verificar si el producto existe en DB1 (solo lectura)
+    const productResult = await pool.query(
+      'SELECT id, description, code, price FROM products WHERE id = $1',
+      [productId]
+    );
+    if (productResult.rows.length === 0) {
+      throw new Error('Producto no encontrado en la base de datos principal.');
+    }
+    const productDetails = productResult.rows[0];
+
+    // 2. Intentar obtener el estado de oferta del producto desde DB2
+    const existingOffer = await pool2.query(
+      'SELECT is_on_offer FROM product_offer_status WHERE product_id = $1',
+      [productId]
+    );
+
+    let newOfferStatus;
+    if (existingOffer.rows.length > 0) {
+      // Si existe, alternar el estado
+      newOfferStatus = !existingOffer.rows[0].is_on_offer;
+      await pool2.query(
+        'UPDATE product_offer_status SET is_on_offer = $1, updated_at = CURRENT_TIMESTAMP WHERE product_id = $2',
+        [newOfferStatus, productId]
+      );
+    } else {
+      // Si no existe, insertar un nuevo registro con is_on_offer = true
+      newOfferStatus = true;
+      await pool2.query(
+        'INSERT INTO product_offer_status (product_id, is_on_offer) VALUES ($1, $2)',
+        [productId, newOfferStatus]
+      );
+    }
+
+    console.log(
+      `Estado de oferta para producto ${productId} cambiado a ${newOfferStatus} en DB2.`
+    );
+
+    // Invalidar la caché de Redis para productos y ofertas
+    await Promise.all([
+      clearCacheByPattern('*__express__/api/products*'),
+      clearCacheByPattern('*__express__/api/offers*')
+    ]);
+    console.log(`[Cache] Invalidación de caché de Redis iniciada para productos y ofertas.`);
+
+    // Devolver la información del producto combinada con el nuevo estado de oferta
+    return {
+      id: productDetails.id,
+      description: productDetails.description,
+      code: productDetails.code,
+      price: productDetails.price,
+      oferta: newOfferStatus, // Usamos 'oferta' para compatibilidad con el frontend
+    };
+  } catch (error) {
+    console.error(
+      `Error en toggleProductOfferStatus para producto ${productId}:`,
+      error
+    );
+    throw error;
+  }
+};
+
+/**
+ * (Admin) Obtiene la lista de grupos de productos únicos
+ */
+const getProductGroupsForAdmin = async () => {
+  try {
+    const query = `
+      SELECT DISTINCT product_group, brand
+      FROM products
+      WHERE product_group IS NOT NULL AND product_group != '' AND brand IS NOT NULL AND brand != ''
+      ORDER BY product_group ASC;
+    `;
+    const result = await pool.query(query);
+    // Return an array of objects { product_group, brand }
+    return result.rows;
+  } catch (error) {
+    console.error('Error in getProductGroupsForAdmin:', error);
+    throw error;
+  }
+};
+
+/**
+ * (Admin) Actualiza los detalles personalizados de una oferta.
+ */
+const updateProductOfferDetails = async (productId, details) => {
+  try {
+    const updatedProduct = await productModel.updateProductOfferDetails(productId, details);
+
+    // Invalidar la caché de Redis para productos y ofertas
+    await Promise.all([
+      clearCacheByPattern('*__express__/api/products*'),
+      clearCacheByPattern('*__express__/api/offers*')
+    ]);
+    console.log(`[Cache] Invalidación de caché de Redis iniciada para productos y ofertas tras actualizar detalles.`);
+
+    return updatedProduct;
+  } catch (error) {
+    console.error('Error in updateProductOfferDetails (service):', error);
+    throw error;
+  }
+};
 
 // Admin Services
 const addCarouselAccessory = async (productId) => {
