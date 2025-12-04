@@ -1,5 +1,4 @@
 const { pool, pool2 } = require('../db');
-const { pool, pool2 } = require('../db');
 const { formatCurrency } = require('../utils/helpers');
 const productModel = require('../models/productModel');
 const { clearCacheByPattern } = require('../redisClient');
