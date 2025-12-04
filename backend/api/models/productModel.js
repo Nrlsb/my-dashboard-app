@@ -80,6 +80,16 @@ const getDeniedProductGroups = async (userId) => {
 };
 
 /**
+ * Invalida la caché de permisos para un usuario específico.
+ * @param {number} userId - El ID del usuario.
+ */
+const invalidatePermissionsCache = (userId) => {
+  const cacheKey = `deniedGroups_${userId}`;
+  permissionsCache.del(cacheKey);
+  console.log(`[Cache] Permisos invalidados para usuario ${userId}`);
+};
+
+/**
  * Busca y cuenta productos en la base de datos con filtros y paginación.
  * @param {object} filters - Los filtros para la búsqueda.
  * @param {number} filters.limit - Límite de productos por página.
@@ -595,4 +605,6 @@ module.exports = {
   findCustomCollectionProducts,
   addCustomGroupItem,
   removeCustomGroupItem,
+  removeCustomGroupItem,
+  invalidatePermissionsCache,
 };

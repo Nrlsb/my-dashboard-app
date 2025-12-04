@@ -1,5 +1,8 @@
 const { pool, pool2 } = require('../db');
+const { pool, pool2 } = require('../db');
 const { formatCurrency } = require('../utils/helpers');
+const productModel = require('../models/productModel');
+const { clearCacheByPattern } = require('../redisClient');
 
 /**
  * (Admin) Obtiene detalles de CUALQUIER pedido (para NC)
@@ -115,7 +118,13 @@ const updateUserGroupPermissions = async (userId, groups) => {
     }
 
     await client.query('COMMIT');
+    await client.query('COMMIT');
     console.log(`Denied product group permissions updated for user ${userId}`);
+
+    // Invalidate caches
+    productModel.invalidatePermissionsCache(userId);
+    await clearCacheByPattern(`*__user_${userId}*`);
+
     return { success: true, message: 'Permisos actualizados correctamente.' };
   } catch (error) {
     await client.query('ROLLBACK');

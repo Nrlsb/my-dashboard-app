@@ -496,7 +496,8 @@ const toggleProductOfferStatus = async (productId) => {
     // Invalidar la caché de Redis para productos y ofertas
     await Promise.all([
       clearCacheByPattern('*__express__/api/products*'),
-      clearCacheByPattern('*__express__/api/offers*')
+      clearCacheByPattern('*__express__/api/offers*'),
+      clearCacheByPattern(`*__express__/api/products/${productId}*`)
     ]);
     console.log(`[Cache] Invalidación de caché de Redis iniciada para productos y ofertas.`);
 
@@ -547,7 +548,8 @@ const updateProductOfferDetails = async (productId, details) => {
     // Invalidar la caché de Redis para productos y ofertas
     await Promise.all([
       clearCacheByPattern('*__express__/api/products*'),
-      clearCacheByPattern('*__express__/api/offers*')
+      clearCacheByPattern('*__express__/api/offers*'),
+      clearCacheByPattern(`*__express__/api/products/${productId}*`)
     ]);
     console.log(`[Cache] Invalidación de caché de Redis iniciada para productos y ofertas tras actualizar detalles.`);
 
@@ -561,13 +563,19 @@ const updateProductOfferDetails = async (productId, details) => {
 // Admin Services
 const addCarouselAccessory = async (productId) => {
   const result = await productModel.addCarouselAccessory(productId);
-  await clearCacheByPattern('*__express__/api/products/accessories*');
+  await Promise.all([
+    clearCacheByPattern('*__express__/api/products/accessories*'),
+    clearCacheByPattern('*__express__/api/products*') // Accessories might appear in main list
+  ]);
   return result;
 };
 
 const removeCarouselAccessory = async (productId) => {
   const result = await productModel.removeCarouselAccessory(productId);
-  await clearCacheByPattern('*__express__/api/products/accessories*');
+  await Promise.all([
+    clearCacheByPattern('*__express__/api/products/accessories*'),
+    clearCacheByPattern('*__express__/api/products*')
+  ]);
   return result;
 };
 
@@ -578,18 +586,21 @@ const getCarouselGroups = async () => {
 const createCarouselGroup = async (data) => {
   const result = await productModel.createCarouselGroup(data);
   await clearCacheByPattern('*__express__/api/products/product-groups-details*');
+  await clearCacheByPattern('*__express__/api/products*'); // Groups might affect main list filtering
   return result;
 };
 
 const updateCarouselGroup = async (id, data) => {
   const result = await productModel.updateCarouselGroup(id, data);
   await clearCacheByPattern('*__express__/api/products/product-groups-details*');
+  await clearCacheByPattern('*__express__/api/products*');
   return result;
 };
 
 const deleteCarouselGroup = async (id) => {
   const result = await productModel.deleteCarouselGroup(id);
   await clearCacheByPattern('*__express__/api/products/product-groups-details*');
+  await clearCacheByPattern('*__express__/api/products*');
   return result;
 };
 
@@ -633,12 +644,14 @@ const addCustomGroupItem = async (groupId, productId) => {
   // and potentially product groups details if it shows item counts or similar.
   // For now, let's invalidate the collection endpoint just in case.
   await clearCacheByPattern(`*__express__/api/products/collection/${groupId}*`);
+  await clearCacheByPattern('*__express__/api/products/product-groups-details*'); // Collections are part of group details
   return result;
 };
 
 const removeCustomGroupItem = async (groupId, productId) => {
   const result = await productModel.removeCustomGroupItem(groupId, productId);
   await clearCacheByPattern(`*__express__/api/products/collection/${groupId}*`);
+  await clearCacheByPattern('*__express__/api/products/product-groups-details*');
   return result;
 };
 
