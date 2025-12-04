@@ -1,7 +1,6 @@
 const { pool, pool2 } = require('../db');
 const { formatCurrency } = require('../utils/helpers');
 const productModel = require('../models/productModel');
-const { clearCacheByPattern } = require('../redisClient');
 
 /**
  * (Admin) Obtiene detalles de CUALQUIER pedido (para NC)
@@ -91,56 +90,6 @@ const getUsersForAdmin = async () => {
     console.error('Error in getUsersForAdmin:', error);
     throw error;
   }
-};
-
-/**
- * (Admin) Actualiza los permisos de grupo para un usuario específico
- */
-const updateUserGroupPermissions = async (userId, groups) => {
-  const client = await pool2.connect();
-  try {
-    await client.query('BEGIN');
-
-    // 1. Delete old permissions
-    await client.query(
-      'DELETE FROM user_product_group_permissions WHERE user_id = $1',
-      [userId]
-    );
-
-    // 2. Insert new permissions if any
-    if (groups && groups.length > 0) {
-      const insertQuery =
-        'INSERT INTO user_product_group_permissions (user_id, product_group) VALUES ($1, $2)';
-      for (const group of groups) {
-        await client.query(insertQuery, [userId, group]);
-      }
-    }
-
-    await client.query('COMMIT');
-    await client.query('COMMIT');
-    console.log(`Denied product group permissions updated for user ${userId}`);
-
-    // Invalidate caches
-    productModel.invalidatePermissionsCache(userId);
-    await clearCacheByPattern(`*__user_${userId}*`);
-
-    return { success: true, message: 'Permisos actualizados correctamente.' };
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error(
-      `Error in updateUserGroupPermissions for user ${userId}:`,
-      error
-    );
-    throw error;
-  } finally {
-    client.release();
-  }
-};
-
-/**
- * (Admin) Obtiene la lista de todos los administradores.
- */
-const getAdmins = async () => {
   try {
     const adminIdsResult = await pool2.query(
       'SELECT user_id FROM admins ORDER BY created_at DESC'

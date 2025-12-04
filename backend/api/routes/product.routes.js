@@ -27,16 +27,16 @@ router.use(optionalAuthenticateToken);
 router.get('/', getProductsController);
 
 // Cachear accesorios por 10 minutos (600s)
-router.get('/accessories', cache(600), getAccessories);
+router.get('/accessories', getAccessories);
 
 // Cachear detalles de grupos por 1 hora (3600s) - Cambia muy poco
-router.get('/product-groups-details', cache(3600), getProductGroupsDetails);
+router.get('/product-groups-details', getProductGroupsDetails);
 
 // Cachear productos por grupo por 10 minutos (600s)
-router.get('/group/:groupCode', cache(600), getProductsByGroupController);
+router.get('/group/:groupCode', getProductsByGroupController);
 
 // Cachear marcas por 1 hora (3600s)
-router.get('/brands', cache(3600), getBrandsController);
+router.get('/brands', getBrandsController);
 
 // Cachear ofertas por 5 minutos (300s)
 router.get('/offers', getOffersController);
@@ -44,7 +44,7 @@ router.get('/offers', getOffersController);
 router.get('/orders', getProductsOrdersController); // Nueva ruta para /api/products/orders
 
 // Cachear producto individual por 5 minutos (300s)
-router.get('/:id', cache(300), getProductsByIdController);
+router.get('/:id', getProductsByIdController);
 
 router.get('/collection/:collectionId', getCustomCollectionProducts);
 

@@ -1,7 +1,5 @@
 const { pool, pool2 } = require('../db');
-const NodeCache = require('node-cache');
-
-const { permissionsCache, offersCache } = require('../utils/cache');
+const { pool, pool2 } = require('../db');
 
 /**
  * Función interna para obtener los datos de productos en oferta.
@@ -9,25 +7,12 @@ const { permissionsCache, offersCache } = require('../utils/cache');
  * @returns {Promise<object[]>} - Una promesa que se resuelve con un array de objetos de oferta.
  */
 const getOnOfferData = async (bypassCache = false) => {
-  const offerDataCacheKey = 'on_offer_data';
-  console.log(`[DEBUG] getOnOfferData - bypassCache: ${bypassCache}`);
-
-  if (!bypassCache) {
-    let offerData = offersCache.get(offerDataCacheKey);
-    if (offerData !== undefined) {
-      return offerData;
-    }
-  }
-
-  console.log(`[DEBUG] Cache MISS (or bypassed: ${bypassCache}) for on_offer_data. Fetching from DB...`);
+  // Cache removed by user request
   try {
     const result = await pool2.query(
       'SELECT product_id, custom_title, custom_description, custom_image_url FROM product_offer_status WHERE is_on_offer = true'
     );
-    const offerData = result.rows;
-    offersCache.set(offerDataCacheKey, offerData);
-    console.log(`[DEBUG] Cache SET for on_offer_data. Items: ${offerData.length}`);
-    return offerData;
+    return result.rows;
   } catch (error) {
     console.error('Error fetching on-offer data:', error);
     return [];
@@ -51,15 +36,7 @@ const getOnOfferProductIds = async (bypassCache = false) => {
  * @returns {Promise<string[]>} - Una promesa que se resuelve con un array de códigos de grupo de productos denegados.
  */
 const getDeniedProductGroups = async (userId) => {
-  const cacheKey = `deniedGroups_${userId}`;
-  const cachedData = permissionsCache.get(cacheKey);
-
-  if (cachedData) {
-    // console.log(`[Cache HIT] Permisos para usuario ${userId}`);
-    return cachedData;
-  }
-
-  // console.log(`[Cache MISS] Permisos para usuario ${userId}`);
+  // Cache removed by user request
   try {
     const query = `
       SELECT product_group 
@@ -68,9 +45,6 @@ const getDeniedProductGroups = async (userId) => {
     `;
     const result = await pool2.query(query, [userId]);
     const deniedGroups = result.rows.map((row) => row.product_group);
-
-    // Guardar el resultado en la caché antes de devolverlo
-    permissionsCache.set(cacheKey, deniedGroups);
 
     return deniedGroups;
   } catch (error) {
@@ -83,10 +57,9 @@ const getDeniedProductGroups = async (userId) => {
  * Invalida la caché de permisos para un usuario específico.
  * @param {number} userId - El ID del usuario.
  */
+// Function removed as cache is disabled
 const invalidatePermissionsCache = (userId) => {
-  const cacheKey = `deniedGroups_${userId}`;
-  permissionsCache.del(cacheKey);
-  console.log(`[Cache] Permisos invalidados para usuario ${userId}`);
+  // No-op
 };
 
 /**
@@ -436,8 +409,6 @@ const updateProductOfferDetails = async (productId, { custom_title, custom_descr
        WHERE product_id = $4`,
       [custom_title, custom_description, custom_image_url, productId]
     );
-    offersCache.del('on_offer_data');
-    offersCache.del('on_offer_product_ids');
     return { success: true };
   } catch (error) {
     console.error(`Error updating offer details for product ${productId}:`, error);

@@ -2,7 +2,7 @@ const productModel = require('../models/productModel');
 const { getExchangeRates } = require('../utils/exchangeRateService');
 const { formatCurrency } = require('../utils/helpers');
 const { pool, pool2 } = require('../db'); // Solo para verificar si el usuario es admin
-const { clearCacheByPattern } = require('../redisClient'); // Importar el nuevo invalidador de caché
+const { pool, pool2 } = require('../db'); // Solo para verificar si el usuario es admin
 
 /**
  * Servicio para manejar la lógica de negocio de productos.
@@ -493,14 +493,6 @@ const toggleProductOfferStatus = async (productId) => {
       `Estado de oferta para producto ${productId} cambiado a ${newOfferStatus} en DB2.`
     );
 
-    // Invalidar la caché de Redis para productos y ofertas
-    await Promise.all([
-      clearCacheByPattern('*__express__/api/products*'),
-      clearCacheByPattern('*__express__/api/offers*'),
-      clearCacheByPattern(`*__express__/api/products/${productId}*`)
-    ]);
-    console.log(`[Cache] Invalidación de caché de Redis iniciada para productos y ofertas.`);
-
     // Devolver la información del producto combinada con el nuevo estado de oferta
     return {
       id: productDetails.id,
@@ -545,14 +537,6 @@ const updateProductOfferDetails = async (productId, details) => {
   try {
     const updatedProduct = await productModel.updateProductOfferDetails(productId, details);
 
-    // Invalidar la caché de Redis para productos y ofertas
-    await Promise.all([
-      clearCacheByPattern('*__express__/api/products*'),
-      clearCacheByPattern('*__express__/api/offers*'),
-      clearCacheByPattern(`*__express__/api/products/${productId}*`)
-    ]);
-    console.log(`[Cache] Invalidación de caché de Redis iniciada para productos y ofertas tras actualizar detalles.`);
-
     return updatedProduct;
   } catch (error) {
     console.error('Error in updateProductOfferDetails (service):', error);
@@ -563,19 +547,11 @@ const updateProductOfferDetails = async (productId, details) => {
 // Admin Services
 const addCarouselAccessory = async (productId) => {
   const result = await productModel.addCarouselAccessory(productId);
-  await Promise.all([
-    clearCacheByPattern('*__express__/api/products/accessories*'),
-    clearCacheByPattern('*__express__/api/products*') // Accessories might appear in main list
-  ]);
   return result;
 };
 
 const removeCarouselAccessory = async (productId) => {
   const result = await productModel.removeCarouselAccessory(productId);
-  await Promise.all([
-    clearCacheByPattern('*__express__/api/products/accessories*'),
-    clearCacheByPattern('*__express__/api/products*')
-  ]);
   return result;
 };
 
@@ -585,22 +561,16 @@ const getCarouselGroups = async () => {
 
 const createCarouselGroup = async (data) => {
   const result = await productModel.createCarouselGroup(data);
-  await clearCacheByPattern('*__express__/api/products/product-groups-details*');
-  await clearCacheByPattern('*__express__/api/products*'); // Groups might affect main list filtering
   return result;
 };
 
 const updateCarouselGroup = async (id, data) => {
   const result = await productModel.updateCarouselGroup(id, data);
-  await clearCacheByPattern('*__express__/api/products/product-groups-details*');
-  await clearCacheByPattern('*__express__/api/products*');
   return result;
 };
 
 const deleteCarouselGroup = async (id) => {
   const result = await productModel.deleteCarouselGroup(id);
-  await clearCacheByPattern('*__express__/api/products/product-groups-details*');
-  await clearCacheByPattern('*__express__/api/products*');
   return result;
 };
 
@@ -640,18 +610,11 @@ const getCustomCollectionProducts = async (collectionId) => {
 
 const addCustomGroupItem = async (groupId, productId) => {
   const result = await productModel.addCustomGroupItem(groupId, productId);
-  // Invalidate collection cache if we decide to cache it later, 
-  // and potentially product groups details if it shows item counts or similar.
-  // For now, let's invalidate the collection endpoint just in case.
-  await clearCacheByPattern(`*__express__/api/products/collection/${groupId}*`);
-  await clearCacheByPattern('*__express__/api/products/product-groups-details*'); // Collections are part of group details
   return result;
 };
 
 const removeCustomGroupItem = async (groupId, productId) => {
   const result = await productModel.removeCustomGroupItem(groupId, productId);
-  await clearCacheByPattern(`*__express__/api/products/collection/${groupId}*`);
-  await clearCacheByPattern('*__express__/api/products/product-groups-details*');
   return result;
 };
 
