@@ -20,6 +20,7 @@ const fetchProducts = async ({
   search = '',
   brand = '',
   userId = null,
+  bypassCache = false,
 }) => {
   try {
     // 1. Obtener cotizaciones
@@ -62,6 +63,7 @@ const fetchProducts = async ({
       search,
       brands,
       deniedGroups,
+      bypassCache,
     };
 
     // 4. Obtener datos crudos del modelo

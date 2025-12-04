@@ -8,27 +8,29 @@ const { permissionsCache, offersCache } = require('../utils/cache');
  * Centraliza el acceso a la caché de ofertas.
  * @returns {Promise<object[]>} - Una promesa que se resuelve con un array de objetos de oferta.
  */
-const getOnOfferData = async () => {
-  // Cache disabled per user request to ensure real-time updates
-  // const offerDataCacheKey = 'on_offer_data';
-  // let offerData = offersCache.get(offerDataCacheKey);
+const getOnOfferData = async (bypassCache = false) => {
+  const offerDataCacheKey = 'on_offer_data';
 
-  // if (offerData === undefined) {
-  // console.log('[DEBUG] Cache MISS for on_offer_data. Fetching from DB...');
+  if (!bypassCache) {
+    let offerData = offersCache.get(offerDataCacheKey);
+    if (offerData !== undefined) {
+      return offerData;
+    }
+  }
+
+  console.log(`[DEBUG] Cache MISS (or bypassed: ${bypassCache}) for on_offer_data. Fetching from DB...`);
   try {
     const result = await pool2.query(
       'SELECT product_id, custom_title, custom_description, custom_image_url FROM product_offer_status WHERE is_on_offer = true'
     );
-    return result.rows;
-    // offerData = result.rows;
-    // offersCache.set(offerDataCacheKey, offerData);
-    // console.log(`[DEBUG] Cache SET for on_offer_data. Items: ${offerData.length}`);
+    const offerData = result.rows;
+    offersCache.set(offerDataCacheKey, offerData);
+    console.log(`[DEBUG] Cache SET for on_offer_data. Items: ${offerData.length}`);
+    return offerData;
   } catch (error) {
     console.error('Error fetching on-offer data:', error);
     return [];
   }
-  // }
-  // return offerData;
 };
 
 /**
@@ -36,8 +38,8 @@ const getOnOfferData = async () => {
  * Wrapper sobre getOnOfferData para compatibilidad.
  * @returns {Promise<number[]>} - Una promesa que se resuelve con un array de IDs de productos.
  */
-const getOnOfferProductIds = async () => {
-  const data = await getOnOfferData();
+const getOnOfferProductIds = async (bypassCache = false) => {
+  const data = await getOnOfferData(bypassCache);
   return data.map(item => item.product_id);
 };
 
@@ -91,7 +93,9 @@ const findProducts = async ({
   offset,
   search,
   brands,
+  brands,
   deniedGroups,
+  bypassCache = false,
 }) => {
   let queryParams = [];
   let paramIndex = 1;
@@ -167,7 +171,7 @@ const findProducts = async ({
 
     // --- Eliminada la consulta a pool2 ---
     // Obtener la lista de IDs en oferta desde la función centralizada (caché)
-    const onOfferProductIds = await getOnOfferProductIds();
+    const onOfferProductIds = await getOnOfferProductIds(bypassCache);
     const onOfferIdsSet = new Set(onOfferProductIds);
 
     // Adjuntar el estado de la oferta a cada producto, usando la lista en memoria

@@ -212,7 +212,7 @@ export default function ManageOffersPage() {
   } = useInfiniteQuery({
     queryKey: ['products', debounceSearchTerm, []], // Usamos una queryKey que no colisione
     queryFn: ({ pageParam = 1 }) =>
-      apiService.fetchProducts(pageParam, debounceSearchTerm, []), // Filtros vacíos para traer todo
+      apiService.fetchProducts(pageParam, debounceSearchTerm, [], true), // Filtros vacíos para traer todo, bypassCache = true
     getNextPageParam: (lastPage, allPages) => {
       const productsLoaded = allPages.reduce(
         (acc, page) => acc + page.products.length,

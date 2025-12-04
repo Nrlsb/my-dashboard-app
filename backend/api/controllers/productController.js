@@ -9,6 +9,7 @@ exports.getProductsController = catchAsync(async (req, res) => {
         search = '',
         brand = '',
         moneda = '0',
+        bypassCache = 'false',
     } = req.query;
     const data = await productService.fetchProducts({
         page,
@@ -17,6 +18,7 @@ exports.getProductsController = catchAsync(async (req, res) => {
         brand,
         moneda,
         userId: req.userId,
+        bypassCache: bypassCache === 'true',
     });
     res.set('Cache-Control', 'no-store');
     res.json(data);
