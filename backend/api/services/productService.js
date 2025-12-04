@@ -2,7 +2,6 @@ const productModel = require('../models/productModel');
 const { getExchangeRates } = require('../utils/exchangeRateService');
 const { formatCurrency } = require('../utils/helpers');
 const { pool, pool2 } = require('../db'); // Solo para verificar si el usuario es admin
-const { pool, pool2 } = require('../db'); // Solo para verificar si el usuario es admin
 
 /**
  * Servicio para manejar la lógica de negocio de productos.
