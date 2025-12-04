@@ -93,7 +93,6 @@ const findProducts = async ({
   offset,
   search,
   brands,
-  brands,
   deniedGroups,
   bypassCache = false,
 }) => {
