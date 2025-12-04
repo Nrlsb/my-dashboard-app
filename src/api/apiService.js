@@ -1,5 +1,5 @@
 // Este archivo centraliza todas las llamadas a la API.
-// Utiliza un interceptor para adjuntar el token JWT a las peticiones.
+// Utiliza un interceptor para adjuntar el token  JWT a las peticiones.
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
