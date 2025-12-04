@@ -91,7 +91,7 @@ const apiService = {
       page,
       limit: 20,
       search: searchTerm,
-      bypassCache,
+      bypassCache: String(bypassCache),
     };
     if (brands && brands.length > 0) {
       params.brand = brands.join(',');

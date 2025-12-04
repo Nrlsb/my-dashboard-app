@@ -10,6 +10,7 @@ const { permissionsCache, offersCache } = require('../utils/cache');
  */
 const getOnOfferData = async (bypassCache = false) => {
   const offerDataCacheKey = 'on_offer_data';
+  console.log(`[DEBUG] getOnOfferData - bypassCache: ${bypassCache}`);
 
   if (!bypassCache) {
     let offerData = offersCache.get(offerDataCacheKey);
