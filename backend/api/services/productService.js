@@ -509,7 +509,7 @@ const toggleProductOfferStatus = async (productId) => {
     );
 
     // Invalidar la caché de ofertas
-    offersCache.del('on_offer_product_ids');
+    offersCache.del('on_offer_data');
 
     // Devolver la información del producto combinada con el nuevo estado de oferta
     return {
