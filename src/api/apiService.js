@@ -322,6 +322,61 @@ const apiService = {
       method: 'DELETE',
     });
   },
+
+  // Admin Content Management
+  getCarouselGroups() {
+    return this.request('/admin/carousel-groups');
+  },
+
+  createCarouselGroup(data) {
+    return this.request('/admin/carousel-groups', {
+      method: 'POST',
+      body: data,
+    });
+  },
+
+  updateCarouselGroup(id, data) {
+    return this.request(`/admin/carousel-groups/${id}`, {
+      method: 'PUT',
+      body: data,
+    });
+  },
+
+  deleteCarouselGroup(id) {
+    return this.request(`/admin/carousel-groups/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  addAccessory(productId) {
+    return this.request('/admin/accessories', {
+      method: 'POST',
+      body: { productId },
+    });
+  },
+
+  removeAccessory(productId) {
+    return this.request(`/admin/accessories/${productId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  getCustomCollectionProducts(collectionId) {
+    return this.request(`/products/collection/${collectionId}`);
+  },
+
+  addCustomGroupItem(groupId, productId) {
+    return this.request(`/admin/custom-collection/${groupId}/items`, {
+      method: 'POST',
+      body: { productId },
+    });
+  },
+
+  removeCustomGroupItem(groupId, productId) {
+    return this.request(`/admin/custom-collection/${groupId}/items/${productId}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 export default apiService;

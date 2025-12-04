@@ -11,6 +11,7 @@ const {
   getProductsOrdersController, // Nuevo controlador importado
   toggleProductOfferStatus,
   updateProductOfferDetails,
+  getCustomCollectionProducts,
 } = require('../controllers/productController');
 const {
   optionalAuthenticateToken,
@@ -44,6 +45,8 @@ router.get('/orders', getProductsOrdersController); // Nueva ruta para /api/prod
 
 // Cachear producto individual por 5 minutos (300s)
 router.get('/:id', cache(300), getProductsByIdController);
+
+router.get('/collection/:collectionId', getCustomCollectionProducts);
 
 // Esta ruta requiere permisos de administrador.
 router.put(

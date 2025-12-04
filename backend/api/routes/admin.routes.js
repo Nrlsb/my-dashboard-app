@@ -55,4 +55,27 @@ router.delete('/management/admins/:userId', removeAdmin);
 // (NUEVO) Ruta para obtener todos los clientes
 router.get('/clients', getAllClientsController); // Add the new route
 
+const {
+  getCarouselGroups,
+  createCarouselGroup,
+  updateCarouselGroup,
+  deleteCarouselGroup,
+  addAccessory,
+  removeAccessory,
+  addCustomGroupItem,
+  removeCustomGroupItem,
+} = require('../controllers/adminContentController');
+
+// Carousel Content Management
+router.get('/carousel-groups', getCarouselGroups);
+router.post('/carousel-groups', createCarouselGroup);
+router.put('/carousel-groups/:id', updateCarouselGroup);
+router.delete('/carousel-groups/:id', deleteCarouselGroup);
+
+router.post('/accessories', addAccessory);
+router.delete('/accessories/:productId', removeAccessory);
+
+router.post('/custom-collection/:groupId/items', addCustomGroupItem);
+router.delete('/custom-collection/:groupId/items/:productId', removeCustomGroupItem);
+
 module.exports = router;

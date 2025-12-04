@@ -48,8 +48,12 @@ const ProductGroupCarousel = () => {
     return () => clearInterval(intervalId);
   }, [groups, loading]);
 
-  const handleCardClick = (groupCode) => {
-    navigate(`/category/${groupCode}`);
+  const handleCardClick = (group) => {
+    if (group.type === 'custom_collection') {
+      navigate(`/collection/${group.collection_id}`);
+    } else {
+      navigate(`/category/${group.group_code}`);
+    }
   };
 
   if (loading) {
@@ -70,9 +74,9 @@ const ProductGroupCarousel = () => {
       <div className="flex overflow-x-auto gap-4 pb-4" ref={carouselRef}>
         {groups.map((group) => (
           <div
-            key={group.group_code}
+            key={group.id || group.group_code}
             className="flex-none w-44 bg-white rounded-lg overflow-hidden cursor-pointer transition-all duration-200 ease-in-out hover:-translate-y-1 shadow-sm hover:shadow-md border-b-[3px] border-espint-green group"
-            onClick={() => handleCardClick(group.group_code)}
+            onClick={() => handleCardClick(group)}
           >
             <img
               src={group.image_url}

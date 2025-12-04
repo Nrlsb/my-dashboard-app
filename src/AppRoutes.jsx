@@ -24,6 +24,8 @@ const DashboardSettingsPage = lazy(() => import('./pages/DashboardSettingsPage.j
 const ManageOffersPage = lazy(() => import('./pages/ManageOffersPage.jsx'));
 const ClientGroupPermissionsPage = lazy(() => import('./pages/ClientGroupPermissionsPage.jsx'));
 const ManageAdminsPage = lazy(() => import('./pages/ManageAdminsPage.jsx'));
+const ManageContentPage = lazy(() => import('./pages/ManageContentPage.jsx'));
+const CollectionPage = lazy(() => import('./pages/CollectionPage.jsx'));
 const VendedorDashboardPage = lazy(() => import('./pages/VendedorDashboardPage.jsx'));
 const VendedorClientsPage = lazy(() => import('./pages/VendedorClientsPage.jsx'));
 const ChangePasswordPage = lazy(() => import('./pages/ChangePasswordPage.jsx'));
@@ -83,11 +85,13 @@ function AppRoutes({ onCompleteOrder }) {
         <Route path="/offers" element={<ProtectedRoute><OffersPage /></ProtectedRoute>} />
         <Route path="/queries" element={<ProtectedRoute><QueriesPage /></ProtectedRoute>} />
         <Route path="/dashboard-settings" element={<ProtectedRoute><DashboardSettingsPage /></ProtectedRoute>} />
+        <Route path="/collection/:collectionId" element={<ProtectedRoute><CollectionPage /></ProtectedRoute>} />
 
         {/* Rutas de Administrador */}
         <Route path="/manage-offers" element={<AdminRoute><ManageOffersPage /></AdminRoute>} />
         <Route path="/client-group-permissions" element={<AdminRoute><ClientGroupPermissionsPage currentUser={user} /></AdminRoute>} />
         <Route path="/manage-admins" element={<AdminRoute><ManageAdminsPage /></AdminRoute>} />
+        <Route path="/manage-content" element={<AdminRoute><ManageContentPage /></AdminRoute>} />
 
         {/* Fallback - Redirigir al dashboard si está logueado, si no al login */}
         <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />

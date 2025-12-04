@@ -105,3 +105,8 @@ exports.updateProductOfferDetails = catchAsync(async (req, res) => {
     });
     res.json(result);
 });
+
+exports.getCustomCollectionProducts = catchAsync(async (req, res) => {
+    const products = await productService.getCustomCollectionProducts(req.params.collectionId);
+    res.json(products);
+});

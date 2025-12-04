@@ -435,6 +435,143 @@ const updateProductOfferDetails = async (productId, { custom_title, custom_descr
   }
 };
 
+// --- Carousel Management Methods ---
+
+const findCarouselAccessories = async () => {
+  try {
+    const idsResult = await pool2.query('SELECT product_id FROM carousel_accessories ORDER BY created_at DESC');
+    const productIds = idsResult.rows.map(row => row.product_id);
+
+    if (productIds.length === 0) return [];
+
+    const productsQuery = `
+      SELECT id, code, description, price, product_group
+      FROM products
+      WHERE id = ANY($1::int[])
+    `;
+    const productsResult = await pool.query(productsQuery, [productIds]);
+    return productsResult.rows;
+  } catch (error) {
+    console.error('Error in findCarouselAccessories:', error);
+    throw error;
+  }
+};
+
+const addCarouselAccessory = async (productId) => {
+  try {
+    await pool2.query('INSERT INTO carousel_accessories (product_id) VALUES ($1) ON CONFLICT DO NOTHING', [productId]);
+    return { success: true };
+  } catch (error) {
+    console.error('Error in addCarouselAccessory:', error);
+    throw error;
+  }
+};
+
+const removeCarouselAccessory = async (productId) => {
+  try {
+    await pool2.query('DELETE FROM carousel_accessories WHERE product_id = $1', [productId]);
+    return { success: true };
+  } catch (error) {
+    console.error('Error in removeCarouselAccessory:', error);
+    throw error;
+  }
+};
+
+const findCarouselGroups = async () => {
+  try {
+    const result = await pool2.query('SELECT * FROM carousel_product_groups WHERE is_active = true ORDER BY display_order ASC');
+    return result.rows;
+  } catch (error) {
+    console.error('Error in findCarouselGroups:', error);
+    throw error;
+  }
+};
+
+const createCarouselGroup = async (data) => {
+  const { name, image_url, type, reference_id, display_order } = data;
+  try {
+    const result = await pool2.query(
+      'INSERT INTO carousel_product_groups (name, image_url, type, reference_id, display_order) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [name, image_url, type, reference_id, display_order || 0]
+    );
+    return result.rows[0];
+  } catch (error) {
+    console.error('Error in createCarouselGroup:', error);
+    throw error;
+  }
+};
+
+const updateCarouselGroup = async (id, data) => {
+  const { name, image_url, type, reference_id, is_active, display_order } = data;
+  try {
+    const result = await pool2.query(
+      `UPDATE carousel_product_groups 
+       SET name = COALESCE($1, name), 
+           image_url = COALESCE($2, image_url), 
+           type = COALESCE($3, type), 
+           reference_id = COALESCE($4, reference_id), 
+           is_active = COALESCE($5, is_active), 
+           display_order = COALESCE($6, display_order)
+       WHERE id = $7 RETURNING *`,
+      [name, image_url, type, reference_id, is_active, display_order, id]
+    );
+    return result.rows[0];
+  } catch (error) {
+    console.error('Error in updateCarouselGroup:', error);
+    throw error;
+  }
+};
+
+const deleteCarouselGroup = async (id) => {
+  try {
+    await pool2.query('DELETE FROM carousel_product_groups WHERE id = $1', [id]);
+    return { success: true };
+  } catch (error) {
+    console.error('Error in deleteCarouselGroup:', error);
+    throw error;
+  }
+};
+
+const findCustomCollectionProducts = async (collectionId) => {
+  try {
+    const idsResult = await pool2.query('SELECT product_id FROM carousel_custom_group_items WHERE group_id = $1', [collectionId]);
+    const productIds = idsResult.rows.map(row => row.product_id);
+
+    if (productIds.length === 0) return [];
+
+    const productsQuery = `
+      SELECT id, code, description, price, brand, capacity_description, product_group, stock_disponible, stock_de_seguridad
+      FROM products
+      WHERE id = ANY($1::int[])
+    `;
+    const productsResult = await pool.query(productsQuery, [productIds]);
+    return productsResult.rows;
+  } catch (error) {
+    console.error('Error in findCustomCollectionProducts:', error);
+    throw error;
+  }
+};
+
+const addCustomGroupItem = async (groupId, productId) => {
+  try {
+    await pool2.query('INSERT INTO carousel_custom_group_items (group_id, product_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [groupId, productId]);
+    return { success: true };
+  } catch (error) {
+    console.error('Error in addCustomGroupItem:', error);
+    throw error;
+  }
+};
+
+const removeCustomGroupItem = async (groupId, productId) => {
+  try {
+    await pool2.query('DELETE FROM carousel_custom_group_items WHERE group_id = $1 AND product_id = $2', [groupId, productId]);
+    return { success: true };
+  } catch (error) {
+    console.error('Error in removeCustomGroupItem:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   findProducts,
   getDeniedProductGroups,
@@ -445,6 +582,17 @@ module.exports = {
   findOffers,
   findProductsByGroup,
   getRecentlyChangedProducts,
-  updateProductOfferDetails, // Exportar nueva función
+  updateProductOfferDetails,
   offersCache,
+  // New methods
+  findCarouselAccessories,
+  addCarouselAccessory,
+  removeCarouselAccessory,
+  findCarouselGroups,
+  createCarouselGroup,
+  updateCarouselGroup,
+  deleteCarouselGroup,
+  findCustomCollectionProducts,
+  addCustomGroupItem,
+  removeCustomGroupItem,
 };
