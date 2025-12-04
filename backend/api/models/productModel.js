@@ -563,7 +563,7 @@ module.exports = {
   findProductsByGroup,
   getRecentlyChangedProducts,
   updateProductOfferDetails,
-  offersCache,
+  updateProductOfferDetails,
   // New methods
   findCarouselAccessories,
   addCarouselAccessory,
