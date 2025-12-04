@@ -46,6 +46,12 @@ const DashboardCard = ({
     textColorClass = 'text-espint-blue group-hover:text-white';
     subTextColorClass = 'text-gray-400 group-hover:text-white/90';
     arrowColorClass = 'text-espint-green group-hover:text-white';
+  } else if (fullText.includes('OFERTAS')) {
+    // Nuevas Ofertas -> Green (same as Nuevo Pedido)
+    hoverColorClass = 'hover:bg-espint-green';
+    textColorClass = 'text-espint-blue group-hover:text-white';
+    subTextColorClass = 'text-gray-400 group-hover:text-white/90';
+    arrowColorClass = 'text-espint-green group-hover:text-white';
   } else if (fullText.includes('PEDIDO')) {
     // Nuevo Pedido -> Green
     hoverColorClass = 'hover:bg-espint-green';
