@@ -1,5 +1,4 @@
 const { pool, pool2 } = require('../db');
-const { pool, pool2 } = require('../db');
 
 /**
  * Función interna para obtener los datos de productos en oferta.
