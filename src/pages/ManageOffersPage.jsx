@@ -248,6 +248,9 @@ export default function ManageOffersPage() {
           };
         }
       );
+      // Invalidate offers query to refresh the public offers page immediately
+      queryClient.invalidateQueries({ queryKey: ['offers'] });
+
       toast.success(
         data.oferta
           ? 'Oferta activada correctamente'
@@ -281,6 +284,9 @@ export default function ManageOffersPage() {
           };
         }
       );
+      // Invalidate offers query to refresh the public offers page immediately
+      queryClient.invalidateQueries({ queryKey: ['offers'] });
+
       setEditingProduct(null);
       toast.success('Detalles de la oferta actualizados');
     },
