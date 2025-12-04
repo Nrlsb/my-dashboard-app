@@ -1,4 +1,4 @@
-const { redisClient, connectRedis, isRedisReady } = require('./redisClient');
+const { redisClient, connectRedis, isRedisReady } = require('../redisClient');
 
 // Conectar a Redis al iniciar la aplicación
 connectRedis();
