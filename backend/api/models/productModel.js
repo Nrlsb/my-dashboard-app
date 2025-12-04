@@ -9,24 +9,26 @@ const { permissionsCache, offersCache } = require('../utils/cache');
  * @returns {Promise<object[]>} - Una promesa que se resuelve con un array de objetos de oferta.
  */
 const getOnOfferData = async () => {
-  const offerDataCacheKey = 'on_offer_data';
-  let offerData = offersCache.get(offerDataCacheKey);
+  // Cache disabled per user request to ensure real-time updates
+  // const offerDataCacheKey = 'on_offer_data';
+  // let offerData = offersCache.get(offerDataCacheKey);
 
-  if (offerData === undefined) {
-    console.log('[DEBUG] Cache MISS for on_offer_data. Fetching from DB...');
-    try {
-      const result = await pool2.query(
-        'SELECT product_id, custom_title, custom_description, custom_image_url FROM product_offer_status WHERE is_on_offer = true'
-      );
-      offerData = result.rows;
-      offersCache.set(offerDataCacheKey, offerData);
-      console.log(`[DEBUG] Cache SET for on_offer_data. Items: ${offerData.length}`);
-    } catch (error) {
-      console.error('Error fetching on-offer data:', error);
-      return [];
-    }
+  // if (offerData === undefined) {
+  // console.log('[DEBUG] Cache MISS for on_offer_data. Fetching from DB...');
+  try {
+    const result = await pool2.query(
+      'SELECT product_id, custom_title, custom_description, custom_image_url FROM product_offer_status WHERE is_on_offer = true'
+    );
+    return result.rows;
+    // offerData = result.rows;
+    // offersCache.set(offerDataCacheKey, offerData);
+    // console.log(`[DEBUG] Cache SET for on_offer_data. Items: ${offerData.length}`);
+  } catch (error) {
+    console.error('Error fetching on-offer data:', error);
+    return [];
   }
-  return offerData;
+  // }
+  // return offerData;
 };
 
 /**
