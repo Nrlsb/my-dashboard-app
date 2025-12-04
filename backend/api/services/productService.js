@@ -560,11 +560,15 @@ const updateProductOfferDetails = async (productId, details) => {
 
 // Admin Services
 const addCarouselAccessory = async (productId) => {
-  return productModel.addCarouselAccessory(productId);
+  const result = await productModel.addCarouselAccessory(productId);
+  await clearCacheByPattern('*__express__/api/products/accessories*');
+  return result;
 };
 
 const removeCarouselAccessory = async (productId) => {
-  return productModel.removeCarouselAccessory(productId);
+  const result = await productModel.removeCarouselAccessory(productId);
+  await clearCacheByPattern('*__express__/api/products/accessories*');
+  return result;
 };
 
 const getCarouselGroups = async () => {
@@ -572,15 +576,21 @@ const getCarouselGroups = async () => {
 };
 
 const createCarouselGroup = async (data) => {
-  return productModel.createCarouselGroup(data);
+  const result = await productModel.createCarouselGroup(data);
+  await clearCacheByPattern('*__express__/api/products/product-groups-details*');
+  return result;
 };
 
 const updateCarouselGroup = async (id, data) => {
-  return productModel.updateCarouselGroup(id, data);
+  const result = await productModel.updateCarouselGroup(id, data);
+  await clearCacheByPattern('*__express__/api/products/product-groups-details*');
+  return result;
 };
 
 const deleteCarouselGroup = async (id) => {
-  return productModel.deleteCarouselGroup(id);
+  const result = await productModel.deleteCarouselGroup(id);
+  await clearCacheByPattern('*__express__/api/products/product-groups-details*');
+  return result;
 };
 
 const getCustomCollectionProducts = async (collectionId) => {
@@ -618,11 +628,18 @@ const getCustomCollectionProducts = async (collectionId) => {
 };
 
 const addCustomGroupItem = async (groupId, productId) => {
-  return productModel.addCustomGroupItem(groupId, productId);
+  const result = await productModel.addCustomGroupItem(groupId, productId);
+  // Invalidate collection cache if we decide to cache it later, 
+  // and potentially product groups details if it shows item counts or similar.
+  // For now, let's invalidate the collection endpoint just in case.
+  await clearCacheByPattern(`*__express__/api/products/collection/${groupId}*`);
+  return result;
 };
 
 const removeCustomGroupItem = async (groupId, productId) => {
-  return productModel.removeCustomGroupItem(groupId, productId);
+  const result = await productModel.removeCustomGroupItem(groupId, productId);
+  await clearCacheByPattern(`*__express__/api/products/collection/${groupId}*`);
+  return result;
 };
 
 module.exports = {
