@@ -283,9 +283,6 @@ const NewOrderPage = () => {
             <p className="text-sm text-gray-500">
               {product.brand} (Cód: {product.code})
             </p>
-            <p className="text-sm text-gray-500">
-              {product.brand} (Cód: {product.code})
-            </p>
             <div className="flex items-center mt-1">
               <span className="text-sm text-gray-500 mr-2">Stock: {product.stock_disponible}</span>
               {product.stock_disponible <= 0 ? (
