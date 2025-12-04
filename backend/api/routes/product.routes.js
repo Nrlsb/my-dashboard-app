@@ -23,7 +23,7 @@ const cache = require('../middleware/cache');
 router.use(optionalAuthenticateToken);
 
 // Cachear listado general por 5 minutos (300s)
-router.get('/', cache(300), getProductsController);
+router.get('/', getProductsController);
 
 // Cachear accesorios por 10 minutos (600s)
 router.get('/accessories', cache(600), getAccessories);
@@ -38,7 +38,7 @@ router.get('/group/:groupCode', cache(600), getProductsByGroupController);
 router.get('/brands', cache(3600), getBrandsController);
 
 // Cachear ofertas por 5 minutos (300s)
-router.get('/offers', cache(300), getOffersController);
+router.get('/offers', getOffersController);
 
 router.get('/orders', getProductsOrdersController); // Nueva ruta para /api/products/orders
 
