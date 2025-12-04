@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -247,9 +248,14 @@ export default function ManageOffersPage() {
           };
         }
       );
+      toast.success(
+        data.oferta
+          ? 'Oferta activada correctamente'
+          : 'Oferta desactivada correctamente'
+      );
     },
     onError: (err) => {
-      alert(`Error al cambiar el estado de la oferta: ${err.message}`);
+      toast.error(`Error al cambiar el estado de la oferta: ${err.message}`);
     },
   });
 
@@ -276,9 +282,10 @@ export default function ManageOffersPage() {
         }
       );
       setEditingProduct(null);
+      toast.success('Detalles de la oferta actualizados');
     },
     onError: (err) => {
-      alert(`Error al guardar los detalles: ${err.message}`);
+      toast.error(`Error al guardar los detalles: ${err.message}`);
     },
   });
 
