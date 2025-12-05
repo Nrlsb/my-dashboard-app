@@ -2,6 +2,12 @@ const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
 const { loginController, registerController } = require('../controllers/authController'); // Importar controladores específicos
+console.log('Login Controller Type:', typeof loginController);
+if (loginController && loginController.getMockName) {
+  console.log('Login Controller is a Mock:', loginController.getMockName());
+} else {
+  console.log('Login Controller is NOT a Mock');
+}
 const validate = require('../middleware/validate');
 const { loginSchema, registerSchema } = require('../schemas/auth.schema');
 
@@ -66,7 +72,7 @@ const loginLimiter = rateLimit({
  *       401:
  *         description: Invalid credentials
  */
-router.post('/login', loginLimiter, validate(loginSchema), loginController);
+router.post('/login', (req, res, next) => { console.error('Hit /login route'); next(); }, loginLimiter, validate(loginSchema), loginController);
 
 /**
  * @swagger
