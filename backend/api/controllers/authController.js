@@ -1,9 +1,10 @@
 const jwt = require('jsonwebtoken');
 const userService = require('../services/userService');
 const catchAsync = require('../utils/catchAsync');
+const AppError = require('../utils/appError');
 const logger = require('../utils/logger'); // (NUEVO) Importar logger
 
-exports.loginController = catchAsync(async (req, res) => {
+exports.loginController = catchAsync(async (req, res, next) => {
     logger.info('POST /api/login -> Autenticando contra DB...');
     const { email, password } = req.body;
 
@@ -36,11 +37,11 @@ exports.loginController = catchAsync(async (req, res) => {
         });
     } else {
         logger.warn(`Intento de login fallido para: ${email} - Razón: ${result.message}`);
-        res.status(401).json({ message: result.message });
+        return next(new AppError(result.message, 401));
     }
 });
 
-exports.registerController = catchAsync(async (req, res) => {
+exports.registerController = catchAsync(async (req, res, next) => {
     logger.info('POST /api/register -> Registrando nuevo usuario en DB...');
     const { nombre, email, password } = req.body;
 
@@ -51,25 +52,25 @@ exports.registerController = catchAsync(async (req, res) => {
     } catch (error) {
         logger.error('Error en /api/register:', error);
         if (error.message.includes('email ya está registrado')) {
-            return res.status(409).json({ message: error.message });
+            return next(new AppError(error.message, 409));
         }
         if (error.code === '23505') {
-            return res.status(409).json({ message: 'El email ya está registrado.' });
+            return next(new AppError('El email ya está registrado.', 409));
         }
-        throw error; // Pass to global error handler
+        return next(error); // Pass to global error handler
     }
 });
 
-exports.authenticateProtheusUser = catchAsync(async (req, res) => {
+exports.authenticateProtheusUser = catchAsync(async (req, res, next) => {
     logger.info('POST /api/protheus-login -> Autenticando contra Protheus...');
     // Lógica de autenticación Protheus
     // Por ahora, solo un placeholder
-    res.status(501).json({ message: 'Funcionalidad de autenticación Protheus no implementada.' });
+    return next(new AppError('Funcionalidad de autenticación Protheus no implementada.', 501));
 });
 
-exports.registerProtheusUser = catchAsync(async (req, res) => {
+exports.registerProtheusUser = catchAsync(async (req, res, next) => {
     logger.info('POST /api/protheus-register -> Registrando usuario en Protheus...');
     // Lógica de registro Protheus
     // Por ahora, solo un placeholder
-    res.status(501).json({ message: 'Funcionalidad de registro Protheus no implementada.' });
+    return next(new AppError('Funcionalidad de registro Protheus no implementada.', 501));
 });

@@ -22,6 +22,8 @@ const path = require('path');
 const mainRoutes = require('./routes/index'); // (NUEVO) Importar el enrutador principal
 const helmet = require('helmet');
 const compression = require('compression'); // (OPTIMIZACIÓN) Importar compresión
+const AppError = require('./utils/appError');
+const globalErrorHandler = require('./controllers/errorController');
 
 const app = express();
 
@@ -79,6 +81,14 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 // (NUEVO) Inicializar el programador de tareas (Cron Jobs)
 const { initScheduler } = require('./services/schedulerService');
 initScheduler();
+
+// (NUEVO) Manejo de rutas no encontradas (404)
+app.all('*', (req, res, next) => {
+  next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
+});
+
+// (NUEVO) Middleware Global de Manejo de Errores
+app.use(globalErrorHandler);
 
 const logger = require('./utils/logger'); // (NUEVO) Importar logger
 
