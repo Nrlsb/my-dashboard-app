@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
 const { loginController, registerController } = require('../controllers/authController'); // Importar controladores específicos
+const validate = require('../middleware/validate');
+const { loginSchema, registerSchema } = require('../schemas/auth.schema');
 
 // --- Rate Limiter for login ---
 const loginLimiter = rateLimit({
@@ -14,8 +16,8 @@ const loginLimiter = rateLimit({
 });
 
 // --- Autenticación ---
-router.post('/login', loginLimiter, loginController);
+router.post('/login', loginLimiter, validate(loginSchema), loginController);
 
-router.post('/register', registerController);
+router.post('/register', validate(registerSchema), registerController);
 
 module.exports = router;
