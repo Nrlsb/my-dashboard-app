@@ -1,9 +1,10 @@
 const jwt = require('jsonwebtoken');
 const userService = require('../services/userService');
 const catchAsync = require('../utils/catchAsync');
+const logger = require('../utils/logger'); // (NUEVO) Importar logger
 
 exports.loginController = catchAsync(async (req, res) => {
-    console.log('POST /api/login -> Autenticando contra DB...');
+    logger.info('POST /api/login -> Autenticando contra DB...');
     const { email, password } = req.body;
 
     const result = await userService.authenticateUser(email, password);
@@ -25,6 +26,8 @@ exports.loginController = catchAsync(async (req, res) => {
 
         const userWithRole = { ...user, role: payload.role };
 
+        logger.info(`Usuario autenticado exitosamente: ${email}`);
+
         res.json({
             success: true,
             user: userWithRole,
@@ -32,19 +35,21 @@ exports.loginController = catchAsync(async (req, res) => {
             first_login: result.first_login,
         });
     } else {
+        logger.warn(`Intento de login fallido para: ${email} - Razón: ${result.message}`);
         res.status(401).json({ message: result.message });
     }
 });
 
 exports.registerController = catchAsync(async (req, res) => {
-    console.log('POST /api/register -> Registrando nuevo usuario en DB...');
+    logger.info('POST /api/register -> Registrando nuevo usuario en DB...');
     const { nombre, email, password } = req.body;
 
     try {
         const newUser = await userService.registerUser(req.body);
+        logger.info(`Nuevo usuario registrado: ${email}`);
         res.status(201).json({ success: true, user: newUser });
     } catch (error) {
-        console.error('Error en /api/register:', error);
+        logger.error('Error en /api/register:', error);
         if (error.message.includes('email ya está registrado')) {
             return res.status(409).json({ message: error.message });
         }
@@ -56,14 +61,14 @@ exports.registerController = catchAsync(async (req, res) => {
 });
 
 exports.authenticateProtheusUser = catchAsync(async (req, res) => {
-    console.log('POST /api/protheus-login -> Autenticando contra Protheus...');
+    logger.info('POST /api/protheus-login -> Autenticando contra Protheus...');
     // Lógica de autenticación Protheus
     // Por ahora, solo un placeholder
     res.status(501).json({ message: 'Funcionalidad de autenticación Protheus no implementada.' });
 });
 
 exports.registerProtheusUser = catchAsync(async (req, res) => {
-    console.log('POST /api/protheus-register -> Registrando usuario en Protheus...');
+    logger.info('POST /api/protheus-register -> Registrando usuario en Protheus...');
     // Lógica de registro Protheus
     // Por ahora, solo un placeholder
     res.status(501).json({ message: 'Funcionalidad de registro Protheus no implementada.' });

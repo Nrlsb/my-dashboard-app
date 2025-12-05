@@ -1,5 +1,6 @@
 const { Pool } = require('pg');
 require('dotenv').config();
+const logger = require('./utils/logger'); // (NUEVO) Importar logger
 
 // Configuración optimizada del Pool
 const poolConfig = {
@@ -18,7 +19,7 @@ const pool = new Pool(poolConfig);
 
 // (OPTIMIZACIÓN) Manejo de errores en el pool para evitar caídas silenciosas
 pool.on('error', (err, client) => {
-  console.error('Error inesperado en cliente inactivo de Pool 1', err);
+  logger.error('Error inesperado en cliente inactivo de Pool 1', err);
   process.exit(-1);
 });
 
@@ -33,7 +34,7 @@ const requiredDb2Vars = [
 let db2ConfigError = false;
 requiredDb2Vars.forEach((v) => {
   if (!process.env[v]) {
-    console.error(
+    logger.error(
       `[DB2 Config Error] La variable de entorno ${v} no está definida. Revisa tu archivo .env.`
     );
     db2ConfigError = true;
@@ -54,7 +55,7 @@ const pool2Config = {
 const pool2 = new Pool(pool2Config);
 
 pool2.on('error', (err, client) => {
-  console.error('Error inesperado en cliente inactivo de Pool 2', err);
+  logger.error('Error inesperado en cliente inactivo de Pool 2', err);
   // No salimos del proceso aquí si la DB2 es secundaria, pero logueamos fuerte.
 });
 

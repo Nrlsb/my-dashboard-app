@@ -75,10 +75,14 @@ app.use('/api', mainRoutes);
 const { initScheduler } = require('./services/schedulerService');
 initScheduler();
 
+const logger = require('./utils/logger'); // (NUEVO) Importar logger
+
+// ... (rest of imports)
+
 // --- Iniciar el servidor ---
 app.listen(PORT, () => {
-  console.log(`=======================================================`);
-  console.log(`   Servidor API (Conectado a PostgreSQL)`);
-  console.log(`   Escuchando en http://localhost:${PORT}`);
-  console.log(`=======================================================`);
+  logger.info(`=======================================================`);
+  logger.info(`   Servidor API (Conectado a PostgreSQL)`);
+  logger.info(`   Escuchando en http://localhost:${PORT}`);
+  logger.info(`=======================================================`);
 });

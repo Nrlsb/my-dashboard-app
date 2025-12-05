@@ -1,6 +1,7 @@
 const { createClient } = require('redis');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+const logger = require('./utils/logger'); // (NUEVO) Importar logger
 
 const redisClient = createClient({
     url: process.env.REDIS_URL,
@@ -10,15 +11,15 @@ const redisClient = createClient({
     }
 });
 
-redisClient.on('error', (err) => console.log('Redis Client Error', err));
+redisClient.on('error', (err) => logger.error('Redis Client Error', err));
 
 const connectRedis = async () => {
     if (!redisClient.isOpen) {
         try {
             await redisClient.connect();
-            console.log('Redis connected successfully');
+            logger.info('Redis connected successfully');
         } catch (err) {
-            console.error('Could not connect to Redis:', err);
+            logger.error('Could not connect to Redis:', err);
         }
     }
 };
@@ -33,10 +34,10 @@ const clearCacheByPattern = async (pattern) => {
 
         if (keys.length > 0) {
             await redisClient.del(keys);
-            console.log(`Cleared ${keys.length} keys matching pattern: ${pattern}`);
+            logger.info(`Cleared ${keys.length} keys matching pattern: ${pattern}`);
         }
     } catch (err) {
-        console.error(`Error clearing cache for pattern ${pattern}:`, err);
+        logger.error(`Error clearing cache for pattern ${pattern}:`, err);
     }
 };
 
