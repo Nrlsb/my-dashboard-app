@@ -1,4 +1,5 @@
 const { pool, pool2 } = require('../db');
+const { redisClient, isRedisReady } = require('../redisClient');
 
 /**
  * Función interna para obtener los datos de productos en oferta.
@@ -6,11 +7,29 @@ const { pool, pool2 } = require('../db');
  * @returns {Promise<object[]>} - Una promesa que se resuelve con un array de objetos de oferta.
  */
 const getOnOfferData = async (bypassCache = false) => {
-  // Cache removed by user request
+  const cacheKey = 'products:on_offer';
+
+  if (!bypassCache && isRedisReady()) {
+    try {
+      const cachedData = await redisClient.get(cacheKey);
+      if (cachedData) {
+        return JSON.parse(cachedData);
+      }
+    } catch (err) {
+      console.error('Redis error in getOnOfferData:', err);
+    }
+  }
+
   try {
     const result = await pool2.query(
       'SELECT product_id, custom_title, custom_description, custom_image_url FROM product_offer_status WHERE is_on_offer = true'
     );
+
+    if (isRedisReady()) {
+      // Cache for 10 minutes
+      await redisClient.set(cacheKey, JSON.stringify(result.rows), { EX: 600 });
+    }
+
     return result.rows;
   } catch (error) {
     console.error('Error fetching on-offer data:', error);
@@ -35,7 +54,19 @@ const getOnOfferProductIds = async (bypassCache = false) => {
  * @returns {Promise<string[]>} - Una promesa que se resuelve con un array de códigos de grupo de productos denegados.
  */
 const getDeniedProductGroups = async (userId) => {
-  // Cache removed by user request
+  const cacheKey = `user:denied_groups:${userId}`;
+
+  if (isRedisReady()) {
+    try {
+      const cachedData = await redisClient.get(cacheKey);
+      if (cachedData) {
+        return JSON.parse(cachedData);
+      }
+    } catch (err) {
+      console.error('Redis error in getDeniedProductGroups:', err);
+    }
+  }
+
   try {
     const query = `
       SELECT product_group 
@@ -44,6 +75,11 @@ const getDeniedProductGroups = async (userId) => {
     `;
     const result = await pool2.query(query, [userId]);
     const deniedGroups = result.rows.map((row) => row.product_group);
+
+    if (isRedisReady()) {
+      // Cache for 1 hour
+      await redisClient.set(cacheKey, JSON.stringify(deniedGroups), { EX: 3600 });
+    }
 
     return deniedGroups;
   } catch (error) {
@@ -57,8 +93,15 @@ const getDeniedProductGroups = async (userId) => {
  * @param {number} userId - El ID del usuario.
  */
 // Function removed as cache is disabled
-const invalidatePermissionsCache = (userId) => {
-  // No-op
+const invalidatePermissionsCache = async (userId) => {
+  if (!isRedisReady()) return;
+  const cacheKey = `user:denied_groups:${userId}`;
+  try {
+    await redisClient.del(cacheKey);
+    console.log(`Invalidated permissions cache for user ${userId}`);
+  } catch (err) {
+    console.error(`Error invalidating permissions cache for user ${userId}:`, err);
+  }
 };
 
 /**
@@ -79,6 +122,25 @@ const findProducts = async ({
   deniedGroups,
   bypassCache = false,
 }) => {
+  // Create a unique cache key based on all filter parameters
+  const cacheKey = `products:search:${JSON.stringify({
+    limit,
+    offset,
+    search: search ? search.trim() : '',
+    brands: brands ? brands.sort() : [],
+    deniedGroups: deniedGroups ? deniedGroups.sort() : []
+  })}`;
+
+  if (!bypassCache && isRedisReady()) {
+    try {
+      const cachedData = await redisClient.get(cacheKey);
+      if (cachedData) {
+        return JSON.parse(cachedData);
+      }
+    } catch (err) {
+      console.error('Redis error in findProducts:', err);
+    }
+  }
   let queryParams = [];
   let paramIndex = 1;
 
@@ -163,10 +225,17 @@ const findProducts = async ({
       oferta: onOfferIdsSet.has(product.id),
     }));
 
-    return {
+    const resultToReturn = {
       products: productsWithOfferStatus,
       totalProducts,
     };
+
+    if (isRedisReady()) {
+      // Cache for 60 seconds
+      await redisClient.set(cacheKey, JSON.stringify(resultToReturn), { EX: 60 });
+    }
+
+    return resultToReturn;
   } catch (error) {
     console.error('[DEBUG] Error in productModel.findProducts:', error);
     throw error;
