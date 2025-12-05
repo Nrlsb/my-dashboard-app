@@ -38,18 +38,22 @@ async function generateOrderPDF(orderData) {
     const { user, newOrder, items } = orderData;
     
     // Adapt orderData to the invoiceData structure
+    // CORRECCIÓN: Mapeo de campos basado en userModel.js (DB Postgres)
     const invoiceData = {
         numero: newOrder.id,
         fechaEmision: new Date(newOrder.created_at).toLocaleDateString('es-AR'),
         sucursal: '', 
         cliente: {
             nombre: user.full_name,
-            domicilio: user.a1_dom || '',
-            localidad: user.a1_loc || '',
-            provincia: user.a1_prov || '',
+            // Soporte para nombres de campos de DB (a1_endereco) y legacy (a1_dom)
+            domicilio: user.a1_endereco || user.a1_dom || '',
+            localidad: user.a1_loc || '', // Nota: Verificar si existe en DB
+            provincia: user.a1_prov || '', // Nota: Verificar si existe en DB
             cuenta: user.a1_cod,
-            cuit: user.a1_cuit || '',
+            // Soporte para nombres de campos de DB (a1_cgc) y legacy (a1_cuit)
+            cuit: user.a1_cgc || user.a1_cuit || '',
             condIva: user.a1_iva || '',
+            // Soporte para nombres de campos de DB (a1_tel)
             telefono: user.a1_tel || '',
             condPago: user.a1_condpago || '',
             vendedor: user.a1_vend || '',

@@ -344,7 +344,7 @@ const downloadOrderPdf = async (orderId, user) => {
     // 3. Obtener datos del usuario QUE HIZO EL PEDIDO (no el vendedor)
     const orderOwnerId = orderDetails.user_id; // El ID del dueño del pedido
     const userResult = await pool.query(
-      'SELECT full_name, email, a1_cod FROM users WHERE id = $1',
+      'SELECT id, full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, a1_endereco FROM users WHERE id = $1',
       [orderOwnerId]
     );
     if (userResult.rows.length === 0) {
@@ -372,9 +372,12 @@ const downloadOrderPdf = async (orderId, user) => {
     }));
 
     // 5. Preparar orderData para generateOrderPDF
+    // Modificación: Pasamos todo el objeto orderDetails como newOrder
+    // para que el generador tenga acceso a campos extra si existen.
     const orderDataForPdf = {
-      user: orderOwner, // Usar el dueño del pedido
+      user: orderOwner, // Usar el dueño del pedido con todos sus campos
       newOrder: {
+        ...orderDetails, // Pasamos todos los detalles del pedido
         id: orderDetails.id,
         created_at: orderDetails.created_at,
       },
