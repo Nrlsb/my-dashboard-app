@@ -223,7 +223,7 @@ export default function ManageOffersPage() {
         : undefined;
     },
     initialPageParam: 1,
-    enabled: !!user?.is_admin, // Solo habilitar si es admin
+    enabled: !!(user?.is_admin || user?.role === 'marketing'), // Habilitar si es admin o marketing
   });
 
   // Mutación para cambiar el estado de la oferta
@@ -297,7 +297,7 @@ export default function ManageOffersPage() {
 
   const allProducts = data?.pages.flatMap((page) => page.products) || [];
 
-  if (!user?.is_admin) {
+  if (!user?.is_admin && user?.role !== 'marketing') {
     return <div className="p-8 text-center text-red-500">Acceso denegado.</div>;
   }
 

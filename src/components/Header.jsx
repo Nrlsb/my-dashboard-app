@@ -62,7 +62,7 @@ const Header = ({ onLogout, currentUser }) => {
             <div className="relative">
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white/10 transition-colors"
+                className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <div className="p-2 bg-white/20 rounded-full">
                   <Building className="w-6 h-6 text-white" />
@@ -89,7 +89,7 @@ const Header = ({ onLogout, currentUser }) => {
                   <div className="py-1">
                     <button
                       onClick={() => handleNavigation('/profile')}
-                      className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100"
+                      className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                     >
                       <User className="w-5 h-5 mr-3 text-gray-500" />
                       Mi Perfil
@@ -98,14 +98,14 @@ const Header = ({ onLogout, currentUser }) => {
                       <>
                         <button
                           onClick={() => handleNavigation('/manage-offers')}
-                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100"
+                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                         >
                           <Tag className="w-5 h-5 mr-3 text-gray-500" />
                           Gestionar Ofertas
                         </button>
                         <button
                           onClick={() => handleNavigation('/manage-content')}
-                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100"
+                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                         >
                           <Layers className="w-5 h-5 mr-3 text-gray-500" />
                           Gestionar Contenido
@@ -116,7 +116,7 @@ const Header = ({ onLogout, currentUser }) => {
                       <>
                         <button
                           onClick={() => handleNavigation('/dashboard-settings')}
-                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100"
+                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                         >
                           <Settings className="w-5 h-5 mr-3 text-gray-500" />
                           Config. Dashboard
@@ -125,14 +125,14 @@ const Header = ({ onLogout, currentUser }) => {
                           onClick={() =>
                             handleNavigation('/client-group-permissions')
                           }
-                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100"
+                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                         >
                           <Users className="w-5 h-5 mr-3 text-gray-500" />
                           Permisos Clientes
                         </button>
                         <button
                           onClick={() => handleNavigation('/manage-admins')}
-                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100"
+                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                         >
                           <UserCog className="w-5 h-5 mr-3 text-gray-500" />
                           Gestionar Admins
@@ -141,7 +141,7 @@ const Header = ({ onLogout, currentUser }) => {
                     )}
                     <button
                       onClick={handleLogoutClick}
-                      className="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 border-t border-gray-100"
+                      className="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 border-t border-gray-100 cursor-pointer"
                     >
                       <LogOut className="w-5 h-5 mr-3" />
                       Cerrar Sesión
