@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
+import { useNavigate, useLoaderData } from 'react-router-dom';
 import DashboardCard from '/src/components/DashboardCard.jsx';
 import AccessoryCarousel from '../components/AccessoryCarousel';
 import ProductGroupCarousel from '../components/ProductGroupCarousel';
@@ -28,39 +28,9 @@ import DashboardSkeleton from '../components/DashboardSkeleton';
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [cards, setCards] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const cards = useLoaderData();
 
-  useEffect(() => {
-    const fetchPanels = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      try {
-        setLoading(true);
-        const fetchedPanels = await apiService.getDashboardPanels();
-        setCards(fetchedPanels);
-        setError(null);
-      } catch (err) {
-        setError('No se pudieron cargar los paneles del dashboard.');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
 
-    fetchPanels();
-  }, [user]);
-
-  if (loading) {
-    return <DashboardSkeleton />;
-  }
-
-  if (error) {
-    return <div className="text-center p-8 text-red-500">{error}</div>;
-  }
 
   return (
     <div className="flex w-full bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
@@ -89,6 +59,15 @@ const DashboardPage = () => {
       </main>
     </div>
   );
+};
+
+export const dashboardLoader = async () => {
+  try {
+    const panels = await apiService.getDashboardPanels();
+    return panels;
+  } catch (error) {
+    throw new Error('No se pudieron cargar los paneles del dashboard.');
+  }
 };
 
 export default DashboardPage;

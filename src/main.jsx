@@ -1,13 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom'; // Import BrowserRouter
+import { RouterProvider } from 'react-router-dom';
 import './index.css';
-import App from './App.jsx';
+import router from './router';
 import { CartProvider } from './context/CartContext.jsx';
-import { AuthProvider } from './context/AuthContext.jsx'; // Import AuthProvider
+import { AuthProvider } from './context/AuthContext.jsx';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
-
 
 // 1. Crear una instancia de QueryClient
 const queryClient = new QueryClient();
@@ -20,9 +18,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         {' '}
         {/* Wrap with AuthProvider */}
         <CartProvider>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
+          <RouterProvider router={router} />
         </CartProvider>
       </AuthProvider>
     </QueryClientProvider>

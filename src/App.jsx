@@ -8,7 +8,8 @@ import { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext.jsx';
 import { useCart } from './context/CartContext.jsx';
 import Header from './components/Header.jsx';
-import AppRoutes from './AppRoutes.jsx'; // Importar el nuevo componente de rutas
+import { Outlet } from 'react-router-dom';
+// import AppRoutes from './AppRoutes.jsx'; // Removed
 
 // --- Componente Raíz ---
 function App() {
@@ -40,7 +41,7 @@ function App() {
         <Header onLogout={handleLogout} currentUser={user} />
       )}
       <div className="page-content p-6 max-w-6xl mx-auto my-5 w-full box-border">
-        <AppRoutes onCompleteOrder={handleCompleteOrder} />
+        <Outlet context={{ onCompleteOrder: handleCompleteOrder }} />
       </div>
       <Toaster position="top-right" />
     </div>

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import apiService from '../api/apiService';
+import { useAuth } from '../context/AuthContext';
 
 
-const ClientGroupPermissionsPage = ({ currentUser }) => {
+const ClientGroupPermissionsPage = () => {
+  const { user: currentUser } = useAuth();
   const [clients, setClients] = useState([]);
   const [userSearch, setUserSearch] = useState('');
   const [productGroups, setProductGroups] = useState([]);

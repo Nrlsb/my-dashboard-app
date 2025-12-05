@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useCart } from '../context/CartContext.jsx';
 import { AlertCircle, CheckCircle } from 'lucide-react';
 import apiService from '../api/apiService.js';
@@ -18,7 +18,8 @@ const formatCurrency = (value) => {
   }).format(numberValue);
 };
 
-const OrderPreviewPage = ({ onCompleteOrder }) => {
+const OrderPreviewPage = () => {
+  const { onCompleteOrder } = useOutletContext();
   const { cart } = useCart();
   const navigate = useNavigate();
   const [deliveryType, setDeliveryType] = useState('shipping');
