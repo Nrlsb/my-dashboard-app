@@ -83,7 +83,7 @@ const { initScheduler } = require('./services/schedulerService');
 initScheduler();
 
 // (NUEVO) Manejo de rutas no encontradas (404)
-app.all('(.*)', (req, res, next) => {
+app.all('*splat', (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 });
 
