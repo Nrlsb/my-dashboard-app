@@ -19,8 +19,14 @@ const authenticateUser = async (email, password) => {
     let user;
 
     if (userRecord) {
-      user = { ...userRecord, role: 'cliente' };
-      console.log('[DEBUG AUTH] Usuario identificado como CLIENTE:', JSON.stringify(user, null, 2));
+      // Fetch role from DB2
+      const role = await userModel.getUserRoleFromDB2(userRecord.id);
+      user = {
+        ...userRecord,
+        role: role || 'cliente',
+        is_admin: role === 'admin'
+      };
+      console.log('[DEBUG AUTH] Usuario identificado como CLIENTE/ADMIN/MARKETING:', JSON.stringify(user, null, 2));
     } else {
       console.log(
         'Usuario no encontrado en la tabla de clientes, buscando en vendedores...'
@@ -95,7 +101,8 @@ const authenticateUser = async (email, password) => {
     if (userType === 'vendedor') {
       userWithoutPassword.is_admin = false;
     } else {
-      userWithoutPassword.is_admin = await userModel.isUserAdmin(user.id);
+      // Role and is_admin are already set above
+      // userWithoutPassword.is_admin = await userModel.isUserAdmin(user.id);
     }
     console.log('[DEBUG AUTH] Valor FINAL de userWithoutPassword.is_admin:', userWithoutPassword.is_admin, 'para userType:', userType);
     console.log(

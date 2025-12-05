@@ -51,6 +51,14 @@ const AdminRoute = ({ children }) => {
   return user?.is_admin ? children : <Navigate to="/dashboard" replace />;
 };
 
+// --- Componente para Rutas de Marketing ---
+const MarketingRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingFallback />;
+  // Allow if user is admin OR has marketing role
+  return (user?.is_admin || user?.role === 'marketing') ? children : <Navigate to="/dashboard" replace />;
+};
+
 function AppRoutes({ onCompleteOrder }) {
   const { isAuthenticated, user, firstLogin } = useAuth(); // Se extraen del hook de autenticación
 
@@ -88,10 +96,10 @@ function AppRoutes({ onCompleteOrder }) {
         <Route path="/collection/:collectionId" element={<ProtectedRoute><CollectionPage /></ProtectedRoute>} />
 
         {/* Rutas de Administrador */}
-        <Route path="/manage-offers" element={<AdminRoute><ManageOffersPage /></AdminRoute>} />
+        <Route path="/manage-offers" element={<MarketingRoute><ManageOffersPage /></MarketingRoute>} />
         <Route path="/client-group-permissions" element={<AdminRoute><ClientGroupPermissionsPage currentUser={user} /></AdminRoute>} />
         <Route path="/manage-admins" element={<AdminRoute><ManageAdminsPage /></AdminRoute>} />
-        <Route path="/manage-content" element={<AdminRoute><ManageContentPage /></AdminRoute>} />
+        <Route path="/manage-content" element={<MarketingRoute><ManageContentPage /></MarketingRoute>} />
 
         {/* Fallback - Redirigir al dashboard si está logueado, si no al login */}
         <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />

@@ -21,39 +21,41 @@ const {
 } = require('../controllers/dashboardController');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
-// Todas las rutas en este archivo requieren autenticación y permisos de administrador.
+// Todas las rutas en este archivo requieren autenticación.
 router.use(authenticateToken);
-router.use(requireAdmin);
 
-router.post('/credit-note', createCreditNoteController);
+const { requireMarketingOrAdmin } = require('../middleware/roleAuth');
 
-router.get('/customer-invoices/:cod', getCustomerInvoicesController);
+router.post('/credit-note', requireAdmin, createCreditNoteController);
 
-router.get('/order-details/:id', fetchAdminOrderDetails);
+router.get('/customer-invoices/:cod', requireAdmin, getCustomerInvoicesController);
 
-router.get('/users', getUsersForAdmin);
+router.get('/order-details/:id', requireAdmin, fetchAdminOrderDetails);
 
-router.get('/product-groups', getProductGroupsForAdmin);
+router.get('/users', requireAdmin, getUsersForAdmin);
+
+router.get('/product-groups', requireAdmin, getProductGroupsForAdmin);
 
 router.get(
   '/users/:userId/product-groups',
+  requireAdmin,
   getDeniedProductGroupsByUserController
 );
 
-router.put('/users/:userId/product-groups', updateUserGroupPermissions);
+router.put('/users/:userId/product-groups', requireAdmin, updateUserGroupPermissions);
 
-router.get('/dashboard-panels', getAdminDashboardPanelsController);
+router.get('/dashboard-panels', requireAdmin, getAdminDashboardPanelsController);
 
-router.put('/dashboard-panels/:id', updateDashboardPanelController);
+router.put('/dashboard-panels/:id', requireAdmin, updateDashboardPanelController);
 
-router.get('/management/admins', getAdmins);
+router.get('/management/admins', requireAdmin, getAdmins);
 
-router.post('/management/admins', addAdmin);
+router.post('/management/admins', requireAdmin, addAdmin);
 
-router.delete('/management/admins/:userId', removeAdmin);
+router.delete('/management/admins/:userId', requireAdmin, removeAdmin);
 
 // (NUEVO) Ruta para obtener todos los clientes
-router.get('/clients', getAllClientsController); // Add the new route
+router.get('/clients', requireAdmin, getAllClientsController); // Add the new route
 
 const {
   getCarouselGroups,
@@ -67,15 +69,16 @@ const {
 } = require('../controllers/adminContentController');
 
 // Carousel Content Management
-router.get('/carousel-groups', getCarouselGroups);
-router.post('/carousel-groups', createCarouselGroup);
-router.put('/carousel-groups/:id', updateCarouselGroup);
-router.delete('/carousel-groups/:id', deleteCarouselGroup);
+// Carousel Content Management - Accessible by Marketing or Admin
+router.get('/carousel-groups', requireMarketingOrAdmin, getCarouselGroups);
+router.post('/carousel-groups', requireMarketingOrAdmin, createCarouselGroup);
+router.put('/carousel-groups/:id', requireMarketingOrAdmin, updateCarouselGroup);
+router.delete('/carousel-groups/:id', requireMarketingOrAdmin, deleteCarouselGroup);
 
-router.post('/accessories', addAccessory);
-router.delete('/accessories/:productId', removeAccessory);
+router.post('/accessories', requireMarketingOrAdmin, addAccessory);
+router.delete('/accessories/:productId', requireMarketingOrAdmin, removeAccessory);
 
-router.post('/custom-collection/:groupId/items', addCustomGroupItem);
-router.delete('/custom-collection/:groupId/items/:productId', removeCustomGroupItem);
+router.post('/custom-collection/:groupId/items', requireMarketingOrAdmin, addCustomGroupItem);
+router.delete('/custom-collection/:groupId/items/:productId', requireMarketingOrAdmin, removeCustomGroupItem);
 
 module.exports = router;

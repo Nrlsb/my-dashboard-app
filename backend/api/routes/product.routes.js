@@ -18,6 +18,7 @@ const {
   authenticateToken,
   requireAdmin,
 } = require('../middleware/auth');
+const { requireMarketingOrAdmin } = require('../middleware/roleAuth');
 const cache = require('../middleware/cache');
 
 // La mayoría de las rutas GET aquí son públicas o con autenticación opcional.
@@ -48,18 +49,18 @@ router.get('/:id', getProductsByIdController);
 
 router.get('/collection/:collectionId', getCustomCollectionProducts);
 
-// Esta ruta requiere permisos de administrador.
+// Esta ruta requiere permisos de marketing o administrador.
 router.put(
   '/:id/toggle-offer',
   authenticateToken,
-  requireAdmin,
+  requireMarketingOrAdmin,
   toggleProductOfferStatus
 );
 
 router.put(
   '/:id/offer-details',
   authenticateToken,
-  requireAdmin,
+  requireMarketingOrAdmin,
   updateProductOfferDetails
 );
 

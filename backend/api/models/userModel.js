@@ -36,20 +36,26 @@ const findUserById = async (userId) => {
   const user = result.rows[0] || null;
 
   if (user) {
-    user.role = user.vendedor_codigo ? 'vendedor' : 'cliente';
-    if (user.role === 'vendedor') {
+    if (user.vendedor_codigo) {
+      user.role = 'vendedor';
       user.codigo = user.vendedor_codigo;
+      user.is_admin = false;
+    } else {
+      // Check role in DB2
+      const role = await getUserRoleFromDB2(user.id);
+      user.role = role || 'cliente';
+      user.is_admin = role === 'admin';
     }
   }
   console.log(
     `[userModel] findUserById(${userId}) -> user:`,
     user
       ? {
-          id: user.id,
-          role: user.role,
-          codigo: user.codigo,
-          vendedor_codigo: user.vendedor_codigo,
-        }
+        id: user.id,
+        role: user.role,
+        codigo: user.codigo,
+        vendedor_codigo: user.vendedor_codigo,
+      }
       : 'null'
   );
   return user;
@@ -85,25 +91,41 @@ const createUser = async (userData, passwordHash) => {
 };
 
 /**
+ * Verifica el rol del usuario consultando las tablas de admins y marketing_users en DB2.
+ * @param {number} userId - El ID del usuario.
+ * @returns {Promise<string|null>} - 'admin', 'marketing', o null.
+ */
+const getUserRoleFromDB2 = async (userId) => {
+  try {
+    // Check admin
+    const adminCheck = await pool2.query(
+      'SELECT 1 FROM admins WHERE user_id = $1',
+      [userId]
+    );
+    if (adminCheck.rows.length > 0) return 'admin';
+
+    // Check marketing
+    const marketingCheck = await pool2.query(
+      'SELECT 1 FROM marketing_users WHERE user_id = $1',
+      [userId]
+    );
+    if (marketingCheck.rows.length > 0) return 'marketing';
+
+    return null;
+  } catch (error) {
+    console.error('Error checking user role in DB2:', error);
+    return null;
+  }
+};
+
+/**
  * Verifica si un usuario es administrador.
  * @param {number} userId - El ID del usuario.
  * @returns {Promise<boolean>}
  */
 const isUserAdmin = async (userId) => {
-  try {
-    const adminCheck = await pool2.query(
-      'SELECT 1 FROM admins WHERE user_id = $1',
-      [userId]
-    );
-    return adminCheck.rows.length > 0;
-  } catch (adminDbError) {
-    console.error(
-      'Error al consultar la tabla de administradores en DB2:',
-      adminDbError
-    );
-    // Es más seguro asumir que no es admin si la DB2 falla.
-    return false;
-  }
+  const role = await getUserRoleFromDB2(userId);
+  return role === 'admin';
 };
 
 /**
@@ -200,5 +222,6 @@ module.exports = {
   findUsersByVendedorCodigo,
   clearTempPasswordHash,
   updatePassword,
-  findAllClients, // Add the new function to the export
+  findAllClients,
+  getUserRoleFromDB2, // Export new function
 };

@@ -134,21 +134,44 @@ const updateUserGroupPermissions = async (userId, groups) => {
 /**
  * (Admin) Obtiene la lista de todos los administradores.
  */
+/**
+ * (Admin) Obtiene la lista de todos los usuarios con roles especiales (admin, marketing).
+ */
 const getAdmins = async () => {
   try {
-    const adminIdsResult = await pool2.query(
-      'SELECT user_id FROM admins ORDER BY created_at DESC'
+    // Fetch admins
+    const adminsResult = await pool2.query(
+      'SELECT user_id, created_at FROM admins'
     );
-    if (adminIdsResult.rows.length === 0) {
+    // Fetch marketing users
+    const marketingResult = await pool2.query(
+      'SELECT user_id, created_at FROM marketing_users'
+    );
+
+    const privilegedUsers = [
+      ...adminsResult.rows.map(r => ({ ...r, role: 'admin' })),
+      ...marketingResult.rows.map(r => ({ ...r, role: 'marketing' }))
+    ];
+
+    if (privilegedUsers.length === 0) {
       return [];
     }
-    const adminIds = adminIdsResult.rows.map((row) => row.user_id);
+
+    const userIds = privilegedUsers.map((row) => row.user_id);
     // Busca la información de los usuarios en la DB1
     const usersResult = await pool.query(
       'SELECT id, full_name, email FROM users WHERE id = ANY($1::int[])',
-      [adminIds]
+      [userIds]
     );
-    return usersResult.rows;
+
+    // Merge user details with role info
+    const usersMap = new Map(usersResult.rows.map(u => [u.id, u]));
+
+    return privilegedUsers.map(p => {
+      const userDetails = usersMap.get(p.user_id);
+      return userDetails ? { ...userDetails, role: p.role, assigned_at: p.created_at } : null;
+    }).filter(u => u !== null).sort((a, b) => new Date(b.assigned_at) - new Date(a.assigned_at));
+
   } catch (error) {
     console.error('Error en getAdmins:', error);
     throw error;
@@ -158,7 +181,10 @@ const getAdmins = async () => {
 /**
  * (Admin) Añade un nuevo administrador.
  */
-const addAdmin = async (userId) => {
+/**
+ * (Admin) Añade un nuevo usuario con rol (admin o marketing).
+ */
+const addAdmin = async (userId, role = 'admin') => {
   try {
     // 1. Verificar que el usuario existe en la DB1
     const userResult = await pool.query('SELECT id FROM users WHERE id = $1', [
@@ -167,12 +193,22 @@ const addAdmin = async (userId) => {
     if (userResult.rows.length === 0) {
       throw new Error('El usuario no existe en la base de datos principal.');
     }
-    // 2. Insertar en la tabla admins en DB2. ON CONFLICT evita duplicados.
-    await pool2.query(
-      'INSERT INTO admins (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING',
-      [userId]
-    );
-    return { success: true, message: 'Usuario añadido como administrador.' };
+
+    // 2. Insertar en la tabla correspondiente en DB2
+    if (role === 'marketing') {
+      await pool2.query(
+        'INSERT INTO marketing_users (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING',
+        [userId]
+      );
+    } else {
+      // Default to admin
+      await pool2.query(
+        'INSERT INTO admins (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING',
+        [userId]
+      );
+    }
+
+    return { success: true, message: `Usuario añadido como ${role}.` };
   } catch (error) {
     console.error('Error en addAdmin:', error);
     throw error;
@@ -182,16 +218,25 @@ const addAdmin = async (userId) => {
 /**
  * (Admin) Elimina a un administrador.
  */
+/**
+ * (Admin) Elimina a un administrador o usuario de marketing.
+ */
 const removeAdmin = async (userId) => {
   try {
-    const result = await pool2.query('DELETE FROM admins WHERE user_id = $1', [
+    // Try removing from admins
+    const adminResult = await pool2.query('DELETE FROM admins WHERE user_id = $1', [
       userId,
     ]);
-    if (result.rowCount === 0) {
-      // Esto puede pasar si el usuario ya no era admin, no es necesariamente un error.
-      return { success: false, message: 'El usuario no era administrador.' };
+
+    // Try removing from marketing_users
+    const marketingResult = await pool2.query('DELETE FROM marketing_users WHERE user_id = $1', [
+      userId,
+    ]);
+
+    if (adminResult.rowCount === 0 && marketingResult.rowCount === 0) {
+      return { success: false, message: 'El usuario no tenía roles asignados.' };
     }
-    return { success: true, message: 'Administrador eliminado correctamente.' };
+    return { success: true, message: 'Rol eliminado correctamente.' };
   } catch (error) {
     console.error('Error en removeAdmin:', error);
     throw error;

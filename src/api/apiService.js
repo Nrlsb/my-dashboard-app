@@ -308,11 +308,11 @@ const apiService = {
     return this.request('/admin/management/admins');
   },
 
-  addAdmin(userId) {
+  addAdmin(userId, role) {
     if (!userId) throw new Error('ID de usuario requerido');
     return this.request('/admin/management/admins', {
       method: 'POST',
-      body: { userId },
+      body: { userId, role },
     });
   },
 

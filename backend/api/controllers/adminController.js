@@ -47,8 +47,8 @@ exports.getAdmins = catchAsync(async (req, res) => {
 });
 
 exports.addAdmin = catchAsync(async (req, res) => {
-    const { userId } = req.body;
-    const result = await adminService.addAdmin(userId);
+    const { userId, role } = req.body;
+    const result = await adminService.addAdmin(userId, role);
     res.json(result);
 });
 

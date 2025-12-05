@@ -7,6 +7,7 @@ const ManageAdminsPage = () => {
   const [admins, setAdmins] = useState([]);
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState('');
+  const [selectedRole, setSelectedRole] = useState('admin');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [actionError, setActionError] = useState(null);
@@ -43,7 +44,7 @@ const ManageAdminsPage = () => {
     }
     try {
       setActionError(null);
-      await apiService.addAdmin(selectedUser);
+      await apiService.addAdmin(selectedUser, selectedRole);
       await fetchData(); // Refresh data
     } catch (err) {
       setActionError(err.message || 'Error al añadir administrador.');
@@ -70,11 +71,11 @@ const ManageAdminsPage = () => {
 
   return (
     <div className="p-8 max-w-4xl mx-auto my-8 bg-gray-50 rounded-lg shadow-md">
-      <h2 className="text-center mb-8 text-gray-800 text-2xl font-bold">Gestionar Administradores</h2>
+      <h2 className="text-center mb-8 text-gray-800 text-2xl font-bold">Gestionar Roles y Permisos</h2>
 
       <div className="mb-10 p-6 border border-gray-200 rounded-lg bg-white">
-        <h3 className="mt-0 mb-2 text-gray-700 border-b-2 border-gray-300 pb-2 text-xl font-semibold">Añadir Administrador</h3>
-        <p className="text-sm text-gray-600 mb-4">Selecciona un usuario para convertirlo en administrador.</p>
+        <h3 className="mt-0 mb-2 text-gray-700 border-b-2 border-gray-300 pb-2 text-xl font-semibold">Asignar Rol</h3>
+        <p className="text-sm text-gray-600 mb-4">Selecciona un usuario y el rol que deseas asignarle.</p>
         <div className="flex gap-4 items-center">
           <select
             className="flex-grow py-3 px-4 border border-gray-300 rounded-md text-base"
@@ -92,24 +93,35 @@ const ManageAdminsPage = () => {
               <option>No hay usuarios para añadir</option>
             )}
           </select>
+          <select
+            className="w-40 py-3 px-4 border border-gray-300 rounded-md text-base"
+            value={selectedRole}
+            onChange={(e) => setSelectedRole(e.target.value)}
+          >
+            <option value="admin">Admin</option>
+            <option value="marketing">Marketing</option>
+          </select>
           <button
             onClick={handleAddAdmin}
             disabled={users.length === 0}
             className="py-3 px-6 bg-green-600 text-white rounded-md cursor-pointer font-bold transition-colors duration-200 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            Añadir Administrador
+            Añadir
           </button>
         </div>
       </div>
 
       <div className="mb-10 p-6 border border-gray-200 rounded-lg bg-white">
-        <h3 className="mt-0 mb-2 text-gray-700 border-b-2 border-gray-300 pb-2 text-xl font-semibold">Administradores Actuales</h3>
+        <h3 className="mt-0 mb-2 text-gray-700 border-b-2 border-gray-300 pb-2 text-xl font-semibold">Usuarios con Roles Asignados</h3>
         {admins.length > 0 ? (
           <ul className="list-none p-0">
             {admins.map((admin) => (
               <li key={admin.id} className="flex justify-between items-center py-3 px-0 border-b border-gray-200 last:border-b-0">
                 <span className="text-base">
                   {admin.full_name} ({admin.email})
+                  <span className={`ml-2 px-2 py-1 text-xs rounded-full ${admin.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                    {admin.role === 'admin' ? 'Administrador' : 'Marketing'}
+                  </span>
                 </span>
                 <button
                   onClick={() => handleRemoveAdmin(admin.id)}
