@@ -51,7 +51,7 @@ const EditOfferModal = ({ product, onClose, onSave, isSaving }) => {
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
           <h3 className="text-lg font-semibold text-gray-800">Editar Oferta</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -103,14 +103,14 @@ const EditOfferModal = ({ product, onClose, onSave, isSaving }) => {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={isSaving}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 flex items-center disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 flex items-center disabled:opacity-50 cursor-pointer"
             >
               {isSaving ? (
                 <>
@@ -170,7 +170,7 @@ const ProductRow = ({ product, onToggle, isToggling, onEdit }) => (
         {product.oferta && (
           <button
             onClick={() => onEdit(product)}
-            className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+            className="p-1 text-gray-400 hover:text-blue-600 transition-colors cursor-pointer"
             title="Editar detalles de oferta"
           >
             <Edit2 className="w-5 h-5" />
@@ -307,7 +307,7 @@ export default function ManageOffersPage() {
         <div className="flex items-center">
           <button
             onClick={() => navigate('/dashboard-settings')}
-            className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
+            className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors cursor-pointer"
             aria-label="Volver a Configuración"
           >
             <ArrowLeft className="w-6 h-6" />
@@ -392,7 +392,7 @@ export default function ManageOffersPage() {
             <button
               onClick={() => fetchNextPage()}
               disabled={isFetchingNextPage}
-              className="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50"
+              className="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
             >
               {isFetchingNextPage ? 'Cargando...' : 'Cargar más productos'}
             </button>

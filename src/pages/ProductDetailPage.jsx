@@ -127,7 +127,7 @@ export default function ProductDetailPage() {
               <div className="flex items-center border border-gray-300 rounded-lg">
                 <button
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-l-lg"
+                  className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-l-lg cursor-pointer"
                 >
                   -
                 </button>
@@ -142,7 +142,7 @@ export default function ProductDetailPage() {
                 />
                 <button
                   onClick={() => setQuantity((q) => q + 1)}
-                  className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-r-lg"
+                  className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-r-lg cursor-pointer"
                 >
                   +
                 </button>
@@ -151,11 +151,10 @@ export default function ProductDetailPage() {
 
             <button
               onClick={handleAddToCart}
-              className={`w-full py-3 px-6 rounded-lg text-white font-semibold transition-colors duration-300 ${
-                isAdded
+              className={`w-full py-3 px-6 rounded-lg text-white font-semibold transition-colors duration-300 cursor-pointer ${isAdded
                   ? 'bg-green-500 hover:bg-green-600'
                   : 'bg-blue-600 hover:bg-blue-700'
-              }`}
+                }`}
             >
               {isAdded ? (
                 <span className="flex items-center justify-center">
@@ -187,7 +186,7 @@ export default function ProductDetailPage() {
       <header className="mb-6 flex items-center">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
+          className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors cursor-pointer"
           aria-label="Volver"
         >
           <ArrowLeft className="w-6 h-6" />

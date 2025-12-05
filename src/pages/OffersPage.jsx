@@ -64,7 +64,7 @@ const ProductOfferCard = ({ product }) => {
       <div className="p-4 bg-gray-50 mt-auto">
         <button
           onClick={() => navigate(`/product-detail/${product.id}`)}
-          className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-600 transition-colors duration-200"
+          className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-600 transition-colors duration-200 cursor-pointer"
         >
           Ver Detalle
         </button>
@@ -139,7 +139,7 @@ export default function OffersPage() {
       <header className="mb-6 flex items-center">
         <button
           onClick={() => navigate('/dashboard')}
-          className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
+          className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors cursor-pointer"
           aria-label="Volver al dashboard"
         >
           <ArrowLeft className="w-6 h-6" />

@@ -104,7 +104,7 @@ const ErrorMessage = ({ message, onRetry, showRetry = true }) => (
     {showRetry && onRetry && (
       <button
         onClick={onRetry}
-        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
       >
         Volver a intentar
       </button>
@@ -288,7 +288,7 @@ export default function PriceListPage() {
         <div className="flex items-center">
           <button
             onClick={() => navigate('/dashboard')}
-            className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
+            className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors cursor-pointer"
             aria-label="Volver al dashboard"
           >
             <ArrowLeft className="w-6 h-6" />
@@ -298,7 +298,7 @@ export default function PriceListPage() {
         <button
           onClick={handleGeneratePDF}
           disabled={pdfMutation.isPending}
-          className="inline-flex items-center justify-center px-4 py-2 bg-espint-green text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-colors disabled:opacity-50"
+          className="inline-flex items-center justify-center px-4 py-2 bg-espint-green text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-colors disabled:opacity-50 cursor-pointer"
         >
           {pdfMutation.isPending ? (
             <Loader2 className="w-5 h-5 mr-2 animate-spin" />
@@ -333,7 +333,7 @@ export default function PriceListPage() {
             id="brand-dropdown"
             onClick={() => setIsBrandDropdownOpen(!isBrandDropdownOpen)}
             disabled={isBrandsLoading}
-            className="w-full flex justify-between items-center text-left bg-white pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-espint-blue"
+            className="w-full flex justify-between items-center text-left bg-white pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-espint-blue cursor-pointer"
           >
             <span className="truncate">{getBrandButtonLabel()}</span>
             <ChevronDown
@@ -367,7 +367,7 @@ export default function PriceListPage() {
         <div className="mb-6">
           <button
             onClick={handleClearFilters}
-            className="flex items-center text-sm text-espint-blue hover:text-blue-800"
+            className="flex items-center text-sm text-espint-blue hover:text-blue-800 cursor-pointer"
           >
             <X className="w-4 h-4 mr-1" />
             Limpiar filtros
@@ -451,7 +451,7 @@ export default function PriceListPage() {
             <button
               onClick={() => fetchNextPage()}
               disabled={isFetchingNextPage}
-              className="mt-4 px-6 py-2 bg-espint-blue text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center mx-auto"
+              className="mt-4 px-6 py-2 bg-espint-blue text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center mx-auto cursor-pointer"
             >
               {isFetchingNextPage ? (
                 <>

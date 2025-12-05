@@ -102,11 +102,11 @@ function OrderHistoryPage() {
       <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 border-b-2 border-gray-200 pb-2">Historial de Pedidos</h2>
 
       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6 items-center">
-        <button onClick={() => navigate('/dashboard')} className="flex-grow sm:flex-grow-0 w-full sm:w-auto px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors duration-200 font-semibold">
+        <button onClick={() => navigate('/dashboard')} className="flex-grow sm:flex-grow-0 w-full sm:w-auto px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors duration-200 font-semibold cursor-pointer">
           Volver al Dashboard
         </button>
         {isVendor && (
-          <button onClick={handleSaveChanges} className="flex-grow sm:flex-grow-0 w-full sm:w-auto px-4 py-2 bg-espint-green text-white rounded-md hover:bg-green-600 transition-colors duration-200 font-semibold">
+          <button onClick={handleSaveChanges} className="flex-grow sm:flex-grow-0 w-full sm:w-auto px-4 py-2 bg-espint-green text-white rounded-md hover:bg-green-600 transition-colors duration-200 font-semibold cursor-pointer">
             Guardar Cambios
           </button>
         )}
@@ -194,7 +194,7 @@ function OrderHistoryPage() {
                   <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium text-center">
                     <button
                       onClick={() => navigate(`/order-detail/${order.id}`)}
-                      className="inline-flex items-center px-3 py-1.5 border border-espint-blue text-xs font-medium rounded-md shadow-sm text-espint-blue bg-transparent hover:bg-espint-blue hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-espint-blue transition-colors duration-200"
+                      className="inline-flex items-center px-3 py-1.5 border border-espint-blue text-xs font-medium rounded-md shadow-sm text-espint-blue bg-transparent hover:bg-espint-blue hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-espint-blue transition-colors duration-200 cursor-pointer"
                     >
                       Ver Detalle
                     </button>
