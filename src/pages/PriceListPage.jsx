@@ -283,33 +283,33 @@ export default function PriceListPage() {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
       <header className="mb-6 flex items-center justify-between">
         <div className="flex items-center">
           <button
             onClick={() => navigate('/dashboard')}
-            className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors cursor-pointer"
+            className="flex items-center justify-center p-2 mr-2 md:mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors cursor-pointer"
             aria-label="Volver al dashboard"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
           </button>
-          <h1 className="text-3xl font-bold text-gray-800">Lista de Precios</h1>
+          <h1 className="text-xl md:text-3xl font-bold text-gray-800">Lista de Precios</h1>
         </div>
         <button
           onClick={handleGeneratePDF}
           disabled={pdfMutation.isPending}
-          className="inline-flex items-center justify-center px-4 py-2 bg-espint-green text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-colors disabled:opacity-50 cursor-pointer"
+          className="inline-flex items-center justify-center px-3 py-2 md:px-4 md:py-2 bg-espint-green text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-colors disabled:opacity-50 cursor-pointer"
         >
           {pdfMutation.isPending ? (
-            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+            <Loader2 className="w-5 h-5 md:mr-2 animate-spin" />
           ) : (
-            <Download className="w-5 h-5 mr-2" />
+            <Download className="w-5 h-5 md:mr-2" />
           )}
-          Descargar PDF
+          <span className="hidden md:inline">Descargar PDF</span>
         </button>
       </header>
 
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
         <div className="relative">
           <label htmlFor="search" className="sr-only">
             Buscar producto
@@ -375,7 +375,56 @@ export default function PriceListPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3 mb-6">
+        {isLoading &&
+          allProducts.length === 0 &&
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
+              <div className="h-6 bg-gray-200 rounded w-1/3 ml-auto"></div>
+            </div>
+          ))}
+
+        {isError && (
+          <ErrorMessage
+            message={error.message}
+            onRetry={() => window.location.reload()}
+          />
+        )}
+
+        {allProducts.length > 0 &&
+          allProducts.map((product) => (
+            <div key={product.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+              <div className="mb-2">
+                <h3 className="text-sm font-bold text-gray-900 leading-snug">
+                  {product.name}
+                  {product.recentlyChanged && (
+                    <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-100 text-yellow-800">
+                      Modificado
+                    </span>
+                  )}
+                </h3>
+              </div>
+              <div className="flex justify-between items-end">
+                <div className="text-xs text-gray-500">
+                  <p>Cód: {product.code}</p>
+                  <p>Marca: {product.brand}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xl font-bold text-gray-900">{formatCurrency(product.price)}</p>
+                  {(Number(product.moneda) === 2 || Number(product.moneda) === 3) && (
+                    <p className="text-xs text-gray-400">{formatUSD(product.originalPrice)}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block bg-white rounded-lg shadow-md overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full bg-white">
             <thead className="bg-gray-100 border-b border-gray-300">
@@ -430,40 +479,41 @@ export default function PriceListPage() {
           </table>
         </div>
 
-        <div className="p-4 text-center">
-          {!isLoading && !isError && allProducts.length === 0 && (
-            <p className="text-gray-500">
-              No se encontraron productos con esos filtros.
-            </p>
-          )}
-          {isFetchingNextPage && (
-            <div className="flex justify-center items-center py-4">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-              <span className="ml-2 text-gray-600">
-                Cargando más productos...
-              </span>
-            </div>
-          )}
-          {!hasNextPage && !isLoading && allProducts.length > 0 && (
-            <p className="text-gray-500 text-sm">Fin de los resultados.</p>
-          )}
-          {hasNextPage && (
-            <button
-              onClick={() => fetchNextPage()}
-              disabled={isFetchingNextPage}
-              className="mt-4 px-6 py-2 bg-espint-blue text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center mx-auto cursor-pointer"
-            >
-              {isFetchingNextPage ? (
-                <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Cargando
-                  más...
-                </>
-              ) : (
-                'Cargar más productos'
-              )}
-            </button>
-          )}
-        </div>
+      </div>
+
+      <div className="p-4 text-center">
+        {!isLoading && !isError && allProducts.length === 0 && (
+          <p className="text-gray-500">
+            No se encontraron productos con esos filtros.
+          </p>
+        )}
+        {isFetchingNextPage && (
+          <div className="flex justify-center items-center py-4">
+            <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+            <span className="ml-2 text-gray-600">
+              Cargando más productos...
+            </span>
+          </div>
+        )}
+        {!hasNextPage && !isLoading && allProducts.length > 0 && (
+          <p className="text-gray-500 text-sm">Fin de los resultados.</p>
+        )}
+        {hasNextPage && (
+          <button
+            onClick={() => fetchNextPage()}
+            disabled={isFetchingNextPage}
+            className="mt-4 px-6 py-2 bg-espint-blue text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center mx-auto cursor-pointer"
+          >
+            {isFetchingNextPage ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Cargando
+                más...
+              </>
+            ) : (
+              'Cargar más productos'
+            )}
+          </button>
+        )}
       </div>
     </div>
   );

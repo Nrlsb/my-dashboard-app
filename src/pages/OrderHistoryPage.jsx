@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiService from '../api/apiService';
 import { useAuth } from '../context/AuthContext';
+import { Calendar, Package, ChevronRight } from 'lucide-react';
 
 const useCurrencyFormatter = () => {
   return new Intl.NumberFormat('es-AR', {
@@ -98,7 +99,7 @@ function OrderHistoryPage() {
   }
 
   return (
-    <div className="container mx-auto p-8 min-h-screen bg-gray-50">
+    <div className="container mx-auto p-4 md:p-8 min-h-screen bg-gray-50">
       <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 border-b-2 border-gray-200 pb-2">Historial de Pedidos</h2>
 
       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6 items-center">
@@ -135,77 +136,130 @@ function OrderHistoryPage() {
         </div>
       )}
 
-      <div className="overflow-x-auto bg-white rounded-lg shadow-lg mt-8">
-        {filteredOrders && filteredOrders.length > 0 ? (
-          <table className="min-w-full divide-y divide-gray-200 table-collapse">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">ID Pedido</th>
-                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Fecha</th>
-                {isVendor && <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Cliente</th>}
-                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Total</th>
-                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Estado</th>
-                <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Cant. Items</th>
-                {isVendor && <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">N° Pedido Venta</th>}
-                {isVendor && <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Estado del Pedido</th>}
-                <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredOrders.map((order) => (
-                <tr key={order.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-mono">#{order.id}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{order.formatted_date}</td>
-                  {isVendor && <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{order.client_name}</td>}
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-mono">{order.formattedTotal}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{order.status}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 text-center">{order.item_count}</td>
-                  {isVendor && (
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 text-center">
-                      <input
-                        type="text"
-                        value={vendorSalesOrderNumbers[order.id] || ''}
-                        onChange={(e) =>
-                          handleVendorSalesOrderNumberChange(
-                            order.id,
-                            e.target.value
-                          )
-                        }
-                        placeholder="N° Pedido"
-                        className="p-1 border border-gray-300 rounded-md w-24 text-center text-sm"
-                      />
-                    </td>
-                  )}
-                  {isVendor && (
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 text-center">
-                      <select
-                        value={orderStatus[order.id] || ''}
-                        onChange={(e) =>
-                          handleOrderStatusChange(order.id, e.target.value)
-                        }
-                        className="p-1 border border-gray-300 rounded-md text-center text-sm w-32"
-                      >
-                        <option value="Pendiente">Pendiente</option>
-                        <option value="Rechazado">Rechazado</option>
-                        <option value="Confirmado">Confirmado</option>
-                      </select>
-                    </td>
-                  )}
-                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium text-center">
-                    <button
-                      onClick={() => navigate(`/order-detail/${order.id}`)}
-                      className="inline-flex items-center px-3 py-1.5 border border-espint-blue text-xs font-medium rounded-md shadow-sm text-espint-blue bg-transparent hover:bg-espint-blue hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-espint-blue transition-colors duration-200 cursor-pointer"
-                    >
-                      Ver Detalle
-                    </button>
-                  </td>
+      <div className="mt-8">
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-4">
+          {filteredOrders && filteredOrders.length > 0 ? (
+            filteredOrders.map((order) => (
+              <div key={order.id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+                {/* Header: ID and Status */}
+                <div className="flex justify-between items-start mb-3">
+                  <span className="text-lg font-bold text-[#183B64]">#{order.id}</span>
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-semibold
+                      ${order.status === 'Pendiente' ? 'bg-yellow-100 text-yellow-800' : ''}
+                      ${order.status === 'Confirmado' ? 'bg-green-100 text-green-800' : ''}
+                      ${order.status === 'Cancelado' || order.status === 'Rechazado' ? 'bg-red-100 text-red-800' : ''}
+                      ${!['Pendiente', 'Confirmado', 'Cancelado', 'Rechazado'].includes(order.status) ? 'bg-gray-100 text-gray-800' : ''}
+                    `}
+                  >
+                    {order.status}
+                  </span>
+                </div>
+
+                {/* Body: Date and Items */}
+                <div className="flex items-center gap-4 mb-4 text-sm text-gray-600">
+                  <div className="flex items-center gap-1">
+                    <Calendar className="w-4 h-4" />
+                    <span>{order.formatted_date}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Package className="w-4 h-4" />
+                    <span>{order.item_count} Items</span>
+                  </div>
+                </div>
+
+                {/* Footer: Total and Action */}
+                <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                  <span className="text-lg font-bold text-gray-900">{order.formattedTotal}</span>
+                  <button
+                    onClick={() => navigate(`/order-detail/${order.id}`)}
+                    className="flex items-center text-sm font-medium text-espint-blue hover:text-blue-700 transition-colors"
+                  >
+                    Ver Detalle
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="p-4 text-gray-500 text-center bg-white rounded-lg shadow-sm">No tienes pedidos en tu historial.</p>
+          )}
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto bg-white rounded-lg shadow-lg">
+          {filteredOrders && filteredOrders.length > 0 ? (
+            <table className="min-w-full divide-y divide-gray-200 table-collapse">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">ID Pedido</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Fecha</th>
+                  {isVendor && <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Cliente</th>}
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Total</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Estado</th>
+                  <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Cant. Items</th>
+                  {isVendor && <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">N° Pedido Venta</th>}
+                  {isVendor && <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Estado del Pedido</th>}
+                  <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className="p-4 text-gray-500">No tienes pedidos en tu historial.</p>
-        )}
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredOrders.map((order) => (
+                  <tr key={order.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-mono">#{order.id}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{order.formatted_date}</td>
+                    {isVendor && <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{order.client_name}</td>}
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-mono">{order.formattedTotal}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{order.status}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 text-center">{order.item_count}</td>
+                    {isVendor && (
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 text-center">
+                        <input
+                          type="text"
+                          value={vendorSalesOrderNumbers[order.id] || ''}
+                          onChange={(e) =>
+                            handleVendorSalesOrderNumberChange(
+                              order.id,
+                              e.target.value
+                            )
+                          }
+                          placeholder="N° Pedido"
+                          className="p-1 border border-gray-300 rounded-md w-24 text-center text-sm"
+                        />
+                      </td>
+                    )}
+                    {isVendor && (
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 text-center">
+                        <select
+                          value={orderStatus[order.id] || ''}
+                          onChange={(e) =>
+                            handleOrderStatusChange(order.id, e.target.value)
+                          }
+                          className="p-1 border border-gray-300 rounded-md text-center text-sm w-32"
+                        >
+                          <option value="Pendiente">Pendiente</option>
+                          <option value="Rechazado">Rechazado</option>
+                          <option value="Confirmado">Confirmado</option>
+                        </select>
+                      </td>
+                    )}
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium text-center">
+                      <button
+                        onClick={() => navigate(`/order-detail/${order.id}`)}
+                        className="inline-flex items-center px-3 py-1.5 border border-espint-blue text-xs font-medium rounded-md shadow-sm text-espint-blue bg-transparent hover:bg-espint-blue hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-espint-blue transition-colors duration-200 cursor-pointer"
+                      >
+                        Ver Detalle
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="p-4 text-gray-500">No tienes pedidos en tu historial.</p>
+          )}
+        </div>
       </div>
     </div>
   );

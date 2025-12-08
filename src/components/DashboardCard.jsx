@@ -70,11 +70,12 @@ const DashboardCard = ({
     <div
       onClick={onClick}
       className={`
-        group relative flex-1 flex flex-col items-center justify-center p-6 h-40
+        group relative flex flex-col items-center justify-center p-4 md:p-6 h-32 md:h-40
         cursor-pointer transition-all duration-500 ease-in-out
         bg-white
         ${hoverColorClass}
-        ${!isLast ? 'border-r border-gray-100' : ''}
+        border-r border-b border-gray-100 last:border-r-0
+        md:border-b-0 md:border-r md:last:border-r-0
       `}
       {...props}
     >
@@ -88,11 +89,11 @@ const DashboardCard = ({
         <Icon className="w-6 h-6 md:w-8 md:h-8" />
       </div>
 
-      <h3 className={`text-xs font-bold tracking-wider uppercase mb-1 text-center whitespace-nowrap transition-colors duration-300 ${subTextColorClass}`}>{displayTitle}</h3>
+      <h3 className={`text-xs font-bold tracking-wider uppercase mb-1 text-center transition-colors duration-300 ${subTextColorClass}`}>{displayTitle}</h3>
 
       {/* Content that appears/expands on hover */}
       <div className="max-h-0 opacity-0 group-hover:max-h-20 group-hover:opacity-100 transition-all duration-500 overflow-hidden flex flex-col items-center">
-        <p className={`text-sm md:text-base font-semibold text-center whitespace-nowrap px-2 transition-colors duration-300 ${textColorClass}`}>{subTitle}</p>
+        <p className={`text-sm md:text-base font-semibold text-center px-2 transition-colors duration-300 ${textColorClass}`}>{subTitle}</p>
         <div className={`mt-2 text-xs font-medium flex items-center transition-colors duration-300 ${arrowColorClass}`}>
           Acceder <span className="ml-1">&rarr;</span>
         </div>

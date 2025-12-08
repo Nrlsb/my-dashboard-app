@@ -574,7 +574,7 @@ export default function AccountBalancePage({ user }) {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
           <BalanceCard
             title="Saldo Total"
             amount={balance.total}
@@ -598,7 +598,65 @@ export default function AccountBalancePage({ user }) {
           <h2 className="text-2xl font-semibold text-gray-700 mb-4">
             Detalle de Movimientos
           </h2>
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-4">
+            {isLoadingMovements ? (
+              <div className="flex justify-center py-8">
+                <LoadingSpinner text="Cargando movimientos..." />
+              </div>
+            ) : isErrorMovements ? (
+              <div className="p-4 bg-red-100 text-red-700 rounded-lg">
+                Error: {errorMovements.message}
+              </div>
+            ) : movements.length > 0 ? (
+              movements.map((mov) => (
+                <div key={mov.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <span className="block font-bold text-gray-800 text-sm">
+                        {mov.titulo_num || 'S/N'}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Emisión: {mov.formatted_date}
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                      Vence: {mov.formatted_fecha_vencimiento || '-'}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-50">
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-500 uppercase">Importe</span>
+                      {mov.debit > 0 ? (
+                        <span className="font-bold text-red-600">
+                          - {formatCurrency(mov.debit)}
+                        </span>
+                      ) : (
+                        <span className="font-bold text-green-600">
+                          + {formatCurrency(mov.credit)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="text-xs text-gray-500 uppercase">Saldo</span>
+                      <span className="font-bold text-gray-800">
+                        {formatCurrency(mov.balance)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="p-8 text-center bg-white rounded-lg text-gray-500">
+                No se registraron movimientos.
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block bg-white rounded-lg shadow-md overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full bg-white">
                 <thead className="bg-gray-100 border-b border-gray-300">

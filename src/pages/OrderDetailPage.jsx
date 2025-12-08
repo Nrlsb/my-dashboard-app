@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import apiService from '../api/apiService';
@@ -87,42 +88,96 @@ function OrderDetailPage() {
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 border-b-2 border-gray-200 pb-2">Detalle del Pedido #{orderDetails.id}</h2>
 
-      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-8 items-center">
+      <div className="flex flex-col md:flex-row gap-4 mb-8 items-center">
         <button
           onClick={() => navigate('/order-history')}
-          className="flex-grow sm:flex-grow-0 w-full sm:w-auto px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors duration-200 font-semibold"
+          className="hidden md:block px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors duration-200 font-semibold"
         >
           Volver al Historial
         </button>
+
+        {/* Mobile Back Button */}
         <button
-          onClick={handleDownloadPDF}
-          className="flex-grow sm:flex-grow-0 w-full sm:w-auto inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
-          disabled={isDownloadingPdf}
+          onClick={() => navigate('/order-history')}
+          className="md:hidden flex items-center text-gray-600 mb-2 self-start"
         >
-          {isDownloadingPdf ? 'Descargando PDF...' : 'Descargar PDF'}
+          <ArrowLeft className="w-5 h-5 mr-1" />
+          Volver
         </button>
-        {user?.role === 'vendedor' && (
+
+        <div className="flex gap-2 w-full md:w-auto">
           <button
-            onClick={handleDownloadCSV}
-            className="flex-grow sm:flex-grow-0 w-full sm:w-auto inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
-            disabled={isDownloadingCsv}
+            onClick={handleDownloadPDF}
+            className="flex-1 md:flex-none inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
+            disabled={isDownloadingPdf}
           >
-            {isDownloadingCsv ? 'Descargando CSV...' : 'Descargar CSV'}
+            {isDownloadingPdf ? 'PDF...' : 'Descargar PDF'}
           </button>
-        )}
+          {user?.role === 'vendedor' && (
+            <button
+              onClick={handleDownloadCSV}
+              className="flex-1 md:flex-none inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+              disabled={isDownloadingCsv}
+            >
+              {isDownloadingCsv ? 'CSV...' : 'Descargar CSV'}
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-6 leading-relaxed text-sm mb-8 shadow-md">
-        <strong className="text-gray-700">Fecha:</strong> {orderDetails.formatted_date}
-        <br />
-        <strong className="text-gray-700">Estado:</strong> {orderDetails.status}
-        <br />
-        <strong className="text-gray-700">Total:</strong> {orderDetails.formattedTotal}
+      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-8 shadow-md relative overflow-hidden">
+        <div className="flex justify-between items-start">
+          <div className="text-sm text-gray-600 space-y-1">
+            <p><strong className="text-gray-900">Fecha:</strong> {orderDetails.formatted_date}</p>
+            <p className="md:hidden"><strong className="text-gray-900">Estado:</strong> {orderDetails.status}</p>
+          </div>
+
+          {/* Desktop Status */}
+          <div className="hidden md:block">
+            <strong className="text-gray-700">Estado:</strong> {orderDetails.status}
+          </div>
+
+          {/* Mobile Status Badge */}
+          <div className={`md:hidden absolute top-0 right-0 px-3 py-1 rounded-bl-lg text-xs font-bold uppercase tracking-wide
+                ${orderDetails.status === 'Pendiente' ? 'bg-yellow-100 text-yellow-800' : ''}
+                ${orderDetails.status === 'Confirmado' ? 'bg-green-100 text-green-800' : ''}
+                ${orderDetails.status === 'Cancelado' || orderDetails.status === 'Rechazado' ? 'bg-red-100 text-red-800' : ''}
+                ${!['Pendiente', 'Confirmado', 'Cancelado', 'Rechazado'].includes(orderDetails.status) ? 'bg-gray-100 text-gray-800' : ''}
+            `}>
+            {orderDetails.status}
+          </div>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-end">
+          <span className="text-gray-600 font-medium">Total del Pedido:</span>
+          <span className="text-2xl font-bold text-[#183B64]">{orderDetails.formattedTotal}</span>
+        </div>
       </div>
 
       <h3 className="text-xl font-semibold text-gray-800 mt-8 mb-3 border-b-2 border-gray-200 pb-2">Items del Pedido</h3>
 
-      <div className="overflow-x-auto bg-white rounded-lg shadow-sm">
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-4">
+        {orderDetails.items.map((item) => (
+          <div key={item.id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+            <div className="mb-2">
+              <h4 className="text-sm font-semibold text-gray-900 leading-snug">{item.product_name}</h4>
+              <p className="text-xs text-gray-500 mt-1">Cód: {item.product_code}</p>
+            </div>
+            <div className="flex justify-between items-center pt-2 border-t border-gray-50 text-sm">
+              <div className="text-gray-600">
+                {item.quantity} x {item.formattedPrice}
+              </div>
+              <div className="font-bold text-gray-900">
+                {formatter.format(item.quantity * item.unit_price)}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto bg-white rounded-lg shadow-sm">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>

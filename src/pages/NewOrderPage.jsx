@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import apiService from '../api/apiService.js';
+import CustomSelect from '../components/CustomSelect.jsx';
 
 const PRODUCTS_PER_PAGE = 20;
 
@@ -269,42 +270,43 @@ const NewOrderPage = () => {
     return allProducts.map((product) => (
       <div
         key={product.id}
-        className="flex items-center justify-between p-4 bg-white rounded-lg shadow-md cursor-pointer hover:shadow-lg transition-shadow"
+        className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white rounded-lg shadow-md cursor-pointer hover:shadow-lg transition-shadow gap-4 md:gap-0"
         onClick={() => setSelectedProduct(product)}
       >
-        <div className="flex items-center space-x-4">
+        <div className="flex items-start md:items-center space-x-4 w-full md:w-auto">
           <div className="flex-shrink-0 p-3 bg-gray-100 rounded-lg">
             <Package className="w-6 h-6 text-gray-600" />
           </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-900 min-h-[3rem] line-clamp-2">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-900 line-clamp-2 md:line-clamp-2">
               {product.name}
             </p>
-            <p className="text-sm text-gray-500">
-              {product.brand} (Cód: {product.code})
+            <p className="text-xs md:text-sm text-gray-500 mt-1">
+              {product.brand} <span className="mx-1">•</span> Cód: {product.code}
             </p>
             <div className="flex items-center mt-1">
-              <span className="text-sm text-gray-500 mr-2">Stock: {product.stock_disponible}</span>
+              <span className="text-xs md:text-sm text-gray-500 mr-2">Stock: {product.stock_disponible}</span>
               {product.stock_disponible <= 0 ? (
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                  <div className="w-2 h-2 bg-red-500 rounded-full mr-1"></div>
+                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full mr-1"></div>
                   Sin Stock
                 </span>
               ) : product.stock_disponible <= (product.stock_de_seguridad || 0) ? (
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full mr-1"></div>
+                  <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-1"></div>
                   Bajo
                 </span>
               ) : (
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                  <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></div>
                   Disponible
                 </span>
               )}
             </div>
           </div>
         </div>
-        <div className="text-right">
+
+        <div className="flex items-center justify-between md:flex-col md:items-end md:justify-center w-full md:w-auto mt-2 md:mt-0 pt-3 md:pt-0 border-t md:border-t-0 border-gray-100">
           <p className="text-lg font-bold text-[#0B3D68]">
             {formatCurrency(product.price)}
           </p>
@@ -313,7 +315,7 @@ const NewOrderPage = () => {
               e.stopPropagation();
               handleAddToCartClick(product);
             }}
-            className="mt-2 px-4 py-1 text-sm font-medium text-white bg-[#8CB818] rounded-md hover:bg-[#7aa315] transition-colors cursor-pointer"
+            className="px-6 py-2 md:px-4 md:py-1 text-sm font-medium text-white bg-[#8CB818] rounded-md hover:bg-[#7aa315] transition-colors cursor-pointer md:mt-2"
           >
             Añadir
           </button>
@@ -345,40 +347,13 @@ const NewOrderPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <div className="p-6 bg-white rounded-lg shadow-md">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label
-                    htmlFor="brand-select"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Seleccionar Marca
-                  </label>
-                  <select
-                    id="brand-select"
-                    value={selectedBrand}
-                    onChange={(e) => {
-                      setSelectedBrand(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-espint-blue focus:border-espint-blue"
-                  >
-                    <option value="">Todas las marcas</option>
-                    {allBrands.map((brand) => (
-                      <option key={brand} value={brand}>
-                        {brand}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="search-product"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="relative">
+                  <label htmlFor="search-product" className="sr-only">
                     Buscar Producto
                   </label>
-                  <div className="relative mt-1">
+                  <div className="relative">
+                    <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       id="search-product"
                       type="text"
@@ -387,13 +362,25 @@ const NewOrderPage = () => {
                         setSearchTerm(e.target.value);
                         setCurrentPage(1);
                       }}
-                      className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-espint-blue focus:border-espint-blue"
-                      placeholder="Buscar por nombre, código..."
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-espint-blue focus:border-espint-blue"
+                      placeholder="Buscar por nombre o código..."
                     />
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                      <Search className="w-5 h-5 text-gray-400" />
-                    </div>
                   </div>
+                </div>
+
+                <div className="relative">
+                  <label htmlFor="brand-select" className="sr-only">
+                    Seleccionar Marca
+                  </label>
+                  <CustomSelect
+                    options={allBrands}
+                    value={selectedBrand}
+                    onChange={(val) => {
+                      setSelectedBrand(val);
+                      setCurrentPage(1);
+                    }}
+                    placeholder="Todas las marcas"
+                  />
                 </div>
               </div>
             </div>
@@ -427,7 +414,7 @@ const NewOrderPage = () => {
             )}
           </div>
 
-          <div className="lg-col-span-1">
+          <div className="lg-col-span-1 hidden lg:block">
             <div className="sticky top-8 bg-white rounded-lg shadow-md flex flex-col max-h-[calc(100vh-4rem)] border-t-4 border-espint-magenta">
               <div className="flex-shrink-0 p-6">
                 <div className="flex items-center mb-4">
@@ -511,6 +498,26 @@ const NewOrderPage = () => {
           </div>
         </div>
       </main>
+
+      {/* Sticky Bottom Cart for Mobile */}
+      {cart.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] p-4 lg:hidden z-50 flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-xs text-gray-500 font-medium">Total Estimado</span>
+            <span className="text-xl font-bold text-espint-blue">{formatCurrency(totalPrice)}</span>
+          </div>
+          <button
+            onClick={() => navigate('/order-preview')}
+            className="flex items-center justify-center px-6 py-3 bg-[#8CB818] text-white font-bold rounded-lg shadow-md hover:bg-[#7aa315] transition-colors"
+          >
+            Ver Pedido
+            <ChevronRight className="w-5 h-5 ml-1" />
+          </button>
+        </div>
+      )}
+
+      {/* Spacer to prevent content from being hidden behind sticky cart */}
+      {cart.length > 0 && <div className="h-24 lg:hidden"></div>}
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import apiService from '../api/apiService';
+import CustomSelect from '../components/CustomSelect';
 
 
 const ManageAdminsPage = () => {
@@ -76,35 +77,33 @@ const ManageAdminsPage = () => {
       <div className="mb-10 p-6 border border-gray-200 rounded-lg bg-white">
         <h3 className="mt-0 mb-2 text-gray-700 border-b-2 border-gray-300 pb-2 text-xl font-semibold">Asignar Rol</h3>
         <p className="text-sm text-gray-600 mb-4">Selecciona un usuario y el rol que deseas asignarle.</p>
-        <div className="flex gap-4 items-center">
-          <select
-            className="flex-grow py-3 px-4 border border-gray-300 rounded-md text-base"
-            value={selectedUser}
-            onChange={(e) => setSelectedUser(e.target.value)}
-            disabled={users.length === 0}
-          >
-            {users.length > 0 ? (
-              users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.full_name} ({user.email})
-                </option>
-              ))
-            ) : (
-              <option>No hay usuarios para añadir</option>
-            )}
-          </select>
-          <select
-            className="w-40 py-3 px-4 border border-gray-300 rounded-md text-base"
-            value={selectedRole}
-            onChange={(e) => setSelectedRole(e.target.value)}
-          >
-            <option value="admin">Admin</option>
-            <option value="marketing">Marketing</option>
-          </select>
+        <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center">
+          <div className="flex-grow">
+            <CustomSelect
+              options={users.length > 0 ? users.map((user) => ({
+                label: `${user.full_name} (${user.email})`,
+                value: user.id
+              })) : []}
+              value={selectedUser}
+              onChange={(val) => setSelectedUser(val)}
+              placeholder={users.length > 0 ? "Seleccionar usuario" : "No hay usuarios para añadir"}
+            />
+          </div>
+          <div className="w-full md:w-40">
+            <CustomSelect
+              options={[
+                { label: 'Admin', value: 'admin' },
+                { label: 'Marketing', value: 'marketing' }
+              ]}
+              value={selectedRole}
+              onChange={(val) => setSelectedRole(val)}
+              placeholder="Rol"
+            />
+          </div>
           <button
             onClick={handleAddAdmin}
             disabled={users.length === 0}
-            className="py-3 px-6 bg-green-600 text-white rounded-md cursor-pointer font-bold transition-colors duration-200 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="py-2 px-6 bg-green-600 text-white rounded-md cursor-pointer font-bold transition-colors duration-200 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed h-[42px]"
           >
             Añadir
           </button>
@@ -116,16 +115,21 @@ const ManageAdminsPage = () => {
         {admins.length > 0 ? (
           <ul className="list-none p-0">
             {admins.map((admin) => (
-              <li key={admin.id} className="flex justify-between items-center py-3 px-0 border-b border-gray-200 last:border-b-0">
-                <span className="text-base">
-                  {admin.full_name} ({admin.email})
-                  <span className={`ml-2 px-2 py-1 text-xs rounded-full ${admin.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+              <li key={admin.id} className="flex flex-col md:flex-row justify-between items-start md:items-center py-4 px-0 border-b border-gray-200 last:border-b-0 gap-3">
+                <div className="flex flex-col w-full">
+                  <span className="text-base font-bold text-gray-800">
+                    {admin.full_name}
+                  </span>
+                  <span className="text-sm text-gray-600 break-all">
+                    {admin.email}
+                  </span>
+                  <span className={`mt-2 self-start px-2 py-1 text-xs rounded-full font-medium ${admin.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
                     {admin.role === 'admin' ? 'Administrador' : 'Marketing'}
                   </span>
-                </span>
+                </div>
                 <button
                   onClick={() => handleRemoveAdmin(admin.id)}
-                  className="py-2 px-4 bg-red-600 text-white rounded-md cursor-pointer font-bold transition-colors duration-200 hover:bg-red-700 text-sm"
+                  className="w-full md:w-auto py-2 px-4 bg-red-600 text-white rounded-md cursor-pointer font-bold transition-colors duration-200 hover:bg-red-700 text-sm mt-2 md:mt-0"
                 >
                   Quitar
                 </button>

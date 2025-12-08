@@ -335,7 +335,79 @@ export default function ManageOffersPage() {
       </div>
 
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="overflow-x-auto">
+
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-gray-200">
+          {isLoading && (
+            <div className="p-4">
+              <LoadingSpinner text="Cargando productos..." />
+            </div>
+          )}
+          {isError && (
+            <div className="p-8 text-center text-red-500">
+              Error: {error.message}
+            </div>
+          )}
+          {!isLoading && !isError && allProducts.length === 0 && (
+            <div className="p-8 text-center text-gray-500">
+              No se encontraron productos.
+            </div>
+          )}
+          {allProducts.map((product) => (
+            <div key={product.id} className="p-4 flex flex-col space-y-3">
+              <div className="flex justify-between items-start">
+                <div className="pr-4">
+                  <h3 className="text-sm font-bold text-gray-900 line-clamp-2">
+                    {product.custom_title || product.name}
+                  </h3>
+                  <p className="text-xs text-gray-500 font-mono mt-1">
+                    Cód: {product.code}
+                  </p>
+                  {product.custom_title && (
+                    <span className="inline-block mt-1 text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                      Personalizado
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-gray-50">
+                <div>
+                  {product.oferta ? (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      En Oferta
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                      <XCircle className="w-3 h-3 mr-1" />
+                      Sin Oferta
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center space-x-3">
+                  {product.oferta && (
+                    <button
+                      onClick={() => setEditingProduct(product)}
+                      className="p-2 text-gray-400 hover:text-blue-600 bg-gray-50 rounded-full transition-colors cursor-pointer"
+                      aria-label="Editar oferta"
+                    >
+                      <Edit2 className="w-5 h-5" />
+                    </button>
+                  )}
+                  <ToggleSwitch
+                    checked={product.oferta}
+                    onChange={() => toggleOffer(product.id)}
+                    disabled={isToggling}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full bg-white">
             <thead className="bg-gray-100 border-b border-gray-300">
               <tr>

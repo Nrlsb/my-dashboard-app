@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import apiService from '../api/apiService';
 import LoadingSpinner from '../components/LoadingSpinner';
+import CustomSelect from '../components/CustomSelect';
 import { Trash2, Plus, Edit, Search, X } from 'lucide-react';
 
 const ManageContentPage = () => {
@@ -184,18 +185,20 @@ const ManageContentPage = () => {
         <div className="container mx-auto p-4">
             <h1 className="text-3xl font-bold text-espint-blue mb-6">Gestionar Contenido</h1>
 
-            <div className="flex space-x-4 mb-6 border-b border-gray-200">
+            <div className="flex space-x-4 mb-6 border-b border-gray-200 overflow-x-auto whitespace-nowrap pb-1">
                 <button
                     className={`py-2 px-4 font-semibold ${activeTab === 'accessories' ? 'text-espint-blue border-b-2 border-espint-blue' : 'text-gray-500'}`}
                     onClick={() => setActiveTab('accessories')}
                 >
-                    Accesorios (Carousel)
+                    <span className="md:hidden">Accesorios</span>
+                    <span className="hidden md:inline">Accesorios (Carousel)</span>
                 </button>
                 <button
                     className={`py-2 px-4 font-semibold ${activeTab === 'groups' ? 'text-espint-blue border-b-2 border-espint-blue' : 'text-gray-500'}`}
                     onClick={() => setActiveTab('groups')}
                 >
-                    Grupos de Productos (Carousel)
+                    <span className="md:hidden">Grupos</span>
+                    <span className="hidden md:inline">Grupos de Productos (Carousel)</span>
                 </button>
             </div>
 
@@ -212,15 +215,22 @@ const ManageContentPage = () => {
                                 <Plus size={20} /> Agregar Accesorio
                             </button>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {accessories.map(acc => (
-                                    <div key={acc.id} className="bg-white p-4 rounded shadow relative group">
-                                        <img src={acc.image_url} alt={acc.name} className="w-full h-32 object-cover rounded mb-2" />
-                                        <h3 className="font-bold text-sm truncate">{acc.name}</h3>
-                                        <p className="text-gray-600 text-xs">{acc.code}</p>
+                                    <div key={acc.id} className="relative aspect-square bg-gray-800 rounded shadow overflow-hidden group">
+                                        <img
+                                            src={acc.image_url}
+                                            alt={acc.name}
+                                            className="w-full h-full object-cover opacity-70 group-hover:opacity-50 transition-opacity"
+                                        />
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center p-2 pointer-events-none">
+                                            <h3 className="font-bold text-white text-center text-sm md:text-base leading-tight drop-shadow-md">{acc.name}</h3>
+                                            <p className="text-gray-200 text-xs mt-1 drop-shadow-md">{acc.code}</p>
+                                        </div>
                                         <button
                                             onClick={() => handleRemoveAccessory(acc.id)}
-                                            className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition"
+                                            className="absolute bottom-2 right-2 bg-red-500 text-white p-1.5 rounded opacity-100 md:opacity-0 group-hover:opacity-100 transition shadow-lg z-10"
+                                            title="Eliminar"
                                         >
                                             <Trash2 size={16} />
                                         </button>
@@ -242,17 +252,17 @@ const ManageContentPage = () => {
 
                             <div className="space-y-4">
                                 {groups.map(group => (
-                                    <div key={group.id} className="bg-white p-4 rounded shadow flex items-center justify-between">
+                                    <div key={group.id} className="bg-white p-4 rounded shadow flex flex-col md:flex-row md:items-center justify-between gap-4">
                                         <div className="flex items-center gap-4">
-                                            {group.image_url && <img src={group.image_url} alt={group.name} className="w-16 h-16 object-cover rounded" />}
+                                            {group.image_url && <img src={group.image_url} alt={group.name} className="w-16 h-16 object-cover rounded shrink-0" />}
                                             <div>
-                                                <h3 className="font-bold text-lg">{group.name || `Grupo ${group.reference_id}`}</h3>
-                                                <span className={`text-xs px-2 py-1 rounded ${group.type === 'static_group' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
+                                                <h3 className="font-bold text-lg leading-tight">{group.name || `Grupo ${group.reference_id}`}</h3>
+                                                <span className={`text-xs px-2 py-1 rounded inline-block mt-1 ${group.type === 'static_group' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
                                                     {group.type === 'static_group' ? 'Grupo Existente' : 'Colección Personalizada'}
                                                 </span>
                                             </div>
                                         </div>
-                                        <div className="flex gap-2">
+                                        <div className="flex gap-2 self-end md:self-auto">
                                             {group.type === 'custom_collection' && (
                                                 <button
                                                     onClick={() => handleEditCollection(group)}
@@ -333,35 +343,29 @@ const ManageContentPage = () => {
                         <form onSubmit={handleCreateGroup} className="space-y-4">
                             <div>
                                 <label className="block text-sm font-bold mb-1">Tipo</label>
-                                <select
-                                    className="w-full border p-2 rounded"
+                                <CustomSelect
+                                    options={[
+                                        { label: 'Grupo Existente', value: 'static_group' },
+                                        { label: 'Colección Personalizada', value: 'custom_collection' }
+                                    ]}
                                     value={groupType}
-                                    onChange={(e) => setGroupType(e.target.value)}
-                                >
-                                    <option value="static_group">Grupo Existente</option>
-                                    <option value="custom_collection">Colección Personalizada</option>
-                                </select>
+                                    onChange={(val) => setGroupType(val)}
+                                    placeholder="Seleccionar Tipo"
+                                />
                             </div>
 
                             {groupType === 'static_group' ? (
                                 <div>
                                     <label className="block text-sm font-bold mb-1">Seleccionar Grupo</label>
-                                    <select
-                                        className="w-full border p-2 rounded"
+                                    <CustomSelect
+                                        options={availableGroups.map(g => ({
+                                            label: `${g.brand} (${g.product_group})`,
+                                            value: g.product_group
+                                        }))}
                                         value={selectedReferenceId}
-                                        onChange={(e) => {
-                                            setSelectedReferenceId(e.target.value);
-                                            // Auto-fill name/image if possible (optional)
-                                        }}
-                                        required
-                                    >
-                                        <option value="">-- Seleccionar --</option>
-                                        {availableGroups.map(g => (
-                                            <option key={g.product_group} value={g.product_group}>
-                                                {g.brand} ({g.product_group})
-                                            </option>
-                                        ))}
-                                    </select>
+                                        onChange={(val) => setSelectedReferenceId(val)}
+                                        placeholder="-- Seleccionar --"
+                                    />
                                 </div>
                             ) : (
                                 <>

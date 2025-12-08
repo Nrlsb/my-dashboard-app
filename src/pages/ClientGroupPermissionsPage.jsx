@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import apiService from '../api/apiService';
+import CustomSelect from '../components/CustomSelect';
 import { useAuth } from '../context/AuthContext';
 
 
@@ -185,19 +186,16 @@ const ClientGroupPermissionsPage = () => {
           className="p-2 rounded border border-gray-300 w-full"
         />
         <label htmlFor="client-select" className="font-bold">Seleccionar Cliente:</label>
-        <select
-          id="client-select"
+
+        <CustomSelect
+          options={filteredClients.map((client) => ({
+            label: `${client.full_name} (${client.email})`,
+            value: client.id,
+          }))}
           value={selectedClient}
-          onChange={(e) => setSelectedClient(e.target.value)}
-          className="p-2 rounded border border-gray-300 w-full"
-        >
-          <option value="">-- Seleccione un cliente --</option>
-          {filteredClients.map((client) => (
-            <option key={client.id} value={client.id}>
-              {client.full_name} ({client.email})
-            </option>
-          ))}
-        </select>
+          onChange={(val) => setSelectedClient(val)}
+          placeholder="-- Seleccione un cliente --"
+        />
       </div>
 
       {selectedClient && (
