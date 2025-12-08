@@ -73,6 +73,7 @@ const DashboardCard = ({
         group relative flex flex-col items-center justify-center p-4 md:p-6 h-32 md:h-40
         cursor-pointer transition-all duration-500 ease-in-out
         bg-white
+        w-1/2 md:w-auto md:flex-1
         ${hoverColorClass}
         border-r border-b border-gray-100 last:border-r-0
         md:border-b-0 md:border-r md:last:border-r-0

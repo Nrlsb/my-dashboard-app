@@ -48,7 +48,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-6 w-full bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
+    <div className="flex flex-wrap w-full bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
       {cards.map((card, index) => (
         <DashboardCard
           key={card.id}
