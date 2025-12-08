@@ -34,6 +34,20 @@ const getDashboardPanels = async (user) => {
     }
   }
 
+  // Si es vendedor, eliminamos el tag "vendedor" para que no se muestre visualmente
+  console.log('DEBUG: isVendedor:', isVendedor);
+  console.log('DEBUG: panels before map:', JSON.stringify(panels));
+  if (isVendedor) {
+    panels = panels.map((panel) => {
+      if (panel.tag === 'vendedor') {
+        // Retornamos una copia del objeto sin el tag
+        const { tag, ...rest } = panel;
+        return rest;
+      }
+      return panel;
+    });
+  }
+
   return panels;
 };
 

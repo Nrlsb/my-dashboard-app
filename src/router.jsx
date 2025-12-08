@@ -1,7 +1,7 @@
 import React, { lazy, Suspense } from 'react';
 import { createBrowserRouter, createRoutesFromElements, Route, Navigate } from 'react-router-dom';
 import App from './App';
-import { ProtectedRoute, AdminRoute, MarketingRoute, LoadingFallback, PublicRoute } from './components/RouteGuards';
+import { ProtectedRoute, AdminRoute, MarketingRoute, LoadingFallback, PublicRoute, ClientRoute } from './components/RouteGuards';
 
 
 // --- Carga diferida (Lazy Loading) de Páginas ---
@@ -39,6 +39,17 @@ const DashboardError = () => (
     </div>
 );
 
+import { useAuth } from './context/AuthContext';
+
+// --- Redirect Component based on Role ---
+const RootRedirect = () => {
+    const { user, isAuthenticated } = useAuth();
+    if (isAuthenticated && user?.role === 'vendedor') {
+        return <Navigate to="/vendedor-dashboard" replace />;
+    }
+    return <Navigate to="/dashboard" replace />;
+};
+
 const router = createBrowserRouter(
     createRoutesFromElements(
         <Route path="/" element={<App />}>
@@ -64,13 +75,15 @@ const router = createBrowserRouter(
             } />
 
             {/* Rutas Protegidas */}
-            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route index element={<RootRedirect />} />
 
             <Route path="dashboard" element={
                 <ProtectedRoute>
-                    <Suspense fallback={<LoadingFallback />}>
-                        <DashboardPage />
-                    </Suspense>
+                    <ClientRoute>
+                        <Suspense fallback={<LoadingFallback />}>
+                            <DashboardPage />
+                        </Suspense>
+                    </ClientRoute>
                 </ProtectedRoute>
             }
             />
@@ -260,7 +273,7 @@ const router = createBrowserRouter(
                 </MarketingRoute>
             } />
 
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<RootRedirect />} />
         </Route>
     )
 );

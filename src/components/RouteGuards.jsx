@@ -30,9 +30,29 @@ export const MarketingRoute = ({ children }) => {
     return (user?.is_admin || user?.role === 'marketing') ? children : <Navigate to="/dashboard" replace />;
 };
 
+// --- Componente para Rutas de Clientes (No Vendedores) ---
+export const ClientRoute = ({ children }) => {
+    const { user, loading } = useAuth();
+    if (loading) return <LoadingFallback />;
+    // Si es vendedor, redirigir a su dashboard
+    if (user?.role === 'vendedor') {
+        return <Navigate to="/vendedor-dashboard" replace />;
+    }
+    // Si no es vendedor (es cliente o admin), permitir acceso
+    return children;
+};
+
 // --- Componente para Rutas Públicas (Redirige si ya está autenticado) ---
 export const PublicRoute = ({ children }) => {
-    const { isAuthenticated, loading } = useAuth();
+    const { isAuthenticated, loading, user } = useAuth();
     if (loading) return <LoadingFallback />;
-    return isAuthenticated ? <Navigate to="/dashboard" replace /> : children;
+
+    if (isAuthenticated) {
+        if (user?.role === 'vendedor') {
+            return <Navigate to="/vendedor-dashboard" replace />;
+        }
+        return <Navigate to="/dashboard" replace />;
+    }
+
+    return children;
 };
