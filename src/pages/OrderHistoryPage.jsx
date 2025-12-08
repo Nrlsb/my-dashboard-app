@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiService from '../api/apiService';
 import { useAuth } from '../context/AuthContext';
 import { Calendar, Package, ChevronRight } from 'lucide-react';
+import CustomSelect from '../components/CustomSelect';
 
 const useCurrencyFormatter = () => {
   return new Intl.NumberFormat('es-AR', {
@@ -122,17 +123,14 @@ function OrderHistoryPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="py-2 px-3 border border-gray-300 rounded-md text-base min-w-[200px] w-full sm:w-auto focus:ring-blue-500 focus:border-blue-500"
           />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="py-2 px-3 border border-gray-300 rounded-md text-base min-w-[200px] w-full sm:w-auto focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">Todos los Estados</option>
-            <option value="Pendiente">Pendiente</option>
-            <option value="Confirmado">Confirmado</option>
-            <option value="Cancelado">Cancelado</option>
-            {/* Agrega más estados si es necesario */}
-          </select>
+          <div className="relative w-full md:w-64">
+            <CustomSelect
+              options={['Pendiente', 'Confirmado', 'Cancelado']}
+              value={statusFilter}
+              onChange={(val) => setStatusFilter(val)}
+              placeholder="Todos los Estados"
+            />
+          </div>
         </div>
       )}
 
@@ -143,7 +141,7 @@ function OrderHistoryPage() {
             filteredOrders.map((order) => (
               <div key={order.id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
                 {/* Header: ID and Status */}
-                <div className="flex justify-between items-start mb-3">
+                <div className="flex justify-between items-start mb-2">
                   <span className="text-lg font-bold text-[#183B64]">#{order.id}</span>
                   <span
                     className={`px-2 py-1 rounded-full text-xs font-semibold
@@ -157,6 +155,14 @@ function OrderHistoryPage() {
                   </span>
                 </div>
 
+                {/* Client Name (Vendor Only) */}
+                {isVendor && (
+                  <div className="mb-3 text-sm font-medium text-gray-700">
+                    <span className="text-gray-500 mr-1">Cliente:</span>
+                    {order.client_name}
+                  </div>
+                )}
+
                 {/* Body: Date and Items */}
                 <div className="flex items-center gap-4 mb-4 text-sm text-gray-600">
                   <div className="flex items-center gap-1">
@@ -168,6 +174,38 @@ function OrderHistoryPage() {
                     <span>{order.item_count} Items</span>
                   </div>
                 </div>
+
+                {/* Vendor Controls (Vendor Only) */}
+                {isVendor && (
+                  <div className="mb-4 space-y-3 bg-gray-50 p-3 rounded-md">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-semibold text-gray-500">N° Pedido Venta</label>
+                      <input
+                        type="text"
+                        value={vendorSalesOrderNumbers[order.id] || ''}
+                        onChange={(e) =>
+                          handleVendorSalesOrderNumberChange(
+                            order.id,
+                            e.target.value
+                          )
+                        }
+                        placeholder="N° Pedido"
+                        className="p-2 border border-gray-300 rounded-md text-sm w-full"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-semibold text-gray-500">Estado del Pedido</label>
+                      <CustomSelect
+                        options={['Pendiente', 'Confirmado', 'Cancelado']}
+                        value={orderStatus[order.id] || ''}
+                        onChange={(val) =>
+                          handleOrderStatusChange(order.id, val)
+                        }
+                        placeholder="Seleccionar"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Footer: Total and Action */}
                 <div className="flex justify-between items-center pt-3 border-t border-gray-100">
