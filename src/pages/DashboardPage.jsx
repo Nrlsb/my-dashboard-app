@@ -32,7 +32,7 @@ const Dashboard = () => {
 
   const { data: cards, isLoading, error } = useQuery({
     queryKey: ['dashboardPanels'],
-    queryFn: apiService.getDashboardPanels,
+    queryFn: () => apiService.getDashboardPanels(),
   });
 
   if (isLoading) {
