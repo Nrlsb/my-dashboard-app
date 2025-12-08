@@ -1,8 +1,8 @@
 import React, { lazy, Suspense } from 'react';
 import { createBrowserRouter, createRoutesFromElements, Route, Navigate } from 'react-router-dom';
 import App from './App';
-import { ProtectedRoute, AdminRoute, MarketingRoute, LoadingFallback } from './components/RouteGuards';
-import { dashboardLoader } from './pages/DashboardPage';
+import { ProtectedRoute, AdminRoute, MarketingRoute, LoadingFallback, PublicRoute } from './components/RouteGuards';
+
 
 // --- Carga diferida (Lazy Loading) de Páginas ---
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
@@ -44,14 +44,18 @@ const router = createBrowserRouter(
         <Route path="/" element={<App />}>
             {/* Rutas Públicas */}
             <Route path="login" element={
-                <Suspense fallback={<LoadingFallback />}>
-                    <LoginPage />
-                </Suspense>
+                <PublicRoute>
+                    <Suspense fallback={<LoadingFallback />}>
+                        <LoginPage />
+                    </Suspense>
+                </PublicRoute>
             } />
             <Route path="register" element={
-                <Suspense fallback={<LoadingFallback />}>
-                    <RegisterPage />
-                </Suspense>
+                <PublicRoute>
+                    <Suspense fallback={<LoadingFallback />}>
+                        <RegisterPage />
+                    </Suspense>
+                </PublicRoute>
             } />
             <Route path="change-password" element={
                 <Suspense fallback={<LoadingFallback />}>
@@ -69,8 +73,6 @@ const router = createBrowserRouter(
                     </Suspense>
                 </ProtectedRoute>
             }
-                loader={dashboardLoader}
-                errorElement={<DashboardError />}
             />
 
             <Route path="vendedor-dashboard" element={

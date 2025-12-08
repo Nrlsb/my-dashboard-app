@@ -29,3 +29,10 @@ export const MarketingRoute = ({ children }) => {
     // Allow if user is admin OR has marketing role
     return (user?.is_admin || user?.role === 'marketing') ? children : <Navigate to="/dashboard" replace />;
 };
+
+// --- Componente para Rutas Públicas (Redirige si ya está autenticado) ---
+export const PublicRoute = ({ children }) => {
+    const { isAuthenticated, loading } = useAuth();
+    if (loading) return <LoadingFallback />;
+    return isAuthenticated ? <Navigate to="/dashboard" replace /> : children;
+};

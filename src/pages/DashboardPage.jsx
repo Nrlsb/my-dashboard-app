@@ -1,5 +1,6 @@
 import React from 'react';
-import { useNavigate, useLoaderData } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import DashboardCard from '/src/components/DashboardCard.jsx';
 import AccessoryCarousel from '../components/AccessoryCarousel';
 import ProductGroupCarousel from '../components/ProductGroupCarousel';
@@ -28,9 +29,23 @@ import DashboardSkeleton from '../components/DashboardSkeleton';
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const cards = useLoaderData();
 
+  const { data: cards, isLoading, error } = useQuery({
+    queryKey: ['dashboardPanels'],
+    queryFn: apiService.getDashboardPanels,
+  });
 
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
+
+  if (error) {
+    return (
+      <div className="text-center p-8 text-red-500">
+        No se pudieron cargar los paneles del dashboard.
+      </div>
+    );
+  }
 
   return (
     <div className="flex w-full bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
@@ -61,13 +76,6 @@ const DashboardPage = () => {
   );
 };
 
-export const dashboardLoader = async () => {
-  try {
-    const panels = await apiService.getDashboardPanels();
-    return panels;
-  } catch (error) {
-    throw new Error('No se pudieron cargar los paneles del dashboard.');
-  }
-};
+
 
 export default DashboardPage;
