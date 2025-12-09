@@ -2,6 +2,7 @@ const productModel = require('../models/productModel');
 const { getExchangeRates } = require('../utils/exchangeRateService');
 const { formatCurrency } = require('../utils/helpers');
 const { pool, pool2 } = require('../db'); // Solo para verificar si el usuario es admin
+const { getImageUrl } = require('./cloudinaryService');
 
 /**
  * Servicio para manejar la lógica de negocio de productos.
@@ -96,7 +97,7 @@ const fetchProducts = async ({
         price: finalPrice,
         formattedPrice: formatCurrency(finalPrice),
         brand: prod.brand,
-        imageUrl: null,
+        imageUrl: getImageUrl(prod.code),
         capacityDesc: prod.capacity_description,
         capacityValue: null,
         moneda: prod.moneda,
@@ -144,7 +145,7 @@ const getAccessories = async (userId) => {
         name: prod.description,
         price: prod.price,
         formattedPrice: formatCurrency(prod.price),
-        image_url: `https://placehold.co/150/2D3748/FFFFFF?text=${encodeURIComponent(prod.description.split(' ')[0])}`,
+        image_url: getImageUrl(prod.code) || `https://placehold.co/150/2D3748/FFFFFF?text=${encodeURIComponent(prod.description.split(' ')[0])}`,
         group_code: prod.product_group,
       }));
     }
@@ -252,7 +253,7 @@ const fetchProductDetails = async (productId, userId = null) => {
       price: prod.price,
       formattedPrice: formatCurrency(prod.price),
       brand: prod.brand,
-      imageUrl: null,
+      imageUrl: getImageUrl(prod.code),
       capacityDesc: prod.capacity_description,
       capacityValue: null,
       additionalInfo: {},
@@ -345,7 +346,7 @@ const fetchProtheusOffers = async (userId = null) => {
         price: finalPrice,
         formattedPrice: formatCurrency(finalPrice),
         brand: prod.brand,
-        imageUrl: null,
+        imageUrl: getImageUrl(prod.code),
         capacityDesc: prod.capacity_description,
         moneda: prod.moneda,
         cotizacion:
@@ -434,7 +435,7 @@ const fetchProductsByGroup = async (
         price: finalPrice,
         formattedPrice: formatCurrency(finalPrice),
         brand: prod.brand,
-        imageUrl: null,
+        imageUrl: getImageUrl(prod.code),
         capacityDesc: prod.capacity_description,
       };
     });
@@ -601,7 +602,7 @@ const getCustomCollectionProducts = async (collectionId) => {
       price: finalPrice,
       formattedPrice: formatCurrency(finalPrice),
       brand: prod.brand,
-      imageUrl: null,
+      imageUrl: getImageUrl(prod.code),
       capacityDesc: prod.capacity_description,
     };
   });
