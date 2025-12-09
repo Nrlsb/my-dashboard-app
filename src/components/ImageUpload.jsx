@@ -219,7 +219,7 @@ const ImageUpload = () => {
                                                             }`}
                                                     >
                                                         <div className="text-sm">
-                                                            <span className="font-bold">{prod.code}</span> - {prod.description}
+                                                            <span className="font-bold">{prod.code}</span> - {prod.name || prod.description}
                                                         </div>
                                                         {(selectedProductsMap[index] || []).includes(prod.id) ? <Check size={16} className="text-blue-600" /> : <Plus size={16} className="text-gray-400" />}
                                                     </div>
@@ -241,8 +241,8 @@ const ImageUpload = () => {
                                         onClick={() => handleConfirmAssignment(index, res.imageUrl)}
                                         disabled={assignmentStatus[index] === 'saving' || (selectedProductsMap[index] || []).length === 0}
                                         className={`px-4 py-2 rounded text-sm font-bold text-white ${assignmentStatus[index] === 'saving' || (selectedProductsMap[index] || []).length === 0
-                                                ? 'bg-gray-400'
-                                                : 'bg-green-600 hover:bg-green-700'
+                                            ? 'bg-gray-400'
+                                            : 'bg-green-600 hover:bg-green-700'
                                             }`}
                                     >
                                         {assignmentStatus[index] === 'saving' ? 'Guardando...' : 'Confirmar Asignación'}
