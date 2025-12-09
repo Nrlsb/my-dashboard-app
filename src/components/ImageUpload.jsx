@@ -211,19 +211,31 @@ const ImageUpload = () => {
 
                                         {/* Search Results */}
                                         {searchResults[index] && searchResults[index].length > 0 && (
-                                            <div className="mt-2 max-h-60 overflow-y-auto border rounded bg-white">
-                                                {searchResults[index].map(prod => (
-                                                    <div key={prod.id}
-                                                        onClick={() => toggleProductSelection(index, prod)}
-                                                        className={`p-2 border-b cursor-pointer hover:bg-gray-50 flex justify-between items-center ${(selectedProductsMap[index] || []).includes(prod.id) ? 'bg-blue-50' : ''
-                                                            }`}
-                                                    >
-                                                        <div className="text-sm">
-                                                            <span className="font-bold">{prod.code}</span> - {prod.name || prod.description}
+                                            <div className="mt-2 max-h-60 overflow-y-auto border border-gray-300 rounded-md bg-white shadow-sm">
+                                                {searchResults[index].map(prod => {
+                                                    const isSelected = (selectedProductsMap[index] || []).includes(prod.id);
+                                                    return (
+                                                        <div key={prod.id}
+                                                            onClick={() => toggleProductSelection(index, prod)}
+                                                            className={`p-3 border-b border-gray-100 cursor-pointer hover:bg-blue-50 flex items-start transition-colors ${isSelected ? 'bg-blue-50' : ''
+                                                                }`}
+                                                        >
+                                                            <div className="flex items-center h-5">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isSelected}
+                                                                    readOnly
+                                                                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                                />
+                                                            </div>
+                                                            <div className="ml-3 text-sm">
+                                                                <span className="font-bold text-gray-900">{prod.code}</span>
+                                                                <span className="text-gray-500 mx-1">-</span>
+                                                                <span className="text-gray-700">{prod.name || prod.description}</span>
+                                                            </div>
                                                         </div>
-                                                        {(selectedProductsMap[index] || []).includes(prod.id) ? <Check size={16} className="text-blue-600" /> : <Plus size={16} className="text-gray-400" />}
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         )}
                                     </div>
