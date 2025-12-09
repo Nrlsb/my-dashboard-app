@@ -86,10 +86,10 @@ const apiService = {
     });
   },
 
-  fetchProducts(page, searchTerm, brands, bypassCache = false) {
+  fetchProducts(page, searchTerm, brands, bypassCache = false, limit = 20) {
     const params = {
       page,
-      limit: 20,
+      limit,
       search: searchTerm,
       bypassCache: String(bypassCache),
     };
