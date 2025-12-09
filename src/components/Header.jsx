@@ -137,6 +137,13 @@ const Header = ({ onLogout, currentUser }) => {
                           <UserCog className="w-5 h-5 mr-3 text-gray-500" />
                           Gestionar Admins
                         </button>
+                        <button
+                          onClick={() => handleNavigation('/upload-images')}
+                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                        >
+                          <Tag className="w-5 h-5 mr-3 text-gray-500" />
+                          Subir Imágenes
+                        </button>
                       </>
                     )}
                     <button

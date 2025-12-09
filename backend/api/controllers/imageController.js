@@ -52,7 +52,7 @@ const uploadAndAssignImage = async (req, res) => {
         const imageUrl = uploadResult.secure_url;
 
         // 4. Save to DB2
-        const savedImage = await saveProductImage(productId, imageUrl, uploadResult.public_id);
+        const savedImage = await saveProductImage(productId, imageUrl);
 
         // 5. Cleanup local file
         fs.unlinkSync(filePath);
