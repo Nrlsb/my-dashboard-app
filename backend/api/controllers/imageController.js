@@ -7,67 +7,85 @@ const logger = require('../utils/logger');
 
 const uploadAndAssignImage = async (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({ error: 'No image file provided.' });
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ error: 'No image files provided.' });
         }
 
-        const filePath = req.file.path;
-        logger.info(`Processing image upload: ${filePath}`);
+        const results = [];
+        const errors = [];
 
-        // 1. Identify product using Gemini
-        let productCode = await identifyProductFromImage(filePath);
-        logger.info(`Gemini identified product code: ${productCode}`);
+        logger.info(`Processing ${req.files.length} images...`);
 
-        if (productCode === 'UNKNOWN') {
-            // Fallback: Try to use filename if Gemini fails? Or just error?
-            // For now, let's try to use the filename as a fallback if it looks like a code
-            // But the requirement says "using Gemini". Let's return an error or warning.
-            // Actually, let's proceed but mark it.
-            // For this implementation, let's return an error to the user so they know AI failed.
-            // return res.status(422).json({ error: 'AI could not identify the product.' });
+        for (const file of req.files) {
+            const filePath = file.path;
+            const originalName = file.originalname;
 
-            // BETTER UX: Allow user to manually enter code if AI fails?
-            // For this specific request, let's just return the error.
-            return res.status(422).json({ error: 'AI could not identify the product.' });
+            try {
+                logger.info(`Processing image: ${originalName}`);
+
+                // 1. Identify product using Gemini
+                let productCode = await identifyProductFromImage(filePath);
+                logger.info(`Gemini identified product code for ${originalName}: ${productCode}`);
+
+                if (productCode === 'UNKNOWN') {
+                    errors.push({ file: originalName, error: 'AI could not identify the product.' });
+                    // Cleanup
+                    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                    continue;
+                }
+
+                // Clean up product code
+                productCode = productCode.replace(/`/g, '').trim();
+
+                // 2. Find product in DB1
+                const productQuery = 'SELECT id FROM products WHERE code = $1';
+                const productResult = await pool.query(productQuery, [productCode]);
+
+                if (productResult.rows.length === 0) {
+                    errors.push({ file: originalName, error: `Product with code ${productCode} not found.` });
+                    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                    continue;
+                }
+
+                const productId = productResult.rows[0].id;
+
+                // 3. Upload to Cloudinary
+                const publicId = `${productCode}_${Date.now()}`;
+                const uploadResult = await uploadImage(filePath, publicId);
+                const imageUrl = uploadResult.secure_url;
+
+                // 4. Save to DB2
+                const savedImage = await saveProductImage(productId, imageUrl);
+
+                results.push({
+                    file: originalName,
+                    productCode,
+                    image: savedImage
+                });
+
+                // 5. Cleanup local file
+                if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+            } catch (err) {
+                console.error(`Error processing file ${originalName}:`, err);
+                errors.push({ file: originalName, error: err.message });
+                if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+            }
         }
 
-        // Clean up product code (remove potential markdown or extra spaces)
-        productCode = productCode.replace(/`/g, '').trim();
-
-        // 2. Find product in DB1
-        const productQuery = 'SELECT id FROM products WHERE code = $1';
-        const productResult = await pool.query(productQuery, [productCode]);
-
-        if (productResult.rows.length === 0) {
-            return res.status(404).json({ error: `Product with code ${productCode} not found.` });
-        }
-
-        const productId = productResult.rows[0].id;
-
-        // 3. Upload to Cloudinary
-        // We use the product code as the public_id prefix or part of it to keep it organized
-        // But Cloudinary service takes publicId. Let's use code + timestamp to avoid collisions if multiple images
-        const publicId = `${productCode}_${Date.now()}`;
-        const uploadResult = await uploadImage(filePath, publicId);
-        const imageUrl = uploadResult.secure_url;
-
-        // 4. Save to DB2
-        const savedImage = await saveProductImage(productId, imageUrl);
-
-        // 5. Cleanup local file
-        fs.unlinkSync(filePath);
-
-        res.status(201).json({
-            message: 'Image uploaded and assigned successfully.',
-            productCode,
-            image: savedImage,
+        res.status(200).json({
+            message: 'Batch processing completed.',
+            results,
+            errors
         });
 
     } catch (error) {
         logger.error('Error in uploadAndAssignImage:', error);
-        // Cleanup file if it exists
-        if (req.file && fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
+        // Cleanup all files if catastrophic failure
+        if (req.files) {
+            req.files.forEach(f => {
+                if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
+            });
         }
         res.status(500).json({ error: 'Internal server error.' });
     }

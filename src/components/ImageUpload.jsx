@@ -1,57 +1,58 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import apiService from '../api/apiService';
 
 const ImageUpload = () => {
-    const [file, setFile] = useState(null);
+    const [files, setFiles] = useState([]);
     const [uploading, setUploading] = useState(false);
-    const [result, setResult] = useState(null);
-    const [error, setError] = useState(null);
+    const [results, setResults] = useState(null);
+    const [errors, setErrors] = useState(null);
+    const [generalError, setGeneralError] = useState(null);
 
     const handleFileChange = (e) => {
-        setFile(e.target.files[0]);
-        setResult(null);
-        setError(null);
+        setFiles(Array.from(e.target.files));
+        setResults(null);
+        setErrors(null);
+        setGeneralError(null);
     };
 
     const handleUpload = async () => {
-        if (!file) {
-            setError('Please select a file first.');
+        if (files.length === 0) {
+            setGeneralError('Please select at least one file.');
             return;
         }
 
         setUploading(true);
-        setError(null);
-        setResult(null);
+        setResults(null);
+        setErrors(null);
+        setGeneralError(null);
 
         const formData = new FormData();
-        formData.append('image', file);
+        files.forEach((file) => {
+            formData.append('images', file);
+        });
 
         try {
-            // Adjust the URL if your backend is on a different port/host
-            const response = await axios.post('/api/images/upload', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
-
-            setResult(response.data);
+            const data = await apiService.uploadImages(formData);
+            setResults(data.results);
+            setErrors(data.errors);
         } catch (err) {
             console.error('Upload error:', err);
-            setError(err.response?.data?.error || 'Failed to upload image.');
+            setGeneralError(err.message || 'Failed to upload images.');
         } finally {
             setUploading(false);
         }
     };
 
     return (
-        <div className="p-6 max-w-lg mx-auto bg-white rounded-xl shadow-md space-y-4">
+        <div className="p-6 max-w-2xl mx-auto bg-white rounded-xl shadow-md space-y-4">
             <h2 className="text-xl font-bold text-gray-900">AI Product Image Upload</h2>
-            <p className="text-gray-600">Upload an image to automatically assign it to a product using Gemini AI.</p>
+            <p className="text-gray-600">Upload images to automatically assign them to products using Gemini AI.</p>
 
-            <div className="flex flex-col space-y-2">
+            <div className="flex flex-col space-y-4">
                 <input
                     type="file"
                     accept="image/*"
+                    multiple
                     onChange={handleFileChange}
                     className="block w-full text-sm text-gray-500
             file:mr-4 file:py-2 file:px-4
@@ -61,32 +62,53 @@ const ImageUpload = () => {
             hover:file:bg-blue-100"
                 />
 
-                <button
-                    onClick={handleUpload}
-                    disabled={uploading || !file}
-                    className={`px-4 py-2 rounded text-white font-bold ${uploading || !file ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-                        }`}
-                >
-                    {uploading ? 'Processing...' : 'Upload & Identify'}
-                </button>
+                <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500">{files.length} file(s) selected</span>
+                    <button
+                        onClick={handleUpload}
+                        disabled={uploading || files.length === 0}
+                        className={`px-4 py-2 rounded text-white font-bold ${uploading || files.length === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                            }`}
+                    >
+                        {uploading ? 'Processing...' : 'Upload & Identify'}
+                    </button>
+                </div>
             </div>
 
-            {error && (
-                <div className="p-4 bg-red-100 text-red-700 rounded">
-                    <strong>Error:</strong> {error}
+            {generalError && (
+                <div className="p-4 bg-red-100 text-red-700 rounded border border-red-200">
+                    <strong>Error:</strong> {generalError}
                 </div>
             )}
 
-            {result && (
-                <div className="p-4 bg-green-100 text-green-700 rounded space-y-2">
-                    <p><strong>Success!</strong> {result.message}</p>
-                    <p><strong>Identified Product:</strong> {result.productCode}</p>
-                    {result.image && (
-                        <div className="mt-2">
-                            <p className="text-sm">Image assigned to product.</p>
-                            <img src={result.image.image_url} alt="Uploaded" className="mt-2 w-full h-auto rounded shadow" />
-                        </div>
-                    )}
+            {results && results.length > 0 && (
+                <div className="space-y-2">
+                    <h3 className="font-semibold text-green-700">Successful Uploads ({results.length})</h3>
+                    <div className="grid grid-cols-1 gap-2">
+                        {results.map((res, index) => (
+                            <div key={index} className="p-3 bg-green-50 text-green-800 rounded border border-green-200 flex items-center space-x-4">
+                                <img src={res.image.image_url} alt={res.productCode} className="w-16 h-16 object-cover rounded" />
+                                <div>
+                                    <p className="font-bold">{res.productCode}</p>
+                                    <p className="text-xs">{res.file}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {errors && errors.length > 0 && (
+                <div className="space-y-2">
+                    <h3 className="font-semibold text-red-700">Failed Uploads ({errors.length})</h3>
+                    <div className="grid grid-cols-1 gap-2">
+                        {errors.map((err, index) => (
+                            <div key={index} className="p-3 bg-red-50 text-red-800 rounded border border-red-200">
+                                <p className="font-bold">{err.file}</p>
+                                <p className="text-sm">{err.error}</p>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
         </div>

@@ -23,6 +23,6 @@ if (!fs.existsSync('temp')) {
     fs.mkdirSync('temp');
 }
 
-router.post('/upload', upload.single('image'), uploadAndAssignImage);
+router.post('/upload', upload.array('images', 10), uploadAndAssignImage);
 
 module.exports = router;

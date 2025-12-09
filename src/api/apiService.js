@@ -377,6 +377,14 @@ const apiService = {
       method: 'DELETE',
     });
   },
+
+  uploadImages(formData) {
+    return this.request('/images/upload', {
+      method: 'POST',
+      body: formData,
+      isFormData: true,
+    });
+  },
 };
 
 export default apiService;
