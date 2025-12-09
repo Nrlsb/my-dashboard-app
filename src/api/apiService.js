@@ -385,6 +385,13 @@ const apiService = {
       isFormData: true,
     });
   },
+
+  assignImageToProducts(imageUrl, productIds) {
+    return this.request('/images/assign', {
+      method: 'POST',
+      body: { imageUrl, productIds },
+    });
+  },
 };
 
 export default apiService;

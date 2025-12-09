@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-const { uploadAndAssignImage } = require('../controllers/imageController');
+const { uploadAndAnalyzeImage, assignImageToProducts } = require('../controllers/imageController');
 
 // Configure multer for temporary local storage
 const storage = multer.diskStorage({
@@ -23,6 +23,7 @@ if (!fs.existsSync('temp')) {
     fs.mkdirSync('temp');
 }
 
-router.post('/upload', upload.array('images', 10), uploadAndAssignImage);
+router.post('/upload', upload.array('images', 10), uploadAndAnalyzeImage);
+router.post('/assign', assignImageToProducts);
 
 module.exports = router;
