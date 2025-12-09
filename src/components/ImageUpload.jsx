@@ -67,7 +67,7 @@ const ImageUpload = () => {
         if (!query) return;
         setSearching(prev => ({ ...prev, [index]: true }));
         try {
-            const response = await apiService.fetchProducts(1, query, [], false, 50);
+            const response = await apiService.fetchProducts(1, query, [], false, 250);
             setSearchResults(prev => ({ ...prev, [index]: response.products }));
         } catch (err) {
             console.error("Search error:", err);
