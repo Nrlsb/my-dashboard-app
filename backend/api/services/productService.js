@@ -1,8 +1,33 @@
 const productModel = require('../models/productModel');
+const { getProductImages } = require('../models/productModel');
 const { getExchangeRates } = require('../utils/exchangeRateService');
 const { formatCurrency } = require('../utils/helpers');
 const { pool, pool2 } = require('../db'); // Solo para verificar si el usuario es admin
 const { getImageUrl } = require('./cloudinaryService');
+
+
+/**
+ * Helper function to merge DB2 images into products list
+ */
+const enrichProductsWithImages = async (products) => {
+  if (!products || products.length === 0) return products;
+
+  const productIds = products.map(p => p.id);
+  const dbImages = await getProductImages(productIds);
+
+  const imageMap = new Map();
+  dbImages.forEach(img => {
+    imageMap.set(img.product_id, img.image_url);
+  });
+
+  return products.map(p => {
+    const dbImage = imageMap.get(p.id);
+    if (dbImage) {
+      return { ...p, imageUrl: dbImage };
+    }
+    return p;
+  });
+};
 
 /**
  * Servicio para manejar la lógica de negocio de productos.
@@ -114,8 +139,10 @@ const fetchProducts = async ({
       };
     });
 
+    const productsWithImages = await enrichProductsWithImages(products);
+
     return {
-      products,
+      products: productsWithImages,
       totalProducts,
     };
   } catch (error) {
@@ -139,7 +166,7 @@ const getAccessories = async (userId) => {
         }
       }
 
-      return filteredAccessories.map((prod) => ({
+      const mappedAccessories = filteredAccessories.map((prod) => ({
         id: prod.id,
         code: prod.code,
         name: prod.description,
@@ -148,6 +175,8 @@ const getAccessories = async (userId) => {
         imageUrl: getImageUrl(prod.code) || `https://placehold.co/150/2D3748/FFFFFF?text=${encodeURIComponent(prod.description.split(' ')[0])}`,
         group_code: prod.product_group,
       }));
+
+      return await enrichProductsWithImages(mappedAccessories);
     }
 
     return [];
@@ -260,7 +289,8 @@ const fetchProductDetails = async (productId, userId = null) => {
       product_group: prod.product_group,
     };
 
-    return productDetails;
+    const [enrichedProduct] = await enrichProductsWithImages([productDetails]);
+    return enrichedProduct;
   } catch (error) {
     console.error(
       `Error in fetchProductDetails (service) for ID ${productId}:`,
@@ -364,7 +394,7 @@ const fetchProtheusOffers = async (userId = null) => {
       };
     });
 
-    return offers;
+    return await enrichProductsWithImages(offers);
   } catch (error) {
     console.error('Error in fetchProtheusOffers (service):', error);
     throw error;
@@ -440,8 +470,10 @@ const fetchProductsByGroup = async (
       };
     });
 
+    const productsWithImages = await enrichProductsWithImages(products);
+
     return {
-      products,
+      products: productsWithImages,
       totalProducts,
       groupName,
     };
@@ -606,6 +638,8 @@ const getCustomCollectionProducts = async (collectionId) => {
       capacityDesc: prod.capacity_description,
     };
   });
+
+  return await enrichProductsWithImages(mappedProducts);
 };
 
 const addCustomGroupItem = async (groupId, productId) => {

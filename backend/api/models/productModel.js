@@ -621,6 +621,29 @@ const removeCustomGroupItem = async (groupId, productId) => {
   }
 };
 
+
+/**
+ * Obtiene las URLs de imágenes para una lista de productos desde DB2.
+ * @param {number[]} productIds - Array de IDs de productos.
+ * @returns {Promise<object[]>} - Array de objetos { product_id, image_url }.
+ */
+const getProductImages = async (productIds) => {
+  if (!productIds || productIds.length === 0) return [];
+
+  try {
+    const query = `
+      SELECT product_id, image_url 
+      FROM product_images 
+      WHERE product_id = ANY($1::int[])
+    `;
+    const result = await pool2.query(query, [productIds]);
+    return result.rows;
+  } catch (error) {
+    console.error('Error in getProductImages:', error);
+    return [];
+  }
+};
+
 module.exports = {
   findProducts,
   getDeniedProductGroups,
@@ -646,4 +669,5 @@ module.exports = {
   removeCustomGroupItem,
   removeCustomGroupItem,
   invalidatePermissionsCache,
+  getProductImages,
 };
