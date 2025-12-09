@@ -1,6 +1,6 @@
 const fs = require('fs');
 const { uploadImage } = require('../services/cloudinaryService');
-const { identifyProductFromImage } = require('../services/geminiService');
+// const { identifyProductFromImage } = require('../services/geminiService'); // AI Disabled
 const { saveProductImage } = require('../services/imageService');
 const { pool } = require('../db'); // DB1 for reading products
 const logger = require('../utils/logger');
@@ -24,42 +24,19 @@ const uploadAndAnalyzeImage = async (req, res) => {
             try {
                 logger.info(`Processing image: ${originalName}`);
 
-                // 1. Identify product using Gemini
-                let productCode = await identifyProductFromImage(filePath);
-                logger.info(`Gemini identified product code for ${originalName}: ${productCode}`);
-
-                // Clean up product code
-                if (productCode !== 'UNKNOWN') {
-                    productCode = productCode.replace(/`/g, '').trim();
-                }
+                // 1. Identify product using Gemini (DISABLED)
+                // let productCode = await identifyProductFromImage(filePath);
+                let productCode = 'AI_DISABLED';
+                logger.info(`AI Analysis disabled for ${originalName}`);
 
                 // 2. Upload to Cloudinary (We need the URL to show it to the user)
-                // Use a temp ID initially, or just a timestamp. We can't use productCode reliably yet if it's unknown.
-                // But if we want to keep the file, we should upload it.
                 const publicId = `temp_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-                const uploadResult = await uploadImage(filePath, publicId, 'temp_uploads'); // Upload to a temp folder? Or just products?
-                // Let's stick to 'products' folder for now, or maybe 'unassigned'.
-                // User wants to assign it later.
+                const uploadResult = await uploadImage(filePath, publicId, 'temp_uploads');
                 const imageUrl = uploadResult.secure_url;
 
-                // 3. Search for potential product matches in DB1
+                // 3. Search for potential product matches in DB1 (DISABLED or Optional)
                 let foundProducts = [];
-
-                if (productCode !== 'UNKNOWN') {
-                    // Search by Code
-                    let productQuery = 'SELECT id, code, description FROM products WHERE code = $1';
-                    let productResult = await pool.query(productQuery, [productCode]);
-
-                    if (productResult.rows.length > 0) {
-                        foundProducts = productResult.rows;
-                    } else {
-                        // Fallback: Search by description
-                        logger.info(`Product with code ${productCode} not found. Trying search by description...`);
-                        productQuery = 'SELECT id, code, description FROM products WHERE description ILIKE $1 LIMIT 5';
-                        productResult = await pool.query(productQuery, [`%${productCode}%`]);
-                        foundProducts = productResult.rows;
-                    }
-                }
+                // We could search by filename if we wanted, but let's keep it simple as requested.
 
                 results.push({
                     file: originalName,
