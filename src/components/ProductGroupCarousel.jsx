@@ -78,9 +78,9 @@ const ProductGroupCarousel = () => {
             className="flex-none w-full md:w-44 bg-white rounded-lg overflow-hidden cursor-pointer transition-all duration-200 ease-in-out hover:-translate-y-1 shadow-sm hover:shadow-md border-b-[3px] border-espint-green group flex flex-col h-auto aspect-square md:aspect-auto md:h-auto"
             onClick={() => handleCardClick(group)}
           >
-            {group.image_url ? (
+            {group.imageUrl ? (
               <img
-                src={group.image_url}
+                src={group.imageUrl}
                 alt={group.name}
                 className="w-full h-32 md:h-32 object-cover"
               />

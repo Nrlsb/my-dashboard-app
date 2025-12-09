@@ -70,7 +70,15 @@ const ProductModal = ({ product, onClose, onAddToCart }) => {
         </button>
 
         <div className="w-full md:w-1/2 flex items-center justify-center bg-gray-100 p-8">
-          <Package className="w-48 h-48 text-gray-400" />
+          {product.imageUrl ? (
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              className="max-h-64 object-contain rounded-lg"
+            />
+          ) : (
+            <Package className="w-48 h-48 text-gray-400" />
+          )}
         </div>
 
         <div className="w-full md:w-1/2 p-8 flex flex-col justify-center overflow-y-auto">
@@ -275,7 +283,15 @@ const NewOrderPage = () => {
       >
         <div className="flex items-start md:items-center space-x-4 w-full md:w-auto">
           <div className="flex-shrink-0 p-3 bg-gray-100 rounded-lg">
-            <Package className="w-6 h-6 text-gray-600" />
+            {product.imageUrl ? (
+              <img
+                src={product.imageUrl}
+                alt={product.name}
+                className="w-16 h-16 object-cover rounded-md"
+              />
+            ) : (
+              <Package className="w-6 h-6 text-gray-600" />
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-900 line-clamp-2 md:line-clamp-2">

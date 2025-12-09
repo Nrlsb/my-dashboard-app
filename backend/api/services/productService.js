@@ -145,7 +145,7 @@ const getAccessories = async (userId) => {
         name: prod.description,
         price: prod.price,
         formattedPrice: formatCurrency(prod.price),
-        image_url: getImageUrl(prod.code) || `https://placehold.co/150/2D3748/FFFFFF?text=${encodeURIComponent(prod.description.split(' ')[0])}`,
+        imageUrl: getImageUrl(prod.code) || `https://placehold.co/150/2D3748/FFFFFF?text=${encodeURIComponent(prod.description.split(' ')[0])}`,
         group_code: prod.product_group,
       }));
     }

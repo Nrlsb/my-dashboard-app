@@ -92,11 +92,21 @@ export default function ProductDetailPage() {
     return (
       <div className="bg-white p-6 md:p-8 rounded-lg shadow-lg">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="flex items-center justify-center bg-gray-100 rounded-lg h-80 md:h-96">
-            <Package className="w-24 h-24 text-gray-400" />
-            <span className="absolute text-gray-500 text-sm">
-              Imagen de producto
-            </span>
+          <div className="flex items-center justify-center bg-gray-100 rounded-lg h-80 md:h-96 overflow-hidden">
+            {product.imageUrl ? (
+              <img
+                src={product.imageUrl}
+                alt={product.name}
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <>
+                <Package className="w-24 h-24 text-gray-400" />
+                <span className="absolute text-gray-500 text-sm mt-32">
+                  Imagen de producto
+                </span>
+              </>
+            )}
           </div>
 
           <div className="flex flex-col justify-center space-y-4">
@@ -152,8 +162,8 @@ export default function ProductDetailPage() {
             <button
               onClick={handleAddToCart}
               className={`w-full py-3 px-6 rounded-lg text-white font-semibold transition-colors duration-300 cursor-pointer ${isAdded
-                  ? 'bg-green-500 hover:bg-green-600'
-                  : 'bg-blue-600 hover:bg-blue-700'
+                ? 'bg-green-500 hover:bg-green-600'
+                : 'bg-blue-600 hover:bg-blue-700'
                 }`}
             >
               {isAdded ? (
