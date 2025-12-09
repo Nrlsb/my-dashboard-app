@@ -38,16 +38,25 @@ const uploadAndAssignImage = async (req, res) => {
                 productCode = productCode.replace(/`/g, '').trim();
 
                 // 2. Find product in DB1
-                const productQuery = 'SELECT id FROM products WHERE code = $1';
-                const productResult = await pool.query(productQuery, [productCode]);
+                let productQuery = 'SELECT id, code FROM products WHERE code = $1';
+                let productResult = await pool.query(productQuery, [productCode]);
 
                 if (productResult.rows.length === 0) {
-                    errors.push({ file: originalName, error: `Product with code ${productCode} not found.` });
+                    logger.info(`Product with code ${productCode} not found. Trying search by description...`);
+                    // Fallback: Search by description
+                    productQuery = 'SELECT id, code FROM products WHERE description ILIKE $1 LIMIT 1';
+                    productResult = await pool.query(productQuery, [`%${productCode}%`]);
+                }
+
+                if (productResult.rows.length === 0) {
+                    errors.push({ file: originalName, error: `Product with code or description matching "${productCode}" not found.` });
                     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
                     continue;
                 }
 
                 const productId = productResult.rows[0].id;
+                // Update productCode to the actual code found in DB if we matched by description
+                productCode = productResult.rows[0].code;
 
                 // 3. Upload to Cloudinary
                 const publicId = `${productCode}_${Date.now()}`;
