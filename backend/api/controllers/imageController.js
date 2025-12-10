@@ -99,11 +99,18 @@ const uploadAndAnalyzeImage = async (req, res) => {
                         const sql = `
                             SELECT id, code, description, price, stock 
                             FROM products 
-                            WHERE ${queryConditions.join(joinOperator)}
+                            WHERE (${queryConditions.join(joinOperator)})
+                            AND price > 0 
+                            AND description IS NOT NULL
                             LIMIT 250
                         `;
+
+                        console.log('SQL Query:', sql);
+                        console.log('Params:', queryParams);
+
                         const dbRes = await pool.query(sql, queryParams);
                         foundProducts = dbRes.rows;
+                        console.log(`Found ${foundProducts.length} products`);
                     }
 
                 } catch (dbErr) {
