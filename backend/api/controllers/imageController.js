@@ -32,9 +32,10 @@ const uploadAndAnalyzeImage = async (req, res) => {
             try {
                 logger.info(`Processing image: ${originalName}`);
 
-                // 1. Identify product using Gemini
-                const aiResult = await identifyProductFromImage(filePath);
-                logger.info(`AI Analysis for ${originalName}:`, aiResult);
+                // 1. Identify product using Gemini (DISABLED)
+                // const aiResult = await identifyProductFromImage(filePath);
+                const aiResult = { code: null, brand: null, keywords: [] }; // Mock empty AI result
+                logger.info(`AI Analysis for ${originalName}: DISABLED`);
 
                 // 2. Upload to Cloudinary
                 const publicId = `temp_${Date.now()}_${Math.random().toString(36).substring(7)}`;
@@ -56,7 +57,7 @@ const uploadAndAnalyzeImage = async (req, res) => {
                     // 2. If NO User Keywords, use Filename with OR logic (Broad Search).
 
                     if (userKeywords && userKeywords.trim().length > 0) {
-                        const userKws = userKeywords.split(' ').filter(w => w.length > 0);
+                        const userKws = userKeywords.trim().split(/\s+/).filter(w => w.length > 0);
 
                         // For user keywords, we want ALL of them to match (AND logic between words)
                         // But each word can match EITHER description OR code
@@ -99,13 +100,10 @@ const uploadAndAnalyzeImage = async (req, res) => {
                     }
 
                     if (queryConditions.length > 0) {
-                        // Note: queryConditions currently has 1 element (the AND block) or multiple (the OR block)
-                        // If it's the AND block, join with AND (trivial). If OR block, join with OR.
-
                         const joinOperator = (userKeywords && userKeywords.trim().length > 0) ? ' AND ' : ' OR ';
 
                         const sql = `
-                            SELECT id, code, description, price, stock 
+                            SELECT id, code, description, price, stock_disponible as stock 
                             FROM products 
                             WHERE (${queryConditions.join(joinOperator)})
                             AND price > 0 
