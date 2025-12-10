@@ -37,54 +37,70 @@ const uploadAndAnalyzeImage = async (req, res) => {
                 let foundProducts = [];
 
                 try {
-                    // Build search query based on AI results
+                    // Build search query based on manual inputs and filename
                     let queryConditions = [];
                     let queryParams = [];
                     let paramCount = 1;
 
-                    if (aiResult.code) {
-                        queryConditions.push(`code ILIKE $${paramCount}`);
-                        queryParams.push(`%${aiResult.code}%`);
-                        paramCount++;
-                    }
+                    // STRATEGY: 
+                    // 1. If User Keywords are provided, use them with AND logic (Specific Search).
+                    //    This allows the user to filter precisely (e.g. "Esmalte Tersuave").
+                    // 2. If NO User Keywords, use Filename with OR logic (Broad Search).
 
-                    if (aiResult.brand) {
-                        queryConditions.push(`description ILIKE $${paramCount}`);
-                        queryParams.push(`%${aiResult.brand}%`);
-                        paramCount++;
-                    }
+                    if (userKeywords && userKeywords.trim().length > 0) {
+                        const userKws = userKeywords.split(' ').filter(w => w.length > 0);
 
-                    // Also search by some keywords if available
-                    if (aiResult.keywords && aiResult.keywords.length > 0) {
-                        // Take top 2 keywords
-                        const keywords = aiResult.keywords.slice(0, 2);
-                        keywords.forEach(kw => {
-                            queryConditions.push(`description ILIKE $${paramCount}`);
+                        // For user keywords, we want ALL of them to match (AND logic between words)
+                        // But each word can match EITHER description OR code
+                        const andConditions = [];
+
+                        userKws.forEach(kw => {
+                            andConditions.push(`(description ILIKE $${paramCount} OR code ILIKE $${paramCount})`);
                             queryParams.push(`%${kw}%`);
                             paramCount++;
                         });
-                    }
 
-                    // Fallback: Use filename keywords if AI didn't give us much, or just add them anyway
-                    // Clean filename: remove extension, remove common words like 'removebg', 'preview'
-                    const cleanFileName = originalName.replace(/\.[^/.]+$/, "").replace(/-|_/g, " ");
-                    const fileKeywords = cleanFileName.split(' ').filter(w => w.length > 3 && !['removebg', 'preview', 'image'].includes(w.toLowerCase()));
+                        if (andConditions.length > 0) {
+                            queryConditions.push(andConditions.join(' AND '));
+                        }
 
-                    if (fileKeywords.length > 0) {
-                        fileKeywords.slice(0, 2).forEach(kw => {
-                            queryConditions.push(`description ILIKE $${paramCount}`);
-                            queryConditions.push(`code ILIKE $${paramCount}`); // Also try code
-                            queryParams.push(`%${kw}%`);
-                            paramCount++;
-                        });
+                    } else {
+                        // Fallback: Use filename keywords with OR logic
+                        // Clean filename: remove extension, remove common words like 'removebg', 'preview'
+                        const cleanFileName = originalName.replace(/\.[^/.]+$/, "").replace(/-|_/g, " ");
+
+                        // Prepare ignore list
+                        const ignoreList = ['removebg', 'preview', 'image', 'img', 'copy', 'copia'];
+                        if (ignoreWords) {
+                            const customIgnores = ignoreWords.split(/[\s,]+/).map(w => w.toLowerCase().trim()).filter(w => w.length > 0);
+                            ignoreList.push(...customIgnores);
+                        }
+
+                        const fileKeywords = cleanFileName.split(' ')
+                            .filter(w => w.length > 2)
+                            .filter(w => !ignoreList.includes(w.toLowerCase()));
+
+                        if (fileKeywords.length > 0) {
+                            // Use up to 4 keywords from filename
+                            fileKeywords.slice(0, 4).forEach(kw => {
+                                queryConditions.push(`(description ILIKE $${paramCount} OR code ILIKE $${paramCount})`);
+                                queryParams.push(`%${kw}%`);
+                                paramCount++;
+                            });
+                        }
                     }
 
                     if (queryConditions.length > 0) {
+                        // Note: queryConditions currently has 1 element (the AND block) or multiple (the OR block)
+                        // If it's the AND block, join with AND (trivial). If OR block, join with OR.
+
+                        const joinOperator = (userKeywords && userKeywords.trim().length > 0) ? ' AND ' : ' OR ';
+
                         const sql = `
                             SELECT id, code, description, price, stock 
                             FROM products 
-                            WHERE ${queryConditions.join(' OR ')}
-                            LIMIT 10
+                            WHERE ${queryConditions.join(joinOperator)}
+                            LIMIT 250
                         `;
                         const dbRes = await pool.query(sql, queryParams);
                         foundProducts = dbRes.rows;
