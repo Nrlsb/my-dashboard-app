@@ -154,7 +154,7 @@ const uploadAndAnalyzeImage = async (req, res) => {
         });
 
     } catch (error) {
-        logger.error('Error in uploadAndAnalyzeImage:', error);
+        console.error('Error in uploadAndAnalyzeImage:', error);
         if (req.files) {
             req.files.forEach(f => {
                 if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
