@@ -55,9 +55,8 @@ const ImageUpload = () => {
             data.results.forEach((res, index) => {
                 initialSelections[index] = [];
                 // If AI found products, add them to search results immediately
-                if (res.foundProducts && res.foundProducts.length > 0) {
-                    initialSearchResults[index] = res.foundProducts;
-                }
+                // If not, set to empty array so we know we tried
+                initialSearchResults[index] = res.foundProducts || [];
             });
 
             setSelectedProductsMap(initialSelections);
@@ -218,7 +217,7 @@ const ImageUpload = () => {
                                         </div>
 
                                         {/* Search Results / AI Suggestions */}
-                                        {searchResults[index] && searchResults[index].length > 0 && (
+                                        {searchResults[index] && searchResults[index].length > 0 ? (
                                             <div className="mt-2 max-h-60 overflow-y-auto border border-gray-300 rounded-md bg-white shadow-sm">
                                                 <div className="bg-gray-50 px-3 py-2 border-b text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                                     {searchQueries[index] ? 'Resultados de búsqueda' : 'Sugerencias de IA'}
@@ -248,6 +247,13 @@ const ImageUpload = () => {
                                                     );
                                                 })}
                                             </div>
+                                        ) : (
+                                            searchResults[index] && !searchQueries[index] && (
+                                                <div className="mt-2 p-3 bg-yellow-50 text-yellow-800 text-sm rounded border border-yellow-200 flex items-center">
+                                                    <span className="mr-2">⚠️</span>
+                                                    <span>La IA analizó la imagen pero no encontró coincidencias exactas. Intenta buscar manualmente.</span>
+                                                </div>
+                                            )
                                         )}
                                     </div>
                                 </div>

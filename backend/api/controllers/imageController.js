@@ -56,7 +56,7 @@ const uploadAndAnalyzeImage = async (req, res) => {
 
                     // Also search by some keywords if available
                     if (aiResult.keywords && aiResult.keywords.length > 0) {
-                        // Take top 2 keywords to avoid over-complicating
+                        // Take top 2 keywords
                         const keywords = aiResult.keywords.slice(0, 2);
                         keywords.forEach(kw => {
                             queryConditions.push(`description ILIKE $${paramCount}`);
@@ -65,8 +65,20 @@ const uploadAndAnalyzeImage = async (req, res) => {
                         });
                     }
 
-                    // Fallback if AI didn't find anything useful, maybe search by filename?
-                    // For now, if no conditions, we might return empty or generic
+                    // Fallback: Use filename keywords if AI didn't give us much, or just add them anyway
+                    // Clean filename: remove extension, remove common words like 'removebg', 'preview'
+                    const cleanFileName = originalName.replace(/\.[^/.]+$/, "").replace(/-|_/g, " ");
+                    const fileKeywords = cleanFileName.split(' ').filter(w => w.length > 3 && !['removebg', 'preview', 'image'].includes(w.toLowerCase()));
+
+                    if (fileKeywords.length > 0) {
+                        fileKeywords.slice(0, 2).forEach(kw => {
+                            queryConditions.push(`description ILIKE $${paramCount}`);
+                            queryConditions.push(`code ILIKE $${paramCount}`); // Also try code
+                            queryParams.push(`%${kw}%`);
+                            paramCount++;
+                        });
+                    }
+
                     if (queryConditions.length > 0) {
                         const sql = `
                             SELECT id, code, description, price, stock 
