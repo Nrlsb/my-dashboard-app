@@ -99,13 +99,32 @@ const uploadAndAnalyzeImage = async (req, res) => {
                         }
                     }
 
+                    // Common Ignore Logic: Apply to BOTH strategies
+                    // We want to EXCLUDE products that contain any of the ignore words in their description
+                    let ignoreConditions = [];
+                    if (ignoreWords && ignoreWords.trim().length > 0) {
+                        const ignores = ignoreWords.split(/[\s,]+/).map(w => w.toLowerCase().trim()).filter(w => w.length > 0);
+                        ignores.forEach(ignoreKw => {
+                            ignoreConditions.push(`description NOT ILIKE $${paramCount}`);
+                            queryParams.push(`%${ignoreKw}%`);
+                            paramCount++;
+                        });
+                    }
+
                     if (queryConditions.length > 0) {
                         const joinOperator = (userKeywords && userKeywords.trim().length > 0) ? ' AND ' : ' OR ';
+
+                        // Combine positive matches with negative filters
+                        let finalWhereClause = `(${queryConditions.join(joinOperator)})`;
+
+                        if (ignoreConditions.length > 0) {
+                            finalWhereClause += ` AND ${ignoreConditions.join(' AND ')}`;
+                        }
 
                         const sql = `
                             SELECT id, code, description, price, stock_disponible as stock 
                             FROM products 
-                            WHERE (${queryConditions.join(joinOperator)})
+                            WHERE ${finalWhereClause}
                             AND price > 0 
                             AND description IS NOT NULL
                             LIMIT 250
