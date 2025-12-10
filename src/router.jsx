@@ -51,9 +51,11 @@ const RootRedirect = () => {
     return <Navigate to="/dashboard" replace />;
 };
 
+import GlobalErrorElement from './components/GlobalErrorElement';
+
 const router = createBrowserRouter(
     createRoutesFromElements(
-        <Route path="/" element={<App />}>
+        <Route path="/" element={<App />} errorElement={<GlobalErrorElement />}>
             {/* Rutas Públicas */}
             <Route path="login" element={
                 <PublicRoute>
