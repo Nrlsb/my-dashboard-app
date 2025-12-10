@@ -115,14 +115,20 @@ const uploadAndAnalyzeImage = async (req, res) => {
 
                         console.log('SQL Query:', sql);
                         console.log('Params:', queryParams);
+                        console.log('Pool defined:', !!pool);
 
-                        const dbRes = await pool.query(sql, queryParams);
-                        foundProducts = dbRes.rows;
-                        console.log(`Found ${foundProducts.length} products`);
+                        try {
+                            const dbRes = await pool.query(sql, queryParams);
+                            foundProducts = dbRes.rows;
+                            console.log(`Found ${foundProducts.length} products`);
+                        } catch (queryErr) {
+                            console.error('CRITICAL SQL ERROR:', queryErr);
+                            // Do not rethrow, just let foundProducts be empty
+                        }
                     }
 
                 } catch (dbErr) {
-                    logger.error(`Database search error for ${originalName}:`, dbErr);
+                    console.error(`Database search error for ${originalName}:`, dbErr);
                     // Don't fail the whole upload, just return empty matches
                 }
 
