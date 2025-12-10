@@ -49,6 +49,7 @@ const ImageUpload = () => {
         if (ignoreWords) {
             formData.append('ignoreWords', ignoreWords);
         }
+        formData.append('useAI', 'false');
 
         files.forEach((file) => {
             formData.append('images', file);

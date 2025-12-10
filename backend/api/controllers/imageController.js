@@ -15,7 +15,7 @@ const uploadAndAnalyzeImage = async (req, res) => {
         const results = [];
         const errors = [];
 
-        const { userKeywords, ignoreWords } = req.body;
+        const { userKeywords, ignoreWords, useAI } = req.body;
 
         console.log('--- UPLOAD DEBUG START ---');
         console.log('Req Body:', JSON.stringify(req.body, null, 2));
@@ -33,8 +33,13 @@ const uploadAndAnalyzeImage = async (req, res) => {
                 logger.info(`Processing image: ${originalName}`);
 
                 // 1. Identify product using Gemini
-                const aiResult = await identifyProductFromImage(filePath, userKeywords);
-                logger.info(`AI Analysis for ${originalName}: ${JSON.stringify(aiResult)}`);
+                let aiResult = { code: null, brand: null, keywords: [] };
+                if (useAI === 'true') {
+                    aiResult = await identifyProductFromImage(filePath, userKeywords);
+                    logger.info(`AI Analysis for ${originalName}: ${JSON.stringify(aiResult)}`);
+                } else {
+                    logger.info(`AI Analysis for ${originalName}: SKIPPED (useAI=false)`);
+                }
 
                 // 2. Upload to Cloudinary
                 const publicId = `temp_${Date.now()}_${Math.random().toString(36).substring(7)}`;

@@ -207,6 +207,7 @@ const ManageContentPage = () => {
         });
         formData.append('userKeywords', uploadContext);
         formData.append('ignoreWords', uploadIgnore);
+        formData.append('useAI', 'true');
 
         try {
             const res = await apiService.uploadImages(formData);
