@@ -15,7 +15,15 @@ const uploadAndAnalyzeImage = async (req, res) => {
         const results = [];
         const errors = [];
 
-        logger.info(`Analyzing ${req.files.length} images...`);
+        const { userKeywords, ignoreWords } = req.body;
+
+        console.log('--- UPLOAD DEBUG START ---');
+        console.log('Req Body:', JSON.stringify(req.body, null, 2));
+        console.log('User Keywords:', userKeywords);
+        console.log('Ignore Words:', ignoreWords);
+        console.log('Files received:', req.files ? req.files.length : 0);
+
+        logger.info(`Analyzing ${req.files.length} images... Keywords: ${userKeywords || 'None'}, Ignore: ${ignoreWords || 'None'}`);
 
         for (const file of req.files) {
             const filePath = file.path;
