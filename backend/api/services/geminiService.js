@@ -5,14 +5,14 @@ const fs = require("fs");
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
 /**
- * Identifies the product from an image using Gemini 1.5 Flash.
+ * Identifies the product from an image using Gemini 2.5 Flash.
  * @param {string} imagePath - Absolute path to the image file.
  * @param {string} userContext - Optional context provided by the user.
  * @returns {Promise<Object>} - The identified product info (code, name, keywords).
  */
 const identifyProductFromImage = async (imagePath, userContext = '') => {
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const imageBuffer = fs.readFileSync(imagePath);
         const imageBase64 = imageBuffer.toString("base64");
