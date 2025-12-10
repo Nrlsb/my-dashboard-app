@@ -42,15 +42,17 @@ const ImageUpload = () => {
         setGeneralError(null);
 
         const formData = new FormData();
-        files.forEach((file) => {
-            formData.append('images', file);
-        });
+        // Append text fields FIRST to ensure they are available before files are processed
         if (userKeywords) {
             formData.append('userKeywords', userKeywords);
         }
         if (ignoreWords) {
             formData.append('ignoreWords', ignoreWords);
         }
+
+        files.forEach((file) => {
+            formData.append('images', file);
+        });
 
         try {
             const data = await apiService.uploadImages(formData);
