@@ -17,6 +17,7 @@ const ImageUpload = () => {
     const [assignmentStatus, setAssignmentStatus] = useState({}); // { [imageIndex]: 'pending' | 'saving' | 'success' | 'error' }
 
     const [userKeywords, setUserKeywords] = useState('');
+    const [ignoreWords, setIgnoreWords] = useState('');
 
     const handleFileChange = (e) => {
         setFiles(Array.from(e.target.files));
@@ -46,6 +47,9 @@ const ImageUpload = () => {
         });
         if (userKeywords) {
             formData.append('userKeywords', userKeywords);
+        }
+        if (ignoreWords) {
+            formData.append('ignoreWords', ignoreWords);
         }
 
         try {
@@ -237,7 +241,7 @@ const ImageUpload = () => {
                                         {searchResults[index] && searchResults[index].length > 0 ? (
                                             <div className="mt-2 max-h-60 overflow-y-auto border border-gray-300 rounded-md bg-white shadow-sm">
                                                 <div className="bg-gray-50 px-3 py-2 border-b text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                                    {searchQueries[index] ? 'Resultados de búsqueda' : 'Sugerencias de IA'}
+                                                    {searchQueries[index] ? 'Resultados de búsqueda' : 'Coincidencias encontradas'}
                                                 </div>
                                                 {searchResults[index].map(prod => {
                                                     const isSelected = (selectedProductsMap[index] || []).includes(prod.id);
@@ -268,7 +272,7 @@ const ImageUpload = () => {
                                             searchResults[index] && !searchQueries[index] && (
                                                 <div className="mt-2 p-3 bg-yellow-50 text-yellow-800 text-sm rounded border border-yellow-200 flex items-center">
                                                     <span className="mr-2">⚠️</span>
-                                                    <span>La IA analizó la imagen pero no encontró coincidencias exactas. Intenta buscar manualmente.</span>
+                                                    <span>No se encontraron coincidencias automáticas. Intenta buscar manualmente.</span>
                                                 </div>
                                             )
                                         )}
