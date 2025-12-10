@@ -7,9 +7,10 @@ const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 /**
  * Identifies the product from an image using Gemini 1.5 Flash.
  * @param {string} imagePath - Absolute path to the image file.
+ * @param {string} userContext - Optional context provided by the user.
  * @returns {Promise<Object>} - The identified product info (code, name, keywords).
  */
-const identifyProductFromImage = async (imagePath) => {
+const identifyProductFromImage = async (imagePath, userContext = '') => {
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
@@ -18,6 +19,7 @@ const identifyProductFromImage = async (imagePath) => {
 
         const prompt = `
             Analyze this product image. 
+            ${userContext ? `Context provided by user: "${userContext}". Use this to help identify the product.` : ''}
             Identify any visible product codes, model numbers, brand names, and a brief description.
             Return the result ONLY as a valid JSON object with the following structure:
             {

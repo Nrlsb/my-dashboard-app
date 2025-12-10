@@ -16,6 +16,8 @@ const ImageUpload = () => {
     const [searching, setSearching] = useState({}); // { [imageIndex]: boolean }
     const [assignmentStatus, setAssignmentStatus] = useState({}); // { [imageIndex]: 'pending' | 'saving' | 'success' | 'error' }
 
+    const [userKeywords, setUserKeywords] = useState('');
+
     const handleFileChange = (e) => {
         setFiles(Array.from(e.target.files));
         setAnalysisResults(null);
@@ -42,6 +44,9 @@ const ImageUpload = () => {
         files.forEach((file) => {
             formData.append('images', file);
         });
+        if (userKeywords) {
+            formData.append('userKeywords', userKeywords);
+        }
 
         try {
             const data = await apiService.uploadImages(formData);
@@ -128,6 +133,18 @@ const ImageUpload = () => {
 
             {/* Step 1: Upload */}
             <div className="flex flex-col space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Palabras clave / Contexto (Opcional)</label>
+                    <input
+                        type="text"
+                        value={userKeywords}
+                        onChange={(e) => setUserKeywords(e.target.value)}
+                        placeholder="Ej: Pincel serie 170, Rodillo epoxi..."
+                        className="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Ayuda a la IA a identificar mejor el producto.</p>
+                </div>
+
                 <div className="flex items-center space-x-4">
                     <input
                         type="file"
