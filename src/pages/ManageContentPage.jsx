@@ -463,40 +463,157 @@ const ManageContentPage = () => {
                             )}
                         </div>
                     )}
+                </div>
+            )}
 
-                    {/* Add Accessory Modal */}
-                    {showAddAccessoryModal && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                            <div className="bg-white p-6 rounded-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h2 className="text-xl font-bold">Agregar Producto</h2>
-                                    <button onClick={() => setShowAddAccessoryModal(false)}><X size={24} /></button>
-                                </div>
-                                <form onSubmit={handleSearch} className="flex gap-2 mb-4">
-                                    <input
-                                        type="text"
-                                        placeholder="Buscar por nombre o código..."
-                                        className="flex-1 border p-2 rounded"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
-                                    <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
-                                        <Search size={20} />
+            {/* Add Accessory Modal */}
+            {showAddAccessoryModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white p-6 rounded-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold">Agregar Producto</h2>
+                            <button onClick={() => setShowAddAccessoryModal(false)}><X size={24} /></button>
+                        </div>
+                        <form onSubmit={handleSearch} className="flex gap-2 mb-4">
+                            <input
+                                type="text"
+                                placeholder="Buscar por nombre o código..."
+                                className="flex-1 border p-2 rounded"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
+                                <Search size={20} />
+                            </button>
+                        </form>
+
+                        {searching && <LoadingSpinner />}
+
+                        <div className="space-y-2">
+                            {searchResults.map(prod => (
+                                <div key={prod.id} className="flex justify-between items-center border p-2 rounded hover:bg-gray-50">
+                                    <div>
+                                        <p className="font-bold">{prod.name}</p>
+                                        <p className="text-sm text-gray-500">{prod.code}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => handleAddAccessory(prod.id)}
+                                        className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600"
+                                    >
+                                        Agregar
                                     </button>
-                                </form>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
-                                {searching && <LoadingSpinner />}
+            {/* Add Group Modal */}
+            {showAddGroupModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white p-6 rounded-lg w-full max-w-lg">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold">Agregar Grupo al Carousel</h2>
+                            <button onClick={() => setShowAddGroupModal(false)}><X size={24} /></button>
+                        </div>
+                        <form onSubmit={handleCreateGroup} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold mb-1">Tipo</label>
+                                <CustomSelect
+                                    options={[
+                                        { label: 'Grupo Existente', value: 'static_group' },
+                                        { label: 'Colección Personalizada', value: 'custom_collection' }
+                                    ]}
+                                    value={groupType}
+                                    onChange={(val) => setGroupType(val)}
+                                    placeholder="Seleccionar Tipo"
+                                />
+                            </div>
 
-                                <div className="space-y-2">
+                            {groupType === 'static_group' ? (
+                                <div>
+                                    <label className="block text-sm font-bold mb-1">Seleccionar Grupo</label>
+                                    <CustomSelect
+                                        options={availableGroups.map(g => ({
+                                            label: `${g.brand} (${g.product_group})`,
+                                            value: g.product_group
+                                        }))}
+                                        value={selectedReferenceId}
+                                        onChange={(val) => setSelectedReferenceId(val)}
+                                        placeholder="-- Seleccionar --"
+                                    />
+                                </div>
+                            ) : (
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-bold mb-1">Nombre de la Colección</label>
+                                        <input
+                                            type="text"
+                                            className="w-full border p-2 rounded"
+                                            value={groupName}
+                                            onChange={(e) => setGroupName(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold mb-1">URL de Imagen (Opcional)</label>
+                                        <input
+                                            type="text"
+                                            className="w-full border p-2 rounded"
+                                            value={groupImage}
+                                            onChange={(e) => setGroupImage(e.target.value)}
+                                        />
+                                    </div>
+                                </>
+                            )}
+
+                            <button type="submit" className="w-full bg-espint-blue text-white py-2 rounded font-bold hover:bg-blue-800 transition">
+                                Crear Grupo
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Collection Modal */}
+            {showEditCollectionModal && currentCollection && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white p-6 rounded-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold">Editar Colección: {currentCollection.name}</h2>
+                            <button onClick={() => setShowEditCollectionModal(false)}><X size={24} /></button>
+                        </div>
+
+                        {/* Search to add */}
+                        <form onSubmit={handleSearch} className="flex gap-2 mb-4">
+                            <input
+                                type="text"
+                                placeholder="Buscar productos para agregar..."
+                                className="flex-1 border p-2 rounded"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
+                                <Search size={20} />
+                            </button>
+                        </form>
+                        {searching && <LoadingSpinner />}
+
+                        {/* Search Results */}
+                        {searchResults.length > 0 && (
+                            <div className="mb-4 border-b pb-4">
+                                <h3 className="font-bold mb-2">Resultados de Búsqueda</h3>
+                                <div className="space-y-2 max-h-40 overflow-y-auto">
                                     {searchResults.map(prod => (
                                         <div key={prod.id} className="flex justify-between items-center border p-2 rounded hover:bg-gray-50">
                                             <div>
-                                                <p className="font-bold">{prod.name}</p>
-                                                <p className="text-sm text-gray-500">{prod.code}</p>
+                                                <p className="font-bold text-sm">{prod.name}</p>
+                                                <p className="text-xs text-gray-500">{prod.code}</p>
                                             </div>
                                             <button
-                                                onClick={() => handleAddAccessory(prod.id)}
-                                                className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600"
+                                                onClick={() => handleAddCollectionItem(prod.id)}
+                                                className="bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600"
                                             >
                                                 Agregar
                                             </button>
@@ -504,149 +621,34 @@ const ManageContentPage = () => {
                                     ))}
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Add Group Modal */}
-                    {showAddGroupModal && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                            <div className="bg-white p-6 rounded-lg w-full max-w-lg">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h2 className="text-xl font-bold">Agregar Grupo al Carousel</h2>
-                                    <button onClick={() => setShowAddGroupModal(false)}><X size={24} /></button>
-                                </div>
-                                <form onSubmit={handleCreateGroup} className="space-y-4">
+                        {/* Current Items */}
+                        <h3 className="font-bold mb-2">Productos en la Colección</h3>
+                        <div className="space-y-2">
+                            {collectionItems.map(item => (
+                                <div key={item.id} className="flex justify-between items-center border p-2 rounded">
                                     <div>
-                                        <label className="block text-sm font-bold mb-1">Tipo</label>
-                                        <CustomSelect
-                                            options={[
-                                                { label: 'Grupo Existente', value: 'static_group' },
-                                                { label: 'Colección Personalizada', value: 'custom_collection' }
-                                            ]}
-                                            value={groupType}
-                                            onChange={(val) => setGroupType(val)}
-                                            placeholder="Seleccionar Tipo"
-                                        />
+                                        <p className="font-bold text-sm">{item.name}</p>
+                                        <p className="text-xs text-gray-500">{item.code}</p>
                                     </div>
-
-                                    {groupType === 'static_group' ? (
-                                        <div>
-                                            <label className="block text-sm font-bold mb-1">Seleccionar Grupo</label>
-                                            <CustomSelect
-                                                options={availableGroups.map(g => ({
-                                                    label: `${g.brand} (${g.product_group})`,
-                                                    value: g.product_group
-                                                }))}
-                                                value={selectedReferenceId}
-                                                onChange={(val) => setSelectedReferenceId(val)}
-                                                placeholder="-- Seleccionar --"
-                                            />
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <div>
-                                                <label className="block text-sm font-bold mb-1">Nombre de la Colección</label>
-                                                <input
-                                                    type="text"
-                                                    className="w-full border p-2 rounded"
-                                                    value={groupName}
-                                                    onChange={(e) => setGroupName(e.target.value)}
-                                                    required
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-bold mb-1">URL de Imagen (Opcional)</label>
-                                                <input
-                                                    type="text"
-                                                    className="w-full border p-2 rounded"
-                                                    value={groupImage}
-                                                    onChange={(e) => setGroupImage(e.target.value)}
-                                                />
-                                            </div>
-                                        </>
-                                    )}
-
-                                    <button type="submit" className="w-full bg-espint-blue text-white py-2 rounded font-bold hover:bg-blue-800 transition">
-                                        Crear Grupo
+                                    <button
+                                        onClick={() => handleRemoveCollectionItem(item.id)}
+                                        className="text-red-500 hover:text-red-700"
+                                    >
+                                        <Trash2 size={18} />
                                     </button>
-                                </form>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Edit Collection Modal */}
-                    {showEditCollectionModal && currentCollection && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                            <div className="bg-white p-6 rounded-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h2 className="text-xl font-bold">Editar Colección: {currentCollection.name}</h2>
-                                    <button onClick={() => setShowEditCollectionModal(false)}><X size={24} /></button>
                                 </div>
-
-                                {/* Search to add */}
-                                <form onSubmit={handleSearch} className="flex gap-2 mb-4">
-                                    <input
-                                        type="text"
-                                        placeholder="Buscar productos para agregar..."
-                                        className="flex-1 border p-2 rounded"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
-                                    <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
-                                        <Search size={20} />
-                                    </button>
-                                </form>
-                                {searching && <LoadingSpinner />}
-
-                                {/* Search Results */}
-                                {searchResults.length > 0 && (
-                                    <div className="mb-4 border-b pb-4">
-                                        <h3 className="font-bold mb-2">Resultados de Búsqueda</h3>
-                                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                                            {searchResults.map(prod => (
-                                                <div key={prod.id} className="flex justify-between items-center border p-2 rounded hover:bg-gray-50">
-                                                    <div>
-                                                        <p className="font-bold text-sm">{prod.name}</p>
-                                                        <p className="text-xs text-gray-500">{prod.code}</p>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => handleAddCollectionItem(prod.id)}
-                                                        className="bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600"
-                                                    >
-                                                        Agregar
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Current Items */}
-                                <h3 className="font-bold mb-2">Productos en la Colección</h3>
-                                <div className="space-y-2">
-                                    {collectionItems.map(item => (
-                                        <div key={item.id} className="flex justify-between items-center border p-2 rounded">
-                                            <div>
-                                                <p className="font-bold text-sm">{item.name}</p>
-                                                <p className="text-xs text-gray-500">{item.code}</p>
-                                            </div>
-                                            <button
-                                                onClick={() => handleRemoveCollectionItem(item.id)}
-                                                className="text-red-500 hover:text-red-700"
-                                            >
-                                                <Trash2 size={18} />
-                                            </button>
-                                        </div>
-                                    ))}
-                                    {collectionItems.length === 0 && <p className="text-gray-500 text-sm">No hay productos en esta colección.</p>}
-                                </div>
-
-                            </div>
+                            ))}
+                            {collectionItems.length === 0 && <p className="text-gray-500 text-sm">No hay productos en esta colección.</p>}
                         </div>
-                    )}
 
+                    </div>
                 </div>
-            );
+            )}
+
+        </div>
+    );
 };
 
-            export default ManageContentPage;
+export default ManageContentPage;
