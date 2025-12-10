@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import apiService from '../api/apiService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import CustomSelect from '../components/CustomSelect';
-import { Trash2, Plus, Edit, Search, X } from 'lucide-react';
+import { Trash2, Plus, Edit, Search, X, Upload, Check, AlertCircle, FileImage } from 'lucide-react';
 
 const ManageContentPage = () => {
     const [activeTab, setActiveTab] = useState('accessories');
@@ -31,6 +31,13 @@ const ManageContentPage = () => {
     // Collection Edit state
     const [currentCollection, setCurrentCollection] = useState(null);
     const [collectionItems, setCollectionItems] = useState([]);
+
+    // AI Upload state
+    const [uploadFiles, setUploadFiles] = useState([]);
+    const [uploadContext, setUploadContext] = useState('');
+    const [uploadIgnore, setUploadIgnore] = useState('');
+    const [uploadResults, setUploadResults] = useState([]);
+    const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -181,6 +188,55 @@ const ManageContentPage = () => {
         }
     };
 
+    const handleFileChange = (e) => {
+        if (e.target.files) {
+            setUploadFiles(Array.from(e.target.files));
+        }
+    };
+
+    const handleBulkUpload = async () => {
+        if (uploadFiles.length === 0) {
+            toast.error('Selecciona al menos una imagen');
+            return;
+        }
+
+        setUploading(true);
+        const formData = new FormData();
+        uploadFiles.forEach(file => {
+            formData.append('images', file);
+        });
+        formData.append('userKeywords', uploadContext);
+        formData.append('ignoreWords', uploadIgnore);
+
+        try {
+            const res = await apiService.uploadImages(formData);
+            setUploadResults(res.results);
+            toast.success('Análisis completado');
+            setUploadFiles([]); // Clear files after upload
+        } catch (error) {
+            console.error(error);
+            toast.error('Error en la subida masiva');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleAssignImage = async (imageUrl, productId) => {
+        try {
+            await apiService.assignImageToProducts(imageUrl, [productId]);
+            toast.success('Imagen asignada correctamente');
+            // Update local state to show success
+            setUploadResults(prev => prev.map(item => {
+                if (item.imageUrl === imageUrl) {
+                    return { ...item, assigned: true, assignedTo: productId };
+                }
+                return item;
+            }));
+        } catch (error) {
+            toast.error('Error al asignar imagen');
+        }
+    };
+
     return (
         <div className="container mx-auto p-4">
             <h1 className="text-3xl font-bold text-espint-blue mb-6">Gestionar Contenido</h1>
@@ -199,6 +255,13 @@ const ManageContentPage = () => {
                 >
                     <span className="md:hidden">Grupos</span>
                     <span className="hidden md:inline">Grupos de Productos (Carousel)</span>
+                </button>
+                <button
+                    className={`py-2 px-4 font-semibold ${activeTab === 'ai_upload' ? 'text-espint-blue border-b-2 border-espint-blue' : 'text-gray-500'}`}
+                    onClick={() => setActiveTab('ai_upload')}
+                >
+                    <span className="md:hidden">IA Upload</span>
+                    <span className="hidden md:inline">Subida Masiva IA</span>
                 </button>
             </div>
 
@@ -286,157 +349,154 @@ const ManageContentPage = () => {
                             </div>
                         </div>
                     )}
-                </div>
-            )}
 
-            {/* Add Accessory Modal */}
-            {showAddAccessoryModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white p-6 rounded-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold">Agregar Producto</h2>
-                            <button onClick={() => setShowAddAccessoryModal(false)}><X size={24} /></button>
-                        </div>
-                        <form onSubmit={handleSearch} className="flex gap-2 mb-4">
-                            <input
-                                type="text"
-                                placeholder="Buscar por nombre o código..."
-                                className="flex-1 border p-2 rounded"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
-                                <Search size={20} />
-                            </button>
-                        </form>
+                    {activeTab === 'ai_upload' && (
+                        <div className="bg-white p-6 rounded shadow">
+                            <h2 className="text-xl font-bold mb-4">Subida de Imágenes de Productos</h2>
+                            <p className="text-gray-600 mb-6">Sube imágenes y asígnalas a los productos correspondientes con ayuda de IA.</p>
 
-                        {searching && <LoadingSpinner />}
-
-                        <div className="space-y-2">
-                            {searchResults.map(prod => (
-                                <div key={prod.id} className="flex justify-between items-center border p-2 rounded hover:bg-gray-50">
-                                    <div>
-                                        <p className="font-bold">{prod.name}</p>
-                                        <p className="text-sm text-gray-500">{prod.code}</p>
-                                    </div>
-                                    <button
-                                        onClick={() => handleAddAccessory(prod.id)}
-                                        className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600"
-                                    >
-                                        Agregar
-                                    </button>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                <div>
+                                    <label className="block text-sm font-bold mb-1">Palabras clave / Contexto (Opcional)</label>
+                                    <input
+                                        type="text"
+                                        className="w-full border p-2 rounded"
+                                        placeholder="Ej: Pincel serie 170, Rodillo epoxi..."
+                                        value={uploadContext}
+                                        onChange={(e) => setUploadContext(e.target.value)}
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Palabras para buscar (además del nombre del archivo).</p>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Add Group Modal */}
-            {showAddGroupModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white p-6 rounded-lg w-full max-w-lg">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold">Agregar Grupo al Carousel</h2>
-                            <button onClick={() => setShowAddGroupModal(false)}><X size={24} /></button>
-                        </div>
-                        <form onSubmit={handleCreateGroup} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-bold mb-1">Tipo</label>
-                                <CustomSelect
-                                    options={[
-                                        { label: 'Grupo Existente', value: 'static_group' },
-                                        { label: 'Colección Personalizada', value: 'custom_collection' }
-                                    ]}
-                                    value={groupType}
-                                    onChange={(val) => setGroupType(val)}
-                                    placeholder="Seleccionar Tipo"
-                                />
+                                <div>
+                                    <label className="block text-sm font-bold mb-1">Palabras a ignorar (Opcional)</label>
+                                    <input
+                                        type="text"
+                                        className="w-full border p-2 rounded"
+                                        placeholder="Ej: copia, nuevo, 2024..."
+                                        value={uploadIgnore}
+                                        onChange={(e) => setUploadIgnore(e.target.value)}
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Palabras del nombre del archivo que NO se usarán en la búsqueda.</p>
+                                </div>
                             </div>
 
-                            {groupType === 'static_group' ? (
-                                <div>
-                                    <label className="block text-sm font-bold mb-1">Seleccionar Grupo</label>
-                                    <CustomSelect
-                                        options={availableGroups.map(g => ({
-                                            label: `${g.brand} (${g.product_group})`,
-                                            value: g.product_group
-                                        }))}
-                                        value={selectedReferenceId}
-                                        onChange={(val) => setSelectedReferenceId(val)}
-                                        placeholder="-- Seleccionar --"
-                                    />
+                            <div className="flex items-center gap-4 mb-8">
+                                <label className="cursor-pointer bg-blue-50 text-blue-600 px-4 py-2 rounded font-bold hover:bg-blue-100 transition flex items-center gap-2">
+                                    <FileImage size={20} /> Elegir archivos
+                                    <input type="file" multiple accept="image/*" className="hidden" onChange={handleFileChange} />
+                                </label>
+                                <span className="text-gray-500">{uploadFiles.length > 0 ? `${uploadFiles.length} archivos seleccionados` : 'Ningún archivo seleccionado'}</span>
+
+                                {uploadFiles.length > 0 && (
+                                    <button
+                                        onClick={handleBulkUpload}
+                                        disabled={uploading}
+                                        className="ml-auto bg-espint-blue text-white px-6 py-2 rounded font-bold hover:bg-blue-800 transition disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        {uploading ? <LoadingSpinner size="sm" /> : <Upload size={20} />}
+                                        Subir Imágenes
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Results Area */}
+                            {uploadResults.length > 0 && (
+                                <div className="space-y-6">
+                                    <h3 className="font-bold text-lg border-b pb-2">Resultados del Análisis</h3>
+                                    {uploadResults.map((result, idx) => (
+                                        <div key={idx} className={`border rounded p-4 flex flex-col md:flex-row gap-4 ${result.assigned ? 'bg-green-50 border-green-200' : 'bg-gray-50'}`}>
+                                            <div className="w-32 h-32 shrink-0 bg-white rounded border flex items-center justify-center overflow-hidden">
+                                                <img src={result.imageUrl} alt={result.file} className="max-w-full max-h-full object-contain" />
+                                            </div>
+
+                                            <div className="flex-1">
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <h4 className="font-bold text-md">{result.file}</h4>
+                                                        <div className="text-xs text-gray-500 mt-1 space-y-1">
+                                                            {result.aiSuggestion?.code && <p>Código IA: <span className="font-mono bg-gray-200 px-1 rounded">{result.aiSuggestion.code}</span></p>}
+                                                            {result.aiSuggestion?.brand && <p>Marca IA: <span className="font-semibold">{result.aiSuggestion.brand}</span></p>}
+                                                            {result.aiSuggestion?.keywords?.length > 0 && <p>Keywords IA: {result.aiSuggestion.keywords.join(', ')}</p>}
+                                                        </div>
+                                                    </div>
+                                                    {result.assigned && (
+                                                        <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1">
+                                                            <Check size={16} /> Asignado
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                <div className="mt-4">
+                                                    <p className="font-bold text-sm mb-2 text-gray-700">Productos Sugeridos:</p>
+                                                    {result.foundProducts && result.foundProducts.length > 0 ? (
+                                                        <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                                                            {result.foundProducts.map(prod => (
+                                                                <div key={prod.id} className="flex justify-between items-center bg-white p-2 rounded border hover:border-blue-300 transition">
+                                                                    <div>
+                                                                        <p className="font-bold text-sm">{prod.description}</p>
+                                                                        <p className="text-xs text-gray-500">Código: {prod.code} | Stock: {prod.stock}</p>
+                                                                    </div>
+                                                                    {!result.assigned && (
+                                                                        <button
+                                                                            onClick={() => handleAssignImage(result.imageUrl, prod.id)}
+                                                                            className="bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600 transition"
+                                                                        >
+                                                                            Asignar
+                                                                        </button>
+                                                                    )}
+                                                                    {result.assigned && result.assignedTo === prod.id && (
+                                                                        <span className="text-green-600 text-xs font-bold">Seleccionado</span>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 text-orange-600 bg-orange-50 p-2 rounded text-sm">
+                                                            <AlertCircle size={16} /> No se encontraron coincidencias automáticas.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            ) : (
-                                <>
-                                    <div>
-                                        <label className="block text-sm font-bold mb-1">Nombre de la Colección</label>
-                                        <input
-                                            type="text"
-                                            className="w-full border p-2 rounded"
-                                            value={groupName}
-                                            onChange={(e) => setGroupName(e.target.value)}
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold mb-1">URL de Imagen (Opcional)</label>
-                                        <input
-                                            type="text"
-                                            className="w-full border p-2 rounded"
-                                            value={groupImage}
-                                            onChange={(e) => setGroupImage(e.target.value)}
-                                        />
-                                    </div>
-                                </>
                             )}
-
-                            <button type="submit" className="w-full bg-espint-blue text-white py-2 rounded font-bold hover:bg-blue-800 transition">
-                                Crear Grupo
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Edit Collection Modal */}
-            {showEditCollectionModal && currentCollection && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white p-6 rounded-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold">Editar Colección: {currentCollection.name}</h2>
-                            <button onClick={() => setShowEditCollectionModal(false)}><X size={24} /></button>
                         </div>
+                    )}
 
-                        {/* Search to add */}
-                        <form onSubmit={handleSearch} className="flex gap-2 mb-4">
-                            <input
-                                type="text"
-                                placeholder="Buscar productos para agregar..."
-                                className="flex-1 border p-2 rounded"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
-                                <Search size={20} />
-                            </button>
-                        </form>
-                        {searching && <LoadingSpinner />}
+                    {/* Add Accessory Modal */}
+                    {showAddAccessoryModal && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                            <div className="bg-white p-6 rounded-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-xl font-bold">Agregar Producto</h2>
+                                    <button onClick={() => setShowAddAccessoryModal(false)}><X size={24} /></button>
+                                </div>
+                                <form onSubmit={handleSearch} className="flex gap-2 mb-4">
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar por nombre o código..."
+                                        className="flex-1 border p-2 rounded"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                    <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
+                                        <Search size={20} />
+                                    </button>
+                                </form>
 
-                        {/* Search Results */}
-                        {searchResults.length > 0 && (
-                            <div className="mb-4 border-b pb-4">
-                                <h3 className="font-bold mb-2">Resultados de Búsqueda</h3>
-                                <div className="space-y-2 max-h-40 overflow-y-auto">
+                                {searching && <LoadingSpinner />}
+
+                                <div className="space-y-2">
                                     {searchResults.map(prod => (
                                         <div key={prod.id} className="flex justify-between items-center border p-2 rounded hover:bg-gray-50">
                                             <div>
-                                                <p className="font-bold text-sm">{prod.name}</p>
-                                                <p className="text-xs text-gray-500">{prod.code}</p>
+                                                <p className="font-bold">{prod.name}</p>
+                                                <p className="text-sm text-gray-500">{prod.code}</p>
                                             </div>
                                             <button
-                                                onClick={() => handleAddCollectionItem(prod.id)}
-                                                className="bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600"
+                                                onClick={() => handleAddAccessory(prod.id)}
+                                                className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600"
                                             >
                                                 Agregar
                                             </button>
@@ -444,34 +504,149 @@ const ManageContentPage = () => {
                                     ))}
                                 </div>
                             </div>
-                        )}
-
-                        {/* Current Items */}
-                        <h3 className="font-bold mb-2">Productos en la Colección</h3>
-                        <div className="space-y-2">
-                            {collectionItems.map(item => (
-                                <div key={item.id} className="flex justify-between items-center border p-2 rounded">
-                                    <div>
-                                        <p className="font-bold text-sm">{item.name}</p>
-                                        <p className="text-xs text-gray-500">{item.code}</p>
-                                    </div>
-                                    <button
-                                        onClick={() => handleRemoveCollectionItem(item.id)}
-                                        className="text-red-500 hover:text-red-700"
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
-                                </div>
-                            ))}
-                            {collectionItems.length === 0 && <p className="text-gray-500 text-sm">No hay productos en esta colección.</p>}
                         </div>
+                    )}
 
-                    </div>
+                    {/* Add Group Modal */}
+                    {showAddGroupModal && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                            <div className="bg-white p-6 rounded-lg w-full max-w-lg">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-xl font-bold">Agregar Grupo al Carousel</h2>
+                                    <button onClick={() => setShowAddGroupModal(false)}><X size={24} /></button>
+                                </div>
+                                <form onSubmit={handleCreateGroup} className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-bold mb-1">Tipo</label>
+                                        <CustomSelect
+                                            options={[
+                                                { label: 'Grupo Existente', value: 'static_group' },
+                                                { label: 'Colección Personalizada', value: 'custom_collection' }
+                                            ]}
+                                            value={groupType}
+                                            onChange={(val) => setGroupType(val)}
+                                            placeholder="Seleccionar Tipo"
+                                        />
+                                    </div>
+
+                                    {groupType === 'static_group' ? (
+                                        <div>
+                                            <label className="block text-sm font-bold mb-1">Seleccionar Grupo</label>
+                                            <CustomSelect
+                                                options={availableGroups.map(g => ({
+                                                    label: `${g.brand} (${g.product_group})`,
+                                                    value: g.product_group
+                                                }))}
+                                                value={selectedReferenceId}
+                                                onChange={(val) => setSelectedReferenceId(val)}
+                                                placeholder="-- Seleccionar --"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div>
+                                                <label className="block text-sm font-bold mb-1">Nombre de la Colección</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full border p-2 rounded"
+                                                    value={groupName}
+                                                    onChange={(e) => setGroupName(e.target.value)}
+                                                    required
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-bold mb-1">URL de Imagen (Opcional)</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full border p-2 rounded"
+                                                    value={groupImage}
+                                                    onChange={(e) => setGroupImage(e.target.value)}
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+
+                                    <button type="submit" className="w-full bg-espint-blue text-white py-2 rounded font-bold hover:bg-blue-800 transition">
+                                        Crear Grupo
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Edit Collection Modal */}
+                    {showEditCollectionModal && currentCollection && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                            <div className="bg-white p-6 rounded-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-xl font-bold">Editar Colección: {currentCollection.name}</h2>
+                                    <button onClick={() => setShowEditCollectionModal(false)}><X size={24} /></button>
+                                </div>
+
+                                {/* Search to add */}
+                                <form onSubmit={handleSearch} className="flex gap-2 mb-4">
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar productos para agregar..."
+                                        className="flex-1 border p-2 rounded"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                    <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
+                                        <Search size={20} />
+                                    </button>
+                                </form>
+                                {searching && <LoadingSpinner />}
+
+                                {/* Search Results */}
+                                {searchResults.length > 0 && (
+                                    <div className="mb-4 border-b pb-4">
+                                        <h3 className="font-bold mb-2">Resultados de Búsqueda</h3>
+                                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                                            {searchResults.map(prod => (
+                                                <div key={prod.id} className="flex justify-between items-center border p-2 rounded hover:bg-gray-50">
+                                                    <div>
+                                                        <p className="font-bold text-sm">{prod.name}</p>
+                                                        <p className="text-xs text-gray-500">{prod.code}</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleAddCollectionItem(prod.id)}
+                                                        className="bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600"
+                                                    >
+                                                        Agregar
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Current Items */}
+                                <h3 className="font-bold mb-2">Productos en la Colección</h3>
+                                <div className="space-y-2">
+                                    {collectionItems.map(item => (
+                                        <div key={item.id} className="flex justify-between items-center border p-2 rounded">
+                                            <div>
+                                                <p className="font-bold text-sm">{item.name}</p>
+                                                <p className="text-xs text-gray-500">{item.code}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => handleRemoveCollectionItem(item.id)}
+                                                className="text-red-500 hover:text-red-700"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {collectionItems.length === 0 && <p className="text-gray-500 text-sm">No hay productos en esta colección.</p>}
+                                </div>
+
+                            </div>
+                        </div>
+                    )}
+
                 </div>
-            )}
-
-        </div>
-    );
+            );
 };
 
-export default ManageContentPage;
+            export default ManageContentPage;

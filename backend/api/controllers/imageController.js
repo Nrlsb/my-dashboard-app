@@ -32,10 +32,9 @@ const uploadAndAnalyzeImage = async (req, res) => {
             try {
                 logger.info(`Processing image: ${originalName}`);
 
-                // 1. Identify product using Gemini (DISABLED)
-                // const aiResult = await identifyProductFromImage(filePath);
-                const aiResult = { code: null, brand: null, keywords: [] }; // Mock empty AI result
-                logger.info(`AI Analysis for ${originalName}: DISABLED`);
+                // 1. Identify product using Gemini
+                const aiResult = await identifyProductFromImage(filePath, userKeywords);
+                logger.info(`AI Analysis for ${originalName}: ${JSON.stringify(aiResult)}`);
 
                 // 2. Upload to Cloudinary
                 const publicId = `temp_${Date.now()}_${Math.random().toString(36).substring(7)}`;
@@ -74,7 +73,7 @@ const uploadAndAnalyzeImage = async (req, res) => {
                         }
 
                     } else {
-                        // Fallback: Use filename keywords with OR logic
+                        // Fallback: Use filename keywords AND AI keywords with OR logic
                         // Clean filename: remove extension, remove common words like 'removebg', 'preview'
                         const cleanFileName = originalName.replace(/\.[^/.]+$/, "").replace(/-|_/g, " ");
 
@@ -85,13 +84,25 @@ const uploadAndAnalyzeImage = async (req, res) => {
                             ignoreList.push(...customIgnores);
                         }
 
-                        const fileKeywords = cleanFileName.split(' ')
+                        // Combine filename keywords and AI keywords
+                        let searchTerms = cleanFileName.split(' ')
                             .filter(w => w.length > 2)
                             .filter(w => !ignoreList.includes(w.toLowerCase()));
 
-                        if (fileKeywords.length > 0) {
-                            // Use up to 4 keywords from filename
-                            fileKeywords.slice(0, 4).forEach(kw => {
+                        if (aiResult && aiResult.keywords && Array.isArray(aiResult.keywords)) {
+                            searchTerms = [...searchTerms, ...aiResult.keywords];
+                        }
+
+                        // Add AI code and brand if available
+                        if (aiResult.code) searchTerms.unshift(aiResult.code);
+                        if (aiResult.brand) searchTerms.push(aiResult.brand);
+
+                        // Deduplicate
+                        searchTerms = [...new Set(searchTerms)];
+
+                        if (searchTerms.length > 0) {
+                            // Use up to 6 keywords (increased from 4)
+                            searchTerms.slice(0, 6).forEach(kw => {
                                 queryConditions.push(`(description ILIKE $${paramCount} OR code ILIKE $${paramCount})`);
                                 queryParams.push(`%${kw}%`);
                                 paramCount++;
