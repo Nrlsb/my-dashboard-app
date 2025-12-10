@@ -20,7 +20,7 @@ const authenticateToken = (req, res, next) => {
 
     req.user = userPayload;
     req.userId = userPayload.userId;
-    console.log('[DEBUG AUTH] userPayload después de verificar JWT:', userPayload);
+
     next();
   });
 };
