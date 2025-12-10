@@ -1,6 +1,6 @@
 const fs = require('fs');
 const { uploadImage } = require('../services/cloudinaryService');
-// const { identifyProductFromImage } = require('../services/geminiService'); // AI Disabled
+const { identifyProductFromImage } = require('../services/geminiService');
 const { saveProductImage } = require('../services/imageService');
 const { pool } = require('../db'); // DB1 for reading products
 const logger = require('../utils/logger');
@@ -24,24 +24,69 @@ const uploadAndAnalyzeImage = async (req, res) => {
             try {
                 logger.info(`Processing image: ${originalName}`);
 
-                // 1. Identify product using Gemini (DISABLED)
-                // let productCode = await identifyProductFromImage(filePath);
-                let productCode = 'AI_DISABLED';
-                logger.info(`AI Analysis disabled for ${originalName}`);
+                // 1. Identify product using Gemini
+                const aiResult = await identifyProductFromImage(filePath);
+                logger.info(`AI Analysis for ${originalName}:`, aiResult);
 
-                // 2. Upload to Cloudinary (We need the URL to show it to the user)
+                // 2. Upload to Cloudinary
                 const publicId = `temp_${Date.now()}_${Math.random().toString(36).substring(7)}`;
                 const uploadResult = await uploadImage(filePath, publicId, 'temp_uploads');
                 const imageUrl = uploadResult.secure_url;
 
-                // 3. Search for potential product matches in DB1 (DISABLED or Optional)
+                // 3. Search for potential product matches in DB1
                 let foundProducts = [];
-                // We could search by filename if we wanted, but let's keep it simple as requested.
+
+                try {
+                    // Build search query based on AI results
+                    let queryConditions = [];
+                    let queryParams = [];
+                    let paramCount = 1;
+
+                    if (aiResult.code) {
+                        queryConditions.push(`code ILIKE $${paramCount}`);
+                        queryParams.push(`%${aiResult.code}%`);
+                        paramCount++;
+                    }
+
+                    if (aiResult.brand) {
+                        queryConditions.push(`description ILIKE $${paramCount}`);
+                        queryParams.push(`%${aiResult.brand}%`);
+                        paramCount++;
+                    }
+
+                    // Also search by some keywords if available
+                    if (aiResult.keywords && aiResult.keywords.length > 0) {
+                        // Take top 2 keywords to avoid over-complicating
+                        const keywords = aiResult.keywords.slice(0, 2);
+                        keywords.forEach(kw => {
+                            queryConditions.push(`description ILIKE $${paramCount}`);
+                            queryParams.push(`%${kw}%`);
+                            paramCount++;
+                        });
+                    }
+
+                    // Fallback if AI didn't find anything useful, maybe search by filename?
+                    // For now, if no conditions, we might return empty or generic
+                    if (queryConditions.length > 0) {
+                        const sql = `
+                            SELECT id, code, description, price, stock 
+                            FROM products 
+                            WHERE ${queryConditions.join(' OR ')}
+                            LIMIT 10
+                        `;
+                        const dbRes = await pool.query(sql, queryParams);
+                        foundProducts = dbRes.rows;
+                    }
+
+                } catch (dbErr) {
+                    logger.error(`Database search error for ${originalName}:`, dbErr);
+                    // Don't fail the whole upload, just return empty matches
+                }
 
                 results.push({
                     file: originalName,
                     imageUrl,
-                    aiSuggestion: productCode,
+                    aiSuggestion: aiResult,
                     foundProducts // Array of { id, code, description }
                 });
 

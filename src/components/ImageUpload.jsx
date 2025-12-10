@@ -48,12 +48,20 @@ const ImageUpload = () => {
             setAnalysisResults(data.results);
             setErrors(data.errors);
 
-            // Initialize selected products (empty since AI is disabled)
+            // Initialize selected products and populate search results with AI suggestions
             const initialSelections = {};
+            const initialSearchResults = {};
+
             data.results.forEach((res, index) => {
                 initialSelections[index] = [];
+                // If AI found products, add them to search results immediately
+                if (res.foundProducts && res.foundProducts.length > 0) {
+                    initialSearchResults[index] = res.foundProducts;
+                }
             });
+
             setSelectedProductsMap(initialSelections);
+            setSearchResults(initialSearchResults);
 
         } catch (err) {
             console.error('Upload error:', err);
@@ -209,9 +217,12 @@ const ImageUpload = () => {
                                             </button>
                                         </div>
 
-                                        {/* Search Results */}
+                                        {/* Search Results / AI Suggestions */}
                                         {searchResults[index] && searchResults[index].length > 0 && (
                                             <div className="mt-2 max-h-60 overflow-y-auto border border-gray-300 rounded-md bg-white shadow-sm">
+                                                <div className="bg-gray-50 px-3 py-2 border-b text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                                    {searchQueries[index] ? 'Resultados de búsqueda' : 'Sugerencias de IA'}
+                                                </div>
                                                 {searchResults[index].map(prod => {
                                                     const isSelected = (selectedProductsMap[index] || []).includes(prod.id);
                                                     return (

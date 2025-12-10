@@ -7,33 +7,55 @@ const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 /**
  * Identifies the product from an image using Gemini 1.5 Flash.
  * @param {string} imagePath - Absolute path to the image file.
- * @returns {Promise<string>} - The identified product code or name.
+ * @returns {Promise<Object>} - The identified product info (code, name, keywords).
  */
 const identifyProductFromImage = async (imagePath) => {
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const imageBuffer = fs.readFileSync(imagePath);
         const imageBase64 = imageBuffer.toString("base64");
 
-        const prompt = "Identify the product code or name in this image. Return ONLY the code/name, nothing else. If you cannot find a code, return 'UNKNOWN'.";
+        const prompt = `
+            Analyze this product image. 
+            Identify any visible product codes, model numbers, brand names, and a brief description.
+            Return the result ONLY as a valid JSON object with the following structure:
+            {
+                "code": "found code or null",
+                "brand": "found brand or null",
+                "name": "short product name",
+                "keywords": ["keyword1", "keyword2", "keyword3"]
+            }
+            Do not include markdown formatting (like \`\`\`json). Just the raw JSON string.
+        `;
 
         const result = await model.generateContent([
             prompt,
             {
                 inlineData: {
                     data: imageBase64,
-                    mimeType: "image/jpeg", // Adjust based on actual file type if needed, but jpeg usually works for most
+                    mimeType: "image/jpeg",
                 },
             },
         ]);
 
         const response = await result.response;
-        const text = response.text();
-        return text.trim();
+        let text = response.text();
+
+        // Clean up any potential markdown formatting if the model ignores the instruction
+        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            console.error("Failed to parse Gemini JSON response:", text);
+            return { code: null, name: "Unknown", keywords: [] };
+        }
+
     } catch (error) {
         console.error("Error calling Gemini:", error);
-        throw new Error("Failed to identify product from image.");
+        // Return a safe fallback instead of throwing to avoid breaking the whole batch
+        return { code: null, name: "Error", keywords: [] };
     }
 };
 
