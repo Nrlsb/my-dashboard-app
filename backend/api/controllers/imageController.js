@@ -1,6 +1,6 @@
 const fs = require('fs');
 const { uploadImage } = require('../services/cloudinaryService');
-const { identifyProductFromImage } = require('../services/geminiService');
+const { identifyProductFromImage, selectBestMatch } = require('../services/geminiService');
 const { saveProductImage } = require('../services/imageService');
 const { pool } = require('../db'); // DB1 for reading products
 const logger = require('../utils/logger');
@@ -160,6 +160,22 @@ const uploadAndAnalyzeImage = async (req, res) => {
                         }
                     }
 
+                    // 4. AI Selection (Second Opinion)
+                    let aiSelection = null;
+                    if (useAI === 'true' && foundProducts.length > 0) {
+                        try {
+                            // Send top 15 candidates to AI to save tokens/time
+                            const candidates = foundProducts.slice(0, 15);
+                            logger.info(`Asking AI to select best match from ${candidates.length} candidates...`);
+
+                            aiSelection = await selectBestMatch(filePath, candidates);
+                            logger.info(`AI Selection Result: ${JSON.stringify(aiSelection)}`);
+
+                        } catch (aiSelErr) {
+                            console.error('Error in AI Selection step:', aiSelErr);
+                        }
+                    }
+
                 } catch (dbErr) {
                     console.error(`Database search error for ${originalName}:`, dbErr);
                     // Don't fail the whole upload, just return empty matches
@@ -169,6 +185,7 @@ const uploadAndAnalyzeImage = async (req, res) => {
                     file: originalName,
                     imageUrl,
                     aiSuggestion: aiResult,
+                    aiSelection, // New field with the best match
                     foundProducts // Array of { id, code, description }
                 });
 

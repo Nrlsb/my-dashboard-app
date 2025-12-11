@@ -419,6 +419,38 @@ const ManageContentPage = () => {
                                                             {result.aiSuggestion?.brand && <p>Marca IA: <span className="font-semibold">{result.aiSuggestion.brand}</span></p>}
                                                             {result.aiSuggestion?.keywords?.length > 0 && <p>Keywords IA: {result.aiSuggestion.keywords.join(', ')}</p>}
                                                         </div>
+
+                                                        {/* AI Best Match Highlight */}
+                                                        {result.aiSelection?.bestMatchId && (
+                                                            <div className="mt-3 bg-blue-50 border border-blue-200 p-2 rounded text-sm">
+                                                                <p className="font-bold text-blue-800 flex items-center gap-1">
+                                                                    <span className="text-lg">🤖</span> Recomendación IA
+                                                                </p>
+                                                                <p className="text-gray-700 text-xs italic mb-1">"{result.aiSelection.reasoning}"</p>
+                                                                {(() => {
+                                                                    const bestMatch = result.foundProducts.find(p => p.id === result.aiSelection.bestMatchId);
+                                                                    if (bestMatch) {
+                                                                        return (
+                                                                            <div className="flex justify-between items-center bg-white p-2 rounded border border-blue-300 shadow-sm mt-1">
+                                                                                <div>
+                                                                                    <p className="font-bold">{bestMatch.description}</p>
+                                                                                    <p className="text-xs text-gray-500">{bestMatch.code}</p>
+                                                                                </div>
+                                                                                {!result.assigned && (
+                                                                                    <button
+                                                                                        onClick={() => handleAssignImage(result.imageUrl, bestMatch.id)}
+                                                                                        className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700 shadow-sm"
+                                                                                    >
+                                                                                        Aceptar
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    }
+                                                                    return null;
+                                                                })()}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     {result.assigned && (
                                                         <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1">
@@ -431,25 +463,28 @@ const ManageContentPage = () => {
                                                     <p className="font-bold text-sm mb-2 text-gray-700">Productos Sugeridos:</p>
                                                     {result.foundProducts && result.foundProducts.length > 0 ? (
                                                         <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                                                            {result.foundProducts.map(prod => (
-                                                                <div key={prod.id} className="flex justify-between items-center bg-white p-2 rounded border hover:border-blue-300 transition">
-                                                                    <div>
-                                                                        <p className="font-bold text-sm">{prod.description}</p>
-                                                                        <p className="text-xs text-gray-500">Código: {prod.code} | Stock: {prod.stock}</p>
+                                                            {result.foundProducts.map(prod => {
+                                                                const isBestMatch = result.aiSelection?.bestMatchId === prod.id;
+                                                                return (
+                                                                    <div key={prod.id} className={`flex justify-between items-center p-2 rounded border transition ${isBestMatch ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-300' : 'bg-white hover:border-blue-300'}`}>
+                                                                        <div>
+                                                                            <p className="font-bold text-sm">{prod.description}</p>
+                                                                            <p className="text-xs text-gray-500">Código: {prod.code} | Stock: {prod.stock}</p>
+                                                                        </div>
+                                                                        {!result.assigned && (
+                                                                            <button
+                                                                                onClick={() => handleAssignImage(result.imageUrl, prod.id)}
+                                                                                className="bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600 transition"
+                                                                            >
+                                                                                Asignar
+                                                                            </button>
+                                                                        )}
+                                                                        {result.assigned && result.assignedTo === prod.id && (
+                                                                            <span className="text-green-600 text-xs font-bold">Seleccionado</span>
+                                                                        )}
                                                                     </div>
-                                                                    {!result.assigned && (
-                                                                        <button
-                                                                            onClick={() => handleAssignImage(result.imageUrl, prod.id)}
-                                                                            className="bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600 transition"
-                                                                        >
-                                                                            Asignar
-                                                                        </button>
-                                                                    )}
-                                                                    {result.assigned && result.assignedTo === prod.id && (
-                                                                        <span className="text-green-600 text-xs font-bold">Seleccionado</span>
-                                                                    )}
-                                                                </div>
-                                                            ))}
+                                                                );
+                                                            })}
                                                         </div>
                                                     ) : (
                                                         <div className="flex items-center gap-2 text-orange-600 bg-orange-50 p-2 rounded text-sm">
