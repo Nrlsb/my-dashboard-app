@@ -46,6 +46,7 @@ const fetchProducts = async ({
   brand = '',
   userId = null,
   bypassCache = false,
+  hasImage = '',
 }) => {
   try {
     // 1. Obtener cotizaciones
@@ -90,6 +91,21 @@ const fetchProducts = async ({
       deniedGroups,
       bypassCache,
     };
+
+    // Filtro por imagen (cross-database)
+    if (hasImage === 'true') {
+      const imageIds = await productModel.getAllProductImageIds();
+      if (imageIds.length === 0) {
+        // Si no hay imágenes, y piden con imagen, devolvemos vacío directamente
+        return { products: [], totalProducts: 0 };
+      }
+      filters.allowedIds = imageIds;
+    } else if (hasImage === 'false') {
+      const imageIds = await productModel.getAllProductImageIds();
+      if (imageIds.length > 0) {
+        filters.excludedIds = imageIds;
+      }
+    }
 
     // 4. Obtener datos crudos del modelo
     const { products: rawProducts, totalProducts } =

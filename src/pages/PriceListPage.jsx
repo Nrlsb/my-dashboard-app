@@ -122,6 +122,8 @@ export default function PriceListPage() {
   const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
   const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
 
+  const [imageFilter, setImageFilter] = useState('all'); // 'all', 'with_image', 'without_image'
+
   const debounceTimeout = useRef(null);
   const brandDropdownRef = useRef(null);
 
@@ -211,9 +213,15 @@ export default function PriceListPage() {
     error,
     isLoading,
   } = useInfiniteQuery({
-    queryKey: ['products', debounceSearchTerm, selectedBrands, user?.id],
-    queryFn: ({ pageParam = 1 }) =>
-      apiService.fetchProducts(pageParam, debounceSearchTerm, selectedBrands),
+    queryKey: ['products', debounceSearchTerm, selectedBrands, imageFilter, user?.id],
+    queryFn: ({ pageParam = 1 }) => {
+      // Convert UI filter to API param
+      let hasImageParam = '';
+      if (imageFilter === 'with_image') hasImageParam = 'true';
+      if (imageFilter === 'without_image') hasImageParam = 'false';
+
+      return apiService.fetchProducts(pageParam, debounceSearchTerm, selectedBrands, false, 20, hasImageParam);
+    },
     getNextPageParam: (lastPage, allPages) => {
       const productsLoaded = allPages.reduce(
         (acc, page) => acc + page.products.length,
@@ -268,12 +276,13 @@ export default function PriceListPage() {
   const handleClearFilters = () => {
     setSearchTerm('');
     setSelectedBrands([]);
+    setImageFilter('all');
   };
 
   const handleGeneratePDF = () => pdfMutation.mutate();
 
   const allProducts = data?.pages.flatMap((page) => page.products) || [];
-  const hasFilters = searchTerm.length > 0 || selectedBrands.length > 0;
+  const hasFilters = searchTerm.length > 0 || selectedBrands.length > 0 || imageFilter !== 'all';
 
   const getBrandButtonLabel = () => {
     if (isBrandsLoading) return 'Cargando marcas...';
@@ -361,6 +370,22 @@ export default function PriceListPage() {
             </div>
           )}
         </div>
+
+        {/* Admin Image Filter */}
+        {user?.is_admin && (
+          <div className="relative">
+            <select
+              value={imageFilter}
+              onChange={(e) => setImageFilter(e.target.value)}
+              className="w-full pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-espint-blue cursor-pointer bg-white appearance-none"
+            >
+              <option value="all">Todas las imágenes</option>
+              <option value="with_image">Con Imagen</option>
+              <option value="without_image">Sin Imagen</option>
+            </select>
+            <ChevronDown className="w-5 h-5 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+        )}
       </div>
 
       {hasFilters && (

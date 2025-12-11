@@ -120,6 +120,8 @@ const findProducts = async ({
   search,
   brands,
   deniedGroups,
+  allowedIds = [],
+  excludedIds = [],
   bypassCache = false,
 }) => {
   // Create a unique cache key based on all filter parameters
@@ -128,7 +130,9 @@ const findProducts = async ({
     offset,
     search: search ? search.trim() : '',
     brands: brands ? brands.sort() : [],
-    deniedGroups: deniedGroups ? deniedGroups.sort() : []
+    deniedGroups: deniedGroups ? deniedGroups.sort() : [],
+    allowedIds: allowedIds ? allowedIds.sort() : [],
+    excludedIds: excludedIds ? excludedIds.sort() : []
   })}`;
 
   if (!bypassCache && isRedisReady()) {
@@ -196,6 +200,22 @@ const findProducts = async ({
     countQuery += ` AND ${brandQuery}`;
     dataQuery += ` AND ${brandQuery}`;
     queryParams.push(brands);
+    paramIndex++;
+  }
+
+  if (allowedIds && allowedIds.length > 0) {
+    const allowedQuery = ` id = ANY($${paramIndex}::int[]) `;
+    countQuery += ` AND ${allowedQuery}`;
+    dataQuery += ` AND ${allowedQuery}`;
+    queryParams.push(allowedIds);
+    paramIndex++;
+  }
+
+  if (excludedIds && excludedIds.length > 0) {
+    const excludedQuery = ` id != ALL($${paramIndex}::int[]) `;
+    countQuery += ` AND ${excludedQuery}`;
+    dataQuery += ` AND ${excludedQuery}`;
+    queryParams.push(excludedIds);
     paramIndex++;
   }
 
@@ -644,6 +664,21 @@ const getProductImages = async (productIds) => {
   }
 };
 
+/**
+ * Obtiene todos los IDs de productos que tienen imágenes en DB2.
+ * @returns {Promise<number[]>} - Array de IDs de productos.
+ */
+const getAllProductImageIds = async () => {
+  try {
+    const query = 'SELECT DISTINCT product_id FROM product_images';
+    const result = await pool2.query(query);
+    return result.rows.map(row => row.product_id);
+  } catch (error) {
+    console.error('Error in getAllProductImageIds:', error);
+    return [];
+  }
+};
+
 module.exports = {
   findProducts,
   getDeniedProductGroups,
@@ -654,7 +689,6 @@ module.exports = {
   findOffers,
   findProductsByGroup,
   getRecentlyChangedProducts,
-  updateProductOfferDetails,
   updateProductOfferDetails,
   // New methods
   findCarouselAccessories,
@@ -667,7 +701,7 @@ module.exports = {
   findCustomCollectionProducts,
   addCustomGroupItem,
   removeCustomGroupItem,
-  removeCustomGroupItem,
   invalidatePermissionsCache,
   getProductImages,
+  getAllProductImageIds,
 };

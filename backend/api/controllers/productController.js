@@ -10,6 +10,7 @@ exports.getProductsController = catchAsync(async (req, res) => {
         brand = '',
         moneda = '0',
         bypassCache = 'false',
+        hasImage = '',
     } = req.query;
     console.log(`[DEBUG] getProductsController - bypassCache param: ${bypassCache}`);
 
@@ -23,6 +24,7 @@ exports.getProductsController = catchAsync(async (req, res) => {
         moneda,
         userId: req.userId,
         bypassCache: shouldBypass,
+        hasImage,
     });
     res.set('Cache-Control', 'no-store');
     res.json(data);
