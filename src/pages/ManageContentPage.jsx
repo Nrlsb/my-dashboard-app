@@ -36,6 +36,7 @@ const ManageContentPage = () => {
     const [uploadFiles, setUploadFiles] = useState([]);
     const [uploadContext, setUploadContext] = useState('');
     const [uploadIgnore, setUploadIgnore] = useState('');
+    const [uploadBrand, setUploadBrand] = useState(''); // New state for manual brand
     const [uploadResults, setUploadResults] = useState([]);
     const [uploading, setUploading] = useState(false);
 
@@ -50,15 +51,6 @@ const ManageContentPage = () => {
                 const data = await apiService.getAccessories();
                 setAccessories(data);
             } else {
-                const data = await apiService.getProductGroupsDetails(); // This now returns DB config + fallback
-                // Actually, for admin management, we might want the raw DB config to know what is editable.
-                // But getProductGroupsDetails merges everything.
-                // Let's use getCarouselGroups for raw config if possible, but getProductGroupsDetails is what the user sees.
-                // Wait, getProductGroupsDetails returns formatted objects.
-                // If I want to manage them, I need the IDs from the DB.
-                // My updated getProductGroupsDetails returns `id` if it comes from DB.
-                // If it doesn't have `id`, it's from the fallback list (not in DB yet).
-                // I should probably fetch getCarouselGroups directly to manage the DB state.
                 const dbGroups = await apiService.getCarouselGroups();
                 setGroups(dbGroups);
             }
@@ -207,6 +199,7 @@ const ManageContentPage = () => {
         });
         formData.append('userKeywords', uploadContext);
         formData.append('ignoreWords', uploadIgnore);
+        formData.append('brand', uploadBrand); // Send manual brand
         formData.append('useAI', 'true');
 
         try {
@@ -356,29 +349,28 @@ const ManageContentPage = () => {
                             <h2 className="text-xl font-bold mb-4">Subida de Imágenes de Productos</h2>
                             <p className="text-gray-600 mb-6">Sube imágenes y asígnalas a los productos correspondientes con ayuda de IA.</p>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                                <div>
-                                    <label className="block text-sm font-bold mb-1">Palabras clave / Contexto (Opcional)</label>
-                                    <input
-                                        type="text"
-                                        className="w-full border p-2 rounded"
-                                        placeholder="Ej: Pincel serie 170, Rodillo epoxi..."
-                                        value={uploadContext}
-                                        onChange={(e) => setUploadContext(e.target.value)}
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">Palabras para buscar (además del nombre del archivo).</p>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold mb-1">Palabras a ignorar (Opcional)</label>
-                                    <input
-                                        type="text"
-                                        className="w-full border p-2 rounded"
-                                        placeholder="Ej: copia, nuevo, 2024..."
-                                        value={uploadIgnore}
-                                        onChange={(e) => setUploadIgnore(e.target.value)}
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">Palabras del nombre del archivo que NO se usarán en la búsqueda.</p>
-                                </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                <input
+                                    type="text"
+                                    placeholder="Contexto (ej: 'Línea AAT', 'Pulimentos')"
+                                    value={uploadContext}
+                                    onChange={(e) => setUploadContext(e.target.value)}
+                                    className="border p-2 rounded w-full"
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Marca (Opcional, ej: '3D')"
+                                    value={uploadBrand}
+                                    onChange={(e) => setUploadBrand(e.target.value)}
+                                    className="border p-2 rounded w-full"
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Ignorar palabras (ej: 'kit', 'combo')"
+                                    value={uploadIgnore}
+                                    onChange={(e) => setUploadIgnore(e.target.value)}
+                                    className="border p-2 rounded w-full"
+                                />
                             </div>
 
                             <div className="flex items-center gap-4 mb-8">

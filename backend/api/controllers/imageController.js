@@ -15,13 +15,7 @@ const uploadAndAnalyzeImage = async (req, res) => {
         const results = [];
         const errors = [];
 
-        const { userKeywords, ignoreWords, useAI } = req.body;
-
-        console.log('--- UPLOAD DEBUG START ---');
-        console.log('Req Body:', JSON.stringify(req.body, null, 2));
-        console.log('User Keywords:', userKeywords);
-        console.log('Ignore Words:', ignoreWords);
-        console.log('Files received:', req.files ? req.files.length : 0);
+        const { userKeywords, ignoreWords, brand, useAI } = req.body;
 
         logger.info(`Analyzing ${req.files.length} images... Keywords: ${userKeywords || 'None'}, Ignore: ${ignoreWords || 'None'}`);
 
@@ -139,6 +133,15 @@ const uploadAndAnalyzeImage = async (req, res) => {
                         });
                     }
 
+                    // STRICT BRAND FILTER (New)
+                    // If user provided a brand, we enforce it as a hard requirement
+                    let brandCondition = "";
+                    if (brand && brand.trim().length > 0) {
+                        brandCondition = `AND description ILIKE $${paramCount}`;
+                        queryParams.push(`%${brand.trim()}%`);
+                        paramCount++;
+                    }
+
                     if (queryConditions.length > 0) {
                         const joinOperator = (userKeywords && userKeywords.trim().length > 0) ? ' AND ' : ' OR ';
 
@@ -153,6 +156,7 @@ const uploadAndAnalyzeImage = async (req, res) => {
                             SELECT id, code, description, price, stock_disponible as stock 
                             FROM products 
                             WHERE ${finalWhereClause}
+                            ${brandCondition}
                             AND price > 0 
                             AND description IS NOT NULL
                             LIMIT 250
