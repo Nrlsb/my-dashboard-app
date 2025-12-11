@@ -68,6 +68,48 @@ const analyzeMissingImages = async () => {
             console.log(`${groupId.padEnd(10)} | ${data.count.toString().padEnd(8)} | ${topBrands.padEnd(20)} | ${topWords}`);
         });
 
+        // 6. Generar Excel
+        const ExcelJS = require('exceljs');
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Productos Faltantes');
+
+        // Definir columnas
+        worksheet.columns = [
+            { header: 'Grupo', key: 'group', width: 20 },
+            { header: 'Código', key: 'code', width: 15 },
+            { header: 'Descripción', key: 'description', width: 50 },
+            { header: 'Marca', key: 'brand', width: 20 }
+        ];
+
+        // Estilo para el encabezado
+        worksheet.getRow(1).font = { bold: true };
+        worksheet.getRow(1).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFCCCCCC' }
+        };
+
+        // Agregar filas
+        // Ordenar primero por grupo (ya están agrupados en sortedGroups, pero missingProducts es la lista plana)
+        // Vamos a usar missingProducts pero ordenados por grupo para que quede bonito
+        const sortedMissingProducts = missingProducts.sort((a, b) => {
+            const groupA = a.product_group || 'SIN_GRUPO';
+            const groupB = b.product_group || 'SIN_GRUPO';
+            return groupA.localeCompare(groupB);
+        });
+
+        sortedMissingProducts.forEach(p => {
+            worksheet.addRow({
+                group: p.product_group || 'SIN_GRUPO',
+                code: p.code,
+                description: p.description,
+                brand: p.brand
+            });
+        });
+
+        await workbook.xlsx.writeFile('reporte_faltantes.xlsx');
+        console.log('\nExcel generado exitosamente: reporte_faltantes.xlsx');
+
     } catch (error) {
         console.error('Error:', error);
     } finally {
