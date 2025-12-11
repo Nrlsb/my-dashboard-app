@@ -34,6 +34,7 @@ const uploadAndAnalyzeImage = async (req, res) => {
 
                 // 1. Identify product using Gemini
                 let aiResult = { code: null, brand: null, keywords: [] };
+                let aiSelection = null; // Initialize here to be available in catch/finally blocks
                 if (useAI === 'true') {
                     aiResult = await identifyProductFromImage(filePath, userKeywords);
                     logger.info(`AI Analysis for ${originalName}: ${JSON.stringify(aiResult)}`);
@@ -161,7 +162,6 @@ const uploadAndAnalyzeImage = async (req, res) => {
                     }
 
                     // 4. AI Selection (Second Opinion)
-                    let aiSelection = null;
                     if (useAI === 'true' && foundProducts.length > 0) {
                         try {
                             // Send top 15 candidates to AI to save tokens/time
