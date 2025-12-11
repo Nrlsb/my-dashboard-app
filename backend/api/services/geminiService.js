@@ -61,10 +61,7 @@ const identifyProductFromImage = async (imagePath, userContext = '') => {
     }
 };
 
-module.exports = {
-    identifyProductFromImage,
-    selectBestMatch
-};
+
 
 /**
  * Selects the best matching product from a list of candidates using Gemini.
@@ -129,4 +126,9 @@ const selectBestMatch = async (imagePath, candidates) => {
         console.error("Error in selectBestMatch:", error);
         return null;
     }
+};
+
+module.exports = {
+    identifyProductFromImage,
+    selectBestMatch
 };
