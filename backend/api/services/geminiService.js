@@ -5,7 +5,7 @@ const fs = require("fs");
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
 /**
- * Identifies the product from an image using Gemini 2.5 Flash.
+ * Identifies the product from an image using Gemini 1.5 Flash.
  * @param {string} imagePath - Absolute path to the image file.
  * @param {string} userContext - Optional context provided by the user.
  * @returns {Promise<Object>} - The identified product info (code, name, keywords).
@@ -18,15 +18,20 @@ const identifyProductFromImage = async (imagePath, userContext = '') => {
         const imageBase64 = imageBuffer.toString("base64");
 
         const prompt = `
-            Analyze this product image. 
+            Analyze this product image acting as an expert inventory manager.
             ${userContext ? `Context provided by user: "${userContext}". Use this to help identify the product.` : ''}
-            Identify any visible product codes, model numbers, brand names, and a brief description.
+            
+            Follow this logic:
+            1. **Anchors**: Identify the strongest identifier, usually a large Model Number (e.g., "505", "520", "105"). This is the "code".
+            2. **Line Distinction**: Look for sub-brands or lines (e.g., "ACA" vs "AAT") to distinguish similar products.
+            3. **Translation**: If the label is in English (e.g., "Rubbing Compound"), include the Spanish translation in keywords (e.g., "Compuesto de Corte").
+            
             Return the result ONLY as a valid JSON object with the following structure:
             {
-                "code": "found code or null",
+                "code": "found model number/code or null",
                 "brand": "found brand or null",
-                "name": "short product name",
-                "keywords": ["keyword1", "keyword2", "keyword3"]
+                "name": "short product name (including sub-brand)",
+                "keywords": ["translated_keyword1", "original_keyword2", "keyword3"]
             }
             Do not include markdown formatting (like \`\`\`json). Just the raw JSON string.
         `;
@@ -61,8 +66,6 @@ const identifyProductFromImage = async (imagePath, userContext = '') => {
     }
 };
 
-
-
 /**
  * Selects the best matching product from a list of candidates using Gemini.
  * @param {string} imagePath - Absolute path to the image file.
@@ -90,13 +93,19 @@ const selectBestMatch = async (imagePath, candidates) => {
             List of Candidates:
             ${candidatesList}
 
-            Analyze the image (text, packaging, colors, type) and compare it with the candidates.
+            Follow this matching logic strictly:
+            1. **Anchor Matching**: The Model Number (e.g., "505") is the most important factor. Match it against the Description or Code in the list.
+            2. **Line Distinction**: Ensure the sub-brand (e.g., "ACA" vs "AAT") matches exactly.
+            3. **Language**: The image might be in English ("Rubbing Compound") and the list in Spanish ("Crema de Corte"). Treat them as matches.
+            4. **Volume/Size**: If multiple candidates match the product but differ only by size/volume (e.g., 16oz vs 32oz, or 500ml vs 1L), and you cannot determine the size from the image, pick one but mention the ambiguity in the reasoning.
+
+            Analyze the image and compare it with the candidates.
             
             Return the result ONLY as a valid JSON object:
             {
                 "bestMatchId": "ID of the best matching product or null if none match",
                 "confidence": "high/medium/low",
-                "reasoning": "Short explanation of why this is the match"
+                "reasoning": "Explain why. If multiple sizes found, mention it here."
             }
             Do not include markdown formatting.
         `;
