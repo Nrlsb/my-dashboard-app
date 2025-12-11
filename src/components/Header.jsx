@@ -128,7 +128,16 @@ const Header = ({ onLogout, currentUser }) => {
                           className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                         >
                           <Users className="w-5 h-5 mr-3 text-gray-500" />
-                          Permisos Clientes
+                          Permisos Grupos
+                        </button>
+                        <button
+                          onClick={() =>
+                            handleNavigation('/client-product-permissions')
+                          }
+                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                        >
+                          <Users className="w-5 h-5 mr-3 text-gray-500" />
+                          Permisos Productos
                         </button>
                         <button
                           onClick={() => handleNavigation('/manage-admins')}

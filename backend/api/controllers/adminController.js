@@ -1,6 +1,6 @@
 const adminService = require('../services/adminService');
 const userService = require('../services/userService');
-const { getDeniedProductGroups } = require('../models/productModel');
+const { getDeniedProductGroups, getDeniedProducts } = require('../models/productModel');
 const catchAsync = require('../utils/catchAsync');
 
 exports.fetchAdminOrderDetails = catchAsync(async (req, res) => {
@@ -37,6 +37,25 @@ exports.updateUserGroupPermissions = catchAsync(async (req, res) => {
     const result = await adminService.updateUserGroupPermissions(
         userId,
         groups
+    );
+    res.json(result);
+});
+
+exports.getDeniedProductsByUserController = catchAsync(async (req, res) => {
+    const { userId } = req.params;
+    console.log(
+        `GET /api/admin/users/${userId}/denied-products -> Admin ${req.userId} fetching permissions...`
+    );
+    const permissions = await getDeniedProducts(userId);
+    res.json(permissions);
+});
+
+exports.updateUserProductPermissionsController = catchAsync(async (req, res) => {
+    const { userId } = req.params;
+    const { productIds } = req.body;
+    const result = await adminService.updateUserProductPermissions(
+        userId,
+        productIds
     );
     res.json(result);
 });

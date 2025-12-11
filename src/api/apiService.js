@@ -305,6 +305,19 @@ const apiService = {
     });
   },
 
+  getDeniedProducts(targetUserId) {
+    if (!targetUserId) throw new Error('ID de usuario objetivo requerido');
+    return this.request(`/admin/users/${targetUserId}/denied-products`);
+  },
+
+  updateUserProductPermissions(targetUserId, productIds) {
+    if (!targetUserId) throw new Error('ID de usuario objetivo requerido');
+    return this.request(`/admin/users/${targetUserId}/denied-products`, {
+      method: 'PUT',
+      body: { productIds },
+    });
+  },
+
   getAdmins() {
     return this.request('/admin/management/admins');
   },

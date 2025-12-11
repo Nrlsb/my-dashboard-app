@@ -89,6 +89,26 @@ const getDeniedProductGroups = async (userId) => {
 };
 
 /**
+ * Obtiene los IDs de productos denegados para un usuario específico.
+ * @param {number} userId - El ID del usuario.
+ * @returns {Promise<number[]>} - Una promesa que se resuelve con un array de IDs de productos denegados.
+ */
+const getDeniedProducts = async (userId) => {
+  try {
+    const query = `
+      SELECT product_id 
+      FROM user_product_permissions 
+      WHERE user_id = $1;
+    `;
+    const result = await pool2.query(query, [userId]);
+    return result.rows.map((row) => row.product_id);
+  } catch (error) {
+    console.error(`Error in getDeniedProducts for user ${userId}:`, error);
+    throw error;
+  }
+};
+
+/**
  * Invalida la caché de permisos para un usuario específico.
  * @param {number} userId - El ID del usuario.
  */
@@ -120,6 +140,7 @@ const findProducts = async ({
   search,
   brands,
   deniedGroups,
+  deniedProductIds = [],
   allowedIds = [],
   excludedIds = [],
   bypassCache = false,
@@ -131,6 +152,7 @@ const findProducts = async ({
     search: search ? search.trim() : '',
     brands: brands ? brands.sort() : [],
     deniedGroups: deniedGroups ? deniedGroups.sort() : [],
+    deniedProductIds: deniedProductIds ? deniedProductIds.sort() : [],
     allowedIds: allowedIds ? allowedIds.sort() : [],
     excludedIds: excludedIds ? excludedIds.sort() : []
   })}`;
@@ -166,6 +188,14 @@ const findProducts = async ({
     countQuery += ` AND ${groupQuery}`;
     dataQuery += ` AND ${groupQuery}`;
     queryParams.push(deniedGroups);
+    paramIndex++;
+  }
+
+  if (deniedProductIds && deniedProductIds.length > 0) {
+    const deniedProductsQuery = ` id != ALL($${paramIndex}::int[]) `;
+    countQuery += ` AND ${deniedProductsQuery}`;
+    dataQuery += ` AND ${deniedProductsQuery}`;
+    queryParams.push(deniedProductIds);
     paramIndex++;
   }
 
@@ -313,8 +343,11 @@ const findProductGroupsDetails = async (groupCodes) => {
   }
 };
 
-const findProductById = async (productId, deniedGroups = []) => {
+const findProductById = async (productId, deniedGroups = [], deniedProductIds = []) => {
   try {
+    if (deniedProductIds && deniedProductIds.includes(parseInt(productId))) {
+      return null;
+    }
     let query = `
       SELECT 
         id, code, description, price, brand, 
@@ -419,24 +452,25 @@ const findProductsByGroup = async (
   groupCode,
   limit,
   offset,
-  deniedGroups = []
+  deniedGroups = [],
+  deniedProductIds = []
 ) => {
   if (deniedGroups.includes(groupCode)) {
     console.log(`[DEBUG] Acceso denegado al grupo ${groupCode}.`);
     return { products: [], totalProducts: 0, groupName: '' };
   }
 
-  const countQuery =
+  let countQuery =
     'SELECT COUNT(*) FROM products WHERE product_group = $1 AND price > 0 AND description IS NOT NULL';
-  const dataQuery = `
+  let dataQuery = `
     SELECT 
       id, code, description, price, brand, 
       capacity_description, moneda, cotizacion, product_group,
       stock_disponible, stock_de_seguridad
     FROM products
     WHERE product_group = $1 AND price > 0 AND description IS NOT NULL
-    ORDER BY description ASC 
-    LIMIT $2 OFFSET $3;
+ 
+
   `;
 
   // (OPTIMIZACIÓN) Ejecución en paralelo
@@ -682,6 +716,7 @@ const getAllProductImageIds = async () => {
 module.exports = {
   findProducts,
   getDeniedProductGroups,
+  getDeniedProducts,
   findAccessories,
   findProductGroupsDetails,
   findProductById,

@@ -23,6 +23,7 @@ const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage.jsx'));
 const DashboardSettingsPage = lazy(() => import('./pages/DashboardSettingsPage.jsx'));
 const ManageOffersPage = lazy(() => import('./pages/ManageOffersPage.jsx'));
 const ClientGroupPermissionsPage = lazy(() => import('./pages/ClientGroupPermissionsPage.jsx'));
+const ClientProductPermissionsPage = lazy(() => import('./pages/ClientProductPermissionsPage.jsx'));
 const ManageAdminsPage = lazy(() => import('./pages/ManageAdminsPage.jsx'));
 const ManageContentPage = lazy(() => import('./pages/ManageContentPage.jsx'));
 const CollectionPage = lazy(() => import('./pages/CollectionPage.jsx'));
@@ -256,6 +257,14 @@ const router = createBrowserRouter(
                 <AdminRoute>
                     <Suspense fallback={<LoadingFallback />}>
                         <ClientGroupPermissionsPage />
+                    </Suspense>
+                </AdminRoute>
+            } />
+
+            <Route path="client-product-permissions" element={
+                <AdminRoute>
+                    <Suspense fallback={<LoadingFallback />}>
+                        <ClientProductPermissionsPage />
                     </Suspense>
                 </AdminRoute>
             } />

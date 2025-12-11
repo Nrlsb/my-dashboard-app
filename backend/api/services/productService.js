@@ -65,6 +65,7 @@ const fetchProducts = async ({
 
     // 2. Determinar permisos
     let deniedGroups = [];
+    let deniedProductIds = [];
     if (userId) {
       // Verificar si el usuario es admin
       const userResult = await pool.query(
@@ -76,6 +77,7 @@ const fetchProducts = async ({
 
       if (!isUserAdmin) {
         deniedGroups = await productModel.getDeniedProductGroups(userId);
+        deniedProductIds = await productModel.getDeniedProducts(userId);
       }
     }
 
@@ -89,6 +91,7 @@ const fetchProducts = async ({
       search,
       brands,
       deniedGroups,
+      deniedProductIds,
       bypassCache,
     };
 

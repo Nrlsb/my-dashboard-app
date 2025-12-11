@@ -132,6 +132,45 @@ const updateUserGroupPermissions = async (userId, groups) => {
 };
 
 /**
+ * (Admin) Actualiza los permisos de productos para un usuario específico
+ */
+const updateUserProductPermissions = async (userId, productIds) => {
+  const client = await pool2.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Delete old permissions
+    await client.query(
+      'DELETE FROM user_product_permissions WHERE user_id = $1',
+      [userId]
+    );
+
+    // 2. Insert new permissions if any
+    if (productIds && productIds.length > 0) {
+      const insertQuery =
+        'INSERT INTO user_product_permissions (user_id, product_id) VALUES ($1, $2)';
+      for (const productId of productIds) {
+        await client.query(insertQuery, [userId, productId]);
+      }
+    }
+
+    await client.query('COMMIT');
+    console.log(`Denied product permissions updated for user ${userId}`);
+
+    return { success: true, message: 'Permisos de productos actualizados correctamente.' };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error(
+      `Error in updateUserProductPermissions for user ${userId}:`,
+      error
+    );
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+/**
  * (Admin) Obtiene la lista de todos los administradores.
  */
 /**
@@ -262,6 +301,7 @@ module.exports = {
   fetchAdminOrderDetails,
   getUsersForAdmin,
   updateUserGroupPermissions,
+  updateUserProductPermissions,
   getAdmins,
   addAdmin,
   removeAdmin,
