@@ -347,7 +347,7 @@ const ManageContentPage = () => {
                     {activeTab === 'ai_upload' && (
                         <div className="bg-white p-6 rounded shadow">
                             <h2 className="text-xl font-bold mb-4">Subida de Imágenes de Productos</h2>
-                            <p className="text-gray-600 mb-6">Sube imágenes y asígnalas a los productos correspondientes con ayuda de IA.</p>
+                            <p className="text-gray-600 mb-6">Sube imágenes y asígnalas a los productos correspondientes.</p>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                 <input
