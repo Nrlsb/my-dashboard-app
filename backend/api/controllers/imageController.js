@@ -79,40 +79,51 @@ const uploadAndAnalyzeImage = async (req, res) => {
                         }
 
                     } else {
-                        // Fallback: Use filename keywords AND AI keywords with OR logic
-                        // Clean filename: remove extension, remove common words like 'removebg', 'preview'
-                        const cleanFileName = originalName.replace(/\.[^/.]+$/, "").replace(/-|_/g, " ");
+                        // Fallback: Use filename keywords AND AI keywords
+                        // STRATEGY: Prioritize AI Code/Brand if available
 
-                        // Prepare ignore list
-                        const ignoreList = ['removebg', 'preview', 'image', 'img', 'copy', 'copia'];
-                        if (ignoreWords) {
-                            const customIgnores = ignoreWords.split(/[\s,]+/).map(w => w.toLowerCase().trim()).filter(w => w.length > 0);
-                            ignoreList.push(...customIgnores);
+                        // 1. If AI found a code, try to search by code FIRST (High Precision)
+                        if (aiResult && aiResult.code) {
+                            queryConditions.push(`code ILIKE $${paramCount}`);
+                            queryParams.push(`%${aiResult.code}%`);
+                            paramCount++;
                         }
-
-                        // Combine filename keywords and AI keywords
-                        let searchTerms = cleanFileName.split(' ')
-                            .filter(w => w.length > 2)
-                            .filter(w => !ignoreList.includes(w.toLowerCase()));
-
-                        if (aiResult && aiResult.keywords && Array.isArray(aiResult.keywords)) {
-                            searchTerms = [...searchTerms, ...aiResult.keywords];
+                        // 2. If no code, but AI found brand/name, try strict description match
+                        else if (aiResult && aiResult.brand && aiResult.name) {
+                            // Try to find products that have BOTH brand and name parts
+                            queryConditions.push(`(description ILIKE $${paramCount} AND description ILIKE $${paramCount + 1})`);
+                            queryParams.push(`%${aiResult.brand}%`);
+                            queryParams.push(`%${aiResult.name.split(' ')[0]}%`); // First word of name
+                            paramCount += 2;
                         }
+                        // 3. Fallback: Broad Search (Bag of Words)
+                        else {
+                            const cleanFileName = originalName.replace(/\.[^/.]+$/, "").replace(/-|_/g, " ");
+                            const ignoreList = ['removebg', 'preview', 'image', 'img', 'copy', 'copia'];
 
-                        // Add AI code and brand if available
-                        if (aiResult.code) searchTerms.unshift(aiResult.code);
-                        if (aiResult.brand) searchTerms.push(aiResult.brand);
+                            if (ignoreWords) {
+                                const customIgnores = ignoreWords.split(/[\s,]+/).map(w => w.toLowerCase().trim()).filter(w => w.length > 0);
+                                ignoreList.push(...customIgnores);
+                            }
 
-                        // Deduplicate
-                        searchTerms = [...new Set(searchTerms)];
+                            let searchTerms = cleanFileName.split(' ')
+                                .filter(w => w.length > 2)
+                                .filter(w => !ignoreList.includes(w.toLowerCase()));
 
-                        if (searchTerms.length > 0) {
-                            // Use up to 6 keywords (increased from 4)
-                            searchTerms.slice(0, 6).forEach(kw => {
-                                queryConditions.push(`(description ILIKE $${paramCount} OR code ILIKE $${paramCount})`);
-                                queryParams.push(`%${kw}%`);
-                                paramCount++;
-                            });
+                            if (aiResult && aiResult.keywords && Array.isArray(aiResult.keywords)) {
+                                searchTerms = [...searchTerms, ...aiResult.keywords];
+                            }
+
+                            // Deduplicate
+                            searchTerms = [...new Set(searchTerms)];
+
+                            if (searchTerms.length > 0) {
+                                searchTerms.slice(0, 6).forEach(kw => {
+                                    queryConditions.push(`(description ILIKE $${paramCount} OR code ILIKE $${paramCount})`);
+                                    queryParams.push(`%${kw}%`);
+                                    paramCount++;
+                                });
+                            }
                         }
                     }
 
