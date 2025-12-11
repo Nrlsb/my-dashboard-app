@@ -38,6 +38,7 @@ const ManageContentPage = () => {
     const [uploadIgnore, setUploadIgnore] = useState('');
     const [uploadBrand, setUploadBrand] = useState(''); // New state for manual brand
     const [uploadResults, setUploadResults] = useState([]);
+    const [selectedProductsMap, setSelectedProductsMap] = useState({}); // { [resultIndex]: [productId1, productId2] }
     const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
@@ -215,14 +216,30 @@ const ManageContentPage = () => {
         }
     };
 
-    const handleAssignImage = async (imageUrl, productId) => {
+    const toggleProductSelection = (resultIndex, productId) => {
+        setSelectedProductsMap(prev => {
+            const currentSelected = prev[resultIndex] || [];
+            const isSelected = currentSelected.includes(productId);
+
+            if (isSelected) {
+                return { ...prev, [resultIndex]: currentSelected.filter(id => id !== productId) };
+            } else {
+                return { ...prev, [resultIndex]: [...currentSelected, productId] };
+            }
+        });
+    };
+
+    const handleAssignImage = async (imageUrl, productIds) => {
+        // Ensure productIds is an array
+        const idsToAssign = Array.isArray(productIds) ? productIds : [productIds];
+
         try {
-            await apiService.assignImageToProducts(imageUrl, [productId]);
+            await apiService.assignImageToProducts(imageUrl, idsToAssign);
             toast.success('Imagen asignada correctamente');
             // Update local state to show success
             setUploadResults(prev => prev.map(item => {
                 if (item.imageUrl === imageUrl) {
-                    return { ...item, assigned: true, assignedTo: productId };
+                    return { ...item, assigned: true, assignedTo: idsToAssign };
                 }
                 return item;
             }));
@@ -430,7 +447,7 @@ const ManageContentPage = () => {
                                                                                 </div>
                                                                                 {!result.assigned && (
                                                                                     <button
-                                                                                        onClick={() => handleAssignImage(result.imageUrl, bestMatch.id)}
+                                                                                        onClick={() => handleAssignImage(result.imageUrl, [bestMatch.id])}
                                                                                         className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700 shadow-sm"
                                                                                     >
                                                                                         Aceptar
@@ -452,27 +469,49 @@ const ManageContentPage = () => {
                                                 </div>
 
                                                 <div className="mt-4">
-                                                    <p className="font-bold text-sm mb-2 text-gray-700">Productos Sugeridos:</p>
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <p className="font-bold text-sm text-gray-700">Productos Sugeridos:</p>
+                                                        {!result.assigned && (selectedProductsMap[idx] || []).length > 0 && (
+                                                            <button
+                                                                onClick={() => handleAssignImage(result.imageUrl, selectedProductsMap[idx])}
+                                                                className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 shadow-sm flex items-center gap-1"
+                                                            >
+                                                                <Check size={14} /> Confirmar Selección ({selectedProductsMap[idx].length})
+                                                            </button>
+                                                        )}
+                                                    </div>
+
                                                     {result.foundProducts && result.foundProducts.length > 0 ? (
                                                         <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                                                             {result.foundProducts.map(prod => {
                                                                 const isBestMatch = result.aiSelection?.bestMatchId === prod.id;
+                                                                const isSelected = (selectedProductsMap[idx] || []).includes(prod.id);
+
                                                                 return (
-                                                                    <div key={prod.id} className={`flex justify-between items-center p-2 rounded border transition ${isBestMatch ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-300' : 'bg-white hover:border-blue-300'}`}>
-                                                                        <div>
-                                                                            <p className="font-bold text-sm">{prod.description}</p>
-                                                                            <p className="text-xs text-gray-500">Código: {prod.code} | Stock: {prod.stock}</p>
+                                                                    <div
+                                                                        key={prod.id}
+                                                                        onClick={() => !result.assigned && toggleProductSelection(idx, prod.id)}
+                                                                        className={`flex justify-between items-center p-2 rounded border transition cursor-pointer ${isSelected
+                                                                            ? 'bg-blue-100 border-blue-400 ring-1 ring-blue-400'
+                                                                            : isBestMatch
+                                                                                ? 'bg-blue-50 border-blue-300'
+                                                                                : 'bg-white hover:bg-gray-50'
+                                                                            } ${result.assigned ? 'opacity-60 cursor-default' : ''}`}
+                                                                    >
+                                                                        <div className="flex items-center gap-3">
+                                                                            {!result.assigned && (
+                                                                                <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-400 bg-white'}`}>
+                                                                                    {isSelected && <Check size={10} className="text-white" />}
+                                                                                </div>
+                                                                            )}
+                                                                            <div>
+                                                                                <p className="font-bold text-sm">{prod.description}</p>
+                                                                                <p className="text-xs text-gray-500">Código: {prod.code} | Stock: {prod.stock}</p>
+                                                                            </div>
                                                                         </div>
-                                                                        {!result.assigned && (
-                                                                            <button
-                                                                                onClick={() => handleAssignImage(result.imageUrl, prod.id)}
-                                                                                className="bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600 transition"
-                                                                            >
-                                                                                Asignar
-                                                                            </button>
-                                                                        )}
-                                                                        {result.assigned && result.assignedTo === prod.id && (
-                                                                            <span className="text-green-600 text-xs font-bold">Seleccionado</span>
+
+                                                                        {result.assigned && result.assignedTo && result.assignedTo.includes(prod.id) && (
+                                                                            <span className="text-green-600 text-xs font-bold">Asignado</span>
                                                                         )}
                                                                     </div>
                                                                 );
