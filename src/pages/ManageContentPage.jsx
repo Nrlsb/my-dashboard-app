@@ -359,7 +359,7 @@ const ManageContentPage = () => {
                                 />
                                 <input
                                     type="text"
-                                    placeholder="Marca (Opcional, ej: '3D')"
+                                    placeholder="Marca (Opcional, ej: '3D', 'Meguiars')"
                                     value={uploadBrand}
                                     onChange={(e) => setUploadBrand(e.target.value)}
                                     className="border p-2 rounded w-full"
