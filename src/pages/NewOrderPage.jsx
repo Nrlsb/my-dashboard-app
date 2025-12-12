@@ -401,6 +401,12 @@ const NewOrderPage = () => {
               </div>
             </div>
 
+            <div className="bg-blue-50 border-l-4 border-espint-blue p-4 mb-4 rounded-r-lg">
+              <p className="text-sm text-blue-900">
+                <strong>Nota:</strong> Seleccione los productos de la lista para agregarlos al pedido.
+              </p>
+            </div>
+
             <div className="space-y-4">{renderProductList()}</div>
 
             {totalPages > 1 && (
