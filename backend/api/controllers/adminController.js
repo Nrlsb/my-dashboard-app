@@ -1,6 +1,6 @@
 const adminService = require('../services/adminService');
 const userService = require('../services/userService');
-const { getDeniedProductGroups, getDeniedProducts } = require('../models/productModel');
+const { getDeniedProductGroups, getDeniedProducts, getGlobalDeniedProducts } = require('../models/productModel');
 const catchAsync = require('../utils/catchAsync');
 
 exports.fetchAdminOrderDetails = catchAsync(async (req, res) => {
@@ -57,6 +57,18 @@ exports.updateUserProductPermissionsController = catchAsync(async (req, res) => 
         userId,
         productIds
     );
+    res.json(result);
+});
+
+exports.getGlobalDeniedProductsController = catchAsync(async (req, res) => {
+    console.log(`GET /api/admin/global-restrictions -> Admin ${req.userId} fetching global restrictions...`);
+    const permissions = await getGlobalDeniedProducts();
+    res.json(permissions);
+});
+
+exports.updateGlobalProductPermissionsController = catchAsync(async (req, res) => {
+    const { productIds } = req.body;
+    const result = await adminService.updateGlobalProductPermissions(productIds);
     res.json(result);
 });
 

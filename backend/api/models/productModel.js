@@ -713,6 +713,24 @@ const getAllProductImageIds = async () => {
   }
 };
 
+/**
+ * Obtiene los IDs de productos denegados globalmente.
+ * @returns {Promise<number[]>} - Una promesa que se resuelve con un array de IDs de productos denegados globalmente.
+ */
+const getGlobalDeniedProducts = async () => {
+  try {
+    const query = `
+      SELECT product_id 
+      FROM global_product_permissions;
+    `;
+    const result = await pool2.query(query);
+    return result.rows.map((row) => row.product_id);
+  } catch (error) {
+    console.error('Error in getGlobalDeniedProducts:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   findProducts,
   getDeniedProductGroups,
@@ -739,4 +757,5 @@ module.exports = {
   invalidatePermissionsCache,
   getProductImages,
   getAllProductImageIds,
+  getGlobalDeniedProducts,
 };

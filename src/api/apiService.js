@@ -318,6 +318,17 @@ const apiService = {
     });
   },
 
+  getGlobalDeniedProducts() {
+    return this.request('/admin/global-restrictions');
+  },
+
+  updateGlobalProductPermissions(productIds) {
+    return this.request('/admin/global-restrictions', {
+      method: 'PUT',
+      body: { productIds },
+    });
+  },
+
   getAdmins() {
     return this.request('/admin/management/admins');
   },

@@ -16,6 +16,8 @@ const {
   getAllClientsController,
   getDeniedProductsByUserController,
   updateUserProductPermissionsController,
+  getGlobalDeniedProductsController,
+  updateGlobalProductPermissionsController,
 } = require('../controllers/adminController');
 const {
   getAdminDashboardPanelsController,
@@ -57,6 +59,9 @@ router.put(
   requireAdmin,
   updateUserProductPermissionsController
 );
+
+router.get('/global-restrictions', requireAdmin, getGlobalDeniedProductsController);
+router.put('/global-restrictions', requireAdmin, updateGlobalProductPermissionsController);
 
 router.get('/dashboard-panels', requireAdmin, getAdminDashboardPanelsController);
 

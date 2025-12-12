@@ -171,6 +171,39 @@ const updateUserProductPermissions = async (userId, productIds) => {
 };
 
 /**
+ * (Admin) Actualiza los permisos globales de productos
+ */
+const updateGlobalProductPermissions = async (productIds) => {
+  const client = await pool2.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Delete old permissions
+    await client.query('DELETE FROM global_product_permissions');
+
+    // 2. Insert new permissions if any
+    if (productIds && productIds.length > 0) {
+      const insertQuery =
+        'INSERT INTO global_product_permissions (product_id) VALUES ($1)';
+      for (const productId of productIds) {
+        await client.query(insertQuery, [productId]);
+      }
+    }
+
+    await client.query('COMMIT');
+    console.log('Global denied product permissions updated');
+
+    return { success: true, message: 'Restricciones globales actualizadas correctamente.' };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error in updateGlobalProductPermissions:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+/**
  * (Admin) Obtiene la lista de todos los administradores.
  */
 /**
@@ -306,5 +339,6 @@ module.exports = {
   addAdmin,
   removeAdmin,
   getProductGroupsForAdmin,
+  updateGlobalProductPermissions,
 };
 

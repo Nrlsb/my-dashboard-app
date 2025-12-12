@@ -81,6 +81,25 @@ const fetchProducts = async ({
       }
     }
 
+    // Global restrictions for non-admins (or if no user is logged in, assuming public view might need restrictions too, but usually public view is limited anyway. Let's apply to non-admins)
+    if (userId) {
+      const userResult = await pool.query(
+        'SELECT is_admin FROM users WHERE id = $1',
+        [userId]
+      );
+      const isUserAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin;
+
+      if (!isUserAdmin) {
+        const globalDeniedIds = await productModel.getGlobalDeniedProducts();
+        // Merge with existing deniedProductIds
+        deniedProductIds = [...new Set([...deniedProductIds, ...globalDeniedIds])];
+      }
+    } else {
+      // If no user (public?), apply global restrictions
+      const globalDeniedIds = await productModel.getGlobalDeniedProducts();
+      deniedProductIds = [...new Set([...deniedProductIds, ...globalDeniedIds])];
+    }
+
     // 3. Preparar filtros para el modelo
     const offset = (page - 1) * limit;
     const brands = brand ? brand.split(',') : [];
