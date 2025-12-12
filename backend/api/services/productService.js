@@ -253,7 +253,7 @@ const getProductGroupsDetails = async (userId) => {
           return {
             group_code: group.reference_id,
             name: name,
-            image_url: imageUrl,
+            imageUrl: imageUrl,
             type: 'static_group',
             id: group.id
           };
@@ -262,7 +262,7 @@ const getProductGroupsDetails = async (userId) => {
             group_code: null,
             collection_id: group.id,
             name: group.name,
-            image_url: group.image_url || `https://placehold.co/150/2D3748/FFFFFF?text=${encodeURIComponent(group.name)}`,
+            imageUrl: group.image_url || `https://placehold.co/150/2D3748/FFFFFF?text=${encodeURIComponent(group.name)}`,
             type: 'custom_collection',
             id: group.id
           };

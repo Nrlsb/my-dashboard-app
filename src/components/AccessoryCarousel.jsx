@@ -91,7 +91,7 @@ const AccessoryCarousel = () => {
             onClick={() => handleAccessoryClick(item.id)}
           >
             <img
-              src={item.image_url}
+              src={item.imageUrl}
               alt={item.name}
               className="w-full h-30 object-cover"
             />
