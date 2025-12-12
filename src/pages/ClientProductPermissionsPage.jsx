@@ -13,6 +13,9 @@ const ClientProductPermissionsPage = () => {
     const [isSearching, setIsSearching] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState('');
+    const [filterRestricted, setFilterRestricted] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
 
     useEffect(() => {
         const fetchPermissions = async () => {
@@ -68,6 +71,27 @@ const ClientProductPermissionsPage = () => {
 
         return () => clearTimeout(delayDebounceFn);
     }, [productSearch]);
+
+    // Reset page when filter changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filterRestricted]);
+
+    // Filter and paginate logic
+    const filteredDeniedProducts = deniedProductsDetails.filter(product =>
+        product.name.toLowerCase().includes(filterRestricted.toLowerCase()) ||
+        product.code.toLowerCase().includes(filterRestricted.toLowerCase())
+    );
+
+    const totalPages = Math.ceil(filteredDeniedProducts.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const currentDeniedProducts = filteredDeniedProducts.slice(startIndex, startIndex + itemsPerPage);
+
+    const handlePageChange = (newPage) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            setCurrentPage(newPage);
+        }
+    };
 
     const handleAddProduct = (product) => {
         if (!deniedProductIds.includes(product.id)) {
@@ -169,29 +193,63 @@ const ClientProductPermissionsPage = () => {
 
                 <h3 className="mt-0 mb-4 border-b pb-2 text-xl font-semibold text-gray-700">Productos Restringidos Globalmente ({deniedProductIds.length})</h3>
 
+                <div className="mb-4">
+                    <input
+                        type="text"
+                        value={filterRestricted}
+                        onChange={(e) => setFilterRestricted(e.target.value)}
+                        placeholder="Filtrar lista de restringidos..."
+                        className="p-2 rounded border border-gray-300 w-full text-sm"
+                    />
+                </div>
+
                 {isLoading ? (
                     <LoadingSpinner text="Cargando productos..." />
                 ) : (
-                    <div className="space-y-2 mb-8">
-                        {deniedProductsDetails.length === 0 ? (
-                            <p className="text-gray-500 italic">No hay productos restringidos globalmente.</p>
-                        ) : (
-                            deniedProductsDetails.map((product) => (
-                                <div key={product.id} className="flex justify-between items-center p-3 bg-red-50 border border-red-100 rounded">
-                                    <div>
-                                        <span className="font-medium">{product.name}</span>
-                                        <span className="text-gray-500 text-sm ml-2">({product.code})</span>
+                    <>
+                        <div className="space-y-2 mb-4">
+                            {currentDeniedProducts.length === 0 ? (
+                                <p className="text-gray-500 italic">No hay productos que coincidan.</p>
+                            ) : (
+                                currentDeniedProducts.map((product) => (
+                                    <div key={product.id} className="flex justify-between items-center p-3 bg-red-50 border border-red-100 rounded">
+                                        <div>
+                                            <span className="font-medium">{product.name}</span>
+                                            <span className="text-gray-500 text-sm ml-2">({product.code})</span>
+                                        </div>
+                                        <button
+                                            onClick={() => handleRemoveProduct(product.id)}
+                                            className="text-red-600 hover:text-red-800 font-semibold"
+                                        >
+                                            Quitar
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => handleRemoveProduct(product.id)}
-                                        className="text-red-600 hover:text-red-800 font-semibold"
-                                    >
-                                        Quitar
-                                    </button>
-                                </div>
-                            ))
+                                ))
+                            )}
+                        </div>
+
+                        {totalPages > 1 && (
+                            <div className="flex justify-between items-center mb-8">
+                                <button
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 hover:bg-gray-300 transition-colors"
+                                >
+                                    Anterior
+                                </button>
+                                <span className="text-sm text-gray-600">
+                                    Página {currentPage} de {totalPages}
+                                </span>
+                                <button
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 hover:bg-gray-300 transition-colors"
+                                >
+                                    Siguiente
+                                </button>
+                            </div>
                         )}
-                    </div>
+                    </>
                 )}
 
                 <button
