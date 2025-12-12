@@ -12,6 +12,7 @@ import {
   UserCog,
   Tag,
   Layers,
+  BarChart2,
 } from 'lucide-react';
 import logo from '../assets/espintBlanco.svg';
 
@@ -114,6 +115,13 @@ const Header = ({ onLogout, currentUser }) => {
                     )}
                     {currentUser?.is_admin && (
                       <>
+                        <button
+                          onClick={() => handleNavigation('/analytics')}
+                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                        >
+                          <BarChart2 className="w-5 h-5 mr-3 text-gray-500" />
+                          Panel de Análisis
+                        </button>
                         <button
                           onClick={() => handleNavigation('/dashboard-settings')}
                           className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"

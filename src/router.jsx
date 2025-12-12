@@ -33,6 +33,7 @@ const ChangePasswordPage = lazy(() => import('./pages/ChangePasswordPage.jsx'));
 const VendedorAccountBalancePage = lazy(() => import('./pages/VendedorAccountBalancePage.jsx'));
 const VendedorOrderHistoryPage = lazy(() => import('./pages/VendedorOrderHistoryPage.jsx'));
 const ImageUpload = lazy(() => import('./components/ImageUpload.jsx'));
+const AdminAnalyticsPage = lazy(() => import('./pages/AdminAnalyticsPage.jsx'));
 
 // Error Element for Dashboard
 const DashboardError = () => (
@@ -283,6 +284,14 @@ const router = createBrowserRouter(
                         <ManageContentPage />
                     </Suspense>
                 </MarketingRoute>
+            } />
+
+            <Route path="analytics" element={
+                <AdminRoute>
+                    <Suspense fallback={<LoadingFallback />}>
+                        <AdminAnalyticsPage />
+                    </Suspense>
+                </AdminRoute>
             } />
 
             <Route path="upload-images" element={

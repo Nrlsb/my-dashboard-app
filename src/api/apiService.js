@@ -421,6 +421,19 @@ const apiService = {
       body: { imageUrl, productIds, replace },
     });
   },
+
+  recordVisit(path) {
+    return this.request('/analytics/visit', {
+      method: 'POST',
+      body: { path },
+    });
+  },
+
+  getAnalytics(days = 30) {
+    return this.request('/analytics/stats', {
+      params: { days },
+    });
+  },
 };
 
 export default apiService;

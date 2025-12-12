@@ -11,6 +11,8 @@ import Header from './components/Header.jsx';
 import { Outlet } from 'react-router-dom';
 // import AppRoutes from './AppRoutes.jsx'; // Removed
 
+import AnalyticsTracker from './components/AnalyticsTracker';
+
 // --- Componente Raíz ---
 function App() {
   const { isAuthenticated, user, loading, logout, firstLogin } = useAuth();
@@ -37,6 +39,7 @@ function App() {
 
   return (
     <div className="app-container flex flex-col min-h-screen">
+      <AnalyticsTracker />
       {isAuthenticated && !firstLogin && (
         <Header onLogout={handleLogout} currentUser={user} />
       )}
