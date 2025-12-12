@@ -727,6 +727,10 @@ const getGlobalDeniedProducts = async () => {
     return result.rows.map((row) => row.product_id);
   } catch (error) {
     console.error('Error in getGlobalDeniedProducts:', error);
+    if (error.code === '42P01') {
+      console.warn('[WARNING] Table global_product_permissions does not exist. Skipping global restrictions.');
+      return [];
+    }
     throw error;
   }
 };
