@@ -2,7 +2,7 @@ import React, { Suspense } from 'react';
 import { createBrowserRouter, createRoutesFromElements, Route, Navigate } from 'react-router-dom';
 import App from './App';
 import { lazyImport } from './utils/lazyImport';
-import { ProtectedRoute, AdminRoute, MarketingRoute, LoadingFallback, PublicRoute, ClientRoute } from './components/RouteGuards';
+import { ProtectedRoute, AdminRoute, MarketingRoute, LoadingFallback, PublicRoute, ClientRoute, PermissionRoute } from './components/RouteGuards';
 
 
 // --- Carga diferida (Lazy Loading) de Páginas ---
@@ -272,11 +272,11 @@ const router = createBrowserRouter(
             } />
 
             <Route path="manage-admins" element={
-                <AdminRoute>
+                <PermissionRoute permission="manage_admins">
                     <Suspense fallback={<LoadingFallback />}>
                         <ManageAdminsPage />
                     </Suspense>
-                </AdminRoute>
+                </PermissionRoute>
             } />
 
             <Route path="manage-content" element={
@@ -288,11 +288,11 @@ const router = createBrowserRouter(
             } />
 
             <Route path="analytics" element={
-                <AdminRoute>
+                <PermissionRoute permission="view_analytics">
                     <Suspense fallback={<LoadingFallback />}>
                         <AdminAnalyticsPage />
                     </Suspense>
-                </AdminRoute>
+                </PermissionRoute>
             } />
 
             <Route path="upload-images" element={

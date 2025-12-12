@@ -29,7 +29,7 @@ const { authenticateToken, requireAdmin } = require('../middleware/auth');
 // Todas las rutas en este archivo requieren autenticación.
 router.use(authenticateToken);
 
-const { requireMarketingOrAdmin } = require('../middleware/roleAuth');
+const { requireMarketingOrAdmin, requirePermission } = require('../middleware/roleAuth');
 
 router.post('/credit-note', requireAdmin, createCreditNoteController);
 
@@ -37,7 +37,7 @@ router.get('/customer-invoices/:cod', requireAdmin, getCustomerInvoicesControlle
 
 router.get('/order-details/:id', requireAdmin, fetchAdminOrderDetails);
 
-router.get('/users', requireAdmin, getUsersForAdmin);
+router.get('/users', requirePermission('manage_admins'), getUsersForAdmin);
 
 router.get('/product-groups', requireAdmin, getProductGroupsForAdmin);
 
@@ -68,17 +68,17 @@ router.get('/dashboard-panels', requireAdmin, getAdminDashboardPanelsController)
 
 router.put('/dashboard-panels/:id', requireAdmin, updateDashboardPanelController);
 
-router.get('/management/admins', requireAdmin, getAdmins);
+router.get('/management/admins', requirePermission('manage_admins'), getAdmins);
 
-router.post('/management/admins', requireAdmin, addAdmin);
+router.post('/management/admins', requirePermission('manage_admins'), addAdmin);
 
-router.delete('/management/admins/:userId', requireAdmin, removeAdmin);
+router.delete('/management/admins/:userId', requirePermission('manage_admins'), removeAdmin);
 
 // Role Management
-router.get('/roles', requireAdmin, roleController.getRoles);
-router.post('/roles', requireAdmin, roleController.createRole);
-router.put('/roles/:id', requireAdmin, roleController.updateRole);
-router.delete('/roles/:id', requireAdmin, roleController.deleteRole);
+router.get('/roles', requirePermission('manage_admins'), roleController.getRoles);
+router.post('/roles', requirePermission('manage_admins'), roleController.createRole);
+router.put('/roles/:id', requirePermission('manage_admins'), roleController.updateRole);
+router.delete('/roles/:id', requirePermission('manage_admins'), roleController.deleteRole);
 
 // (NUEVO) Ruta para obtener todos los clientes
 router.get('/clients', requireAdmin, getAllClientsController); // Add the new route

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom'; // Importar useNavigate
+import { useAuth } from '../context/AuthContext.jsx';
 import { useCart } from '../context/CartContext.jsx';
 import {
   Building,
@@ -19,6 +20,7 @@ import logo from '../assets/espintBlanco.svg';
 const Header = ({ onLogout, currentUser }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const navigate = useNavigate(); // Usar el hook
+  const { hasPermission } = useAuth();
   const { cart } = useCart();
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -95,33 +97,35 @@ const Header = ({ onLogout, currentUser }) => {
                       <User className="w-5 h-5 mr-3 text-gray-500" />
                       Mi Perfil
                     </button>
-                    {(currentUser?.is_admin || currentUser?.role === 'marketing') && (
-                      <>
-                        <button
-                          onClick={() => handleNavigation('/manage-offers')}
-                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                        >
-                          <Tag className="w-5 h-5 mr-3 text-gray-500" />
-                          Gestionar Ofertas
-                        </button>
-                        <button
-                          onClick={() => handleNavigation('/manage-content')}
-                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                        >
-                          <Layers className="w-5 h-5 mr-3 text-gray-500" />
-                          Gestionar Contenido
-                        </button>
-                      </>
+                    {(currentUser?.is_admin || currentUser?.role === 'marketing' || hasPermission('manage_offers')) && (
+                      <button
+                        onClick={() => handleNavigation('/manage-offers')}
+                        className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                      >
+                        <Tag className="w-5 h-5 mr-3 text-gray-500" />
+                        Gestionar Ofertas
+                      </button>
+                    )}
+                    {(currentUser?.is_admin || currentUser?.role === 'marketing' || hasPermission('manage_content')) && (
+                      <button
+                        onClick={() => handleNavigation('/manage-content')}
+                        className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                      >
+                        <Layers className="w-5 h-5 mr-3 text-gray-500" />
+                        Gestionar Contenido
+                      </button>
+                    )}
+                    {(currentUser?.is_admin || hasPermission('view_analytics')) && (
+                      <button
+                        onClick={() => handleNavigation('/analytics')}
+                        className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                      >
+                        <BarChart2 className="w-5 h-5 mr-3 text-gray-500" />
+                        Panel de Análisis
+                      </button>
                     )}
                     {currentUser?.is_admin && (
                       <>
-                        <button
-                          onClick={() => handleNavigation('/analytics')}
-                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                        >
-                          <BarChart2 className="w-5 h-5 mr-3 text-gray-500" />
-                          Panel de Análisis
-                        </button>
                         <button
                           onClick={() => handleNavigation('/dashboard-settings')}
                           className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
@@ -147,21 +151,25 @@ const Header = ({ onLogout, currentUser }) => {
                           <Users className="w-5 h-5 mr-3 text-gray-500" />
                           Permisos Productos
                         </button>
-                        <button
-                          onClick={() => handleNavigation('/manage-admins')}
-                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                        >
-                          <UserCog className="w-5 h-5 mr-3 text-gray-500" />
-                          Gestionar Admins
-                        </button>
-                        <button
-                          onClick={() => handleNavigation('/upload-images')}
-                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                        >
-                          <Tag className="w-5 h-5 mr-3 text-gray-500" />
-                          Subir Imágenes
-                        </button>
                       </>
+                    )}
+                    {(currentUser?.is_admin || hasPermission('manage_admins')) && (
+                      <button
+                        onClick={() => handleNavigation('/manage-admins')}
+                        className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                      >
+                        <UserCog className="w-5 h-5 mr-3 text-gray-500" />
+                        Gestionar Admins
+                      </button>
+                    )}
+                    {currentUser?.is_admin && (
+                      <button
+                        onClick={() => handleNavigation('/upload-images')}
+                        className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                      >
+                        <Tag className="w-5 h-5 mr-3 text-gray-500" />
+                        Subir Imágenes
+                      </button>
                     )}
                     <button
                       onClick={handleLogoutClick}
