@@ -12,16 +12,16 @@ const { getImageUrl } = require('./cloudinaryService');
 const enrichProductsWithImages = async (products) => {
   if (!products || products.length === 0) return products;
 
-  const productIds = products.map(p => p.id);
-  const dbImages = await getProductImages(productIds);
+  const productCodes = products.map(p => p.code).filter(c => c != null);
+  const dbImages = await getProductImages(productCodes);
 
   const imageMap = new Map();
   dbImages.forEach(img => {
-    imageMap.set(img.product_id, img.image_url);
+    imageMap.set(img.product_code, img.image_url);
   });
 
   return products.map(p => {
-    const dbImage = imageMap.get(p.id);
+    const dbImage = imageMap.get(p.code);
     if (dbImage) {
       return { ...p, imageUrl: dbImage };
     }
@@ -116,16 +116,16 @@ const fetchProducts = async ({
 
     // Filtro por imagen (cross-database)
     if (hasImage === 'true') {
-      const imageIds = await productModel.getAllProductImageIds();
-      if (imageIds.length === 0) {
+      const imageCodes = await productModel.getAllProductImageCodes();
+      if (imageCodes.length === 0) {
         // Si no hay imágenes, y piden con imagen, devolvemos vacío directamente
         return { products: [], totalProducts: 0 };
       }
-      filters.allowedIds = imageIds;
+      filters.allowedIds = imageCodes; // Passing codes to allowedIds (model handles it)
     } else if (hasImage === 'false') {
-      const imageIds = await productModel.getAllProductImageIds();
-      if (imageIds.length > 0) {
-        filters.excludedIds = imageIds;
+      const imageCodes = await productModel.getAllProductImageCodes();
+      if (imageCodes.length > 0) {
+        filters.excludedIds = imageCodes; // Passing codes to excludedIds (model handles it)
       }
     }
 

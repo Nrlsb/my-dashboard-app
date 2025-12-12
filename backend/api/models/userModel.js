@@ -97,17 +97,22 @@ const createUser = async (userData, passwordHash) => {
  */
 const getUserRoleFromDB2 = async (userId) => {
   try {
+    // Get user code (a1_cod) from DB1
+    const userResult = await pool.query('SELECT a1_cod FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) return null;
+    const userCode = userResult.rows[0].a1_cod;
+
     // Check admin
     const adminCheck = await pool2.query(
-      'SELECT 1 FROM admins WHERE user_id = $1',
-      [userId]
+      'SELECT 1 FROM admins WHERE user_code = $1',
+      [userCode]
     );
     if (adminCheck.rows.length > 0) return 'admin';
 
     // Check marketing
     const marketingCheck = await pool2.query(
-      'SELECT 1 FROM marketing_users WHERE user_id = $1',
-      [userId]
+      'SELECT 1 FROM marketing_users WHERE user_code = $1',
+      [userCode]
     );
     if (marketingCheck.rows.length > 0) return 'marketing';
 

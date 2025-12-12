@@ -21,8 +21,12 @@ const getOnOfferData = async (bypassCache = false) => {
   }
 
   try {
+    // Updated to select product_code if available, but for now we keep ID for compatibility with internal logic if needed,
+    // BUT we should prefer code.
+    // The table product_offer_status now has product_code.
+    // Let's select both.
     const result = await pool2.query(
-      'SELECT product_id, custom_title, custom_description, custom_image_url FROM product_offer_status WHERE is_on_offer = true'
+      'SELECT product_id, product_code, custom_title, custom_description, custom_image_url FROM product_offer_status WHERE is_on_offer = true'
     );
 
     if (isRedisReady()) {
@@ -48,6 +52,15 @@ const getOnOfferProductIds = async (bypassCache = false) => {
 };
 
 /**
+ * Función interna para obtener solo los Códigos de productos en oferta.
+ * @returns {Promise<string[]>}
+ */
+const getOnOfferProductCodes = async (bypassCache = false) => {
+  const data = await getOnOfferData(bypassCache);
+  return data.map(item => item.product_code).filter(code => code != null);
+};
+
+/**
  * Obtiene los grupos de productos denegados para un usuario específico.
  * Utiliza una caché en memoria para evitar consultas repetidas a la base de datos.
  * @param {number} userId - El ID del usuario.
@@ -68,12 +81,17 @@ const getDeniedProductGroups = async (userId) => {
   }
 
   try {
+    // Need user_code (a1_cod)
+    const userResult = await pool.query('SELECT a1_cod FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) return [];
+    const userCode = userResult.rows[0].a1_cod;
+
     const query = `
       SELECT product_group 
       FROM user_product_group_permissions 
-      WHERE user_id = $1;
+      WHERE user_code = $1;
     `;
-    const result = await pool2.query(query, [userId]);
+    const result = await pool2.query(query, [userCode]);
     const deniedGroups = result.rows.map((row) => row.product_group);
 
     if (isRedisReady()) {
@@ -93,19 +111,23 @@ const getDeniedProductGroups = async (userId) => {
 };
 
 /**
- * Obtiene los IDs de productos denegados para un usuario específico.
+ * Obtiene los Códigos de productos denegados para un usuario específico.
  * @param {number} userId - El ID del usuario.
- * @returns {Promise<number[]>} - Una promesa que se resuelve con un array de IDs de productos denegados.
+ * @returns {Promise<string[]>} - Una promesa que se resuelve con un array de códigos de productos denegados.
  */
 const getDeniedProducts = async (userId) => {
   try {
+    const userResult = await pool.query('SELECT a1_cod FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) return [];
+    const userCode = userResult.rows[0].a1_cod;
+
     const query = `
-      SELECT product_id 
+      SELECT product_code 
       FROM user_product_permissions 
-      WHERE user_id = $1;
+      WHERE user_code = $1;
     `;
-    const result = await pool2.query(query, [userId]);
-    return result.rows.map((row) => row.product_id);
+    const result = await pool2.query(query, [userCode]);
+    return result.rows.map((row) => row.product_code);
   } catch (error) {
     console.error(`Error in getDeniedProducts for user ${userId}:`, error);
     if (error.code === '42P01') {
@@ -140,6 +162,7 @@ const invalidatePermissionsCache = async (userId) => {
  * @param {string} [filters.search] - Término de búsqueda para descripción o código.
  * @param {string[]} [filters.brands] - Array de marcas para filtrar.
  * @param {string[]} [filters.deniedGroups] - Array de grupos de productos a excluir.
+ * @param {string[]} [filters.deniedProductCodes] - Array de CÓDIGOS de productos a excluir (renamed from deniedProductIds).
  * @returns {Promise<{products: object[], totalProducts: number}>} - Una promesa que se resuelve con los productos y el conteo total.
  */
 const findProducts = async ({
@@ -148,9 +171,9 @@ const findProducts = async ({
   search,
   brands,
   deniedGroups,
-  deniedProductIds = [],
-  allowedIds = [],
-  excludedIds = [],
+  deniedProductIds = [], // Keeping param name for compatibility, but treat as codes if strings
+  allowedIds = [], // Treat as codes if strings
+  excludedIds = [], // Treat as codes if strings
   bypassCache = false,
 }) => {
   // Create a unique cache key based on all filter parameters
@@ -200,7 +223,8 @@ const findProducts = async ({
   }
 
   if (deniedProductIds && deniedProductIds.length > 0) {
-    const deniedProductsQuery = ` id != ALL($${paramIndex}::int[]) `;
+    // Assuming deniedProductIds are now CODES (strings)
+    const deniedProductsQuery = ` code != ALL($${paramIndex}::varchar[]) `;
     countQuery += ` AND ${deniedProductsQuery}`;
     dataQuery += ` AND ${deniedProductsQuery}`;
     queryParams.push(deniedProductIds);
@@ -208,25 +232,20 @@ const findProducts = async ({
   }
 
   // SMART SEARCH IMPLEMENTATION
-  // Split search into terms and filter out empty strings
   const searchTerms = search ? search.trim().split(/\s+/).filter(term => term.length > 0) : [];
 
   if (searchTerms.length > 0) {
-    // Create a condition for EACH term: (description LIKE %term% OR code LIKE %term%)
-    // All conditions must be true (AND logic)
     const termConditions = searchTerms.map(() => {
       const currentParamIndex = paramIndex;
       paramIndex++; // Increment for the next term
       return `(description ILIKE $${currentParamIndex} OR code ILIKE $${currentParamIndex})`;
     });
 
-    // Join all term conditions with AND
     const finalSearchQuery = ` (${termConditions.join(' AND ')}) `;
 
     countQuery += ` AND ${finalSearchQuery}`;
     dataQuery += ` AND ${finalSearchQuery}`;
 
-    // Add each term to queryParams
     searchTerms.forEach(term => {
       queryParams.push(`%${term}%`);
     });
@@ -242,7 +261,8 @@ const findProducts = async ({
   }
 
   if (allowedIds && allowedIds.length > 0) {
-    const allowedQuery = ` id = ANY($${paramIndex}::int[]) `;
+    // Assuming allowedIds are now CODES
+    const allowedQuery = ` code = ANY($${paramIndex}::varchar[]) `;
     countQuery += ` AND ${allowedQuery}`;
     dataQuery += ` AND ${allowedQuery}`;
     queryParams.push(allowedIds);
@@ -250,7 +270,8 @@ const findProducts = async ({
   }
 
   if (excludedIds && excludedIds.length > 0) {
-    const excludedQuery = ` id != ALL($${paramIndex}::int[]) `;
+    // Assuming excludedIds are now CODES
+    const excludedQuery = ` code != ALL($${paramIndex}::varchar[]) `;
     countQuery += ` AND ${excludedQuery}`;
     dataQuery += ` AND ${excludedQuery}`;
     queryParams.push(excludedIds);
@@ -261,8 +282,6 @@ const findProducts = async ({
   dataQuery += ` ORDER BY description ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
 
   try {
-    // --- Ejecutar Queries ---
-    // Optimización posible futura: Ejecutar count y data en paralelo con Promise.all si la DB soporta carga
     const [countResult, dataResult] = await Promise.all([
       pool.query(countQuery, queryParams),
       pool.query(dataQuery, [...queryParams, limit, offset])
@@ -271,16 +290,15 @@ const findProducts = async ({
     const totalProducts = parseInt(countResult.rows[0].count, 10);
     const products = dataResult.rows;
 
-    // --- Eliminada la consulta a pool2 ---
-    // Obtener la lista de IDs en oferta desde la función centralizada (caché)
-    const onOfferProductIds = await getOnOfferProductIds(bypassCache);
-    const onOfferIdsSet = new Set(onOfferProductIds);
+    // Obtener la lista de CODES en oferta desde la función centralizada (caché)
+    const onOfferProductCodes = await getOnOfferProductCodes(bypassCache);
+    const onOfferCodesSet = new Set(onOfferProductCodes);
 
     // Adjuntar el estado de la oferta a cada producto, usando la lista en memoria
     const productsWithOfferStatus = products.map((product) => ({
       ...product,
-      // la oferta será true si el ID del producto existe en el Set de ofertas
-      oferta: onOfferIdsSet.has(product.id),
+      // la oferta será true si el CODE del producto existe en el Set de ofertas
+      oferta: onOfferCodesSet.has(product.code),
     }));
 
     const resultToReturn = {
@@ -302,12 +320,6 @@ const findProducts = async ({
 
 const findAccessories = async (accessoryGroups) => {
   try {
-    // OPTIMIZACIÓN CRÍTICA: ORDER BY RANDOM() es muy lento en tablas grandes.
-    // Usamos TABLESAMPLE BERNOULLI para obtener una muestra aleatoria estadística mucho más rápida
-    // o una subconsulta CTE si se necesita precisión exacta de filtrado.
-
-    // Método híbrido robusto: Seleccionamos un subconjunto algo mayor aleatorio y luego cortamos.
-    // Si la tabla es pequeña (<10k filas), RANDOM() está bien. Si es grande, esto es necesario:
     const query = `
       WITH RandomSample AS (
         SELECT id, code, description, price, product_group
@@ -321,8 +333,6 @@ const findAccessories = async (accessoryGroups) => {
       LIMIT 20;
     `;
 
-    // Nota: Si la tabla products tiene > 100k filas, deberíamos cambiar a TABLESAMPLE SYSTEM((100 * 20 / count)::integer)
-
     const result = await pool.query(query, [accessoryGroups]);
     return result.rows;
   } catch (error) {
@@ -333,7 +343,6 @@ const findAccessories = async (accessoryGroups) => {
 
 const findProductGroupsDetails = async (groupCodes) => {
   try {
-    // Optimized query to get one product for each group code
     const query = `
       SELECT DISTINCT ON (product_group)
         product_group,
@@ -351,11 +360,9 @@ const findProductGroupsDetails = async (groupCodes) => {
   }
 };
 
-const findProductById = async (productId, deniedGroups = [], deniedProductIds = []) => {
+const findProductById = async (productId, deniedGroups = [], deniedProductCodes = []) => {
   try {
-    if (deniedProductIds && deniedProductIds.includes(parseInt(productId))) {
-      return null;
-    }
+    // Fetch product first to get its code
     let query = `
       SELECT 
         id, code, description, price, brand, 
@@ -373,7 +380,13 @@ const findProductById = async (productId, deniedGroups = [], deniedProductIds = 
     }
 
     const result = await pool.query(query, queryParams);
-    return result.rows[0];
+    const product = result.rows[0];
+
+    if (product && deniedProductCodes && deniedProductCodes.includes(product.code)) {
+      return null;
+    }
+
+    return product;
   } catch (error) {
     console.error(`Error in findProductById for ID ${productId}:`, error);
     throw error;
@@ -407,16 +420,15 @@ const findUniqueBrands = async (deniedGroups = []) => {
 
 const findOffers = async (deniedGroups = []) => {
   try {
-    // Usar la función centralizada para obtener los datos de oferta
     const offerData = await getOnOfferData();
 
     if (offerData.length === 0) {
       return [];
     }
 
-    const offerProductIds = offerData.map(o => o.product_id);
-    // Crear un mapa para acceso rápido a los detalles custom
-    const offerDetailsMap = new Map(offerData.map(o => [o.product_id, o]));
+    // Use codes
+    const offerProductCodes = offerData.map(o => o.product_code).filter(c => c != null);
+    const offerDetailsMap = new Map(offerData.map(o => [o.product_code, o]));
 
     let query = `
       SELECT
@@ -424,9 +436,9 @@ const findOffers = async (deniedGroups = []) => {
         capacity_description, moneda, cotizacion, product_group,
         stock_disponible, stock_de_seguridad
       FROM products
-      WHERE id = ANY($1::int[]) AND price > 0 AND description IS NOT NULL
+      WHERE code = ANY($1::varchar[]) AND price > 0 AND description IS NOT NULL
     `;
-    let queryParams = [offerProductIds];
+    let queryParams = [offerProductCodes];
     let paramIndex = 2;
 
     if (deniedGroups.length > 0) {
@@ -438,9 +450,8 @@ const findOffers = async (deniedGroups = []) => {
 
     const result = await pool.query(query, queryParams);
 
-    // Combinar con los datos custom
     const productsWithDetails = result.rows.map(product => {
-      const details = offerDetailsMap.get(product.id);
+      const details = offerDetailsMap.get(product.code);
       return {
         ...product,
         custom_title: details?.custom_title || null,
@@ -461,7 +472,7 @@ const findProductsByGroup = async (
   limit,
   offset,
   deniedGroups = [],
-  deniedProductIds = []
+  deniedProductCodes = [] // Renamed
 ) => {
   if (deniedGroups.includes(groupCode)) {
     console.log(`[DEBUG] Acceso denegado al grupo ${groupCode}.`);
@@ -477,14 +488,24 @@ const findProductsByGroup = async (
       stock_disponible, stock_de_seguridad
     FROM products
     WHERE product_group = $1 AND price > 0 AND description IS NOT NULL
- 
-
   `;
+
+  // Add deniedProductCodes filter
+  let queryParams = [groupCode];
+  let paramIndex = 2;
+
+  if (deniedProductCodes && deniedProductCodes.length > 0) {
+    const deniedQuery = ` AND code != ALL($${paramIndex}::varchar[]) `;
+    countQuery += deniedQuery;
+    dataQuery += deniedQuery;
+    queryParams.push(deniedProductCodes);
+    paramIndex++;
+  }
 
   // (OPTIMIZACIÓN) Ejecución en paralelo
   const [countResult, dataResult] = await Promise.all([
-    pool.query(countQuery, [groupCode]),
-    pool.query(dataQuery, [groupCode, limit, offset])
+    pool.query(countQuery, queryParams),
+    pool.query(dataQuery + ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`, [...queryParams, limit, offset])
   ]);
 
   const totalProducts = parseInt(countResult.rows[0].count, 10);
@@ -494,7 +515,6 @@ const findProductsByGroup = async (
   if (products.length > 0) {
     groupName = products[0].brand;
   } else {
-    // Solo hacemos esta consulta extra si no hay productos
     const groupNameResult = await pool.query(
       'SELECT brand FROM products WHERE product_group = $1 AND brand IS NOT NULL LIMIT 1',
       [groupCode]
@@ -509,35 +529,55 @@ const findProductsByGroup = async (
 
 /**
  * Obtiene los IDs de productos que han cambiado de precio en los últimos 7 días.
- * @param {number[]} productIds - Array de IDs de productos a verificar.
- * @returns {Promise<number[]>} - Array de IDs de productos que cambiaron recientemente.
+ * @param {string[]} productCodes - Array de códigos de productos a verificar.
+ * @returns {Promise<number[]>} - Array de IDs de productos que cambiaron recientemente (mapped back from codes if needed, or just return IDs if we have them).
+ * Actually, let's accept IDs for now as fetchProducts has IDs.
+ * But we should query using codes if possible.
  */
 const getRecentlyChangedProducts = async (productIds) => {
   if (!productIds || productIds.length === 0) return [];
 
   try {
+    // Map IDs to codes first?
+    // Or just use product_id if the table still has it (it does).
+    // But we should try to use code.
+    // Let's stick to ID for this one as it's internal history and table has both.
+    // Wait, the requirement is "siempre tomen como referencia el parametro code".
+    // So I should use code.
+
+    // Get codes for these IDs
+    const codesResult = await pool.query('SELECT code, id FROM products WHERE id = ANY($1::int[])', [productIds]);
+    const codes = codesResult.rows.map(r => r.code);
+    const codeToIdMap = new Map(codesResult.rows.map(r => [r.code, r.id]));
+
     const query = `
-      SELECT product_id 
+      SELECT product_code 
       FROM product_price_snapshots 
-      WHERE product_id = ANY($1::int[]) 
+      WHERE product_code = ANY($1::varchar[]) 
         AND last_change_timestamp >= NOW() - INTERVAL '2 minutes'
     `;
-    const result = await pool2.query(query, [productIds]);
-    return result.rows.map(row => row.product_id);
+    const result = await pool2.query(query, [codes]);
+
+    // Map back to IDs
+    return result.rows.map(row => codeToIdMap.get(row.product_code)).filter(id => id != null);
   } catch (error) {
     console.error('Error in getRecentlyChangedProducts:', error);
-    // En caso de error, retornamos array vacío para no romper la app
     return [];
   }
 };
 
 const updateProductOfferDetails = async (productId, { custom_title, custom_description, custom_image_url }) => {
   try {
+    // Get code
+    const productResult = await pool.query('SELECT code FROM products WHERE id = $1', [productId]);
+    if (productResult.rows.length === 0) throw new Error('Product not found');
+    const productCode = productResult.rows[0].code;
+
     await pool2.query(
       `UPDATE product_offer_status 
        SET custom_title = $1, custom_description = $2, custom_image_url = $3, updated_at = CURRENT_TIMESTAMP
-       WHERE product_id = $4`,
-      [custom_title, custom_description, custom_image_url, productId]
+       WHERE product_code = $4`,
+      [custom_title, custom_description, custom_image_url, productCode]
     );
     return { success: true };
   } catch (error) {
@@ -550,17 +590,17 @@ const updateProductOfferDetails = async (productId, { custom_title, custom_descr
 
 const findCarouselAccessories = async () => {
   try {
-    const idsResult = await pool2.query('SELECT product_id FROM carousel_accessories ORDER BY created_at DESC');
-    const productIds = idsResult.rows.map(row => row.product_id);
+    const idsResult = await pool2.query('SELECT product_code FROM carousel_accessories ORDER BY created_at DESC');
+    const productCodes = idsResult.rows.map(row => row.product_code);
 
-    if (productIds.length === 0) return [];
+    if (productCodes.length === 0) return [];
 
     const productsQuery = `
       SELECT id, code, description, price, product_group
       FROM products
-      WHERE id = ANY($1::int[])
+      WHERE code = ANY($1::varchar[])
     `;
-    const productsResult = await pool.query(productsQuery, [productIds]);
+    const productsResult = await pool.query(productsQuery, [productCodes]);
     return productsResult.rows;
   } catch (error) {
     console.error('Error in findCarouselAccessories:', error);
@@ -570,7 +610,11 @@ const findCarouselAccessories = async () => {
 
 const addCarouselAccessory = async (productId) => {
   try {
-    await pool2.query('INSERT INTO carousel_accessories (product_id) VALUES ($1) ON CONFLICT DO NOTHING', [productId]);
+    const productResult = await pool.query('SELECT code FROM products WHERE id = $1', [productId]);
+    if (productResult.rows.length === 0) throw new Error('Product not found');
+    const productCode = productResult.rows[0].code;
+
+    await pool2.query('INSERT INTO carousel_accessories (product_code) VALUES ($1) ON CONFLICT DO NOTHING', [productCode]);
     return { success: true };
   } catch (error) {
     console.error('Error in addCarouselAccessory:', error);
@@ -580,7 +624,11 @@ const addCarouselAccessory = async (productId) => {
 
 const removeCarouselAccessory = async (productId) => {
   try {
-    await pool2.query('DELETE FROM carousel_accessories WHERE product_id = $1', [productId]);
+    const productResult = await pool.query('SELECT code FROM products WHERE id = $1', [productId]);
+    if (productResult.rows.length === 0) throw new Error('Product not found');
+    const productCode = productResult.rows[0].code;
+
+    await pool2.query('DELETE FROM carousel_accessories WHERE product_code = $1', [productCode]);
     return { success: true };
   } catch (error) {
     console.error('Error in removeCarouselAccessory:', error);
@@ -645,17 +693,17 @@ const deleteCarouselGroup = async (id) => {
 
 const findCustomCollectionProducts = async (collectionId) => {
   try {
-    const idsResult = await pool2.query('SELECT product_id FROM carousel_custom_group_items WHERE group_id = $1', [collectionId]);
-    const productIds = idsResult.rows.map(row => row.product_id);
+    const idsResult = await pool2.query('SELECT product_code FROM carousel_custom_group_items WHERE group_id = $1', [collectionId]);
+    const productCodes = idsResult.rows.map(row => row.product_code);
 
-    if (productIds.length === 0) return [];
+    if (productCodes.length === 0) return [];
 
     const productsQuery = `
       SELECT id, code, description, price, brand, capacity_description, product_group, stock_disponible, stock_de_seguridad
       FROM products
-      WHERE id = ANY($1::int[])
+      WHERE code = ANY($1::varchar[])
     `;
-    const productsResult = await pool.query(productsQuery, [productIds]);
+    const productsResult = await pool.query(productsQuery, [productCodes]);
     return productsResult.rows;
   } catch (error) {
     console.error('Error in findCustomCollectionProducts:', error);
@@ -665,7 +713,11 @@ const findCustomCollectionProducts = async (collectionId) => {
 
 const addCustomGroupItem = async (groupId, productId) => {
   try {
-    await pool2.query('INSERT INTO carousel_custom_group_items (group_id, product_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [groupId, productId]);
+    const productResult = await pool.query('SELECT code FROM products WHERE id = $1', [productId]);
+    if (productResult.rows.length === 0) throw new Error('Product not found');
+    const productCode = productResult.rows[0].code;
+
+    await pool2.query('INSERT INTO carousel_custom_group_items (group_id, product_code) VALUES ($1, $2) ON CONFLICT DO NOTHING', [groupId, productCode]);
     return { success: true };
   } catch (error) {
     console.error('Error in addCustomGroupItem:', error);
@@ -675,7 +727,11 @@ const addCustomGroupItem = async (groupId, productId) => {
 
 const removeCustomGroupItem = async (groupId, productId) => {
   try {
-    await pool2.query('DELETE FROM carousel_custom_group_items WHERE group_id = $1 AND product_id = $2', [groupId, productId]);
+    const productResult = await pool.query('SELECT code FROM products WHERE id = $1', [productId]);
+    if (productResult.rows.length === 0) throw new Error('Product not found');
+    const productCode = productResult.rows[0].code;
+
+    await pool2.query('DELETE FROM carousel_custom_group_items WHERE group_id = $1 AND product_code = $2', [groupId, productCode]);
     return { success: true };
   } catch (error) {
     console.error('Error in removeCustomGroupItem:', error);
@@ -686,19 +742,19 @@ const removeCustomGroupItem = async (groupId, productId) => {
 
 /**
  * Obtiene las URLs de imágenes para una lista de productos desde DB2.
- * @param {number[]} productIds - Array de IDs de productos.
- * @returns {Promise<object[]>} - Array de objetos { product_id, image_url }.
+ * @param {string[]} productCodes - Array de códigos de productos.
+ * @returns {Promise<object[]>} - Array de objetos { product_code, image_url }.
  */
-const getProductImages = async (productIds) => {
-  if (!productIds || productIds.length === 0) return [];
+const getProductImages = async (productCodes) => {
+  if (!productCodes || productCodes.length === 0) return [];
 
   try {
     const query = `
-      SELECT product_id, image_url 
+      SELECT product_code, image_url 
       FROM product_images 
-      WHERE product_id = ANY($1::int[])
+      WHERE product_code = ANY($1::varchar[])
     `;
-    const result = await pool2.query(query, [productIds]);
+    const result = await pool2.query(query, [productCodes]);
     return result.rows;
   } catch (error) {
     console.error('Error in getProductImages:', error);
@@ -707,32 +763,32 @@ const getProductImages = async (productIds) => {
 };
 
 /**
- * Obtiene todos los IDs de productos que tienen imágenes en DB2.
- * @returns {Promise<number[]>} - Array de IDs de productos.
+ * Obtiene todos los Códigos de productos que tienen imágenes en DB2.
+ * @returns {Promise<string[]>} - Array de códigos de productos.
  */
-const getAllProductImageIds = async () => {
+const getAllProductImageCodes = async () => {
   try {
-    const query = 'SELECT DISTINCT product_id FROM product_images';
+    const query = 'SELECT DISTINCT product_code FROM product_images';
     const result = await pool2.query(query);
-    return result.rows.map(row => row.product_id);
+    return result.rows.map(row => row.product_code);
   } catch (error) {
-    console.error('Error in getAllProductImageIds:', error);
+    console.error('Error in getAllProductImageCodes:', error);
     return [];
   }
 };
 
 /**
- * Obtiene los IDs de productos denegados globalmente.
- * @returns {Promise<number[]>} - Una promesa que se resuelve con un array de IDs de productos denegados globalmente.
+ * Obtiene los Códigos de productos denegados globalmente.
+ * @returns {Promise<string[]>} - Una promesa que se resuelve con un array de códigos de productos denegados globalmente.
  */
 const getGlobalDeniedProducts = async () => {
   try {
     const query = `
-      SELECT product_id 
+      SELECT product_code 
       FROM global_product_permissions;
     `;
     const result = await pool2.query(query);
-    return result.rows.map((row) => row.product_id);
+    return result.rows.map((row) => row.product_code);
   } catch (error) {
     console.error('Error in getGlobalDeniedProducts:', error);
     if (error.code === '42P01') {
@@ -768,6 +824,6 @@ module.exports = {
   removeCustomGroupItem,
   invalidatePermissionsCache,
   getProductImages,
-  getAllProductImageIds,
+  getAllProductImageCodes, // Renamed
   getGlobalDeniedProducts,
 };
