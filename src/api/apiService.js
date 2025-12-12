@@ -92,8 +92,12 @@ const apiService = {
       limit,
       search: searchTerm,
       bypassCache: String(bypassCache),
-      hasImage,
     };
+
+    if (hasImage !== '') {
+      params.hasImage = hasImage;
+    }
+
     if (brands && brands.length > 0) {
       params.brand = brands.join(',');
     }
