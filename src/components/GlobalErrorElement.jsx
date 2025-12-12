@@ -5,7 +5,7 @@ const GlobalErrorElement = () => {
     const error = useRouteError();
 
     // Check if the error is a dynamic import error
-    if (error?.message?.includes('Failed to fetch dynamically imported module') ||
+    if (error?.message?.includes('dynamically imported module') ||
         error?.message?.includes('Importing a module script failed')) {
         // Reload the page to fetch the latest chunks
         window.location.reload();

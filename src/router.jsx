@@ -1,39 +1,40 @@
-import React, { lazy, Suspense } from 'react';
+import React, { Suspense } from 'react';
 import { createBrowserRouter, createRoutesFromElements, Route, Navigate } from 'react-router-dom';
 import App from './App';
+import { lazyImport } from './utils/lazyImport';
 import { ProtectedRoute, AdminRoute, MarketingRoute, LoadingFallback, PublicRoute, ClientRoute } from './components/RouteGuards';
 
 
 // --- Carga diferida (Lazy Loading) de Páginas ---
-const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
-const RegisterPage = lazy(() => import('./pages/RegisterPage.jsx'));
-const DashboardPage = lazy(() => import('./pages/DashboardPage.jsx'));
-const NewOrderPage = lazy(() => import('./pages/NewOrderPage.jsx'));
-const OrderHistoryPage = lazy(() => import('./pages/OrderHistoryPage.jsx'));
-const PriceListPage = lazy(() => import('./pages/PriceListPage.jsx'));
-const OffersPage = lazy(() => import('./pages/OffersPage.jsx'));
-const AccountBalancePage = lazy(() => import('./pages/AccountBalancePage.jsx'));
-const QueriesPage = lazy(() => import('./pages/QueriesPage.jsx'));
-const VoucherUploadPage = lazy(() => import('./pages/VoucherUploadPage.jsx'));
-const ProfilePage = lazy(() => import('./pages/ProfilePage.jsx'));
-const OrderPreviewPage = lazy(() => import('./pages/OrderPreviewPage.jsx'));
-const OrderDetailPage = lazy(() => import('./pages/OrderDetailPage.jsx'));
-const CategoryPage = lazy(() => import('./pages/CategoryPage.jsx'));
-const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage.jsx'));
-const DashboardSettingsPage = lazy(() => import('./pages/DashboardSettingsPage.jsx'));
-const ManageOffersPage = lazy(() => import('./pages/ManageOffersPage.jsx'));
-const ClientGroupPermissionsPage = lazy(() => import('./pages/ClientGroupPermissionsPage.jsx'));
-const ClientProductPermissionsPage = lazy(() => import('./pages/ClientProductPermissionsPage.jsx'));
-const ManageAdminsPage = lazy(() => import('./pages/ManageAdminsPage.jsx'));
-const ManageContentPage = lazy(() => import('./pages/ManageContentPage.jsx'));
-const CollectionPage = lazy(() => import('./pages/CollectionPage.jsx'));
-const VendedorDashboardPage = lazy(() => import('./pages/VendedorDashboardPage.jsx'));
-const VendedorClientsPage = lazy(() => import('./pages/VendedorClientsPage.jsx'));
-const ChangePasswordPage = lazy(() => import('./pages/ChangePasswordPage.jsx'));
-const VendedorAccountBalancePage = lazy(() => import('./pages/VendedorAccountBalancePage.jsx'));
-const VendedorOrderHistoryPage = lazy(() => import('./pages/VendedorOrderHistoryPage.jsx'));
-const ImageUpload = lazy(() => import('./components/ImageUpload.jsx'));
-const AdminAnalyticsPage = lazy(() => import('./pages/AdminAnalyticsPage.jsx'));
+const LoginPage = lazyImport(() => import('./pages/LoginPage.jsx'));
+const RegisterPage = lazyImport(() => import('./pages/RegisterPage.jsx'));
+const DashboardPage = lazyImport(() => import('./pages/DashboardPage.jsx'));
+const NewOrderPage = lazyImport(() => import('./pages/NewOrderPage.jsx'));
+const OrderHistoryPage = lazyImport(() => import('./pages/OrderHistoryPage.jsx'));
+const PriceListPage = lazyImport(() => import('./pages/PriceListPage.jsx'));
+const OffersPage = lazyImport(() => import('./pages/OffersPage.jsx'));
+const AccountBalancePage = lazyImport(() => import('./pages/AccountBalancePage.jsx'));
+const QueriesPage = lazyImport(() => import('./pages/QueriesPage.jsx'));
+const VoucherUploadPage = lazyImport(() => import('./pages/VoucherUploadPage.jsx'));
+const ProfilePage = lazyImport(() => import('./pages/ProfilePage.jsx'));
+const OrderPreviewPage = lazyImport(() => import('./pages/OrderPreviewPage.jsx'));
+const OrderDetailPage = lazyImport(() => import('./pages/OrderDetailPage.jsx'));
+const CategoryPage = lazyImport(() => import('./pages/CategoryPage.jsx'));
+const ProductDetailPage = lazyImport(() => import('./pages/ProductDetailPage.jsx'));
+const DashboardSettingsPage = lazyImport(() => import('./pages/DashboardSettingsPage.jsx'));
+const ManageOffersPage = lazyImport(() => import('./pages/ManageOffersPage.jsx'));
+const ClientGroupPermissionsPage = lazyImport(() => import('./pages/ClientGroupPermissionsPage.jsx'));
+const ClientProductPermissionsPage = lazyImport(() => import('./pages/ClientProductPermissionsPage.jsx'));
+const ManageAdminsPage = lazyImport(() => import('./pages/ManageAdminsPage.jsx'));
+const ManageContentPage = lazyImport(() => import('./pages/ManageContentPage.jsx'));
+const CollectionPage = lazyImport(() => import('./pages/CollectionPage.jsx'));
+const VendedorDashboardPage = lazyImport(() => import('./pages/VendedorDashboardPage.jsx'));
+const VendedorClientsPage = lazyImport(() => import('./pages/VendedorClientsPage.jsx'));
+const ChangePasswordPage = lazyImport(() => import('./pages/ChangePasswordPage.jsx'));
+const VendedorAccountBalancePage = lazyImport(() => import('./pages/VendedorAccountBalancePage.jsx'));
+const VendedorOrderHistoryPage = lazyImport(() => import('./pages/VendedorOrderHistoryPage.jsx'));
+const ImageUpload = lazyImport(() => import('./components/ImageUpload.jsx'));
+const AdminAnalyticsPage = lazyImport(() => import('./pages/AdminAnalyticsPage.jsx'));
 
 // Error Element for Dashboard
 const DashboardError = () => (
