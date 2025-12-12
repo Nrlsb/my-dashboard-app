@@ -142,7 +142,7 @@ const ClientProductPermissionsPage = () => {
                                     className="p-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
                                     onClick={() => handleAddProduct(product)}
                                 >
-                                    <span>{product.description} <span className="text-gray-500 text-sm">({product.code})</span></span>
+                                    <span>{product.name} <span className="text-gray-500 text-sm">({product.code})</span></span>
                                     <span className="text-blue-600 text-sm font-semibold">Agregar</span>
                                 </li>
                             ))}
@@ -162,7 +162,7 @@ const ClientProductPermissionsPage = () => {
                             deniedProductsDetails.map((product) => (
                                 <div key={product.id} className="flex justify-between items-center p-3 bg-red-50 border border-red-100 rounded">
                                     <div>
-                                        <span className="font-medium">{product.description}</span>
+                                        <span className="font-medium">{product.name}</span>
                                         <span className="text-gray-500 text-sm ml-2">({product.code})</span>
                                     </div>
                                     <button

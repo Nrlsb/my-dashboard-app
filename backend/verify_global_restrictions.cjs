@@ -1,3 +1,5 @@
+const path = require('path');
+require('./api/node_modules/dotenv').config({ path: path.resolve(__dirname, 'api/.env') });
 const { pool2 } = require('./api/db');
 const { fetchProducts } = require('./api/services/productService');
 const { updateGlobalProductPermissions } = require('./api/services/adminService');
