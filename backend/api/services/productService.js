@@ -174,6 +174,8 @@ const fetchProducts = async ({
         product_group: prod.product_group,
         oferta: prod.oferta, // El estado de la oferta ya viene del modelo
         recentlyChanged: recentlyChangedSet.has(prod.id), // Nueva bandera
+        stock_disponible: prod.stock_disponible,
+        stock_de_seguridad: prod.stock_de_seguridad,
       };
     });
 
