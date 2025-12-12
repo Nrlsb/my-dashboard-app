@@ -122,7 +122,7 @@ export default function PriceListPage() {
   const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
   const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
 
-  const [imageFilter, setImageFilter] = useState('all'); // 'all', 'with_image', 'without_image'
+
 
   const debounceTimeout = useRef(null);
   const brandDropdownRef = useRef(null);
@@ -213,14 +213,9 @@ export default function PriceListPage() {
     error,
     isLoading,
   } = useInfiniteQuery({
-    queryKey: ['products', debounceSearchTerm, selectedBrands, imageFilter, user?.id],
+    queryKey: ['products', debounceSearchTerm, selectedBrands, user?.id],
     queryFn: ({ pageParam = 1 }) => {
-      // Convert UI filter to API param
-      let hasImageParam = '';
-      if (imageFilter === 'with_image') hasImageParam = 'true';
-      if (imageFilter === 'without_image') hasImageParam = 'false';
-
-      return apiService.fetchProducts(pageParam, debounceSearchTerm, selectedBrands, false, 20, hasImageParam);
+      return apiService.fetchProducts(pageParam, debounceSearchTerm, selectedBrands, false, 20);
     },
     getNextPageParam: (lastPage, allPages) => {
       const productsLoaded = allPages.reduce(
@@ -273,273 +268,257 @@ export default function PriceListPage() {
     );
   };
 
-  const handleClearFilters = () => {
-    setSearchTerm('');
-    setSelectedBrands([]);
-    setImageFilter('all');
-  };
+  setSearchTerm('');
+  setSelectedBrands([]);
+};
 
-  const handleGeneratePDF = () => pdfMutation.mutate();
+const handleGeneratePDF = () => pdfMutation.mutate();
 
-  const allProducts = data?.pages.flatMap((page) => page.products) || [];
-  const hasFilters = searchTerm.length > 0 || selectedBrands.length > 0 || imageFilter !== 'all';
+const allProducts = data?.pages.flatMap((page) => page.products) || [];
+const hasFilters = searchTerm.length > 0 || selectedBrands.length > 0;
 
-  const getBrandButtonLabel = () => {
-    if (isBrandsLoading) return 'Cargando marcas...';
-    if (selectedBrands.length === 0) return 'Todas las marcas';
-    if (selectedBrands.length === 1) return selectedBrands[0];
-    return `${selectedBrands.length} marcas seleccionadas`;
-  };
+const getBrandButtonLabel = () => {
+  if (isBrandsLoading) return 'Cargando marcas...';
+  if (selectedBrands.length === 0) return 'Todas las marcas';
+  if (selectedBrands.length === 1) return selectedBrands[0];
+  return `${selectedBrands.length} marcas seleccionadas`;
+};
 
-  return (
-    <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
-      <header className="mb-6 flex items-center justify-between">
-        <div className="flex items-center">
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="flex items-center justify-center p-2 mr-2 md:mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors cursor-pointer"
-            aria-label="Volver al dashboard"
-          >
-            <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
-          </button>
-          <h1 className="text-xl md:text-3xl font-bold text-gray-800">Lista de Precios</h1>
-        </div>
+return (
+  <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
+    <header className="mb-6 flex items-center justify-between">
+      <div className="flex items-center">
         <button
-          onClick={handleGeneratePDF}
-          disabled={pdfMutation.isPending}
-          className="inline-flex items-center justify-center px-3 py-2 md:px-4 md:py-2 bg-espint-green text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-colors disabled:opacity-50 cursor-pointer"
+          onClick={() => navigate('/dashboard')}
+          className="flex items-center justify-center p-2 mr-2 md:mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors cursor-pointer"
+          aria-label="Volver al dashboard"
         >
-          {pdfMutation.isPending ? (
-            <Loader2 className="w-5 h-5 md:mr-2 animate-spin" />
-          ) : (
-            <Download className="w-5 h-5 md:mr-2" />
-          )}
-          <span className="hidden md:inline">Descargar PDF</span>
+          <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
         </button>
-      </header>
+        <h1 className="text-xl md:text-3xl font-bold text-gray-800">Lista de Precios</h1>
+      </div>
+      <button
+        onClick={handleGeneratePDF}
+        disabled={pdfMutation.isPending}
+        className="inline-flex items-center justify-center px-3 py-2 md:px-4 md:py-2 bg-espint-green text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-colors disabled:opacity-50 cursor-pointer"
+      >
+        {pdfMutation.isPending ? (
+          <Loader2 className="w-5 h-5 md:mr-2 animate-spin" />
+        ) : (
+          <Download className="w-5 h-5 md:mr-2" />
+        )}
+        <span className="hidden md:inline">Descargar PDF</span>
+      </button>
+    </header>
 
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-        <div className="relative">
-          <label htmlFor="search" className="sr-only">
-            Buscar producto
-          </label>
-          <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            id="search"
-            type="text"
-            value={searchTerm}
-            onChange={handleSearchChange}
-            placeholder="Buscar por nombre o código..."
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-espint-blue"
+    <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+      <div className="relative">
+        <label htmlFor="search" className="sr-only">
+          Buscar producto
+        </label>
+        <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        <input
+          id="search"
+          type="text"
+          value={searchTerm}
+          onChange={handleSearchChange}
+          placeholder="Buscar por nombre o código..."
+          className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-espint-blue"
+        />
+      </div>
+
+      <div className="relative" ref={brandDropdownRef}>
+        <label htmlFor="brand-dropdown" className="sr-only">
+          Filtrar por marca
+        </label>
+        <button
+          id="brand-dropdown"
+          onClick={() => setIsBrandDropdownOpen(!isBrandDropdownOpen)}
+          disabled={isBrandsLoading}
+          className="w-full flex justify-between items-center text-left bg-white pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-espint-blue cursor-pointer"
+        >
+          <span className="truncate">{getBrandButtonLabel()}</span>
+          <ChevronDown
+            className={`w-5 h-5 text-gray-400 transition-transform ${isBrandDropdownOpen ? 'rotate-180' : ''
+              }`}
           />
-        </div>
-
-        <div className="relative" ref={brandDropdownRef}>
-          <label htmlFor="brand-dropdown" className="sr-only">
-            Filtrar por marca
-          </label>
-          <button
-            id="brand-dropdown"
-            onClick={() => setIsBrandDropdownOpen(!isBrandDropdownOpen)}
-            disabled={isBrandsLoading}
-            className="w-full flex justify-between items-center text-left bg-white pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-espint-blue cursor-pointer"
-          >
-            <span className="truncate">{getBrandButtonLabel()}</span>
-            <ChevronDown
-              className={`w-5 h-5 text-gray-400 transition-transform ${isBrandDropdownOpen ? 'rotate-180' : ''
-                }`}
-            />
-          </button>
-          {isBrandDropdownOpen && (
-            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-              {brandsData &&
-                brandsData.map((brand) => (
-                  <label
-                    key={brand}
-                    className="flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedBrands.includes(brand)}
-                      onChange={() => handleBrandChange(brand)}
-                      className="h-4 w-4 rounded border-gray-300 text-espint-blue focus:ring-espint-blue"
-                    />
-                    <span className="ml-3 text-sm text-gray-700">{brand}</span>
-                  </label>
-                ))}
-            </div>
-          )}
-        </div>
-
-        {/* Admin Image Filter */}
-        {user?.is_admin && (
-          <div className="relative">
-            <select
-              value={imageFilter}
-              onChange={(e) => setImageFilter(e.target.value)}
-              className="w-full pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-espint-blue cursor-pointer bg-white appearance-none"
-            >
-              <option value="all">Todas las imágenes</option>
-              <option value="with_image">Con Imagen</option>
-              <option value="without_image">Sin Imagen</option>
-            </select>
-            <ChevronDown className="w-5 h-5 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        </button>
+        {isBrandDropdownOpen && (
+          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+            {brandsData &&
+              brandsData.map((brand) => (
+                <label
+                  key={brand}
+                  className="flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedBrands.includes(brand)}
+                    onChange={() => handleBrandChange(brand)}
+                    className="h-4 w-4 rounded border-gray-300 text-espint-blue focus:ring-espint-blue"
+                  />
+                  <span className="ml-3 text-sm text-gray-700">{brand}</span>
+                </label>
+              ))}
           </div>
         )}
       </div>
 
-      {hasFilters && (
-        <div className="mb-6">
-          <button
-            onClick={handleClearFilters}
-            className="flex items-center text-sm text-espint-blue hover:text-blue-800 cursor-pointer"
-          >
-            <X className="w-4 h-4 mr-1" />
-            Limpiar filtros
-          </button>
-        </div>
+
+    </div>
+
+    {hasFilters && (
+      <div className="mb-6">
+        <button
+          onClick={handleClearFilters}
+          className="flex items-center text-sm text-espint-blue hover:text-blue-800 cursor-pointer"
+        >
+          <X className="w-4 h-4 mr-1" />
+          Limpiar filtros
+        </button>
+      </div>
+    )}
+
+    {/* Mobile Card View */}
+    <div className="md:hidden space-y-3 mb-6">
+      {isLoading &&
+        allProducts.length === 0 &&
+        Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 animate-pulse">
+            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+            <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
+            <div className="h-6 bg-gray-200 rounded w-1/3 ml-auto"></div>
+          </div>
+        ))}
+
+      {isError && (
+        <ErrorMessage
+          message={error.message}
+          onRetry={() => window.location.reload()}
+        />
       )}
 
-      {/* Mobile Card View */}
-      <div className="md:hidden space-y-3 mb-6">
-        {isLoading &&
-          allProducts.length === 0 &&
-          Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
-              <div className="h-6 bg-gray-200 rounded w-1/3 ml-auto"></div>
+      {allProducts.length > 0 &&
+        allProducts.map((product) => (
+          <div key={product.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+            <div className="mb-2">
+              <h3 className="text-sm font-bold text-gray-900 leading-snug">
+                {product.name}
+                {product.recentlyChanged && (
+                  <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-100 text-yellow-800">
+                    Modificado
+                  </span>
+                )}
+              </h3>
             </div>
-          ))}
-
-        {isError && (
-          <ErrorMessage
-            message={error.message}
-            onRetry={() => window.location.reload()}
-          />
-        )}
-
-        {allProducts.length > 0 &&
-          allProducts.map((product) => (
-            <div key={product.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-              <div className="mb-2">
-                <h3 className="text-sm font-bold text-gray-900 leading-snug">
-                  {product.name}
-                  {product.recentlyChanged && (
-                    <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-100 text-yellow-800">
-                      Modificado
-                    </span>
-                  )}
-                </h3>
+            <div className="flex justify-between items-end">
+              <div className="text-xs text-gray-500">
+                <p>Cód: {product.code}</p>
+                <p>Marca: {product.brand}</p>
               </div>
-              <div className="flex justify-between items-end">
-                <div className="text-xs text-gray-500">
-                  <p>Cód: {product.code}</p>
-                  <p>Marca: {product.brand}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xl font-bold text-gray-900">{formatCurrency(product.price)}</p>
-                  {(Number(product.moneda) === 2 || Number(product.moneda) === 3) && (
-                    <p className="text-xs text-gray-400">{formatUSD(product.originalPrice)}</p>
-                  )}
-                </div>
+              <div className="text-right">
+                <p className="text-xl font-bold text-gray-900">{formatCurrency(product.price)}</p>
+                {(Number(product.moneda) === 2 || Number(product.moneda) === 3) && (
+                  <p className="text-xs text-gray-400">{formatUSD(product.originalPrice)}</p>
+                )}
               </div>
             </div>
-          ))}
-      </div>
-
-      {/* Desktop Table View */}
-      <div className="hidden md:block bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white">
-            <thead className="bg-gray-100 border-b border-gray-300">
-              <tr>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider">
-                  Código
-                </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider">
-                  Descripción
-                </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider">
-                  Marca
-                </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider">
-                  Grupo
-                </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider text-right">
-                  Moneda
-                </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider text-right">
-                  Cotización
-                </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider text-right">
-                  Precio (USD)
-                </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider text-right">
-                  Precio Final (ARS)
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {isLoading &&
-                allProducts.length === 0 &&
-                Array.from({ length: 10 }).map((_, i) => (
-                  <ProductRowSkeleton key={i} />
-                ))}
-              {isError && (
-                <tr>
-                  <td colSpan="8">
-                    <ErrorMessage
-                      message={error.message}
-                      onRetry={() => window.location.reload()}
-                    />
-                  </td>
-                </tr>
-              )}
-              {allProducts.length > 0 &&
-                allProducts.map((product) => (
-                  <ProductRow key={product.id} product={product} />
-                ))}
-            </tbody>
-          </table>
-        </div>
-
-      </div>
-
-      <div className="p-4 text-center">
-        {!isLoading && !isError && allProducts.length === 0 && (
-          <p className="text-gray-500">
-            No se encontraron productos con esos filtros.
-          </p>
-        )}
-        {isFetchingNextPage && (
-          <div className="flex justify-center items-center py-4">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-            <span className="ml-2 text-gray-600">
-              Cargando más productos...
-            </span>
           </div>
-        )}
-        {!hasNextPage && !isLoading && allProducts.length > 0 && (
-          <p className="text-gray-500 text-sm">Fin de los resultados.</p>
-        )}
-        {hasNextPage && (
-          <button
-            onClick={() => fetchNextPage()}
-            disabled={isFetchingNextPage}
-            className="mt-4 px-6 py-2 bg-espint-blue text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center mx-auto cursor-pointer"
-          >
-            {isFetchingNextPage ? (
-              <>
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Cargando
-                más...
-              </>
-            ) : (
-              'Cargar más productos'
-            )}
-          </button>
-        )}
-      </div>
+        ))}
     </div>
-  );
-}
+
+    {/* Desktop Table View */}
+    <div className="hidden md:block bg-white rounded-lg shadow-md overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white">
+          <thead className="bg-gray-100 border-b border-gray-300">
+            <tr>
+              <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider">
+                Código
+              </th>
+              <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider">
+                Descripción
+              </th>
+              <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider">
+                Marca
+              </th>
+              <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider">
+                Grupo
+              </th>
+              <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider text-right">
+                Moneda
+              </th>
+              <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider text-right">
+                Cotización
+              </th>
+              <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider text-right">
+                Precio (USD)
+              </th>
+              <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider text-right">
+                Precio Final (ARS)
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {isLoading &&
+              allProducts.length === 0 &&
+              Array.from({ length: 10 }).map((_, i) => (
+                <ProductRowSkeleton key={i} />
+              ))}
+            {isError && (
+              <tr>
+                <td colSpan="8">
+                  <ErrorMessage
+                    message={error.message}
+                    onRetry={() => window.location.reload()}
+                  />
+                </td>
+              </tr>
+            )}
+            {allProducts.length > 0 &&
+              allProducts.map((product) => (
+                <ProductRow key={product.id} product={product} />
+              ))}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <div className="p-4 text-center">
+      {!isLoading && !isError && allProducts.length === 0 && (
+        <p className="text-gray-500">
+          No se encontraron productos con esos filtros.
+        </p>
+      )}
+      {isFetchingNextPage && (
+        <div className="flex justify-center items-center py-4">
+          <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+          <span className="ml-2 text-gray-600">
+            Cargando más productos...
+          </span>
+        </div>
+      )}
+      {!hasNextPage && !isLoading && allProducts.length > 0 && (
+        <p className="text-gray-500 text-sm">Fin de los resultados.</p>
+      )}
+      {hasNextPage && (
+        <button
+          onClick={() => fetchNextPage()}
+          disabled={isFetchingNextPage}
+          className="mt-4 px-6 py-2 bg-espint-blue text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center mx-auto cursor-pointer"
+        >
+          {isFetchingNextPage ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Cargando
+              más...
+            </>
+          ) : (
+            'Cargar más productos'
+          )}
+        </button>
+      )}
+    </div>
+  </div>
+);
+
