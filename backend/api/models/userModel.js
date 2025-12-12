@@ -42,9 +42,10 @@ const findUserById = async (userId) => {
       user.is_admin = false;
     } else {
       // Check role in DB2
-      const role = await getUserRoleFromDB2(user.id);
-      user.role = role || 'cliente';
-      user.is_admin = role === 'admin';
+      const roleData = await getUserRoleFromDB2(user.id);
+      user.role = roleData ? roleData.role : 'cliente';
+      user.permissions = roleData ? roleData.permissions : [];
+      user.is_admin = user.role === 'admin';
     }
   }
   console.log(
@@ -91,30 +92,31 @@ const createUser = async (userData, passwordHash) => {
 };
 
 /**
- * Verifica el rol del usuario consultando las tablas de admins y marketing_users en DB2.
+ * Verifica el rol del usuario consultando las tablas de roles en DB2.
  * @param {number} userId - El ID del usuario.
- * @returns {Promise<string|null>} - 'admin', 'marketing', o null.
+ * @returns {Promise<object|null>} - { role: string, permissions: string[] } o null.
  */
 const getUserRoleFromDB2 = async (userId) => {
   try {
-    // Get user code (a1_cod) from DB1
-    const userResult = await pool.query('SELECT a1_cod FROM users WHERE id = $1', [userId]);
-    if (userResult.rows.length === 0) return null;
-    const userCode = userResult.rows[0].a1_cod;
+    // Query user_roles and roles
+    // We assume a user has one role for now, or we pick the first one.
+    // If we want to support multiple roles, we might need to aggregate permissions.
+    // For now, let's pick the one with most permissions or just the first one.
+    const query = `
+      SELECT r.name, r.permissions
+      FROM user_roles ur
+      JOIN roles r ON ur.role_id = r.id
+      WHERE ur.user_id = $1
+      LIMIT 1
+    `;
+    const result = await pool2.query(query, [userId]);
 
-    // Check admin
-    const adminCheck = await pool2.query(
-      'SELECT 1 FROM admins WHERE user_code = $1',
-      [userCode]
-    );
-    if (adminCheck.rows.length > 0) return 'admin';
-
-    // Check marketing
-    const marketingCheck = await pool2.query(
-      'SELECT 1 FROM marketing_users WHERE user_code = $1',
-      [userCode]
-    );
-    if (marketingCheck.rows.length > 0) return 'marketing';
+    if (result.rows.length > 0) {
+      return {
+        role: result.rows[0].name,
+        permissions: result.rows[0].permissions
+      };
+    }
 
     return null;
   } catch (error) {
@@ -129,8 +131,8 @@ const getUserRoleFromDB2 = async (userId) => {
  * @returns {Promise<boolean>}
  */
 const isUserAdmin = async (userId) => {
-  const role = await getUserRoleFromDB2(userId);
-  return role === 'admin';
+  const roleData = await getUserRoleFromDB2(userId);
+  return roleData && roleData.role === 'admin';
 };
 
 /**

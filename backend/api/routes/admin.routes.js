@@ -23,6 +23,7 @@ const {
   getAdminDashboardPanelsController,
   updateDashboardPanelController,
 } = require('../controllers/dashboardController');
+const roleController = require('../controllers/roleController');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 // Todas las rutas en este archivo requieren autenticación.
@@ -72,6 +73,12 @@ router.get('/management/admins', requireAdmin, getAdmins);
 router.post('/management/admins', requireAdmin, addAdmin);
 
 router.delete('/management/admins/:userId', requireAdmin, removeAdmin);
+
+// Role Management
+router.get('/roles', requireAdmin, roleController.getRoles);
+router.post('/roles', requireAdmin, roleController.createRole);
+router.put('/roles/:id', requireAdmin, roleController.updateRole);
+router.delete('/roles/:id', requireAdmin, roleController.deleteRole);
 
 // (NUEVO) Ruta para obtener todos los clientes
 router.get('/clients', requireAdmin, getAllClientsController); // Add the new route

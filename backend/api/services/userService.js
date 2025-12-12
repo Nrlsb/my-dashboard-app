@@ -20,11 +20,12 @@ const authenticateUser = async (email, password) => {
 
     if (userRecord) {
       // Fetch role from DB2
-      const role = await userModel.getUserRoleFromDB2(userRecord.id);
+      const roleData = await userModel.getUserRoleFromDB2(userRecord.id);
       user = {
         ...userRecord,
-        role: role || 'cliente',
-        is_admin: role === 'admin'
+        role: roleData ? roleData.role : 'cliente',
+        permissions: roleData ? roleData.permissions : [],
+        is_admin: roleData ? roleData.role === 'admin' : false
       };
       console.log('[DEBUG AUTH] Usuario identificado como CLIENTE/ADMIN/MARKETING:', JSON.stringify(user, null, 2));
     } else {

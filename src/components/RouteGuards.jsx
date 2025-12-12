@@ -22,12 +22,22 @@ export const AdminRoute = ({ children }) => {
     return user?.is_admin ? children : <Navigate to="/dashboard" replace />;
 };
 
+// --- Componente para Rutas con Permisos Específicos ---
+export const PermissionRoute = ({ children, permission }) => {
+    const { loading, hasPermission } = useAuth();
+    if (loading) return <LoadingFallback />;
+    return hasPermission(permission) ? children : <Navigate to="/dashboard" replace />;
+};
+
 // --- Componente para Rutas de Marketing ---
 export const MarketingRoute = ({ children }) => {
-    const { user, loading } = useAuth();
+    const { user, loading, hasPermission } = useAuth();
     if (loading) return <LoadingFallback />;
-    // Allow if user is admin OR has marketing role
-    return (user?.is_admin || user?.role === 'marketing') ? children : <Navigate to="/dashboard" replace />;
+    // Allow if user is admin OR has marketing role OR has specific permissions
+    if (user?.is_admin || user?.role === 'marketing' || hasPermission('manage_content') || hasPermission('manage_offers')) {
+        return children;
+    }
+    return <Navigate to="/dashboard" replace />;
 };
 
 // --- Componente para Rutas de Clientes (No Vendedores) ---

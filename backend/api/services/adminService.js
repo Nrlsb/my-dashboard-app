@@ -209,40 +209,45 @@ const updateGlobalProductPermissions = async (productIds) => {
 /**
  * (Admin) Obtiene la lista de todos los usuarios con roles especiales (admin, marketing).
  */
+/**
+ * (Admin) Obtiene la lista de todos los usuarios con roles asignados.
+ */
 const getAdmins = async () => {
   try {
-    // Fetch admins
-    const adminsResult = await pool2.query(
-      'SELECT user_id, created_at FROM admins'
-    );
-    // Fetch marketing users
-    const marketingResult = await pool2.query(
-      'SELECT user_id, created_at FROM marketing_users'
-    );
+    // 1. Fetch all users with roles from DB2
+    const query = `
+      SELECT ur.user_id, ur.assigned_at, r.name as role_name, r.permissions
+      FROM user_roles ur
+      JOIN roles r ON ur.role_id = r.id
+      ORDER BY ur.assigned_at DESC
+    `;
+    const result = await pool2.query(query);
 
-    const privilegedUsers = [
-      ...adminsResult.rows.map(r => ({ ...r, role: 'admin' })),
-      ...marketingResult.rows.map(r => ({ ...r, role: 'marketing' }))
-    ];
-
-    if (privilegedUsers.length === 0) {
+    if (result.rows.length === 0) {
       return [];
     }
 
+    const privilegedUsers = result.rows;
     const userIds = privilegedUsers.map((row) => row.user_id);
-    // Busca la información de los usuarios en la DB1
+
+    // 2. Fetch user details from DB1
     const usersResult = await pool.query(
       'SELECT id, full_name, email FROM users WHERE id = ANY($1::int[])',
       [userIds]
     );
 
-    // Merge user details with role info
+    // 3. Merge data
     const usersMap = new Map(usersResult.rows.map(u => [u.id, u]));
 
     return privilegedUsers.map(p => {
       const userDetails = usersMap.get(p.user_id);
-      return userDetails ? { ...userDetails, role: p.role, assigned_at: p.created_at } : null;
-    }).filter(u => u !== null).sort((a, b) => new Date(b.assigned_at) - new Date(a.assigned_at));
+      return userDetails ? {
+        ...userDetails,
+        role: p.role_name,
+        permissions: p.permissions,
+        assigned_at: p.assigned_at
+      } : null;
+    }).filter(u => u !== null);
 
   } catch (error) {
     console.error('Error en getAdmins:', error);
@@ -256,31 +261,36 @@ const getAdmins = async () => {
 /**
  * (Admin) Añade un nuevo usuario con rol (admin o marketing).
  */
-const addAdmin = async (userId, role = 'admin') => {
+/**
+ * (Admin) Añade un rol a un usuario.
+ */
+const addAdmin = async (userId, roleName = 'admin') => {
   try {
-    // 1. Verificar que el usuario existe en la DB1
-    const userResult = await pool.query('SELECT id FROM users WHERE id = $1', [
-      userId,
-    ]);
+    // 1. Get role ID
+    const roleResult = await pool2.query('SELECT id FROM roles WHERE name = $1', [roleName]);
+    if (roleResult.rows.length === 0) {
+      throw new Error(`El rol '${roleName}' no existe.`);
+    }
+    const roleId = roleResult.rows[0].id;
+
+    // 2. Assign role using roleService logic (duplicated here for simplicity or import roleService)
+    // Let's just do it directly here to avoid circular dependencies if any, 
+    // but ideally we should use roleService. 
+    // Since adminService is higher level, it can use roleService if we import it.
+    // But for now, direct DB access is fine and consistent with this file.
+
+    // Check user existence in DB1
+    const userResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
     if (userResult.rows.length === 0) {
       throw new Error('El usuario no existe en la base de datos principal.');
     }
 
-    // 2. Insertar en la tabla correspondiente en DB2
-    if (role === 'marketing') {
-      await pool2.query(
-        'INSERT INTO marketing_users (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING',
-        [userId]
-      );
-    } else {
-      // Default to admin
-      await pool2.query(
-        'INSERT INTO admins (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING',
-        [userId]
-      );
-    }
+    await pool2.query(
+      'INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2) ON CONFLICT (user_id, role_id) DO NOTHING',
+      [userId, roleId]
+    );
 
-    return { success: true, message: `Usuario añadido como ${role}.` };
+    return { success: true, message: `Usuario añadido con rol ${roleName}.` };
   } catch (error) {
     console.error('Error en addAdmin:', error);
     throw error;
@@ -293,22 +303,22 @@ const addAdmin = async (userId, role = 'admin') => {
 /**
  * (Admin) Elimina a un administrador o usuario de marketing.
  */
+/**
+ * (Admin) Elimina un rol de un usuario.
+ * Nota: Esto elimina TODOS los roles del usuario si no se especifica rol, 
+ * pero para mantener compatibilidad con el frontend actual que solo manda userId,
+ * eliminaremos todos los roles o asumiremos que se quiere quitar el acceso.
+ * El frontend actual solo tiene un botón "Quitar".
+ */
 const removeAdmin = async (userId) => {
   try {
-    // Try removing from admins
-    const adminResult = await pool2.query('DELETE FROM admins WHERE user_id = $1', [
-      userId,
-    ]);
+    // Remove all roles for this user
+    const result = await pool2.query('DELETE FROM user_roles WHERE user_id = $1', [userId]);
 
-    // Try removing from marketing_users
-    const marketingResult = await pool2.query('DELETE FROM marketing_users WHERE user_id = $1', [
-      userId,
-    ]);
-
-    if (adminResult.rowCount === 0 && marketingResult.rowCount === 0) {
+    if (result.rowCount === 0) {
       return { success: false, message: 'El usuario no tenía roles asignados.' };
     }
-    return { success: true, message: 'Rol eliminado correctamente.' };
+    return { success: true, message: 'Roles eliminados correctamente.' };
   } catch (error) {
     console.error('Error en removeAdmin:', error);
     throw error;

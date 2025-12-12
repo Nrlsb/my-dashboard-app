@@ -72,9 +72,15 @@ export const AuthProvider = ({ children }) => {
     setFirstLogin(false);
   };
 
+  const hasPermission = (permission) => {
+    if (!user) return false;
+    if (user.is_admin || (user.permissions && user.permissions.includes('all'))) return true;
+    return user.permissions && user.permissions.includes(permission);
+  };
+
   return (
     <AuthContext.Provider
-      value={{ isAuthenticated, user, loading, login, logout, firstLogin }}
+      value={{ isAuthenticated, user, loading, login, logout, firstLogin, hasPermission }}
     >
       {children}
     </AuthContext.Provider>

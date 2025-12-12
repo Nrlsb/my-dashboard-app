@@ -18,6 +18,7 @@ exports.loginController = catchAsync(async (req, res, next) => {
             isAdmin: user.is_admin,
             codCliente: user.a1_cod,
             role: user.role || 'cliente',
+            permissions: user.permissions || [],
             codigo: user.codigo || null,
         };
 

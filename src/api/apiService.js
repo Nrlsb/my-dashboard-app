@@ -352,6 +352,31 @@ const apiService = {
     });
   },
 
+  // Role Management
+  getRoles() {
+    return this.request('/admin/roles');
+  },
+
+  createRole(roleData) {
+    return this.request('/admin/roles', {
+      method: 'POST',
+      body: roleData,
+    });
+  },
+
+  updateRole(id, roleData) {
+    return this.request(`/admin/roles/${id}`, {
+      method: 'PUT',
+      body: roleData,
+    });
+  },
+
+  deleteRole(id) {
+    return this.request(`/admin/roles/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   // Admin Content Management
   getCarouselGroups() {
     return this.request('/admin/carousel-groups');
