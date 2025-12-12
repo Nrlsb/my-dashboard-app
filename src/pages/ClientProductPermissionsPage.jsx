@@ -74,8 +74,7 @@ const ClientProductPermissionsPage = () => {
             setDeniedProductIds([...deniedProductIds, product.id]);
             setDeniedProductsDetails([...deniedProductsDetails, product]);
         }
-        setProductSearch('');
-        setSearchResults([]);
+        // No limpiamos la búsqueda para permitir selección múltiple
     };
 
     const handleRemoveProduct = (productId) => {
@@ -125,27 +124,45 @@ const ClientProductPermissionsPage = () => {
 
                 <div className="mb-6">
                     <label className="font-bold block mb-2">Buscar Producto para Restringir:</label>
-                    <input
-                        type="text"
-                        value={productSearch}
-                        onChange={(e) => setProductSearch(e.target.value)}
-                        placeholder="Buscar por nombre o código..."
-                        className="p-2 rounded border border-gray-300 w-full"
-                    />
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={productSearch}
+                            onChange={(e) => setProductSearch(e.target.value)}
+                            placeholder="Buscar por nombre o código..."
+                            className="p-2 rounded border border-gray-300 w-full"
+                        />
+                        {productSearch && (
+                            <button
+                                onClick={() => {
+                                    setProductSearch('');
+                                    setSearchResults([]);
+                                }}
+                                className="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                            >
+                                Limpiar
+                            </button>
+                        )}
+                    </div>
                     {isSearching && <p className="text-sm text-gray-500 mt-1">Buscando...</p>}
 
                     {searchResults.length > 0 && (
                         <ul className="mt-2 border border-gray-200 rounded max-h-60 overflow-y-auto bg-white shadow-lg">
-                            {searchResults.map((product) => (
-                                <li
-                                    key={product.id}
-                                    className="p-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
-                                    onClick={() => handleAddProduct(product)}
-                                >
-                                    <span>{product.name} <span className="text-gray-500 text-sm">({product.code})</span></span>
-                                    <span className="text-blue-600 text-sm font-semibold">Agregar</span>
-                                </li>
-                            ))}
+                            {searchResults.map((product) => {
+                                const isAdded = deniedProductIds.includes(product.id);
+                                return (
+                                    <li
+                                        key={product.id}
+                                        className={`p-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center ${isAdded ? 'bg-blue-50' : ''}`}
+                                        onClick={() => !isAdded && handleAddProduct(product)}
+                                    >
+                                        <span>{product.name} <span className="text-gray-500 text-sm">({product.code})</span></span>
+                                        <span className={`text-sm font-semibold ${isAdded ? 'text-green-600' : 'text-blue-600'}`}>
+                                            {isAdded ? 'Agregado' : 'Agregar'}
+                                        </span>
+                                    </li>
+                                );
+                            })}
                         </ul>
                     )}
                 </div>
