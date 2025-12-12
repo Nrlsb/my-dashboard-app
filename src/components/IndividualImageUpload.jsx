@@ -18,6 +18,7 @@ const IndividualImageUpload = () => {
 
     const [userKeywords, setUserKeywords] = useState('');
     const [ignoreWords, setIgnoreWords] = useState('');
+    const [replaceExisting, setReplaceExisting] = useState(false);
 
     const handleFileChange = (e) => {
         setFiles(Array.from(e.target.files));
@@ -117,7 +118,7 @@ const IndividualImageUpload = () => {
         setAssignmentStatus(prev => ({ ...prev, [index]: 'saving' }));
 
         try {
-            await apiService.assignImageToProducts(imageUrl, productIds);
+            await apiService.assignImageToProducts(imageUrl, productIds, replaceExisting);
             setAssignmentStatus(prev => ({ ...prev, [index]: 'success' }));
         } catch (err) {
             console.error("Assignment error:", err);
@@ -197,7 +198,18 @@ const IndividualImageUpload = () => {
             {/* Step 2: Review & Assign */}
             {analysisResults && analysisResults.length > 0 && (
                 <div className="space-y-8 mt-8">
-                    <h3 className="text-xl font-semibold text-gray-800">Revisar y Asignar</h3>
+                    <div className="flex justify-between items-center">
+                        <h3 className="text-xl font-semibold text-gray-800">Revisar y Asignar</h3>
+                        <label className="flex items-center space-x-2 text-sm text-gray-700 bg-yellow-50 px-3 py-1 rounded border border-yellow-200 cursor-pointer hover:bg-yellow-100 transition-colors">
+                            <input
+                                type="checkbox"
+                                checked={replaceExisting}
+                                onChange={(e) => setReplaceExisting(e.target.checked)}
+                                className="rounded text-yellow-600 focus:ring-yellow-500 h-4 w-4"
+                            />
+                            <span className="font-medium">Reemplazar imágenes existentes</span>
+                        </label>
+                    </div>
 
                     {analysisResults.map((res, index) => (
                         <div key={index} className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">

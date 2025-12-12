@@ -16,8 +16,14 @@ const analyzeMissingImages = async () => {
         );
         const productIdsWithImages = new Set(imagesResult.rows.map(row => row.product_id));
 
-        // 3. Filtrar los que NO tienen imágenes
-        const missingProducts = activeProducts.filter(p => !productIdsWithImages.has(p.id));
+        // 2.5. Obtener productos restringidos globalmente
+        const restrictedResult = await pool2.query(
+            'SELECT product_id FROM global_product_permissions'
+        );
+        const restrictedProductIds = new Set(restrictedResult.rows.map(row => row.product_id));
+
+        // 3. Filtrar los que NO tienen imágenes Y NO están restringidos
+        const missingProducts = activeProducts.filter(p => !productIdsWithImages.has(p.id) && !restrictedProductIds.has(p.id));
         console.log(`Total productos sin imágenes: ${missingProducts.length}`);
 
         // 4. Agrupar por product_group

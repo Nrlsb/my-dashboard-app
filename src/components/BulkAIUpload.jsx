@@ -12,6 +12,7 @@ const BulkAIUpload = () => {
     const [uploadResults, setUploadResults] = useState([]);
     const [selectedProductsMap, setSelectedProductsMap] = useState({});
     const [uploading, setUploading] = useState(false);
+    const [replaceExisting, setReplaceExisting] = useState(false);
 
     const handleFileChange = (e) => {
         if (e.target.files) {
@@ -65,7 +66,7 @@ const BulkAIUpload = () => {
         const idsToAssign = Array.isArray(productIds) ? productIds : [productIds];
 
         try {
-            await apiService.assignImageToProducts(imageUrl, idsToAssign);
+            await apiService.assignImageToProducts(imageUrl, idsToAssign, replaceExisting);
             toast.success('Imagen asignada correctamente');
             setUploadResults(prev => prev.map(item => {
                 if (item.imageUrl === imageUrl) {
@@ -129,7 +130,18 @@ const BulkAIUpload = () => {
             {/* Results Area */}
             {uploadResults.length > 0 && (
                 <div className="space-y-6">
-                    <h3 className="font-bold text-lg border-b pb-2">Resultados del Análisis</h3>
+                    <div className="flex justify-between items-center border-b pb-2">
+                        <h3 className="font-bold text-lg">Resultados del Análisis</h3>
+                        <label className="flex items-center space-x-2 text-sm text-gray-700 bg-yellow-50 px-3 py-1 rounded border border-yellow-200 cursor-pointer hover:bg-yellow-100 transition-colors">
+                            <input
+                                type="checkbox"
+                                checked={replaceExisting}
+                                onChange={(e) => setReplaceExisting(e.target.checked)}
+                                className="rounded text-yellow-600 focus:ring-yellow-500 h-4 w-4"
+                            />
+                            <span className="font-medium">Reemplazar imágenes existentes</span>
+                        </label>
+                    </div>
                     {uploadResults.map((result, idx) => (
                         <div key={idx} className={`border rounded p-4 flex flex-col md:flex-row gap-4 ${result.assigned ? 'bg-green-50 border-green-200' : 'bg-gray-50'}`}>
                             <div className="w-32 h-32 shrink-0 bg-white rounded border flex items-center justify-center overflow-hidden">

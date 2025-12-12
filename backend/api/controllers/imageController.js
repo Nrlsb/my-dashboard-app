@@ -1,7 +1,7 @@
 const fs = require('fs');
 const { uploadImage } = require('../services/cloudinaryService');
 const { identifyProductFromImage, selectBestMatch } = require('../services/geminiService');
-const { saveProductImage } = require('../services/imageService');
+const { saveProductImage, replaceProductImage } = require('../services/imageService');
 const { pool } = require('../db'); // DB1 for reading products
 const logger = require('../utils/logger');
 
@@ -233,7 +233,7 @@ const uploadAndAnalyzeImage = async (req, res) => {
 
 // Step 2: Assign Image to Selected Products
 const assignImageToProducts = async (req, res) => {
-    const { imageUrl, productIds } = req.body;
+    const { imageUrl, productIds, replace } = req.body;
 
     if (!imageUrl || !productIds || !Array.isArray(productIds) || productIds.length === 0) {
         return res.status(400).json({ error: 'Invalid request. imageUrl and productIds (array) are required.' });
@@ -243,7 +243,12 @@ const assignImageToProducts = async (req, res) => {
         const results = [];
         for (const productId of productIds) {
             try {
-                const savedImage = await saveProductImage(productId, imageUrl);
+                let savedImage;
+                if (replace) {
+                    savedImage = await replaceProductImage(productId, imageUrl);
+                } else {
+                    savedImage = await saveProductImage(productId, imageUrl);
+                }
                 results.push({ productId, status: 'success', data: savedImage });
             } catch (err) {
                 console.error(`Error assigning image to product ${productId}:`, err);
