@@ -84,6 +84,10 @@ const getDeniedProductGroups = async (userId) => {
     return deniedGroups;
   } catch (error) {
     console.error(`Error in getDeniedProductGroups for user ${userId}:`, error);
+    if (error.code === '42P01') {
+      console.warn('[WARNING] Table user_product_group_permissions does not exist. Skipping user group restrictions.');
+      return [];
+    }
     throw error;
   }
 };
@@ -104,6 +108,10 @@ const getDeniedProducts = async (userId) => {
     return result.rows.map((row) => row.product_id);
   } catch (error) {
     console.error(`Error in getDeniedProducts for user ${userId}:`, error);
+    if (error.code === '42P01') {
+      console.warn('[WARNING] Table user_product_permissions does not exist. Skipping user restrictions.');
+      return [];
+    }
     throw error;
   }
 };
