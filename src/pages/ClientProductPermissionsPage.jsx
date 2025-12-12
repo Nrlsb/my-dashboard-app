@@ -60,7 +60,7 @@ const ClientProductPermissionsPage = () => {
 
             try {
                 setIsSearching(true);
-                const response = await apiService.fetchProducts(1, productSearch, [], false, 10);
+                const response = await apiService.fetchProducts(1, productSearch, [], false, 100);
                 setSearchResults(response.products);
             } catch (err) {
                 console.error('Error searching products:', err);
