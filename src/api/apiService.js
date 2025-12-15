@@ -445,10 +445,10 @@ const apiService = {
     });
   },
 
-  assignImageToProducts(imageUrl, productCodes, replace = false) {
+  assignImageToProducts(imageUrl, products, replace = false) {
     return this.request('/images/assign', {
       method: 'POST',
-      body: { imageUrl, productCodes, replace },
+      body: { imageUrl, products, replace },
     });
   },
 

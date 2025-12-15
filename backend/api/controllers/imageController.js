@@ -235,27 +235,33 @@ const uploadAndAnalyzeImage = async (req, res) => {
 
 // Step 2: Assign Image to Selected Products
 const assignImageToProducts = async (req, res) => {
-    const { imageUrl, productCodes, replace } = req.body;
+    const { imageUrl, products, replace } = req.body;
     console.log('Assigning Image - Body:', JSON.stringify(req.body, null, 2));
 
-    if (!imageUrl || !productCodes || !Array.isArray(productCodes) || productCodes.length === 0) {
-        return res.status(400).json({ error: 'Invalid request. imageUrl and productCodes (array) are required.' });
+    if (!imageUrl || !products || !Array.isArray(products) || products.length === 0) {
+        return res.status(400).json({ error: 'Invalid request. imageUrl and products (array of {id, code}) are required.' });
     }
 
     try {
         const results = [];
-        for (const productCode of productCodes) {
+        for (const product of products) {
+            const { id, code } = product;
+            if (!id || !code) {
+                results.push({ product, status: 'error', error: 'Missing id or code' });
+                continue;
+            }
+
             try {
                 let savedImage;
                 if (replace) {
-                    savedImage = await replaceProductImage(productCode, imageUrl);
+                    savedImage = await replaceProductImage(id, code, imageUrl);
                 } else {
-                    savedImage = await saveProductImage(productCode, imageUrl);
+                    savedImage = await saveProductImage(id, code, imageUrl);
                 }
-                results.push({ productCode, status: 'success', data: savedImage });
+                results.push({ product, status: 'success', data: savedImage });
             } catch (err) {
-                console.error(`Error assigning image to product ${productCode}:`, err);
-                results.push({ productCode, status: 'error', error: err.message });
+                console.error(`Error assigning image to product ${code} (${id}):`, err);
+                results.push({ product, status: 'error', error: err.message });
             }
         }
 
