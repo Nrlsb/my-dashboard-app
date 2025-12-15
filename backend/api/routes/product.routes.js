@@ -7,7 +7,6 @@ const {
   getProductsByGroupController,
   getBrandsController,
   getOffersController,
-  getOffersController,
   getProductsByIdController, // Nombre corregido
   getProductsByCodeController,
   getProductsOrdersController, // Nuevo controlador importado
