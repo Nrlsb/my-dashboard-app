@@ -8,7 +8,7 @@ const requirePermission = (permission) => {
                 return res.status(403).json({ message: 'Acceso denegado. Usuario no autenticado.' });
             }
 
-            // Admin always has access
+            // Admin always  has access
             if (user.isAdmin || (user.permissions && user.permissions.includes('all'))) {
                 return next();
             }
