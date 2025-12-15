@@ -92,7 +92,9 @@ const getDeniedProductGroups = async (userId) => {
       WHERE user_code = $1;
     `;
     const result = await pool2.query(query, [userCode]);
-    const deniedGroups = result.rows.map((row) => row.product_group);
+    const deniedGroups = result.rows
+      .map((row) => row.product_group)
+      .filter((g) => g != null && g !== '');
 
     if (isRedisReady()) {
       // Cache for 1 hour
@@ -127,7 +129,9 @@ const getDeniedProducts = async (userId) => {
       WHERE user_code = $1;
     `;
     const result = await pool2.query(query, [userCode]);
-    return result.rows.map((row) => row.product_code);
+    return result.rows
+      .map((row) => row.product_code)
+      .filter((c) => c != null && c !== '');
   } catch (error) {
     console.error(`Error in getDeniedProducts for user ${userId}:`, error);
     if (error.code === '42P01') {
@@ -182,8 +186,8 @@ const findProducts = async ({
     offset,
     search: search ? search.trim() : '',
     brands: brands ? brands.sort() : [],
-    deniedGroups: deniedGroups ? deniedGroups.sort() : [],
-    deniedProductIds: deniedProductIds ? deniedProductIds.sort() : [],
+    deniedGroups: deniedGroups ? deniedGroups.filter(g => g != null && g !== '').sort() : [],
+    deniedProductIds: deniedProductIds ? deniedProductIds.filter(id => id != null && id !== '').sort() : [],
     allowedIds: allowedIds ? allowedIds.sort() : [],
     excludedIds: excludedIds ? excludedIds.sort() : []
   })}`;
@@ -692,11 +696,11 @@ const updateCarouselGroup = async (id, data) => {
     const result = await pool2.query(
       `UPDATE carousel_product_groups 
        SET name = COALESCE($1, name), 
-           image_url = COALESCE($2, image_url), 
-           type = COALESCE($3, type), 
-           reference_id = COALESCE($4, reference_id), 
-           is_active = COALESCE($5, is_active), 
-           display_order = COALESCE($6, display_order)
+       image_url = COALESCE($2, image_url), 
+       type = COALESCE($3, type), 
+       reference_id = COALESCE($4, reference_id), 
+       is_active = COALESCE($5, is_active), 
+       display_order = COALESCE($6, display_order)
        WHERE id = $7 RETURNING *`,
       [name, image_url, type, reference_id, is_active, display_order, id]
     );
@@ -814,7 +818,9 @@ const getGlobalDeniedProducts = async () => {
       FROM global_product_permissions;
     `;
     const result = await pool2.query(query);
-    return result.rows.map((row) => row.product_code);
+    return result.rows
+      .map((row) => row.product_code)
+      .filter((c) => c != null && c !== '');
   } catch (error) {
     console.error('Error in getGlobalDeniedProducts:', error);
     if (error.code === '42P01') {
