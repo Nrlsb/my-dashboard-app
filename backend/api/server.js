@@ -43,7 +43,7 @@ const corsOptions = {
     const allowedOrigins = [
       'http://localhost:5173', // Desarrollo Frontend
       'https://midashboard.com', // Producción Frontend
-      'https://my-dashboard-app-lake.vercel.app', // (NUEVO) Frontend en Vercel
+      'https://espint.vercel.app', // (NUEVO) Frontend en Vercel
     ];
 
     // Permitir si el origen está en la lista o si no hay origen (peticiones de la misma máquina o Postman)
