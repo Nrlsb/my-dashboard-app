@@ -393,6 +393,32 @@ const findProductById = async (productId, deniedGroups = [], deniedProductCodes 
   }
 };
 
+const findProductByCode = async (productCode, deniedGroups = []) => {
+  try {
+    let query = `
+      SELECT 
+        id, code, description, price, brand, 
+        capacity_description, product_group,
+        stock_disponible, stock_de_seguridad
+      FROM products
+      WHERE code = $1 AND price > 0 AND description IS NOT NULL
+    `;
+    let queryParams = [productCode];
+    let paramIndex = 2;
+
+    if (deniedGroups.length > 0) {
+      query += ` AND product_group NOT IN (SELECT unnest($${paramIndex}::varchar[])) `;
+      queryParams.push(deniedGroups);
+    }
+
+    const result = await pool.query(query, queryParams);
+    return result.rows[0];
+  } catch (error) {
+    console.error(`Error in findProductByCode for Code ${productCode}:`, error);
+    throw error;
+  }
+};
+
 const findUniqueBrands = async (deniedGroups = []) => {
   try {
     let query = `
