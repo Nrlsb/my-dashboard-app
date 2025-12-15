@@ -39,7 +39,9 @@ const uploadAndAnalyzeImage = async (req, res) => {
                 // 2. Upload to Cloudinary
                 const publicId = `temp_${Date.now()}_${Math.random().toString(36).substring(7)}`;
                 const uploadResult = await uploadImage(filePath, publicId, 'temp_uploads');
+                console.log('Upload Result:', JSON.stringify(uploadResult, null, 2));
                 const imageUrl = uploadResult.secure_url;
+                console.log('Generated Image URL:', imageUrl);
 
                 // 3. Search for potential product matches in DB1
                 let foundProducts = [];
