@@ -173,6 +173,9 @@ const updateUserProductPermissions = async (userId, productIds) => {
 /**
  * (Admin) Actualiza los permisos globales de productos
  */
+/**
+ * (Admin) Actualiza los permisos globales de productos
+ */
 const updateGlobalProductPermissions = async (productCodes) => {
   const client = await pool2.connect();
   try {
@@ -183,10 +186,23 @@ const updateGlobalProductPermissions = async (productCodes) => {
 
     // 2. Insert new permissions if any
     if (productCodes && productCodes.length > 0) {
+      // Resolve IDs from DB1
+      const productsQuery = `SELECT id, code FROM products WHERE code = ANY($1::varchar[])`;
+      const productsResult = await pool.query(productsQuery, [productCodes]);
+
+      // Create a map for quick lookup
+      const productMap = new Map(productsResult.rows.map(p => [p.code, p.id]));
+
       const insertQuery =
-        'INSERT INTO global_product_permissions (product_code) VALUES ($1)';
+        'INSERT INTO global_product_permissions (product_id, product_code) VALUES ($1, $2)';
+
       for (const productCode of productCodes) {
-        await client.query(insertQuery, [productCode]);
+        const productId = productMap.get(productCode);
+        if (productId) {
+          await client.query(insertQuery, [productId, productCode]);
+        } else {
+          console.warn(`[WARNING] Product code ${productCode} not found in DB1. Skipping global restriction.`);
+        }
       }
     }
 
