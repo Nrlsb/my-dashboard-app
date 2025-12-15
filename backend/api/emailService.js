@@ -1,21 +1,38 @@
 /*
  * =================================================================
- * SERVICIO DE EMAIL (Resend)
+ * SERVICIO DE EMAIL (Nodemailer)
  * =================================================================
  *
  * Este archivo maneja la construcción y envío de correos
- * transaccionales utilizando Resend.
+ * transaccionales utilizando Nodemailer (SMTP).
  *
  * =================================================================
  */
 
 // Cargar variables de entorno
 require('dotenv').config();
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 const { formatCurrency } = require('./utils/helpers'); // Importar helper
 
-// Inicializar Resend con la API Key del .env
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Configurar el transporter de Nodemailer con SMTP
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  secure: process.env.SMTP_SECURE === 'true', // true para 465, false para otros puertos
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+// Verificar la conexión SMTP al iniciar (opcional, útil para debug)
+transporter.verify(function (error, success) {
+  if (error) {
+    console.error('Error de conexión SMTP:', error);
+  } else {
+    console.log('Servidor SMTP listo para enviar correos');
+  }
+});
 
 /**
  * Helper para formatear la lista de items como HTML
@@ -66,7 +83,6 @@ const sendOrderConfirmationEmail = async (
   const subject = `Confirmación de tu pedido #${orderId}`;
   const itemsHtml = formatItemsToHTML(items);
 
-  // (CORREGIDO) El 'customerName' ahora viene con el valor de 'full_name'
   const htmlBody = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6;">
       <h1 style="color: #333;">¡Gracias por tu pedido, ${customerName}!</h1>
@@ -86,24 +102,16 @@ const sendOrderConfirmationEmail = async (
   `;
 
   try {
-    const { data, error } = await resend.emails.send({
+    const info = await transporter.sendMail({
       from: process.env.EMAIL_FROM,
-      to: [toEmail],
+      to: toEmail,
       subject: subject,
       html: htmlBody,
-      attachments: attachments, // Adjuntar archivos
+      attachments: attachments,
     });
 
-    if (error) {
-      console.error(
-        `Error al enviar email de confirmación a ${toEmail}:`,
-        error
-      );
-      throw new Error(error.message);
-    }
-
-    console.log(`Email de confirmación enviado a ${toEmail}. ID: ${data.id}`);
-    return data;
+    console.log(`Email de confirmación enviado a ${toEmail}. ID: ${info.messageId}`);
+    return info;
   } catch (error) {
     console.error('Error en sendOrderConfirmationEmail:', error);
     throw error;
@@ -113,7 +121,6 @@ const sendOrderConfirmationEmail = async (
 /**
  * Envía una notificación de nuevo pedido al VENDEDOR
  */
-// (CORREGIDO) Se eliminó el 'ac' al final de la línea de definición
 const sendNewOrderNotificationEmail = async (
   toEmail,
   orderId,
@@ -122,11 +129,9 @@ const sendNewOrderNotificationEmail = async (
   customer,
   attachments = []
 ) => {
-  // (CORREGIDO) Se cambió 'customer.nombre' por 'customer.full_name'
   const subject = `¡Nuevo Pedido Recibido! #${orderId} de ${customer.full_name}`;
   const itemsHtml = formatItemsToHTML(items);
 
-  // (CORREGIDO) Se cambió 'customer.nombre' por 'customer.full_name'
   const htmlBody = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6;">
       <h1 style="color: #333;">¡Nuevo Pedido Recibido!</h1>
@@ -150,24 +155,16 @@ const sendNewOrderNotificationEmail = async (
   `;
 
   try {
-    const { data, error } = await resend.emails.send({
+    const info = await transporter.sendMail({
       from: process.env.EMAIL_FROM,
-      to: [toEmail], // Email del vendedor
+      to: toEmail, // Email del vendedor
       subject: subject,
       html: htmlBody,
-      attachments: attachments, // Adjuntar archivos
+      attachments: attachments,
     });
 
-    if (error) {
-      console.error(
-        `Error al enviar email de notificación a ${toEmail}:`,
-        error
-      );
-      throw new Error(error.message);
-    }
-
-    console.log(`Email de notificación enviado a ${toEmail}. ID: ${data.id}`);
-    return data;
+    console.log(`Email de notificación enviado a ${toEmail}. ID: ${info.messageId}`);
+    return info;
   } catch (error) {
     console.error('Error en sendNewOrderNotificationEmail:', error);
     throw error;
@@ -185,7 +182,7 @@ const sendOrderConfirmedByVendorEmail = async (
   items = []
 ) => {
   const subject = `Tu pedido #${orderId} ha sido confirmado`;
-  const itemsHtml = formatItemsToHTML(items); // Generar el HTML de los items
+  const itemsHtml = formatItemsToHTML(items);
 
   let salesOrderInfo = '';
   if (vendorSalesOrderNumber) {
@@ -216,25 +213,17 @@ const sendOrderConfirmedByVendorEmail = async (
   `;
 
   try {
-    const { data, error } = await resend.emails.send({
+    const info = await transporter.sendMail({
       from: process.env.EMAIL_FROM,
-      to: [toEmail],
+      to: toEmail,
       subject: subject,
       html: htmlBody,
     });
 
-    if (error) {
-      console.error(
-        `Error al enviar email de confirmación por vendedor a ${toEmail}:`,
-        error
-      );
-      throw new Error(error.message);
-    }
-
     console.log(
-      `Email de confirmación por vendedor enviado a ${toEmail}. ID: ${data.id}`
+      `Email de confirmación por vendedor enviado a ${toEmail}. ID: ${info.messageId}`
     );
-    return data;
+    return info;
   } catch (error) {
     console.error('Error en sendOrderConfirmedByVendorEmail:', error);
     throw error;
