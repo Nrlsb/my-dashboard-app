@@ -236,6 +236,7 @@ const uploadAndAnalyzeImage = async (req, res) => {
 // Step 2: Assign Image to Selected Products
 const assignImageToProducts = async (req, res) => {
     const { imageUrl, productIds, replace } = req.body;
+    console.log('Assigning Image - Body:', JSON.stringify(req.body, null, 2));
 
     if (!imageUrl || !productIds || !Array.isArray(productIds) || productIds.length === 0) {
         return res.status(400).json({ error: 'Invalid request. imageUrl and productIds (array) are required.' });
