@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import apiService from '../api/apiService';
 import { Search, Check, X } from 'lucide-react';
 
@@ -19,6 +19,20 @@ const IndividualImageUpload = () => {
     const [userKeywords, setUserKeywords] = useState('');
     const [ignoreWords, setIgnoreWords] = useState('');
     const [replaceExisting, setReplaceExisting] = useState(false);
+    const [brands, setBrands] = useState([]);
+    const [selectedBrand, setSelectedBrand] = useState('');
+
+    useEffect(() => {
+        const loadBrands = async () => {
+            try {
+                const brandsData = await apiService.fetchProtheusBrands();
+                setBrands(brandsData);
+            } catch (error) {
+                console.error("Error loading brands:", error);
+            }
+        };
+        loadBrands();
+    }, []);
 
     const handleFileChange = (e) => {
         setFiles(Array.from(e.target.files));
@@ -49,6 +63,9 @@ const IndividualImageUpload = () => {
         }
         if (ignoreWords) {
             formData.append('ignoreWords', ignoreWords);
+        }
+        if (selectedBrand) {
+            formData.append('brand', selectedBrand);
         }
         formData.append('useAI', 'false');
 
@@ -161,6 +178,22 @@ const IndividualImageUpload = () => {
                             className="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
                         />
                         <p className="text-xs text-gray-500 mt-1">Palabras del nombre del archivo que NO se usarán en la búsqueda.</p>
+                    </div>
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Filtrar por Marca (Opcional)</label>
+                        <select
+                            value={selectedBrand}
+                            onChange={(e) => setSelectedBrand(e.target.value)}
+                            className="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+                        >
+                            <option value="">-- Todas las marcas --</option>
+                            {brands.map((brand, index) => (
+                                <option key={index} value={brand}>
+                                    {brand}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">Si seleccionas una marca, la búsqueda inicial se limitará a productos de esa marca.</p>
                     </div>
                 </div>
 
