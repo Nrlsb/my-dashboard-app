@@ -831,6 +831,52 @@ const getGlobalDeniedProducts = async () => {
   }
 };
 
+/**
+ * Obtiene los productos denegados globalmente con sus detalles desde DB1.
+ * @returns {Promise<object[]>} - Array de objetos de producto.
+ */
+const getGlobalDeniedProductsWithDetails = async () => {
+  try {
+    // 1. Get codes from DB2
+    const query = `
+      SELECT product_code 
+      FROM global_product_permissions
+      WHERE product_code IS NOT NULL;
+    `;
+    const result = await pool2.query(query);
+    const productCodes = result.rows.map((row) => row.product_code);
+
+    if (productCodes.length === 0) {
+      return [];
+    }
+
+    // 2. Get details from DB1 (ignoring active status)
+    // We select basic details needed for the UI
+    const productsQuery = `
+      SELECT id, code, description, price, brand
+      FROM products
+      WHERE code = ANY($1::varchar[])
+    `;
+    const productsResult = await pool.query(productsQuery, [productCodes]);
+
+    return productsResult.rows.map(p => ({
+      id: p.id,
+      code: p.code,
+      name: p.description,
+      price: p.price,
+      brand: p.brand
+    }));
+
+  } catch (error) {
+    console.error('Error in getGlobalDeniedProductsWithDetails:', error);
+    if (error.code === '42P01') {
+      console.warn('[WARNING] Table global_product_permissions does not exist.');
+      return [];
+    }
+    throw error;
+  }
+};
+
 module.exports = {
   findProducts,
   getDeniedProductGroups,
@@ -861,4 +907,5 @@ module.exports = {
   getProductImages,
   getAllProductImageCodes, // Renamed
   getGlobalDeniedProducts,
+  getGlobalDeniedProductsWithDetails,
 };

@@ -27,18 +27,13 @@ const ClientProductPermissionsPage = () => {
             try {
                 setIsLoading(true);
                 setError(null);
-                const deniedCodes = await apiService.getGlobalDeniedProducts();
-                setDeniedProductCodes(deniedCodes);
+                // Now returns array of objects { code, name, ... }
+                const deniedProducts = await apiService.getGlobalDeniedProducts();
 
-                // Fetch details for these products
-                if (deniedCodes.length > 0) {
-                    const detailsPromises = deniedCodes.map(code => apiService.fetchProductByCode(code));
-                    const products = await Promise.all(detailsPromises);
-                    // Filter out nulls in case a product was deleted
-                    setDeniedProductsDetails(products.filter(p => p !== null));
-                } else {
-                    setDeniedProductsDetails([]);
-                }
+                // Extract codes for the list of IDs
+                const deniedCodes = deniedProducts.map(p => p.code);
+                setDeniedProductCodes(deniedCodes);
+                setDeniedProductsDetails(deniedProducts);
 
             } catch (err) {
                 setError(`Error al cargar las restricciones globales.`);
