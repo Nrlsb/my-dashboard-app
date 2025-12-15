@@ -173,7 +173,7 @@ const updateUserProductPermissions = async (userId, productIds) => {
 /**
  * (Admin) Actualiza los permisos globales de productos
  */
-const updateGlobalProductPermissions = async (productIds) => {
+const updateGlobalProductPermissions = async (productCodes) => {
   const client = await pool2.connect();
   try {
     await client.query('BEGIN');
@@ -182,11 +182,11 @@ const updateGlobalProductPermissions = async (productIds) => {
     await client.query('DELETE FROM global_product_permissions');
 
     // 2. Insert new permissions if any
-    if (productIds && productIds.length > 0) {
+    if (productCodes && productCodes.length > 0) {
       const insertQuery =
-        'INSERT INTO global_product_permissions (product_id) VALUES ($1)';
-      for (const productId of productIds) {
-        await client.query(insertQuery, [productId]);
+        'INSERT INTO global_product_permissions (product_code) VALUES ($1)';
+      for (const productCode of productCodes) {
+        await client.query(insertQuery, [productCode]);
       }
     }
 

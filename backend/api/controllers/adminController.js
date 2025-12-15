@@ -67,7 +67,15 @@ exports.getGlobalDeniedProductsController = catchAsync(async (req, res) => {
 });
 
 exports.updateGlobalProductPermissionsController = catchAsync(async (req, res) => {
-    const { productIds } = req.body;
+    const { productIds } = req.body; // Frontend sends productIds (which are codes in this context)
+    // We can rename it to productCodes for clarity in service, but let's keep it compatible if frontend sends "productIds"
+    // Actually, frontend sends "deniedProductCodes" as the body?
+    // Let's check frontend again.
+    // Frontend: await apiService.updateGlobalProductPermissions(deniedProductCodes);
+    // apiService: updateGlobalProductPermissions(productIds) -> body: { productIds }
+
+    // So frontend sends { productIds: [...] } where the array contains CODES.
+    // So we just pass it to service.
     const result = await adminService.updateGlobalProductPermissions(productIds);
     res.json(result);
 });
