@@ -134,11 +134,11 @@ const uploadAndAnalyzeImage = async (req, res) => {
                     }
 
                     // STRICT BRAND FILTER (New)
-                    // If user provided a brand, we enforce it as a hard requirement
+                    // If user provided a brand, we enforce it as a hard requirement using the brand column
                     let brandCondition = "";
                     if (brand && brand.trim().length > 0) {
-                        brandCondition = `AND description ILIKE $${paramCount}`;
-                        queryParams.push(`%${brand.trim()}%`);
+                        brandCondition = `AND brand = $${paramCount}`;
+                        queryParams.push(brand.trim());
                         paramCount++;
                     }
 
