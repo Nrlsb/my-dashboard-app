@@ -131,3 +131,28 @@ La API del backend tiene el prefijo `/api`.
 - [Multer](https://github.com/expressjs/multer) para la carga de archivos.
 - [CORS](https://expressjs.com/en/resources/middleware/cors.html)
 - [dotenv](https://www.npmjs.com/package/dotenv) para variables de entorno.
+
+## Despliegue (Producción)
+
+La aplicación utiliza una arquitectura híbrida para producción:
+
+### Frontend (cPanel)
+El frontend se aloja en un hosting compartido con cPanel.
+- **Método de despliegue:** Git Version Control en cPanel.
+- **Proceso:**
+  1.  `npm run build` en local (genera carpeta `dist`).
+  2.  `git push origin main` (sube `dist` a GitHub).
+  3.  En cPanel -> Git Version Control -> **Update from Remote** & **Deploy HEAD Commit**.
+- **Configuración clave:**
+  - Archivo `.cpanel.yml`: Automatiza la copia de `dist` a `public_html`.
+  - Archivo `public/.htaccess`: Maneja el enrutamiento SPA (React Router).
+  - Archivo `.env.production`: Define `VITE_API_URL` apuntando al backend en Render.
+
+### Backend (Render)
+El backend se aloja en Render.com como un Web Service.
+- **URL:** `https://my-dashboard-app-backend.onrender.com/api`
+- **Base de Datos:** Supabase (PostgreSQL).
+- **Variables de Entorno:** Configuradas en el panel de Render (`DB_HOST`, `DB_USER`, etc.).
+
+### Base de Datos (Supabase)
+PostgreSQL alojado en la nube. Accesible tanto desde el entorno local como desde Render.
