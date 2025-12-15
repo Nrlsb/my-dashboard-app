@@ -3,17 +3,17 @@ const logger = require('../utils/logger');
 
 /**
  * Saves the product image association to the database.
- * @param {number} productId - The ID of the product.
+ * @param {string} productCode - The Code of the product.
  * @param {string} imageUrl - The URL of the image.
  * @returns {Promise<object>} - The saved record.
  */
-const saveProductImage = async (productId, imageUrl) => {
+const saveProductImage = async (productCode, imageUrl) => {
     const query = `
-    INSERT INTO product_images (product_id, image_url, updated_at)
+    INSERT INTO product_images (product_code, image_url, updated_at)
     VALUES ($1, $2, NOW())
     RETURNING *;
   `;
-    const values = [productId, imageUrl];
+    const values = [productCode, imageUrl];
 
     try {
         const result = await pool2.query(query, values);
@@ -27,25 +27,25 @@ const saveProductImage = async (productId, imageUrl) => {
 /**
  * Replaces the product image association in the database.
  * Deletes existing images for the product and inserts the new one.
- * @param {number} productId - The ID of the product.
+ * @param {string} productCode - The Code of the product.
  * @param {string} imageUrl - The URL of the new image.
  * @returns {Promise<object>} - The saved record.
  */
-const replaceProductImage = async (productId, imageUrl) => {
+const replaceProductImage = async (productCode, imageUrl) => {
     const client = await pool2.connect();
     try {
         await client.query('BEGIN');
 
         // Delete existing images for this product
-        await client.query('DELETE FROM product_images WHERE product_id = $1', [productId]);
+        await client.query('DELETE FROM product_images WHERE product_code = $1', [productCode]);
 
         // Insert the new image
         const query = `
-            INSERT INTO product_images (product_id, image_url, updated_at)
+            INSERT INTO product_images (product_code, image_url, updated_at)
             VALUES ($1, $2, NOW())
             RETURNING *;
         `;
-        const result = await client.query(query, [productId, imageUrl]);
+        const result = await client.query(query, [productCode, imageUrl]);
 
         await client.query('COMMIT');
         return result.rows[0];

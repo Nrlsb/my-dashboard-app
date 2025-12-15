@@ -132,10 +132,21 @@ const IndividualImageUpload = () => {
         const productIds = selectedProductsMap[index];
         if (!productIds || productIds.length === 0) return;
 
+        // Map IDs to Codes
+        const productCodes = productIds.map(id => {
+            const prod = getProductDetails(index, id);
+            return prod ? prod.code : null;
+        }).filter(code => code !== null);
+
+        if (productCodes.length === 0) {
+            console.error("No valid product codes found for selected IDs");
+            return;
+        }
+
         setAssignmentStatus(prev => ({ ...prev, [index]: 'saving' }));
 
         try {
-            await apiService.assignImageToProducts(imageUrl, productIds, replaceExisting);
+            await apiService.assignImageToProducts(imageUrl, productCodes, replaceExisting);
             setAssignmentStatus(prev => ({ ...prev, [index]: 'success' }));
         } catch (err) {
             console.error("Assignment error:", err);

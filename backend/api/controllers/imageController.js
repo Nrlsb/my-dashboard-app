@@ -235,27 +235,27 @@ const uploadAndAnalyzeImage = async (req, res) => {
 
 // Step 2: Assign Image to Selected Products
 const assignImageToProducts = async (req, res) => {
-    const { imageUrl, productIds, replace } = req.body;
+    const { imageUrl, productCodes, replace } = req.body;
     console.log('Assigning Image - Body:', JSON.stringify(req.body, null, 2));
 
-    if (!imageUrl || !productIds || !Array.isArray(productIds) || productIds.length === 0) {
-        return res.status(400).json({ error: 'Invalid request. imageUrl and productIds (array) are required.' });
+    if (!imageUrl || !productCodes || !Array.isArray(productCodes) || productCodes.length === 0) {
+        return res.status(400).json({ error: 'Invalid request. imageUrl and productCodes (array) are required.' });
     }
 
     try {
         const results = [];
-        for (const productId of productIds) {
+        for (const productCode of productCodes) {
             try {
                 let savedImage;
                 if (replace) {
-                    savedImage = await replaceProductImage(productId, imageUrl);
+                    savedImage = await replaceProductImage(productCode, imageUrl);
                 } else {
-                    savedImage = await saveProductImage(productId, imageUrl);
+                    savedImage = await saveProductImage(productCode, imageUrl);
                 }
-                results.push({ productId, status: 'success', data: savedImage });
+                results.push({ productCode, status: 'success', data: savedImage });
             } catch (err) {
-                console.error(`Error assigning image to product ${productId}:`, err);
-                results.push({ productId, status: 'error', error: err.message });
+                console.error(`Error assigning image to product ${productCode}:`, err);
+                results.push({ productCode, status: 'error', error: err.message });
             }
         }
 
