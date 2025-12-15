@@ -340,6 +340,52 @@ const fetchProductDetails = async (productId, userId = null) => {
   }
 };
 
+const fetchProductDetailsByCode = async (productCode, userId = null) => {
+  try {
+    let deniedGroups = [];
+    if (userId) {
+      const userResult = await pool.query(
+        'SELECT is_admin FROM users WHERE id = $1',
+        [userId]
+      );
+      const isUserAdmin =
+        userResult.rows.length > 0 && userResult.rows[0].is_admin;
+      if (!isUserAdmin) {
+        deniedGroups = await productModel.getDeniedProductGroups(userId);
+      }
+    }
+
+    const prod = await productModel.findProductByCode(productCode, deniedGroups);
+
+    if (!prod) {
+      return null;
+    }
+
+    const productDetails = {
+      id: prod.id,
+      code: prod.code,
+      name: prod.description,
+      price: prod.price,
+      formattedPrice: formatCurrency(prod.price),
+      brand: prod.brand,
+      imageUrl: getImageUrl(prod.code),
+      capacityDesc: prod.capacity_description,
+      capacityValue: null,
+      additionalInfo: {},
+      product_group: prod.product_group,
+    };
+
+    const [enrichedProduct] = await enrichProductsWithImages([productDetails]);
+    return enrichedProduct;
+  } catch (error) {
+    console.error(
+      `Error in fetchProductDetailsByCode (service) for Code ${productCode}:`,
+      error
+    );
+    throw error;
+  }
+};
+
 const fetchProtheusBrands = async (userId = null) => {
   try {
     let deniedGroups = [];
@@ -696,7 +742,9 @@ module.exports = {
   fetchProducts,
   getAccessories,
   getProductGroupsDetails,
+  getProductGroupsDetails,
   fetchProductDetails,
+  fetchProductDetailsByCode,
   fetchProtheusBrands,
   fetchProtheusOffers,
   fetchProductsByGroup,

@@ -7,7 +7,9 @@ const {
   getProductsByGroupController,
   getBrandsController,
   getOffersController,
+  getOffersController,
   getProductsByIdController, // Nombre corregido
+  getProductsByCodeController,
   getProductsOrdersController, // Nuevo controlador importado
   toggleProductOfferStatus,
   updateProductOfferDetails,
@@ -46,6 +48,8 @@ router.get('/orders', getProductsOrdersController); // Nueva ruta para /api/prod
 
 // Cachear producto individual por 5 minutos (300s)
 router.get('/:id', getProductsByIdController);
+
+router.get('/code/:code', getProductsByCodeController);
 
 router.get('/collection/:collectionId', getCustomCollectionProducts);
 

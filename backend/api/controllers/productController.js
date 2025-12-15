@@ -74,6 +74,22 @@ exports.getProductsByIdController = catchAsync(async (req, res) => {
     }
 });
 
+exports.getProductsByCodeController = catchAsync(async (req, res) => {
+    const productCode = req.params.code;
+    console.log(
+        `GET /api/products/code/${productCode} -> Consultando producto por código...`
+    );
+    const product = await productService.fetchProductDetailsByCode(
+        productCode,
+        req.userId
+    );
+    if (product) {
+        res.json(product);
+    } else {
+        res.status(404).json({ message: 'Producto no encontrado.' });
+    }
+});
+
 exports.getProductsOrdersController = catchAsync(async (req, res) => {
     console.log('GET /api/products/orders -> Endpoint para /api/products/orders alcanzado.');
     res.status(404).json({ message: 'Endpoint /api/products/orders no implementado o no válido para productos.' });

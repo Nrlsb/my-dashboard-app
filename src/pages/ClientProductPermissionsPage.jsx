@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 
 const ClientProductPermissionsPage = () => {
     const { user: currentUser } = useAuth();
-    const [deniedProductIds, setDeniedProductIds] = useState([]);
+    const [deniedProductCodes, setDeniedProductCodes] = useState([]);
     const [deniedProductsDetails, setDeniedProductsDetails] = useState([]); // To show details of denied products
     const [productSearch, setProductSearch] = useState('');
     const [searchResults, setSearchResults] = useState([]);
@@ -27,12 +27,12 @@ const ClientProductPermissionsPage = () => {
             try {
                 setIsLoading(true);
                 setError(null);
-                const deniedIds = await apiService.getGlobalDeniedProducts();
-                setDeniedProductIds(deniedIds);
+                const deniedCodes = await apiService.getGlobalDeniedProducts();
+                setDeniedProductCodes(deniedCodes);
 
                 // Fetch details for these products
-                if (deniedIds.length > 0) {
-                    const detailsPromises = deniedIds.map(id => apiService.fetchProductById(id));
+                if (deniedCodes.length > 0) {
+                    const detailsPromises = deniedCodes.map(code => apiService.fetchProductByCode(code));
                     const products = await Promise.all(detailsPromises);
                     // Filter out nulls in case a product was deleted
                     setDeniedProductsDetails(products.filter(p => p !== null));
@@ -94,16 +94,16 @@ const ClientProductPermissionsPage = () => {
     };
 
     const handleAddProduct = (product) => {
-        if (!deniedProductIds.includes(product.id)) {
-            setDeniedProductIds([...deniedProductIds, product.id]);
+        if (!deniedProductCodes.includes(product.code)) {
+            setDeniedProductCodes([...deniedProductCodes, product.code]);
             setDeniedProductsDetails([...deniedProductsDetails, product]);
         }
         // No limpiamos la búsqueda para permitir selección múltiple
     };
 
-    const handleRemoveProduct = (productId) => {
-        setDeniedProductIds(deniedProductIds.filter((id) => id !== productId));
-        setDeniedProductsDetails(deniedProductsDetails.filter((p) => p.id !== productId));
+    const handleRemoveProduct = (productCode) => {
+        setDeniedProductCodes(deniedProductCodes.filter((code) => code !== productCode));
+        setDeniedProductsDetails(deniedProductsDetails.filter((p) => p.code !== productCode));
     };
 
     const handleSave = async () => {
@@ -112,7 +112,7 @@ const ClientProductPermissionsPage = () => {
             setError(null);
             setSuccess('');
             await apiService.updateGlobalProductPermissions(
-                deniedProductIds
+                deniedProductCodes
             );
             setSuccess('Restricciones globales guardadas con éxito.');
         } catch (err) {
@@ -123,7 +123,7 @@ const ClientProductPermissionsPage = () => {
         }
     };
 
-    if (isLoading && deniedProductIds.length === 0) {
+    if (isLoading && deniedProductCodes.length === 0) {
         return <LoadingSpinner text="Cargando..." />;
     }
 
@@ -173,7 +173,7 @@ const ClientProductPermissionsPage = () => {
                     {searchResults.length > 0 && (
                         <ul className="mt-2 border border-gray-200 rounded max-h-60 overflow-y-auto bg-white shadow-lg">
                             {searchResults.map((product) => {
-                                const isAdded = deniedProductIds.includes(product.id);
+                                const isAdded = deniedProductCodes.includes(product.code);
                                 return (
                                     <li
                                         key={product.id}
@@ -191,7 +191,7 @@ const ClientProductPermissionsPage = () => {
                     )}
                 </div>
 
-                <h3 className="mt-0 mb-4 border-b pb-2 text-xl font-semibold text-gray-700">Productos Restringidos Globalmente ({deniedProductIds.length})</h3>
+                <h3 className="mt-0 mb-4 border-b pb-2 text-xl font-semibold text-gray-700">Productos Restringidos Globalmente ({deniedProductCodes.length})</h3>
 
                 <div className="mb-4">
                     <input
@@ -218,7 +218,7 @@ const ClientProductPermissionsPage = () => {
                                             <span className="text-gray-500 text-sm ml-2">({product.code})</span>
                                         </div>
                                         <button
-                                            onClick={() => handleRemoveProduct(product.id)}
+                                            onClick={() => handleRemoveProduct(product.code)}
                                             className="text-red-600 hover:text-red-800 font-semibold"
                                         >
                                             Quitar

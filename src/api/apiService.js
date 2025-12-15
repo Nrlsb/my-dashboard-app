@@ -121,6 +121,11 @@ const apiService = {
     return this.request(`/products/${productId}`);
   },
 
+  fetchProductByCode(productCode) {
+    if (!productCode) throw new Error('El código de producto es requerido');
+    return this.request(`/products/code/${productCode}`);
+  },
+
   fetchProtheusBrands() {
     return this.request('/products/brands');
   },
