@@ -93,7 +93,7 @@ const AccessoryCarousel = () => {
             <img
               src={item.imageUrl}
               alt={item.name}
-              className="w-full h-30 object-cover"
+              className="w-full h-32 object-contain p-2"
             />
             <div className="p-3">
               <h3 className="text-sm font-bold text-espint-blue whitespace-nowrap truncate">{item.name}</h3>
