@@ -42,6 +42,7 @@ const corsOptions = {
     // Lista de dominios permitidos
     const allowedOrigins = [
       'http://localhost:5173', // Desarrollo Frontend
+      'http://localhost:5174', // Desarrollo Frontend (alternativo)
       'https://midashboard.com', // Producción Frontend
       'https://espint.pintureriasmercurio.com.ar', // (NUEVO) Frontend en Vercel
     ];
