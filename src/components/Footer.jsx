@@ -6,13 +6,13 @@ const Footer = () => {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="bg-slate-900 text-slate-300 pt-16 pb-8 mt-auto border-t border-slate-800">
+    <footer className="bg-espint-blue/95 text-slate-300 pt-16 pb-8 mt-auto border-t border-slate-800">
       <div className="max-w-6xl mx-auto px-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           {/* Brand Section */}
           <div className="space-y-4">
             <h3 className="text-2xl font-bold text-white tracking-tight">
-              Pinturerías <span className="text-blue-500">Mercurio</span>
+              Distribuidora <span className="text-blue-500">Espint</span>
             </h3>
             <p className="text-sm leading-relaxed text-slate-400">
               Transformamos espacios con color y calidad. Tu socio confiable en pintura y decoración desde hace más de 20 años.
@@ -102,7 +102,7 @@ const Footer = () => {
 
         {/* Bottom Bar */}
         <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-slate-500">
-          <p>&copy; {currentYear} Pinturerías Mercurio. Todos los derechos reservados.</p>
+          <p>&copy; {currentYear} Distribuidora Espint. Todos los derechos reservados.</p>
           <div className="flex items-center mt-4 md:mt-0">
             <span>Hecho con</span>
             <Heart size={12} className="mx-1 text-red-500 fill-current" />
