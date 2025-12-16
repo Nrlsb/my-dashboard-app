@@ -17,9 +17,29 @@ const ClientProductPermissionsPage = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
+    const [showRestricted, setShowRestricted] = useState(false);
+
+    // Removed automatic fetch on mount
+    /*
     useEffect(() => {
         const fetchPermissions = async () => {
-            if (!currentUser || !currentUser.is_admin) {
+             // ... logic moved to handleShowRestricted
+        };
+        fetchPermissions();
+    }, [currentUser]);
+    */
+
+    const handleShowRestricted = async () => {
+        if (showRestricted) {
+            setShowRestricted(false);
+            return;
+        }
+
+        setShowRestricted(true);
+
+        // Only fetch if we haven't fetched yet (or if you want to refresh every time, remove this check)
+        if (deniedProductCodes.length === 0 && deniedProductsDetails.length === 0) {
+             if (!currentUser || !currentUser.is_admin) {
                 setError('Acceso denegado. Requiere permisos de administrador.');
                 return;
             }
@@ -41,9 +61,8 @@ const ClientProductPermissionsPage = () => {
             } finally {
                 setIsLoading(false);
             }
-        };
-        fetchPermissions();
-    }, [currentUser]);
+        }
+    };
 
     // Search products to add
     useEffect(() => {
@@ -92,6 +111,8 @@ const ClientProductPermissionsPage = () => {
         if (!deniedProductCodes.includes(product.code)) {
             setDeniedProductCodes([...deniedProductCodes, product.code]);
             setDeniedProductsDetails([...deniedProductsDetails, product]);
+            // If the user adds a product, we should probably show the list so they see it's added
+            if (!showRestricted) setShowRestricted(true);
         }
         // No limpiamos la búsqueda para permitir selección múltiple
     };
@@ -118,9 +139,12 @@ const ClientProductPermissionsPage = () => {
         }
     };
 
+    // Removed the loading check that blocked the whole UI
+    /*
     if (isLoading && deniedProductCodes.length === 0) {
         return <LoadingSpinner text="Cargando..." />;
     }
+    */
 
     if (!currentUser || !currentUser.is_admin) {
         return (
@@ -186,71 +210,85 @@ const ClientProductPermissionsPage = () => {
                     )}
                 </div>
 
-                <h3 className="mt-0 mb-4 border-b pb-2 text-xl font-semibold text-gray-700">Productos Restringidos Globalmente ({deniedProductCodes.length})</h3>
-
-                <div className="mb-4">
-                    <input
-                        type="text"
-                        value={filterRestricted}
-                        onChange={(e) => setFilterRestricted(e.target.value)}
-                        placeholder="Filtrar lista de restringidos..."
-                        className="p-2 rounded border border-gray-300 w-full text-sm"
-                    />
+                <div className="flex justify-between items-center mb-4 border-b pb-2">
+                    <h3 className="text-xl font-semibold text-gray-700 m-0">
+                        Productos Restringidos Globalmente ({deniedProductCodes.length})
+                    </h3>
+                    <button
+                        onClick={handleShowRestricted}
+                        className="text-blue-600 hover:text-blue-800 text-sm font-semibold underline"
+                    >
+                        {showRestricted ? 'Ocultar Lista' : 'Ver Lista Completa'}
+                    </button>
                 </div>
 
-                {isLoading ? (
-                    <LoadingSpinner text="Cargando productos..." />
-                ) : (
-                    <>
-                        <div className="space-y-2 mb-4">
-                            {currentDeniedProducts.length === 0 ? (
-                                <p className="text-gray-500 italic">No hay productos que coincidan.</p>
-                            ) : (
-                                currentDeniedProducts.map((product) => (
-                                    <div key={product.id} className="flex justify-between items-center p-3 bg-red-50 border border-red-100 rounded">
-                                        <div>
-                                            <span className="font-medium">{product.name}</span>
-                                            <span className="text-gray-500 text-sm ml-2">({product.code})</span>
-                                        </div>
-                                        <button
-                                            onClick={() => handleRemoveProduct(product.code)}
-                                            className="text-red-600 hover:text-red-800 font-semibold"
-                                        >
-                                            Quitar
-                                        </button>
-                                    </div>
-                                ))
-                            )}
+                {showRestricted && (
+                    <div className="animate-fade-in">
+                        <div className="mb-4">
+                            <input
+                                type="text"
+                                value={filterRestricted}
+                                onChange={(e) => setFilterRestricted(e.target.value)}
+                                placeholder="Filtrar lista de restringidos..."
+                                className="p-2 rounded border border-gray-300 w-full text-sm"
+                            />
                         </div>
 
-                        {totalPages > 1 && (
-                            <div className="flex justify-between items-center mb-8">
-                                <button
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                    disabled={currentPage === 1}
-                                    className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 hover:bg-gray-300 transition-colors"
-                                >
-                                    Anterior
-                                </button>
-                                <span className="text-sm text-gray-600">
-                                    Página {currentPage} de {totalPages}
-                                </span>
-                                <button
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                    disabled={currentPage === totalPages}
-                                    className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 hover:bg-gray-300 transition-colors"
-                                >
-                                    Siguiente
-                                </button>
-                            </div>
+                        {isLoading ? (
+                            <LoadingSpinner text="Cargando productos..." />
+                        ) : (
+                            <>
+                                <div className="space-y-2 mb-4">
+                                    {currentDeniedProducts.length === 0 ? (
+                                        <p className="text-gray-500 italic">No hay productos que coincidan.</p>
+                                    ) : (
+                                        currentDeniedProducts.map((product) => (
+                                            <div key={product.id} className="flex justify-between items-center p-3 bg-red-50 border border-red-100 rounded">
+                                                <div>
+                                                    <span className="font-medium">{product.name}</span>
+                                                    <span className="text-gray-500 text-sm ml-2">({product.code})</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleRemoveProduct(product.code)}
+                                                    className="text-red-600 hover:text-red-800 font-semibold"
+                                                >
+                                                    Quitar
+                                                </button>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+
+                                {totalPages > 1 && (
+                                    <div className="flex justify-between items-center mb-8">
+                                        <button
+                                            onClick={() => handlePageChange(currentPage - 1)}
+                                            disabled={currentPage === 1}
+                                            className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 hover:bg-gray-300 transition-colors"
+                                        >
+                                            Anterior
+                                        </button>
+                                        <span className="text-sm text-gray-600">
+                                            Página {currentPage} de {totalPages}
+                                        </span>
+                                        <button
+                                            onClick={() => handlePageChange(currentPage + 1)}
+                                            disabled={currentPage === totalPages}
+                                            className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 hover:bg-gray-300 transition-colors"
+                                        >
+                                            Siguiente
+                                        </button>
+                                    </div>
+                                )}
+                            </>
                         )}
-                    </>
+                    </div>
                 )}
 
                 <button
                     onClick={handleSave}
                     disabled={isLoading}
-                    className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed w-full sm:w-auto"
+                    className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed w-full sm:w-auto mt-4"
                 >
                     Guardar Cambios
                 </button>
