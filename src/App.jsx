@@ -13,6 +13,8 @@ import { Outlet } from 'react-router-dom';
 
 import AnalyticsTracker from './components/AnalyticsTracker';
 
+import Footer from './components/Footer';
+
 // --- Componente Raíz ---
 function App() {
   const { isAuthenticated, user, loading, logout, firstLogin } = useAuth();
@@ -43,9 +45,10 @@ function App() {
       {isAuthenticated && !firstLogin && (
         <Header onLogout={handleLogout} currentUser={user} />
       )}
-      <div className="page-content p-6 max-w-6xl mx-auto my-5 w-full box-border">
+      <div className="page-content p-6 max-w-6xl mx-auto my-5 w-full box-border flex-grow">
         <Outlet context={{ onCompleteOrder: handleCompleteOrder }} />
       </div>
+      <Footer />
       <Toaster position="top-right" />
     </div>
   );
