@@ -747,7 +747,7 @@ const addCustomGroupItem = async (groupId, productId) => {
     if (productResult.rows.length === 0) throw new Error('Product not found');
     const productCode = productResult.rows[0].code;
 
-    await pool2.query('INSERT INTO carousel_custom_group_items (group_id, product_code) VALUES ($1, $2) ON CONFLICT DO NOTHING', [groupId, productCode]);
+    await pool2.query('INSERT INTO carousel_custom_group_items (group_id, product_code, product_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [groupId, productCode, productId]);
     return { success: true };
   } catch (error) {
     console.error('Error in addCustomGroupItem:', error);
