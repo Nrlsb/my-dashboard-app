@@ -7,9 +7,11 @@ const AdminAnalyticsPage = () => {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [days, setDays] = useState(30);
+    const [users, setUsers] = useState([]);
 
     useEffect(() => {
         fetchStats();
+        fetchUsers();
     }, [days]);
 
     const fetchStats = async () => {
@@ -23,6 +25,20 @@ const AdminAnalyticsPage = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const fetchUsers = async () => {
+        try {
+            const usersData = await apiService.getAdminUsers();
+            setUsers(usersData);
+        } catch (error) {
+            console.error('Error fetching users:', error);
+        }
+    };
+
+    const getSellerName = (code) => {
+        const user = users.find(u => u.code === code || u.a1_cod === code || String(u.id) === String(code));
+        return user ? user.full_name : code;
     };
 
     if (loading) return <LoadingSpinner text="Cargando análisis..." />;
@@ -59,7 +75,10 @@ const AdminAnalyticsPage = () => {
                 </div>
                 <div className="bg-white p-4 rounded shadow border border-gray-200">
                     <h3 className="text-gray-500 text-sm font-medium">Ventas Totales</h3>
-                    <p className="text-3xl font-bold text-green-600 mt-2">
+                    <p
+                        className="text-2xl font-bold text-green-600 mt-2 truncate"
+                        title={`$${stats.orders.reduce((acc, curr) => acc + parseFloat(curr.total_amount || 0), 0).toLocaleString()}`}
+                    >
                         ${stats.orders.reduce((acc, curr) => acc + parseFloat(curr.total_amount || 0), 0).toLocaleString()}
                     </p>
                 </div>
@@ -110,7 +129,7 @@ const AdminAnalyticsPage = () => {
                         <table className="w-full text-left">
                             <thead>
                                 <tr className="border-b border-gray-200">
-                                    <th className="pb-3 text-gray-600 font-medium">Cód. Vendedor</th>
+                                    <th className="pb-3 text-gray-600 font-medium">Vendedor</th>
                                     <th className="pb-3 text-gray-600 font-medium">Pedidos (Clientes)</th>
                                     <th className="pb-3 text-gray-600 font-medium">Total Ventas</th>
                                 </tr>
@@ -118,7 +137,7 @@ const AdminAnalyticsPage = () => {
                             <tbody>
                                 {stats.sellers.map((seller, index) => (
                                     <tr key={index} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                                        <td className="py-3 font-medium text-gray-800">{seller.code}</td>
+                                        <td className="py-3 font-medium text-gray-800">{getSellerName(seller.code)}</td>
                                         <td className="py-3 text-gray-700">{seller.orderCount}</td>
                                         <td className="py-3 font-medium text-green-600">
                                             ${seller.totalSales.toLocaleString()}
@@ -139,16 +158,19 @@ const AdminAnalyticsPage = () => {
                 <h2 className="text-xl font-semibold mb-6 text-gray-800">Tráfico Diario</h2>
                 <div className="h-64 flex items-end space-x-2 overflow-x-auto pb-8">
                     {stats.visits.length > 0 ? stats.visits.map((visit, index) => {
-                        const max = Math.max(...stats.visits.map(v => parseInt(v.count)));
-                        const height = max > 0 ? (parseInt(visit.count) / max) * 100 : 0;
+                        const counts = stats.visits.map(v => Number(v.count) || 0);
+                        const max = Math.max(...counts);
+                        const current = Number(visit.count) || 0;
+                        const height = max > 0 ? (current / max) * 100 : 0;
+
                         return (
                             <div key={index} className="flex flex-col items-center min-w-[40px] group relative">
                                 <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap z-10">
-                                    {visit.date}: {visit.count} visitas
+                                    {visit.date}: {current} visitas
                                 </div>
                                 <div
                                     className="w-full bg-blue-500 rounded-t hover:bg-blue-600 transition-colors cursor-pointer"
-                                    style={{ height: `${height}%`, minHeight: '4px' }}
+                                    style={{ height: `${height}%`, minHeight: current > 0 ? '4px' : '0px' }}
                                 ></div>
                                 <span className="text-xs text-gray-500 mt-2 transform -rotate-45 origin-top-left">
                                     {visit.date.split('-').slice(1).join('/')}
