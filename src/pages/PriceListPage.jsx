@@ -127,80 +127,84 @@ export default function PriceListPage() {
   const debounceTimeout = useRef(null);
   const brandDropdownRef = useRef(null);
 
-  const pdfMutation = useMutation({
+  const excelMutation = useMutation({
     mutationFn: () =>
       apiService.fetchAllProductsForPDF(debounceSearchTerm, selectedBrands),
-    onSuccess: (products) => {
+    onSuccess: async (products) => {
       if (!products || products.length === 0) {
         alert(
-          'No se encontraron productos con los filtros actuales para generar el PDF.'
+          'No se encontraron productos con los filtros actuales para generar el Excel.'
         );
         return;
       }
 
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
+      try {
+        // Importación dinámica de ExcelJS para no aumentar el bundle inicial
+        const ExcelJS = (await import('exceljs')).default;
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Lista de Precios');
 
-      doc.setFontSize(16);
-      doc.text('Lista de Precios - Pintureria Mercurio', 14, 22);
-      doc.setFontSize(10);
-      const brandText =
-        selectedBrands.length > 0 ? selectedBrands.join(', ') : 'Todas';
-      doc.text(
-        `Filtros: ${debounceSearchTerm || 'Ninguno'} | Marca: ${brandText}`,
-        14,
-        28
-      );
-      doc.text(
-        `Fecha: ${new Date().toLocaleDateString('es-AR')}`,
-        doc.internal.pageSize.getWidth() - 14,
-        28,
-        { align: 'right' }
-      );
+        // Definir columnas
+        worksheet.columns = [
+          { header: 'Código', key: 'code', width: 15 },
+          { header: 'Descripción', key: 'name', width: 40 },
+          { header: 'Marca', key: 'brand', width: 20 },
+          { header: 'Grupo', key: 'product_group', width: 15 },
+          { header: 'Moneda', key: 'moneda', width: 12 },
+          { header: 'Cotización', key: 'cotizacion', width: 12 },
+          { header: 'Precio USD', key: 'originalPrice', width: 15 },
+          { header: 'Precio Final (ARS)', key: 'price', width: 20 },
+        ];
 
-      const columns = [
-        'Código',
-        'Descripción',
-        'Marca',
-        'Grupo',
-        'Mon',
-        'Cotiz',
-        'Precio USD',
-        'Precio ARS',
-      ];
-      const rows = products.map((p) => [
-        p.code,
-        p.name,
-        p.brand,
-        p.product_group,
-        formatMoneda(p.moneda),
-        formatRate(p.cotizacion),
-        Number(p.moneda) === 2 || Number(p.moneda) === 3
-          ? formatUSD(p.originalPrice)
-          : '-',
-        formatCurrency(p.price),
-      ]);
+        // Estilar encabezados
+        worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        worksheet.getRow(1).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF283A5A' }, // Color azul oscuro similar al del PDF
+        };
 
-      doc.autoTable({
-        startY: 35,
-        head: [columns],
-        body: rows,
-        theme: 'striped',
-        headStyles: { fillColor: [40, 58, 90] },
-        styles: { fontSize: 8 },
-        columnStyles: {
-          4: { halign: 'right' },
-          5: { halign: 'right' },
-          6: { halign: 'right' },
-          7: { halign: 'right' },
-        },
-      });
+        // Agregar filas
+        products.forEach((p) => {
+          const row = worksheet.addRow({
+            code: p.code,
+            name: p.name,
+            brand: p.brand,
+            product_group: p.product_group,
+            moneda: formatMoneda(p.moneda),
+            cotizacion: Number(p.cotizacion),
+            originalPrice:
+              Number(p.moneda) === 2 || Number(p.moneda) === 3
+                ? Number(p.originalPrice)
+                : null,
+            price: Number(p.price),
+          });
 
-      doc.save('lista-de-precios.pdf');
+          // Formato de celdas numéricas
+          row.getCell('cotizacion').numFmt = '#,##0.00';
+          row.getCell('originalPrice').numFmt = '"$"#,##0.00';
+          row.getCell('price').numFmt = '"$"#,##0.00';
+        });
+
+        // Generar archivo y descargar
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = 'lista-de-precios.xlsx';
+        anchor.click();
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('Error al generar el Excel:', error);
+        alert(`Error al generar el Excel: ${error.message}`);
+      }
     },
     onError: (error) => {
-      console.error('Error al generar el PDF:', error);
-      alert(`Error al generar el PDF: ${error.message}`);
+      console.error('Error al obtener productos para Excel:', error);
+      alert(`Error al obtener productos: ${error.message}`);
     },
   });
 
@@ -273,8 +277,7 @@ export default function PriceListPage() {
     setSelectedBrands([]);
   };
 
-  const handleGeneratePDF = () => pdfMutation.mutate();
-
+  const handleGenerateExcel = () => excelMutation.mutate();
   const allProducts = data?.pages.flatMap((page) => page.products) || [];
   const hasFilters = searchTerm.length > 0 || selectedBrands.length > 0;
 
@@ -299,16 +302,16 @@ export default function PriceListPage() {
           <h1 className="text-xl md:text-3xl font-bold text-gray-800">Lista de Precios</h1>
         </div>
         <button
-          onClick={handleGeneratePDF}
-          disabled={pdfMutation.isPending}
+          onClick={handleGenerateExcel}
+          disabled={excelMutation.isPending}
           className="inline-flex items-center justify-center px-3 py-2 md:px-4 md:py-2 bg-espint-green text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-colors disabled:opacity-50 cursor-pointer"
         >
-          {pdfMutation.isPending ? (
+          {excelMutation.isPending ? (
             <Loader2 className="w-5 h-5 md:mr-2 animate-spin" />
           ) : (
             <Download className="w-5 h-5 md:mr-2" />
           )}
-          <span className="hidden md:inline">Descargar PDF</span>
+          <span className="hidden md:inline">Descargar Excel</span>
         </button>
       </header>
 
