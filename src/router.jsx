@@ -35,6 +35,7 @@ const VendedorAccountBalancePage = lazyImport(() => import('./pages/VendedorAcco
 const VendedorOrderHistoryPage = lazyImport(() => import('./pages/VendedorOrderHistoryPage.jsx'));
 const ImageUpload = lazyImport(() => import('./components/ImageUpload.jsx'));
 const AdminAnalyticsPage = lazyImport(() => import('./pages/AdminAnalyticsPage.jsx'));
+const AboutPage = lazyImport(() => import('./pages/AboutPage.jsx'));
 
 // Error Element for Dashboard
 const DashboardError = () => (
@@ -77,6 +78,12 @@ const router = createBrowserRouter(
             <Route path="change-password" element={
                 <Suspense fallback={<LoadingFallback />}>
                     <ChangePasswordPage />
+                </Suspense>
+            } />
+
+            <Route path="about" element={
+                <Suspense fallback={<LoadingFallback />}>
+                    <AboutPage />
                 </Suspense>
             } />
 
