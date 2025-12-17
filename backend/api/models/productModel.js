@@ -111,7 +111,6 @@ const getDeniedProductGroups = async (userId) => {
     throw error;
   }
 };
-
 /**
  * Obtiene los Códigos de productos denegados para un usuario específico.
  * @param {number} userId - El ID del usuario.
@@ -124,28 +123,23 @@ const getDeniedProducts = async (userId) => {
     const userCode = userResult.rows[0].a1_cod;
 
     const query = `
-      SELECT product_code 
-      FROM user_product_permissions 
+      SELECT product_group 
+      FROM user_product_group_permissions 
       WHERE user_code = $1;
     `;
     const result = await pool2.query(query, [userCode]);
     return result.rows
-      .map((row) => row.product_code)
+      .map((row) => row.product_group)
       .filter((c) => c != null && c !== '');
   } catch (error) {
     console.error(`Error in getDeniedProducts for user ${userId}:`, error);
     if (error.code === '42P01') {
-      console.warn('[WARNING] Table user_product_permissions does not exist. Skipping user restrictions.');
+      console.warn('[WARNING] Table user_product_group_permissions does not exist. Skipping user restrictions.');
       return [];
     }
     throw error;
   }
 };
-
-/**
- * Invalida la caché de permisos para un usuario específico.
- * @param {number} userId - El ID del usuario.
- */
 // Function removed as cache is disabled
 const invalidatePermissionsCache = async (userId) => {
   if (!isRedisReady()) return;
