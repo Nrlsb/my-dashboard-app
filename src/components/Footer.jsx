@@ -41,7 +41,7 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/products" className="hover:text-blue-400 transition-colors duration-200 flex items-center">
+                <Link to="/price-list" className="hover:text-blue-400 transition-colors duration-200 flex items-center">
                   <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2 opacity-0 hover:opacity-100 transition-opacity"></span>
                   Productos
                 </Link>
@@ -63,9 +63,16 @@ const Footer = () => {
                 <MapPin size={18} className="mr-3 text-blue-500 shrink-0 mt-0.5" />
                 <span>Av. Principal 1234,<br />Esperanza, Santa Fe</span>
               </li>
-              <li className="flex items-center">
-                <Phone size={18} className="mr-3 text-blue-500 shrink-0" />
-                <span>+54 11 1234-5678</span>
+              <li className="flex flex-col space-y-2">
+                <div className="flex items-center text-green-500 mb-1">
+                  <Phone size={18} className="mr-3 shrink-0" />
+                  <span className="font-semibold">WhatsApp:</span>
+                </div>
+                <div className="pl-8 space-y-1 text-slate-300">
+                  <p>Aldo: +54 9 3496 660664</p>
+                  <p>Jonatan: +54 9 3496 505822</p>
+                  <p>Ezequiel: +54 9 342 6280360</p>
+                </div>
               </li>
               <li className="flex items-center">
                 <Mail size={18} className="mr-3 text-blue-500 shrink-0" />
