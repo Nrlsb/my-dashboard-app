@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import logo from '../assets/espintBlanco.svg';
 
+import SearchBar from './SearchBar';
+
 const Header = ({ onLogout, currentUser }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const navigate = useNavigate(); // Usar el hook
@@ -39,13 +41,17 @@ const Header = ({ onLogout, currentUser }) => {
   return (
     <header className="bg-espint-blue/95 backdrop-blur-sm shadow-md relative z-50">
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20">
+        <div className="flex justify-between items-center h-20 gap-4">
           <div className="flex-shrink-0">
             <button
               onClick={() => handleNavigation('/dashboard')}
             >
               <img src={logo} alt="Espint Distribuidora" className="h-12" />
             </button>
+          </div>
+
+          <div className="flex-1 flex justify-center max-w-2xl mx-auto hidden md:flex">
+            <SearchBar />
           </div>
 
           <div className="flex items-center space-x-4">

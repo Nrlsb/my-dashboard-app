@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom'; // Import useSearchParams
 import { useCart } from '../context/CartContext.jsx';
 import {
   ArrowLeft,
@@ -178,6 +178,7 @@ const ProductModal = ({ product, onClose, onAddToCart }) => {
 const NewOrderPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams(); // Hook to get URL params
   const [allProducts, setAllProducts] = useState([]);
   const [productMap, setProductMap] = useState(new Map());
   const [totalProducts, setTotalProducts] = useState(0);
@@ -186,7 +187,7 @@ const NewOrderPage = () => {
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [productError, setProductError] = useState(null);
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || ''); // Initialize with URL param
   const [selectedBrand, setSelectedBrand] = useState('');
 
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -209,6 +210,14 @@ const NewOrderPage = () => {
       fetchBrands();
     }
   }, [user]);
+
+  // Update searchTerm when URL param changes
+  useEffect(() => {
+    const query = searchParams.get('search');
+    if (query !== null) {
+      setSearchTerm(query);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const loadProducts = async () => {
