@@ -13,6 +13,7 @@ import {
   Loader2,
   ShoppingCart,
   Info,
+  Circle,
 } from 'lucide-react';
 
 // Formateador de moneda
@@ -76,6 +77,34 @@ export default function ProductDetailPage() {
     setTimeout(() => setIsAdded(false), 2000);
   };
 
+  const renderStockStatus = (product) => {
+    const stock = product.stock_disponible !== undefined ? product.stock_disponible : product.stock;
+    const securityStock = product.stock_de_seguridad || 0;
+
+    if (stock <= 0) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+          <div className="w-2 h-2 bg-red-500 rounded-full mr-1"></div>
+          Sin Stock
+        </span>
+      );
+    } else if (stock <= securityStock) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+          <div className="w-2 h-2 bg-yellow-500 rounded-full mr-1"></div>
+          Stock Bajo
+        </span>
+      );
+    } else {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+          <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+          Disponible
+        </span>
+      );
+    }
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return <LoadingSkeleton />;
@@ -115,21 +144,14 @@ export default function ProductDetailPage() {
             </span>
             <h2 className="text-3xl font-bold text-gray-900">{product.name}</h2>
 
-            <div className="flex items-center">
-              <span className="text-sm text-gray-500">
-                (Sin calificaciones)
-              </span>
-            </div>
-
             <p className="text-4xl font-extrabold text-gray-800">
               {formatCurrency(product.price)}
             </p>
 
             <p className="text-gray-600 leading-relaxed">
-              {product.capacity_description ||
+              {product.description ||
+                product.capacity_description ||
                 'Detalles del producto no disponibles.'}
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
-              eiusmod tempor incididunt ut labore et dolore magna aliqua.
             </p>
 
             <div className="flex items-center space-x-4">
@@ -179,11 +201,17 @@ export default function ProductDetailPage() {
               )}
             </button>
 
-            <div className="flex items-center text-sm text-gray-500">
-              <Info className="w-4 h-4 mr-2" />
-              <span>
-                Cód: {product.code} | Stock: {product.stock}
-              </span>
+            <div className="flex items-center text-sm text-gray-500 justify-between mt-4">
+              <div className="flex items-center">
+                <Info className="w-4 h-4 mr-2" />
+                <span>Cód: {product.code}</span>
+              </div>
+              <div className="flex items-center font-medium">
+                <span className="mr-2">
+                  Stock: {product.stock_disponible !== undefined ? product.stock_disponible : product.stock}
+                </span>
+                {renderStockStatus(product)}
+              </div>
             </div>
           </div>
         </div>
@@ -192,7 +220,7 @@ export default function ProductDetailPage() {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-white min-h-screen">
       <header className="mb-6 flex items-center">
         <button
           onClick={() => navigate(-1)}
