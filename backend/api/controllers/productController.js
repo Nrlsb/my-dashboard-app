@@ -96,13 +96,13 @@ exports.getProductsOrdersController = catchAsync(async (req, res) => {
 });
 
 exports.getAccessories = catchAsync(async (req, res) => {
-    const userId = req.user ? req.user.id : null;
+    const userId = req.userId;
     const accessories = await productService.getAccessories(userId);
     res.json(accessories);
 });
 
 exports.getProductGroupsDetails = catchAsync(async (req, res) => {
-    const userId = req.user ? req.user.id : null;
+    const userId = req.userId;
     const groupDetails = await productService.getProductGroupsDetails(userId);
     res.json(groupDetails);
 });
@@ -125,6 +125,6 @@ exports.updateProductOfferDetails = catchAsync(async (req, res) => {
 });
 
 exports.getCustomCollectionProducts = catchAsync(async (req, res) => {
-    const products = await productService.getCustomCollectionProducts(req.params.collectionId);
+    const products = await productService.getCustomCollectionProducts(req.params.collectionId, req.userId);
     res.json(products);
 });

@@ -197,12 +197,28 @@ const getAccessories = async (userId) => {
     const dbAccessories = await productModel.findCarouselAccessories();
 
     if (dbAccessories.length > 0) {
-      // Filter by denied groups if user is restricted
+      // Filter by denied groups and products if user is restricted
       let filteredAccessories = dbAccessories;
       if (userId) {
-        const deniedGroups = await productModel.getDeniedProductGroups(userId);
-        if (deniedGroups.length > 0) {
-          filteredAccessories = dbAccessories.filter(acc => !deniedGroups.includes(acc.product_group));
+        const userResult = await pool.query(
+          'SELECT is_admin FROM users WHERE id = $1',
+          [userId]
+        );
+        const isUserAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin;
+
+        if (!isUserAdmin) {
+          const deniedGroups = await productModel.getDeniedProductGroups(userId);
+          let deniedProductCodes = await productModel.getDeniedProducts(userId);
+
+          // Add global restrictions
+          const globalDeniedCodes = await productModel.getGlobalDeniedProducts();
+          deniedProductCodes = [...new Set([...deniedProductCodes, ...globalDeniedCodes])];
+
+          filteredAccessories = dbAccessories.filter(acc => {
+            const isGroupDenied = deniedGroups.includes(acc.product_group);
+            const isProductDenied = deniedProductCodes.includes(acc.code);
+            return !isGroupDenied && !isProductDenied;
+          });
         }
       }
 
@@ -692,8 +708,36 @@ const deleteCarouselGroup = async (id) => {
   return result;
 };
 
-const getCustomCollectionProducts = async (collectionId) => {
+const getCustomCollectionProducts = async (collectionId, userId = null) => {
   const rawProducts = await productModel.findCustomCollectionProducts(collectionId);
+
+  let filteredProducts = rawProducts;
+  if (userId) {
+    const userResult = await pool.query(
+      'SELECT is_admin FROM users WHERE id = $1',
+      [userId]
+    );
+    const isUserAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin;
+
+    if (!isUserAdmin) {
+      const deniedGroups = await productModel.getDeniedProductGroups(userId);
+      let deniedProductCodes = await productModel.getDeniedProducts(userId);
+
+      const globalDeniedCodes = await productModel.getGlobalDeniedProducts();
+      deniedProductCodes = [...new Set([...deniedProductCodes, ...globalDeniedCodes])];
+
+      filteredProducts = rawProducts.filter(prod => {
+        const isGroupDenied = deniedGroups.includes(prod.product_group);
+        const isProductDenied = deniedProductCodes.includes(prod.code);
+        return !isGroupDenied && !isProductDenied;
+      });
+    }
+  } else {
+    // If no user, apply global restrictions
+    const globalDeniedCodes = await productModel.getGlobalDeniedProducts();
+    filteredProducts = rawProducts.filter(prod => !globalDeniedCodes.includes(prod.code));
+  }
+
   let exchangeRates;
   try {
     exchangeRates = await getExchangeRates();
@@ -703,7 +747,7 @@ const getCustomCollectionProducts = async (collectionId) => {
   const ventaBillete = exchangeRates.venta_billete || 1;
   const ventaDivisa = exchangeRates.venta_divisa || 1;
 
-  return rawProducts.map((prod) => {
+  const mappedProducts = filteredProducts.map((prod) => {
     let originalPrice = prod.price;
     let finalPrice = prod.price;
 
