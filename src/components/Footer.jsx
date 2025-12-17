@@ -15,7 +15,7 @@ const Footer = () => {
               Distribuidora <span className="text-blue-500">Espint</span>
             </h3>
             <p className="text-sm leading-relaxed text-slate-400">
-              Transformamos espacios con color y calidad. Tu socio confiable en pintura y decoración desde hace más de 20 años.
+              Transformamos espacios con color y calidad. Tu socio confiable en pintura y decoración desde hace más de 45 años.
             </p>
             <div className="flex space-x-4 pt-2">
               <a href="#" className="hover:text-blue-400 transition-colors duration-300">
@@ -52,12 +52,6 @@ const Footer = () => {
                   Nosotros
                 </Link>
               </li>
-              <li>
-                <Link to="/contact" className="hover:text-blue-400 transition-colors duration-200 flex items-center">
-                  <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2 opacity-0 hover:opacity-100 transition-opacity"></span>
-                  Contacto
-                </Link>
-              </li>
             </ul>
           </div>
 
@@ -67,7 +61,7 @@ const Footer = () => {
             <ul className="space-y-4 text-sm">
               <li className="flex items-start">
                 <MapPin size={18} className="mr-3 text-blue-500 shrink-0 mt-0.5" />
-                <span>Av. Principal 1234,<br />Ciudad, Provincia</span>
+                <span>Av. Principal 1234,<br />Esperanza, Santa Fe</span>
               </li>
               <li className="flex items-center">
                 <Phone size={18} className="mr-3 text-blue-500 shrink-0" />
@@ -75,7 +69,7 @@ const Footer = () => {
               </li>
               <li className="flex items-center">
                 <Mail size={18} className="mr-3 text-blue-500 shrink-0" />
-                <span>info@pintureriasmercurio.com</span>
+                <span>espint@pintureriamercurio.com.ar</span>
               </li>
             </ul>
           </div>
@@ -86,15 +80,7 @@ const Footer = () => {
             <ul className="space-y-3 text-sm text-slate-400">
               <li className="flex justify-between">
                 <span>Lunes - Viernes:</span>
-                <span className="text-slate-200">8:00 - 18:00</span>
-              </li>
-              <li className="flex justify-between">
-                <span>Sábados:</span>
-                <span className="text-slate-200">9:00 - 13:00</span>
-              </li>
-              <li className="flex justify-between">
-                <span>Domingos:</span>
-                <span className="text-slate-200">Cerrado</span>
+                <span className="text-slate-200">8:00 - 17:00</span>
               </li>
             </ul>
           </div>
