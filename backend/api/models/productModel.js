@@ -54,6 +54,132 @@ const getOnOfferProductIds = async (bypassCache = false) => {
 /**
  * Función interna para obtener solo los Códigos de productos en oferta.
  * @returns {Promise<string[]>}
+ */
+const getOnOfferProductCodes = async (bypassCache = false) => {
+  const data = await getOnOfferData(bypassCache);
+  return data.map(item => item.product_code).filter(code => code != null);
+};
+
+/**
+ * Obtiene los grupos de productos denegados para un usuario específico.
+ * Utiliza una caché en memoria para evitar consultas repetidas a la base de datos.
+ * @param {number} userId - El ID del usuario.
+ * @returns {Promise<string[]>} - Una promesa que se resuelve con un array de códigos de grupo de productos denegados.
+ */
+const getDeniedProductGroups = async (userId) => {
+  const cacheKey = `user:denied_groups:${userId}`;
+
+  if (isRedisReady()) {
+    try {
+      const cachedData = await redisClient.get(cacheKey);
+      if (cachedData) {
+        return JSON.parse(cachedData);
+      }
+    } catch (err) {
+      console.error('Redis error in getDeniedProductGroups:', err);
+    }
+  }
+
+  try {
+    const query = `
+      SELECT product_group 
+      FROM user_product_group_permissions 
+      WHERE user_id = $1;
+    `;
+    const result = await pool2.query(query, [userId]);
+    const deniedGroups = result.rows
+      .map((row) => row.product_group)
+      .filter((g) => g != null && g !== '');
+
+    if (isRedisReady()) {
+      await redisClient.set(cacheKey, JSON.stringify(deniedGroups), { EX: 3600 });
+    }
+
+    return deniedGroups;
+  } catch (error) {
+    console.error(`Error in getDeniedProductGroups for user ${userId}:`, error);
+    if (error.code === '42P01') {
+      console.warn('[WARNING] Table user_product_group_permissions does not exist.');
+      return [];
+    }
+    throw error;
+  }
+};
+
+/**
+ * Obtiene los Códigos de productos denegados para un usuario específico.
+ * @param {number} userId - El ID del usuario.
+ * @returns {Promise<string[]>} - Una promesa que se resuelve con un array de códigos de productos denegados.
+ */
+const getDeniedProducts = async (userId) => {
+  try {
+    const query = `
+      SELECT product_id 
+      FROM user_product_permissions 
+      WHERE user_id = $1;
+    `;
+    const result = await pool2.query(query, [userId]);
+    const deniedIds = result.rows.map((row) => row.product_id);
+
+    if (deniedIds.length === 0) return [];
+
+    const codesQuery = `
+      SELECT code 
+      FROM products 
+      WHERE id = ANY($1::int[])
+    `;
+    const codesResult = await pool.query(codesQuery, [deniedIds]);
+
+    return codesResult.rows
+      .map((row) => row.code)
+      .filter((c) => c != null && c !== '');
+  } catch (error) {
+    console.error(`Error in getDeniedProducts for user ${userId}:`, error);
+    if (error.code === '42P01') {
+      console.warn('[WARNING] Table user_product_permissions does not exist.');
+      return [];
+    }
+    throw error;
+  }
+};
+
+const invalidatePermissionsCache = async (userId) => {
+  if (!isRedisReady()) return;
+  const cacheKey = `user:denied_groups:${userId}`;
+  try {
+    await redisClient.del(cacheKey);
+    console.log(`Invalidated permissions cache for user ${userId}`);
+  } catch (err) {
+    console.error(`Error invalidating permissions cache for user ${userId}:`, err);
+  }
+};
+
+/**
+ * Busca y cuenta productos en la base de datos con filtros y paginación.
+ * @param {object} filters - Los filtros para la búsqueda.
+ * @param {number} filters.limit - Límite de productos por página.
+ * @param {number} filters.offset - Desplazamiento para la paginación.
+ * @param {string} [filters.search] - Término de búsqueda para descripción o código.
+ * @param {string[]} [filters.brands] - Array de marcas para filtrar.
+ * @param {string[]} [filters.deniedGroups] - Array de grupos de productos a excluir.
+ * @param {string[]} [filters.deniedProductCodes] - Array de CÓDIGOS de productos a excluir (renamed from deniedProductIds).
+ * @returns {Promise<{products: object[], totalProducts: number}>} - Una promesa que se resuelve con los productos y el conteo total.
+ */
+const findProducts = async ({
+  limit,
+  offset,
+  search,
+  brands,
+  deniedGroups,
+  deniedProductIds = [],
+  allowedIds = [],
+  excludedIds = [],
+  bypassCache = false,
+}) => {
+  const cacheKey = `products:search:${JSON.stringify({
+    limit,
+    offset,
+    search: search ? search.trim() : '',
     brands: brands ? brands.sort() : [],
     deniedGroups: deniedGroups ? deniedGroups.filter(g => g != null && g !== '').sort() : [],
     deniedProductIds: deniedProductIds ? deniedProductIds.filter(id => id != null && id !== '').sort() : [],
@@ -74,7 +200,6 @@ const getOnOfferProductIds = async (bypassCache = false) => {
   let queryParams = [];
   let paramIndex = 1;
 
-  // --- Query Base ---
   let countQuery =
     'SELECT COUNT(*) FROM products WHERE price > 0 AND description IS NOT NULL';
   let dataQuery = `
@@ -86,7 +211,6 @@ const getOnOfferProductIds = async (bypassCache = false) => {
     WHERE price > 0 AND description IS NOT NULL
   `;
 
-  // --- Aplicar Filtros ---
   if (deniedGroups && deniedGroups.length > 0) {
     const groupQuery = ` product_group NOT IN (SELECT unnest($${paramIndex}::varchar[])) `;
     countQuery += ` AND ${groupQuery}`;
@@ -96,7 +220,6 @@ const getOnOfferProductIds = async (bypassCache = false) => {
   }
 
   if (deniedProductIds && deniedProductIds.length > 0) {
-    // Assuming deniedProductIds are now CODES (strings)
     const deniedProductsQuery = ` code != ALL($${paramIndex}::varchar[]) `;
     countQuery += ` AND ${deniedProductsQuery}`;
     dataQuery += ` AND ${deniedProductsQuery}`;
@@ -104,13 +227,12 @@ const getOnOfferProductIds = async (bypassCache = false) => {
     paramIndex++;
   }
 
-  // SMART SEARCH IMPLEMENTATION
   const searchTerms = search ? search.trim().split(/\s+/).filter(term => term.length > 0) : [];
 
   if (searchTerms.length > 0) {
     const termConditions = searchTerms.map(() => {
       const currentParamIndex = paramIndex;
-      paramIndex++; // Increment for the next term
+      paramIndex++;
       return `(description ILIKE $${currentParamIndex} OR code ILIKE $${currentParamIndex})`;
     });
 
@@ -134,7 +256,6 @@ const getOnOfferProductIds = async (bypassCache = false) => {
   }
 
   if (allowedIds && allowedIds.length > 0) {
-    // Assuming allowedIds are now CODES
     const allowedQuery = ` code = ANY($${paramIndex}::varchar[]) `;
     countQuery += ` AND ${allowedQuery}`;
     dataQuery += ` AND ${allowedQuery}`;
@@ -143,7 +264,6 @@ const getOnOfferProductIds = async (bypassCache = false) => {
   }
 
   if (excludedIds && excludedIds.length > 0) {
-    // Assuming excludedIds are now CODES
     const excludedQuery = ` code != ALL($${paramIndex}::varchar[]) `;
     countQuery += ` AND ${excludedQuery}`;
     dataQuery += ` AND ${excludedQuery}`;
@@ -151,7 +271,6 @@ const getOnOfferProductIds = async (bypassCache = false) => {
     paramIndex++;
   }
 
-  // --- Ordenar y Paginar (Solo para dataQuery) ---
   dataQuery += ` ORDER BY description ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
 
   try {
@@ -163,14 +282,11 @@ const getOnOfferProductIds = async (bypassCache = false) => {
     const totalProducts = parseInt(countResult.rows[0].count, 10);
     const products = dataResult.rows;
 
-    // Obtener la lista de CODES en oferta desde la función centralizada (caché)
     const onOfferProductCodes = await getOnOfferProductCodes(bypassCache);
     const onOfferCodesSet = new Set(onOfferProductCodes);
 
-    // Adjuntar el estado de la oferta a cada producto, usando la lista en memoria
     const productsWithOfferStatus = products.map((product) => ({
       ...product,
-      // la oferta será true si el CODE del producto existe en el Set de ofertas
       oferta: onOfferCodesSet.has(product.code),
     }));
 
@@ -180,7 +296,6 @@ const getOnOfferProductIds = async (bypassCache = false) => {
     };
 
     if (isRedisReady()) {
-      // Cache for 60 seconds
       await redisClient.set(cacheKey, JSON.stringify(resultToReturn), { EX: 60 });
     }
 
@@ -228,6 +343,22 @@ const findProductGroupsDetails = async (groupCodes) => {
     const result = await pool.query(query, [groupCodes]);
     return result.rows;
   } catch (error) {
+    console.error('Error in findProductGroupsDetails:', error);
+    throw error;
+  }
+};
+
+const findProductById = async (productId, deniedGroups = [], deniedProductCodes = []) => {
+  try {
+    let query = `
+      SELECT 
+        id, code, description, price, brand, 
+        capacity_description, product_group,
+        stock_disponible, stock_de_seguridad
+      FROM products
+      WHERE id = $1 AND price > 0 AND description IS NOT NULL
+    `;
+    let queryParams = [productId];
     let paramIndex = 2;
 
     if (deniedGroups.length > 0) {
