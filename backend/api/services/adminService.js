@@ -123,6 +123,9 @@ const updateUserGroupPermissions = async (userId, groups) => {
     await client.query('COMMIT');
     console.log(`Denied product group permissions updated for user ${userId}`);
 
+    // Invalidate cache
+    await productModel.invalidatePermissionsCache(userId);
+
     return { success: true, message: 'Permisos actualizados correctamente.' };
   } catch (error) {
     await client.query('ROLLBACK');
