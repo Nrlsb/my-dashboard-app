@@ -1,6 +1,6 @@
 import React from 'react';
 import LoadingSpinner from './components/LoadingSpinner';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 
@@ -21,6 +21,7 @@ function App() {
   const { clearCart } = useCart();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
@@ -48,7 +49,7 @@ function App() {
       <div className="page-content p-6 max-w-6xl mx-auto my-5 w-full box-border flex-grow">
         <Outlet context={{ onCompleteOrder: handleCompleteOrder }} />
       </div>
-      <Footer />
+      {location.pathname !== '/login' && <Footer />}
       <Toaster position="top-right" />
     </div>
   );
