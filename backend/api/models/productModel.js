@@ -644,7 +644,7 @@ const addCarouselAccessory = async (productId) => {
     if (productResult.rows.length === 0) throw new Error('Product not found');
     const productCode = productResult.rows[0].code;
 
-    await pool2.query('INSERT INTO carousel_accessories (product_code) VALUES ($1) ON CONFLICT DO NOTHING', [productCode]);
+    await pool2.query('INSERT INTO carousel_accessories (product_id, product_code) VALUES ($1, $2) ON CONFLICT DO NOTHING', [productId, productCode]);
     return { success: true };
   } catch (error) {
     console.error('Error in addCarouselAccessory:', error);
