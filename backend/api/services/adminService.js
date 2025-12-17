@@ -106,12 +106,17 @@ const updateUserGroupPermissions = async (userId, groups) => {
       [userId]
     );
 
+    // 1.5 Fetch user_code (a1_cod) from DB1
+    const userQuery = 'SELECT a1_cod FROM users WHERE id = $1';
+    const userResult = await pool.query(userQuery, [userId]);
+    const userCode = userResult.rows.length > 0 ? userResult.rows[0].a1_cod : null;
+
     // 2. Insert new permissions if any
     if (groups && groups.length > 0) {
       const insertQuery =
-        'INSERT INTO user_product_group_permissions (user_id, product_group) VALUES ($1, $2)';
+        'INSERT INTO user_product_group_permissions (user_id, product_group, user_code) VALUES ($1, $2, $3)';
       for (const group of groups) {
-        await client.query(insertQuery, [userId, group]);
+        await client.query(insertQuery, [userId, group, userCode]);
       }
     }
 
