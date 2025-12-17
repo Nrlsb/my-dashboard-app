@@ -64,7 +64,7 @@ const Footer = () => {
                 <span>Av. Principal 1234,<br />Esperanza, Santa Fe</span>
               </li>
               <li className="flex flex-col space-y-2">
-                <div className="flex items-center text-green-500 mb-1">
+                <div className="flex items-center text-blue-500 mb-1">
                   <Phone size={18} className="mr-3 shrink-0" />
                   <span className="font-semibold">WhatsApp:</span>
                 </div>
