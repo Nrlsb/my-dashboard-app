@@ -58,20 +58,17 @@ async function generateOrderPDF(orderData) {
                 condPago: user.a1_condpago || '',
                 vendedor: user.a1_vend || '',
             },
-            transporte: {
-                codigo: newOrder.transportCode || '',
-                nombre: newOrder.transportName || '',
-                cuil: newOrder.transportCuil || ''
-            },
             items: items.map(item => ({
                 codigo: item.code,
                 descripcion: item.name,
                 cantidad: item.quantity,
-                cantRes: item.reservedQuantity || ''
-            }))
+                precioUnitario: formatCurrency(item.price),
+                precioTotal: formatCurrency(item.quantity * item.price)
+            })),
+            total: formatCurrency(orderData.total)
         };
 
-        const { numero, fechaEmision, sucursal, cliente, transporte, items: mappedItems } = invoiceData;
+        const { numero, fechaEmision, sucursal, cliente, items: mappedItems, total: orderTotal } = invoiceData;
 
         const pdfDoc = await PDFDocument.create();
         const page = pdfDoc.addPage([595.28, 841.89]); // A4 size
@@ -256,12 +253,16 @@ async function generateOrderPDF(orderData) {
         // === Items Table ===
         const tableTop = y;
         const tableHeaderY = y - 15;
-        const colWidths = [80, 270, 80, 80];
+        // Adjusted column widths for new layout
+        // Total width available: width - margin * 2 = 595.28 - 80 = 515.28
+        // Cols: Code, Description, Quantity, Unit Price, Total Price
+        const colWidths = [70, 225, 60, 80, 80];
         const tableCols = [
             margin,
             margin + colWidths[0],
             margin + colWidths[0] + colWidths[1],
-            margin + colWidths[0] + colWidths[1] + colWidths[2]
+            margin + colWidths[0] + colWidths[1] + colWidths[2],
+            margin + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3]
         ];
 
         page.drawLine({ start: { x: margin, y: tableTop }, end: { x: width - margin, y: tableTop }, thickness: 1.5 });
@@ -270,7 +271,8 @@ async function generateOrderPDF(orderData) {
         drawText('Código', tableCols[0] + 5, tableHeaderY, { bold: true, size: smallTextSize });
         drawText('Descripción', tableCols[1] + 5, tableHeaderY, { bold: true, size: smallTextSize });
         drawCenteredText('Cantidad', tableCols[2], colWidths[2], tableHeaderY, { bold: true, size: smallTextSize });
-        drawCenteredText('Cant. Res.', tableCols[3], colWidths[3], tableHeaderY, { bold: true, size: smallTextSize });
+        drawCenteredText('Precio Unit.', tableCols[3], colWidths[3], tableHeaderY, { bold: true, size: smallTextSize });
+        drawCenteredText('Subtotal', tableCols[4], colWidths[4], tableHeaderY, { bold: true, size: smallTextSize });
 
         page.drawLine({ start: { x: margin, y: tableHeaderY - 8 }, end: { x: width - margin, y: tableHeaderY - 8 }, thickness: 1.5 });
 
@@ -278,51 +280,30 @@ async function generateOrderPDF(orderData) {
 
         (mappedItems || []).forEach(item => {
             drawText(item.codigo, tableCols[0] + 5, itemY, { size: smallTextSize });
-            drawText((item.descripcion || '').substring(0, 50), tableCols[1] + 5, itemY, { size: smallTextSize });
+            drawText((item.descripcion || '').substring(0, 45), tableCols[1] + 5, itemY, { size: smallTextSize });
 
             drawCenteredText(String(item.cantidad || ''), tableCols[2], colWidths[2], itemY, { size: smallTextSize });
-            drawCenteredText(String(item.cantRes || ''), tableCols[3], colWidths[3], itemY, { size: smallTextSize });
+            drawCenteredText(String(item.precioUnitario || ''), tableCols[3], colWidths[3], itemY, { size: smallTextSize });
+            drawCenteredText(String(item.precioTotal || ''), tableCols[4], colWidths[4], itemY, { size: smallTextSize });
 
             itemY -= lineSpacing;
         });
 
-        // === Transport Block (CENTRED) ===
-        y = margin + 110;
+        // === Footer (Total) ===
+        y = margin + 50;
 
-        page.drawRectangle({
-            x: margin,
-            y: y - 60,
-            width: width - margin * 2,
-            height: 50,
-            borderColor: rgb(0, 0, 0),
-            borderWidth: 1,
+        // Draw Total Line
+        page.drawLine({
+            start: { x: width - margin - 200, y: y },
+            end: { x: width - margin, y: y },
+            thickness: 1
         });
 
-        // CÁLCULO DE CENTRADO TRANSPORTE
-        const transportBlockWidth = 300;
-        const boxWidth = width - margin * 2;
-        const transportStartX = margin + (boxWidth - transportBlockWidth) / 2;
+        y -= 20;
 
-        let transportY = y - 20; // Ajustado para centrado vertical dentro de la caja de 50 de alto
-        const transportLabelWidth = 120;
-
-        // Fila 1
-        drawText('Codigo de Transporte:', margin + 10, transportY, { bold: true, size: smallTextSize });
-        drawText(transporte.codigo, margin + 10 + transportLabelWidth, transportY, { size: smallTextSize });
-
-        // Fila 2
-        transportY -= lineSpacing;
-        drawText('Nombre Transporte:', margin + 10, transportY, { bold: true, size: smallTextSize });
-        drawText(transporte.nombre, margin + 10 + transportLabelWidth, transportY, { size: smallTextSize });
-
-        // Fila 3
-        transportY -= lineSpacing;
-        drawText('CUIL Transporte:', margin + 10, transportY, { bold: true, size: smallTextSize });
-        drawText(transporte.cuil, margin + 10 + transportLabelWidth, transportY, { size: smallTextSize });
-
-        // === Footer Line ===
-        const footerY = margin + 20;
-        page.drawLine({ start: { x: margin, y: footerY + 15 }, end: { x: width - margin, y: footerY + 15 }, thickness: 1.5 });
+        // Draw Total Amount
+        drawText('Total del Pedido:', width - margin - 200, y, { bold: true, size: 12 });
+        drawText(orderTotal, width - margin - 90, y, { bold: true, size: 12 });
 
         const pdfBytes = await pdfDoc.save();
         return Buffer.from(pdfBytes);
