@@ -41,7 +41,7 @@ const Header = ({ onLogout, currentUser }) => {
   return (
     <header className="bg-espint-blue/95 backdrop-blur-sm shadow-md relative z-50">
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20 gap-4">
+        <div className="flex justify-between items-center h-20 gap-8">
           <div className="flex-shrink-0">
             <button
               onClick={() => handleNavigation('/dashboard')}
@@ -54,7 +54,7 @@ const Header = ({ onLogout, currentUser }) => {
             <SearchBar />
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-6">
             <button
               onClick={() => handleNavigation('/order-preview')}
               className="relative p-2 text-white hover:text-espint-green hover:bg-white/10 rounded-full transition-colors"
@@ -71,21 +71,22 @@ const Header = ({ onLogout, currentUser }) => {
             <div className="relative">
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                className="flex items-center space-x-3 p-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer border border-transparent hover:border-white/10"
               >
-                <div className="p-2 bg-white/20 rounded-full">
-                  <Building className="w-6 h-6 text-white" />
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-espint-green to-emerald-600 flex items-center justify-center shadow-md border-2 border-white/20">
+                  <span className="text-white font-bold text-sm">
+                    {currentUser?.full_name
+                      ? currentUser.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+                      : 'U'}
+                  </span>
                 </div>
-                <div className="text-right hidden sm:block">
-                  <p className="text-sm font-medium text-white">
+                <div className="text-right hidden sm:block pr-2">
+                  <p className="text-sm font-bold text-white leading-tight">
                     {currentUser?.full_name || 'Usuario'}
-                  </p>
-                  <p className="text-xs text-gray-200">
-                    {currentUser?.email || 'Mi Cuenta'}
                   </p>
                 </div>
                 <ChevronDown
-                  className={`w-5 h-5 text-white transition-transform ${isDropdownOpen ? 'rotate-180' : ''
+                  className={`w-4 h-4 text-gray-300 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''
                     }`}
                 />
               </button>
