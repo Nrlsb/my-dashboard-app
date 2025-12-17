@@ -71,14 +71,12 @@ const VendedorClientsPage = () => {
             <table className="w-full mt-6 border-collapse md:shadow-md md:bg-white md:rounded-lg overflow-hidden block md:table">
               <thead className="hidden md:table-header-group bg-white text-[var(--color-espint-blue)] border-b-2 border-[var(--color-espint-blue)]">
                 <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-base">ID</th>
                   <th className="px-4 py-3 text-left font-semibold text-base">Nombre Completo</th>
                   <th className="px-4 py-3 text-left font-semibold text-base">Email</th>
-                  <th className="px-4 py-3 text-left font-semibold text-base">Código A1</th>
-                  <th className="px-4 py-3 text-left font-semibold text-base">Loja A1</th>
-                  <th className="px-4 py-3 text-left font-semibold text-base">CGC A1</th>
-                  <th className="px-4 py-3 text-left font-semibold text-base">Teléfono A1</th>
-                  <th className="px-4 py-3 text-left font-semibold text-base">Dirección A1</th>
+                  <th className="px-4 py-3 text-left font-semibold text-base">Código</th>
+                  <th className="px-4 py-3 text-left font-semibold text-base">Cuit/Cuil</th>
+                  <th className="px-4 py-3 text-left font-semibold text-base">Teléfono</th>
+                  <th className="px-4 py-3 text-left font-semibold text-base">Dirección</th>
                 </tr>
               </thead>
               <tbody className="block md:table-row-group">
@@ -89,11 +87,7 @@ const VendedorClientsPage = () => {
                       key={client.id}
                       className="block md:table-row mb-4 md:mb-0 bg-white md:bg-transparent shadow-md md:shadow-none rounded-lg md:rounded-none border border-gray-200 md:border-b md:border-gray-200 transition-colors duration-200 ease-in-out hover:bg-gray-50 last:border-b-0"
                     >
-                      {/* ID - Hidden on mobile unless expanded (Technical) */}
-                      <td className={`px-4 py-2 md:py-3 text-sm text-gray-700 ${isExpanded ? 'block' : 'hidden'} md:table-cell`}>
-                        <span className="font-bold text-gray-500 md:hidden block">ID: </span>
-                        {client.id}
-                      </td>
+
 
                       {/* Nombre Completo - Always Visible (Header on Mobile) */}
                       <td className="px-4 py-3 md:py-3 text-sm text-gray-700 block md:table-cell border-b md:border-none border-gray-100">
@@ -120,19 +114,15 @@ const VendedorClientsPage = () => {
 
                       {/* Código A1 - Hidden on mobile unless expanded */}
                       <td className={`px-4 py-2 md:py-3 text-sm text-gray-700 ${isExpanded ? 'block' : 'hidden'} md:table-cell`}>
-                        <span className="font-bold text-gray-500 md:hidden block">Código A1: </span>
+                        <span className="font-bold text-gray-500 md:hidden block">Código: </span>
                         {client.a1_cod}
                       </td>
 
-                      {/* Loja A1 - Hidden on mobile unless expanded */}
-                      <td className={`px-4 py-2 md:py-3 text-sm text-gray-700 ${isExpanded ? 'block' : 'hidden'} md:table-cell`}>
-                        <span className="font-bold text-gray-500 md:hidden block">Loja A1: </span>
-                        {client.a1_loja}
-                      </td>
+
 
                       {/* CGC A1 - Hidden on mobile unless expanded */}
                       <td className={`px-4 py-2 md:py-3 text-sm text-gray-700 ${isExpanded ? 'block' : 'hidden'} md:table-cell`}>
-                        <span className="font-bold text-gray-500 md:hidden block">CGC A1: </span>
+                        <span className="font-bold text-gray-500 md:hidden block">Cuit/Cuil: </span>
                         {client.a1_cgc}
                       </td>
 
