@@ -6,19 +6,16 @@
   <link rel="icon" type="image/svg+xml" href="/logo.svg" />
   <link rel="preload" as="image" href="/logo.svg">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- Google Fonts: Inter -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Google Fonts: Inter (Removed in favor of @fontsource/inter) -->
   <title>Distribuidora Espint</title>
 
   <!-- CDN de jsPDF (ya estaba) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- (NUEVO) CDN de jsPDF-AutoTable -->
   <!-- Este plugin es necesario para dibujar tablas en el PDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script defer
+    src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </head>
 
 <body class="bg-espint-gray font-sans">

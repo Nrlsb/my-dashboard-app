@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import logo from '../assets/logo.svg';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -38,7 +37,7 @@ const LoginPage = () => {
       <div className="w-full max-w-sm p-8 space-y-6 bg-white rounded-xl shadow-xl border border-gray-100">
         <div className="text-center flex justify-center">
           <img
-            src={logo}
+            src="/logo.svg"
             alt="Espint Logo"
             className="h-16 w-auto"
             width="103"
