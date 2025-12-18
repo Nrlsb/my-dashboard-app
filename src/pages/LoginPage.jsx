@@ -42,7 +42,7 @@ const LoginPage = () => {
             className="h-16 w-auto"
             width="103"
             height="64"
-            fetchpriority="high"
+            fetchPriority="high"
           />
         </div>
 
