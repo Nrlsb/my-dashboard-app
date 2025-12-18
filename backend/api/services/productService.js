@@ -668,15 +668,15 @@ const toggleProductOfferStatus = async (productId) => {
       // Si existe, alternar el estado
       newOfferStatus = !existingOffer.rows[0].is_on_offer;
       await pool2.query(
-        'UPDATE product_offer_status SET is_on_offer = $1, updated_at = CURRENT_TIMESTAMP WHERE product_id = $2',
-        [newOfferStatus, productId]
+        'UPDATE product_offer_status SET is_on_offer = $1, product_code = $2, updated_at = CURRENT_TIMESTAMP WHERE product_id = $3',
+        [newOfferStatus, productDetails.code, productId]
       );
     } else {
       // Si no existe, insertar un nuevo registro con is_on_offer = true
       newOfferStatus = true;
       await pool2.query(
-        'INSERT INTO product_offer_status (product_id, is_on_offer) VALUES ($1, $2)',
-        [productId, newOfferStatus]
+        'INSERT INTO product_offer_status (product_id, product_code, is_on_offer) VALUES ($1, $2, $3)',
+        [productId, productDetails.code, newOfferStatus]
       );
     }
 
