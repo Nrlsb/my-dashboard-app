@@ -39,7 +39,7 @@ const ClientProductPermissionsPage = () => {
 
         // Only fetch if we haven't fetched yet (or if you want to refresh every time, remove this check)
         if (deniedProductCodes.length === 0 && deniedProductsDetails.length === 0) {
-             if (!currentUser || !currentUser.is_admin) {
+            if (!currentUser || !currentUser.is_admin) {
                 setError('Acceso denegado. Requiere permisos de administrador.');
                 return;
             }
@@ -93,8 +93,8 @@ const ClientProductPermissionsPage = () => {
 
     // Filter and paginate logic
     const filteredDeniedProducts = deniedProductsDetails.filter(product =>
-        product.name.toLowerCase().includes(filterRestricted.toLowerCase()) ||
-        product.code.toLowerCase().includes(filterRestricted.toLowerCase())
+        (product.name && product.name.toLowerCase().includes(filterRestricted.toLowerCase())) ||
+        (product.code && product.code.toLowerCase().includes(filterRestricted.toLowerCase()))
     );
 
     const totalPages = Math.ceil(filteredDeniedProducts.length / itemsPerPage);

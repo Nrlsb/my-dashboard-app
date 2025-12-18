@@ -822,6 +822,45 @@ const getGlobalDeniedProducts = async () => {
   }
 };
 
+/**
+ * Obtiene los detalles completos de los productos denegados globalmente.
+ * @returns {Promise<object[]>} - Una promesa que se resuelve con un array de objetos de productos.
+ */
+const getGlobalDeniedProductsWithDetails = async () => {
+  try {
+    const query = `
+      SELECT product_code 
+      FROM global_product_permissions
+    `;
+    const result = await pool2.query(query);
+    const deniedCodes = result.rows.map(row => row.product_code);
+
+    if (deniedCodes.length === 0) {
+      return [];
+    }
+
+    const productsQuery = `
+      SELECT id, code, description, price, brand, product_group
+      FROM products
+      WHERE code = ANY($1::varchar[])
+    `;
+    const productsResult = await pool.query(productsQuery, [deniedCodes]);
+
+    return productsResult.rows.map(p => ({
+      ...p,
+      formattedPrice: new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(p.price)
+    }));
+
+  } catch (error) {
+    console.error('Error in getGlobalDeniedProductsWithDetails:', error);
+    if (error.code === '42P01') {
+      console.warn('[WARNING] Table global_product_permissions does not exist.');
+      return [];
+    }
+    throw error;
+  }
+};
+
 module.exports = {
   findProducts,
   findAccessories,
@@ -849,5 +888,6 @@ module.exports = {
   getDeniedProductGroups,
   getDeniedProducts,
   getGlobalDeniedProducts,
+  getGlobalDeniedProductsWithDetails,
   invalidatePermissionsCache,
 };
