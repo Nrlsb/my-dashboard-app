@@ -181,7 +181,9 @@ const sendOrderConfirmedByVendorEmail = async (
   vendorSalesOrderNumber,
   items = []
 ) => {
-  const subject = `Tu pedido #${orderId} ha sido confirmado`;
+  const subject = vendorSalesOrderNumber
+    ? `Tu pedido #${orderId} (Venta: ${vendorSalesOrderNumber}) ha sido confirmado`
+    : `Tu pedido #${orderId} ha sido confirmado`;
   const itemsHtml = formatItemsToHTML(items);
 
   let salesOrderInfo = '';
