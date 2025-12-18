@@ -3,10 +3,10 @@ import Skeleton from './Skeleton';
 
 const CarouselItemSkeleton = () => {
     return (
-        <div className="flex-none w-44 bg-white rounded-lg overflow-hidden border border-gray-200">
-            <Skeleton className="w-full h-32" />
-            <div className="p-4 space-y-2">
-                <Skeleton className="h-4 w-3/4" />
+        <div className="flex-none w-full md:w-44 bg-white rounded-lg overflow-hidden border-b-[3px] border-gray-200 group flex flex-col h-auto aspect-square md:aspect-auto md:h-auto">
+            <Skeleton className="w-full h-32 md:h-32" />
+            <div className="p-3 md:p-4 flex-grow flex items-center justify-center md:block bg-white">
+                <Skeleton className="h-4 w-3/4 mx-auto md:mx-0" />
             </div>
         </div>
     );
