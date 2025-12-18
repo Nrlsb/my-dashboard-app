@@ -4,6 +4,7 @@ const { getExchangeRates } = require('../utils/exchangeRateService');
 const { formatCurrency } = require('../utils/helpers');
 const { pool, pool2 } = require('../db'); // Solo para verificar si el usuario es admin
 const { getImageUrl } = require('./cloudinaryService');
+const userModel = require('../models/userModel'); // Import userModel
 
 
 /**
@@ -115,17 +116,52 @@ const fetchProducts = async ({
     };
 
     // Filtro por imagen (cross-database)
-    if (hasImage === 'true') {
+    // Check if user is restricted (not admin and not marketing)
+    let isRestrictedUser = false;
+    if (userId) {
+      const userResult = await pool.query('SELECT is_admin FROM users WHERE id = $1', [userId]);
+      const isUserAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin;
+
+      if (!isUserAdmin) {
+        const roleData = await userModel.getUserRoleFromDB2(userId);
+        const userRole = roleData ? roleData.role : 'cliente';
+        if (userRole !== 'marketing') {
+          isRestrictedUser = true;
+        }
+      }
+    } else {
+      // No user logged in, treat as restricted
+      isRestrictedUser = true;
+    }
+
+    if (isRestrictedUser) {
+      // Enforce image filtering
       const imageCodes = await productModel.getAllProductImageCodes();
       if (imageCodes.length === 0) {
-        // Si no hay imágenes, y piden con imagen, devolvemos vacío directamente
         return { products: [], totalProducts: 0 };
       }
-      filters.allowedIds = imageCodes; // Passing codes to allowedIds (model handles it)
-    } else if (hasImage === 'false') {
-      const imageCodes = await productModel.getAllProductImageCodes();
-      if (imageCodes.length > 0) {
-        filters.excludedIds = imageCodes; // Passing codes to excludedIds (model handles it)
+
+      // If user requested NO images (hasImage='false'), but they are restricted, they get nothing.
+      if (hasImage === 'false') {
+        return { products: [], totalProducts: 0 };
+      }
+
+      // If user requested images (hasImage='true'), we use imageCodes.
+      // If user didn't specify (hasImage=''), we ALSO use imageCodes to hide non-image products.
+      filters.allowedIds = imageCodes;
+    } else {
+      // Standard logic for non-restricted users
+      if (hasImage === 'true') {
+        const imageCodes = await productModel.getAllProductImageCodes();
+        if (imageCodes.length === 0) {
+          return { products: [], totalProducts: 0 };
+        }
+        filters.allowedIds = imageCodes;
+      } else if (hasImage === 'false') {
+        const imageCodes = await productModel.getAllProductImageCodes();
+        if (imageCodes.length > 0) {
+          filters.excludedIds = imageCodes;
+        }
       }
     }
 
@@ -525,6 +561,7 @@ const fetchProductsByGroup = async (
 
     const offset = (page - 1) * limit;
     let deniedGroups = [];
+    let allowedProductCodes = [];
     if (userId) {
       const userResult = await pool.query(
         'SELECT is_admin FROM users WHERE id = $1',
@@ -534,6 +571,24 @@ const fetchProductsByGroup = async (
         userResult.rows.length > 0 && userResult.rows[0].is_admin;
       if (!isUserAdmin) {
         deniedGroups = await productModel.getDeniedProductGroups(userId);
+
+        // Check for marketing role
+        const roleData = await userModel.getUserRoleFromDB2(userId);
+        const userRole = roleData ? roleData.role : 'cliente';
+
+        if (userRole !== 'marketing') {
+          // Restrict to products with images
+          allowedProductCodes = await productModel.getAllProductImageCodes();
+          if (allowedProductCodes.length === 0) {
+            return { products: [], totalProducts: 0, groupName: '' };
+          }
+        }
+      }
+    } else {
+      // No user, restrict
+      allowedProductCodes = await productModel.getAllProductImageCodes();
+      if (allowedProductCodes.length === 0) {
+        return { products: [], totalProducts: 0, groupName: '' };
       }
     }
 
@@ -545,7 +600,9 @@ const fetchProductsByGroup = async (
       groupCode,
       limit,
       offset,
-      deniedGroups
+      deniedGroups,
+      [], // deniedProductCodes (empty here as we handle it via deniedGroups usually, but could be passed)
+      allowedProductCodes // New parameter
     );
 
     const products = rawProducts.map((prod) => {
@@ -726,16 +783,35 @@ const getCustomCollectionProducts = async (collectionId, userId = null) => {
       const globalDeniedCodes = await productModel.getGlobalDeniedProducts();
       deniedProductCodes = [...new Set([...deniedProductCodes, ...globalDeniedCodes])];
 
+      // Check marketing role
+      const roleData = await userModel.getUserRoleFromDB2(userId);
+      const userRole = roleData ? roleData.role : 'cliente';
+      let allowedImageCodes = null;
+
+      if (userRole !== 'marketing') {
+        allowedImageCodes = await productModel.getAllProductImageCodes();
+      }
+
       filteredProducts = rawProducts.filter(prod => {
         const isGroupDenied = deniedGroups.includes(prod.product_group);
         const isProductDenied = deniedProductCodes.includes(prod.code);
-        return !isGroupDenied && !isProductDenied;
+
+        let isAllowedByImage = true;
+        if (allowedImageCodes !== null) {
+          isAllowedByImage = allowedImageCodes.includes(prod.code);
+        }
+
+        return !isGroupDenied && !isProductDenied && isAllowedByImage;
       });
     }
   } else {
-    // If no user, apply global restrictions
+    // If no user, apply global restrictions AND image restriction
     const globalDeniedCodes = await productModel.getGlobalDeniedProducts();
-    filteredProducts = rawProducts.filter(prod => !globalDeniedCodes.includes(prod.code));
+    const allowedImageCodes = await productModel.getAllProductImageCodes();
+
+    filteredProducts = rawProducts.filter(prod =>
+      !globalDeniedCodes.includes(prod.code) && allowedImageCodes.includes(prod.code)
+    );
   }
 
   let exchangeRates;
