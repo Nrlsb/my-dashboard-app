@@ -848,6 +848,7 @@ const getGlobalDeniedProductsWithDetails = async () => {
 
     return productsResult.rows.map(p => ({
       ...p,
+      name: p.description,
       formattedPrice: new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(p.price)
     }));
 

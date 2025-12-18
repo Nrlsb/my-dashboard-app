@@ -37,7 +37,14 @@ const LoginPage = () => {
     <div className="flex items-center justify-center min-h-screen bg-[#F3F4F6] font-sans">
       <div className="w-full max-w-sm p-8 space-y-6 bg-white rounded-xl shadow-xl border border-gray-100">
         <div className="text-center flex justify-center">
-          <img src={logo} alt="Espint Logo" className="h-16 w-auto" />
+          <img
+            src={logo}
+            alt="Espint Logo"
+            className="h-16 w-auto"
+            width="103"
+            height="64"
+            fetchpriority="high"
+          />
         </div>
 
         <h2 className="text-2xl font-bold text-center text-gray-800">
