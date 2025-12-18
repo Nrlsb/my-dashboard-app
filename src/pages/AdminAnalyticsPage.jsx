@@ -7,11 +7,9 @@ const AdminAnalyticsPage = () => {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [days, setDays] = useState(30);
-    const [users, setUsers] = useState([]);
 
     useEffect(() => {
         fetchStats();
-        fetchUsers();
     }, [days]);
 
     const fetchStats = async () => {
@@ -27,19 +25,7 @@ const AdminAnalyticsPage = () => {
         }
     };
 
-    const fetchUsers = async () => {
-        try {
-            const usersData = await apiService.getAdminUsers();
-            setUsers(usersData);
-        } catch (error) {
-            console.error('Error fetching users:', error);
-        }
-    };
 
-    const getSellerName = (code) => {
-        const user = users.find(u => u.code === code || u.a1_cod === code || String(u.id) === String(code));
-        return user ? user.full_name : code;
-    };
 
     if (loading) return <LoadingSpinner text="Cargando análisis..." />;
     if (!stats) return <div className="p-4 text-center">No hay datos disponibles.</div>;
@@ -137,7 +123,7 @@ const AdminAnalyticsPage = () => {
                             <tbody>
                                 {stats.sellers.map((seller, index) => (
                                     <tr key={index} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                                        <td className="py-3 font-medium text-gray-800">{getSellerName(seller.code)}</td>
+                                        <td className="py-3 font-medium text-gray-800">{seller.name}</td>
                                         <td className="py-3 text-gray-700">{seller.orderCount}</td>
                                         <td className="py-3 font-medium text-green-600">
                                             ${seller.totalSales.toLocaleString()}
@@ -156,7 +142,7 @@ const AdminAnalyticsPage = () => {
             {/* Visitas Detalle - Simple Bar Chart */}
             <div className="mt-8 bg-white p-6 rounded shadow border border-gray-200">
                 <h2 className="text-xl font-semibold mb-6 text-gray-800">Tráfico Diario</h2>
-                <div className="h-64 flex items-end space-x-2 overflow-x-auto pb-8">
+                <div className="h-64 flex space-x-2 overflow-x-auto">
                     {stats.visits.length > 0 ? stats.visits.map((visit, index) => {
                         const counts = stats.visits.map(v => Number(v.count) || 0);
                         const max = Math.max(...counts);
@@ -164,17 +150,22 @@ const AdminAnalyticsPage = () => {
                         const height = max > 0 ? (current / max) * 100 : 0;
 
                         return (
-                            <div key={index} className="flex flex-col items-center min-w-[40px] group relative">
-                                <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap z-10">
-                                    {visit.date}: {current} visitas
+                            <div key={index} className="h-full flex flex-col items-center min-w-[40px] group">
+                                <div className="flex-1 w-full flex items-end justify-center relative">
+                                    <div
+                                        className="w-full bg-blue-500 rounded-t hover:bg-blue-600 transition-colors cursor-pointer relative"
+                                        style={{ height: `${height}%`, minHeight: current > 0 ? '4px' : '0px' }}
+                                    >
+                                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap z-10">
+                                            {visit.date}: {current} visitas
+                                        </div>
+                                    </div>
                                 </div>
-                                <div
-                                    className="w-full bg-blue-500 rounded-t hover:bg-blue-600 transition-colors cursor-pointer"
-                                    style={{ height: `${height}%`, minHeight: current > 0 ? '4px' : '0px' }}
-                                ></div>
-                                <span className="text-xs text-gray-500 mt-2 transform -rotate-45 origin-top-left">
-                                    {visit.date.split('-').slice(1).join('/')}
-                                </span>
+                                <div className="h-12 flex items-center justify-center">
+                                    <span className="text-xs text-gray-500 transform -rotate-45 origin-center">
+                                        {visit.date.split('-').slice(1).join('/')}
+                                    </span>
+                                </div>
                             </div>
                         );
                     }) : (

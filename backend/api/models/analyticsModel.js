@@ -103,17 +103,32 @@ const getSellerStats = async () => {
         const ordersResult = await pool2.query(ordersQuery);
 
         const sellerStats = {};
+        const sellerCodes = new Set();
 
         ordersResult.rows.forEach(order => {
             const sellerCode = userSellerMap.get(order.user_id);
             if (sellerCode) {
                 if (!sellerStats[sellerCode]) {
-                    sellerStats[sellerCode] = { code: sellerCode, orderCount: 0, totalSales: 0 };
+                    sellerStats[sellerCode] = { code: sellerCode, orderCount: 0, totalSales: 0, name: sellerCode }; // Default name to code
+                    sellerCodes.add(sellerCode);
                 }
                 sellerStats[sellerCode].orderCount += parseInt(order.count, 10);
                 sellerStats[sellerCode].totalSales += parseFloat(order.total);
             }
         });
+
+        // 3. Fetch seller names from vendedores table
+        if (sellerCodes.size > 0) {
+            const codesArray = Array.from(sellerCodes);
+            const sellersQuery = `SELECT codigo, nombre FROM vendedores WHERE codigo = ANY($1::varchar[])`;
+            const sellersResult = await pool.query(sellersQuery, [codesArray]);
+
+            sellersResult.rows.forEach(seller => {
+                if (sellerStats[seller.codigo]) {
+                    sellerStats[seller.codigo].name = seller.nombre;
+                }
+            });
+        }
 
         return Object.values(sellerStats).sort((a, b) => b.totalSales - a.totalSales);
 
