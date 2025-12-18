@@ -6,7 +6,8 @@ import { ProtectedRoute, AdminRoute, MarketingRoute, LoadingFallback, PublicRout
 
 
 // --- Carga diferida (Lazy Loading) de Páginas ---
-const LoginPage = lazyImport(() => import('./pages/LoginPage.jsx'));
+import LoginPage from './pages/LoginPage.jsx';
+// const LoginPage = lazyImport(() => import('./pages/LoginPage.jsx'));
 const RegisterPage = lazyImport(() => import('./pages/RegisterPage.jsx'));
 const DashboardPage = lazyImport(() => import('./pages/DashboardPage.jsx'));
 const NewOrderPage = lazyImport(() => import('./pages/NewOrderPage.jsx'));
