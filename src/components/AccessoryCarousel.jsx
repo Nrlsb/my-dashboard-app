@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import apiService from '../api/apiService';
@@ -11,7 +11,6 @@ const AccessoryCarousel = () => {
   const [accessories, setAccessories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const carouselRef = useRef(null);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -27,9 +26,6 @@ const AccessoryCarousel = () => {
           )
           : data;
 
-      if (carouselRef.current) {
-        carouselRef.current.scrollTo({ left: 0, behavior: 'auto' });
-      }
       setAccessories(filteredAccessories);
       setLoading(false);
     } catch (err) {
@@ -42,27 +38,6 @@ const AccessoryCarousel = () => {
   useEffect(() => {
     fetchAccessories();
   }, [fetchAccessories]);
-
-  useEffect(() => {
-    const carousel = carouselRef.current;
-    if (!carousel || loading) return;
-
-    const intervalId = setInterval(() => {
-      const atEnd =
-        carousel.scrollLeft + carousel.offsetWidth >= carousel.scrollWidth - 1;
-
-      if (atEnd) {
-        fetchAccessories();
-      } else {
-        carousel.scrollBy({
-          left: carousel.offsetWidth,
-          behavior: 'smooth',
-        });
-      }
-    }, 15000);
-
-    return () => clearInterval(intervalId);
-  }, [accessories, loading, fetchAccessories]);
 
   const handleAccessoryClick = (productId) => {
     navigate(`/product-detail/${productId}`);
@@ -80,14 +55,17 @@ const AccessoryCarousel = () => {
     return null;
   }
 
+  // Limit to 5 items
+  const displayedAccessories = accessories.slice(0, 5);
+
   return (
     <div className="relative py-4 mt-8">
       <h2 className="text-2xl font-bold mb-4 text-espint-blue">Accesorios</h2>
-      <div className="flex overflow-x-auto gap-4 pb-4" ref={carouselRef}>
-        {accessories.map((item) => (
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {displayedAccessories.map((item) => (
           <div
             key={item.id}
-            className="flex-none w-40 bg-white rounded-lg overflow-hidden transition-all duration-200 ease-in-out cursor-pointer hover:-translate-y-1 shadow-sm hover:shadow-md border-b-[3px] border-espint-green group"
+            className="w-full bg-white rounded-lg overflow-hidden transition-all duration-200 ease-in-out cursor-pointer hover:-translate-y-1 shadow-sm hover:shadow-md border-b-[3px] border-espint-green group"
             onClick={() => handleAccessoryClick(item.id)}
           >
             <img

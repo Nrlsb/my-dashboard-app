@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiService from '../api/apiService';
 
@@ -9,7 +9,6 @@ const ProductGroupCarousel = () => {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const carouselRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,25 +27,6 @@ const ProductGroupCarousel = () => {
 
     fetchGroupDetails();
   }, []);
-
-  // Auto-scrolling effect
-  useEffect(() => {
-    const carousel = carouselRef.current;
-    if (!carousel || loading) return;
-
-    const intervalId = setInterval(() => {
-      const atEnd =
-        carousel.scrollLeft + carousel.offsetWidth >= carousel.scrollWidth - 1;
-
-      if (atEnd) {
-        carousel.scrollTo({ left: 0, behavior: 'smooth' });
-      } else {
-        carousel.scrollBy({ left: carousel.offsetWidth, behavior: 'smooth' });
-      }
-    }, 5000); // Scroll every 5 seconds
-
-    return () => clearInterval(intervalId);
-  }, [groups, loading]);
 
   const handleCardClick = (group) => {
     if (group.type === 'custom_collection') {
@@ -68,14 +48,17 @@ const ProductGroupCarousel = () => {
     return null;
   }
 
+  // Limit to 5 items
+  const displayedGroups = groups.slice(0, 5);
+
   return (
     <div className="relative py-4 mt-8">
       <h2 className="text-2xl font-bold mb-4 text-espint-blue">Categorías</h2>
-      <div className="grid grid-cols-2 gap-4 md:flex md:overflow-x-auto md:gap-4 md:pb-4" ref={carouselRef}>
-        {groups.map((group) => (
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {displayedGroups.map((group) => (
           <div
             key={group.id || group.group_code}
-            className="flex-none w-full md:w-44 bg-white rounded-lg overflow-hidden cursor-pointer transition-all duration-200 ease-in-out hover:-translate-y-1 shadow-sm hover:shadow-md border-b-[3px] border-espint-green group flex flex-col h-auto aspect-square md:aspect-auto md:h-auto"
+            className="w-full bg-white rounded-lg overflow-hidden cursor-pointer transition-all duration-200 ease-in-out hover:-translate-y-1 shadow-sm hover:shadow-md border-b-[3px] border-espint-green group flex flex-col h-auto aspect-square md:aspect-auto md:h-auto"
             onClick={() => handleCardClick(group)}
           >
             {group.imageUrl ? (
@@ -86,17 +69,7 @@ const ProductGroupCarousel = () => {
               />
             ) : (
               <div className="w-full h-full md:h-32 bg-[#183B64] flex items-center justify-center p-4">
-                {/* Fallback Icon - using a generic box/grid icon or similar if available, otherwise just text/color as requested. 
-                     User suggested: "Usa iconos grandes blancos sobre el fondo azul oscuro". 
-                     Since I don't have dynamic icons per category in the data yet, I'll use a generic one or the first letter? 
-                     Actually, I can import a generic icon like 'Package' or 'Grid' from lucide-react if I add it to imports, 
-                     or just use a placeholder SVG. Let's check imports. 
-                     The file imports nothing from lucide-react currently. I should add it.
-                     Wait, I can't easily add imports with replace_file_content in the same call if it's far away.
-                     I'll stick to a simple SVG or just the background for now, or maybe I can add the import in a separate call.
-                     Let's use a simple SVG directly here to avoid import issues for now, or just the background as a base and then add icon.
-                     User said: "Usa iconos grandes blancos".
-                 */}
+                {/* Fallback Icon */}
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-white opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                 </svg>
