@@ -508,6 +508,14 @@ const NewOrderPage = () => {
               {cart.length > 0 && (
                 <div className="flex-shrink-0 p-6 border-t border-gray-200 space-y-3">
                   <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-gray-700">
+                      Costo de envío:
+                    </span>
+                    <span className="text-sm font-medium text-green-600">
+                      Gratuito
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center mb-2">
                     <span className="text-lg font-medium text-gray-900">
                       Total:
                     </span>
@@ -523,6 +531,9 @@ const NewOrderPage = () => {
                     <CheckCircle className="w-4 h-4 mr-2" />
                     Revisar Pedido
                   </button>
+                  <p className="text-xs text-gray-500 mt-2 text-center">
+                    Precio con IVA incluído
+                  </p>
                 </div>
               )}
             </div>

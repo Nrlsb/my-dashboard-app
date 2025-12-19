@@ -109,10 +109,21 @@ const OrderPreviewPage = () => {
           ))}
         </div>
         <div className="mt-4 pt-4 border-t-2 border-dashed">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-medium text-gray-700">
+              Costo de envío:
+            </span>
+            <span className="text-sm font-medium text-green-600">
+              Gratuito
+            </span>
+          </div>
           <div className="flex justify-between items-center text-xl font-bold">
             <span>Total:</span>
             <span>{formatCurrency(Number(localCartTotal) || 0)}</span>
           </div>
+          <p className="text-sm text-gray-500 mt-1 text-right">
+            Precio con IVA incluído
+          </p>
         </div>
       </div>
 
