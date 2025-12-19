@@ -61,6 +61,7 @@ const getExchangeRates = async () => {
   try {
     // 2. Si el caché no es válido, buscar los datos
     const { data: html } = await axios.get(URL_BNA, {
+      timeout: 5000, // (NUEVO) Timeout de 5 segundos para evitar que se cuelgue
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',

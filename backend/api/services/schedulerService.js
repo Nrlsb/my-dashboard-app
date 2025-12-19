@@ -6,8 +6,8 @@ const initScheduler = () => {
 
     // Schedule price sync every hour
     // Cron format: Minute Hour DayOfMonth Month DayOfWeek
-    // '0 * * * *' = At minute 0 of every hour
-    cron.schedule('0 * * * *', async () => {
+    // '0 8,12 * * *' = At minute 0 of hour 8 and 12
+    cron.schedule('0 8,12 * * *', async () => {
         console.log('[Scheduler] Running scheduled price synchronization...');
         try {
             await syncPrices();

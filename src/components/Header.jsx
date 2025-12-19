@@ -61,8 +61,8 @@ const Header = ({ onLogout, currentUser }) => {
                 <div className="absolute top-full mt-4 left-1/2 -translate-x-1/2 flex items-center gap-6 font-medium tracking-wide text-sm w-max">
                   <span className="text-espint-green font-bold">Dólar Oficial BNA</span>
                   <div className="flex items-center gap-4">
-                    <span className="text-white/90">Compra: <span className="text-white font-bold text-lg ml-1">${dolar.compra}</span></span>
-                    <span className="text-white/90">Venta: <span className="text-white font-bold text-lg ml-1">${dolar.venta}</span></span>
+                    <span className="text-white/90">Compra: <span className="text-white font-bold text-lg ml-1">${Number(dolar.compra).toFixed(2)}</span></span>
+                    <span className="text-white/90">Venta: <span className="text-white font-bold text-lg ml-1">${Number(dolar.venta).toFixed(2)}</span></span>
                   </div>
                 </div>
               )}
