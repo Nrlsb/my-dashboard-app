@@ -15,10 +15,15 @@
  * =================================================================
  */
 
-require('dotenv').config(); // Cargar variables de .env
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Cargar configuración según el entorno
+const envFile = process.env.NODE_ENV === 'development' ? '.env.development' : '.env';
+dotenv.config({ path: path.resolve(__dirname, envFile) });
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
+// const path = require('path'); // Removed duplicate
 const mainRoutes = require('./routes/index'); // (NUEVO) Importar el enrutador principal
 const helmet = require('helmet');
 const compression = require('compression'); // (OPTIMIZACIÓN) Importar compresión
@@ -99,6 +104,7 @@ const logger = require('./utils/logger'); // (NUEVO) Importar logger
 app.listen(PORT, () => {
   logger.info(`=======================================================`);
   logger.info(`   Servidor API (Conectado a PostgreSQL)`);
+  logger.info(`   Modo: ${process.env.NODE_ENV || 'default'}`);
   logger.info(`   Escuchando en http://localhost:${PORT}`);
   logger.info(`=======================================================`);
 });

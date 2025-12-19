@@ -1,5 +1,5 @@
 const { Pool } = require('pg');
-require('dotenv').config();
+// require('dotenv').config(); // Configuración cargada en server.js
 const logger = require('./utils/logger'); // (NUEVO) Importar logger
 
 // Configuración optimizada del Pool
