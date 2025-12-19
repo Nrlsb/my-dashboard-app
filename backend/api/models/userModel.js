@@ -8,9 +8,13 @@ const { pool, pool2 } = require('../db');
  * @returns {Promise<object|null>}
  */
 const findUserByEmail = async (email) => {
-  const result = await pool.query('SELECT * FROM users WHERE email = $1', [
-    email,
-  ]);
+  const result = await pool.query(
+    `SELECT u.*, v.nombre as vendedor_nombre, v.telefono as vendedor_telefono 
+     FROM users u 
+     LEFT JOIN vendedores v ON u.vendedor_codigo = v.codigo 
+     WHERE u.email = $1`,
+    [email]
+  );
   return result.rows[0] || null;
 };
 
@@ -30,7 +34,10 @@ const findUserById = async (userId) => {
   }
 
   const result = await pool.query(
-    'SELECT id, full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, a1_endereco, is_admin, vendedor_codigo FROM users WHERE id = $1',
+    `SELECT u.id, u.full_name, u.email, u.a1_cod, u.a1_loja, u.a1_cgc, u.a1_tel, u.a1_endereco, u.is_admin, u.vendedor_codigo, v.nombre as vendedor_nombre, v.telefono as vendedor_telefono 
+     FROM users u 
+     LEFT JOIN vendedores v ON u.vendedor_codigo = v.codigo 
+     WHERE u.id = $1`,
     [numericUserId]
   );
   const user = result.rows[0] || null;
