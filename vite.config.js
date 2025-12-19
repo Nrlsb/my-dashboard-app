@@ -32,12 +32,12 @@ export default defineConfig({
         );
       },
       // Also remove the css file from the bundle so it's not emitted
-      generateBundle(options, bundle) {
-        const cssFileName = Object.keys(bundle).find(key => key.endsWith('.css'));
-        if (cssFileName) {
-          delete bundle[cssFileName];
-        }
-      }
+      // generateBundle(options, bundle) {
+      //   const cssFileName = Object.keys(bundle).find(key => key.endsWith('.css'));
+      //   if (cssFileName) {
+      //     delete bundle[cssFileName];
+      //   }
+      // }
     },
   ],
   server: {

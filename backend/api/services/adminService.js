@@ -100,28 +100,33 @@ const updateUserGroupPermissions = async (userId, groups) => {
   try {
     await client.query('BEGIN');
 
-    // 1. Delete old permissions
-    await client.query(
-      'DELETE FROM user_product_group_permissions WHERE user_id = $1',
-      [userId]
-    );
-
-    // 1.5 Fetch user_code (a1_cod) from DB1
+    // 1. Fetch user_code (a1_cod) from DB1
     const userQuery = 'SELECT a1_cod FROM users WHERE id = $1';
     const userResult = await pool.query(userQuery, [userId]);
     const userCode = userResult.rows.length > 0 ? userResult.rows[0].a1_cod : null;
 
-    // 2. Insert new permissions if any
+    if (!userCode) {
+      throw new Error(`El usuario ${userId} no tiene un código A1 asignado.`);
+    }
+
+    // 2. Delete old permissions using user_code
+    await client.query(
+      'DELETE FROM user_product_group_permissions WHERE user_code = $1',
+      [userCode]
+    );
+
+    // 3. Insert new permissions if any
     if (groups && groups.length > 0) {
       const insertQuery =
         'INSERT INTO user_product_group_permissions (user_id, product_group, user_code) VALUES ($1, $2, $3)';
       for (const group of groups) {
+        // Note: We still save userId for reference, but the logic relies on user_code
         await client.query(insertQuery, [userId, group, userCode]);
       }
     }
 
     await client.query('COMMIT');
-    console.log(`Denied product group permissions updated for user ${userId}`);
+    console.log(`Denied product group permissions updated for user ${userId} (Code: ${userCode})`);
 
     // Invalidate cache
     await productModel.invalidatePermissionsCache(userId);

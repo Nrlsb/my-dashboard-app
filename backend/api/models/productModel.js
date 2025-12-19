@@ -67,26 +67,33 @@ const getOnOfferProductCodes = async (bypassCache = false) => {
  * @returns {Promise<string[]>} - Una promesa que se resuelve con un array de códigos de grupo de productos denegados.
  */
 const getDeniedProductGroups = async (userId) => {
-  const cacheKey = `user:denied_groups:${userId}`;
-
-  if (isRedisReady()) {
-    try {
-      const cachedData = await redisClient.get(cacheKey);
-      if (cachedData) {
-        return JSON.parse(cachedData);
-      }
-    } catch (err) {
-      console.error('Redis error in getDeniedProductGroups:', err);
-    }
-  }
-
   try {
+    // 1. Get user_code first
+    const userQuery = 'SELECT a1_cod FROM users WHERE id = $1';
+    const userResult = await pool.query(userQuery, [userId]);
+    const userCode = userResult.rows.length > 0 ? userResult.rows[0].a1_cod : null;
+
+    if (!userCode) return [];
+
+    const cacheKey = `user:denied_groups:code:${userCode}`;
+
+    if (isRedisReady()) {
+      try {
+        const cachedData = await redisClient.get(cacheKey);
+        if (cachedData) {
+          return JSON.parse(cachedData);
+        }
+      } catch (err) {
+        console.error('Redis error in getDeniedProductGroups:', err);
+      }
+    }
+
     const query = `
       SELECT product_group 
       FROM user_product_group_permissions 
-      WHERE user_id = $1;
+      WHERE user_code = $1;
     `;
-    const result = await pool2.query(query, [userId]);
+    const result = await pool2.query(query, [userCode]);
     const deniedGroups = result.rows
       .map((row) => row.product_group)
       .filter((g) => g != null && g !== '');
@@ -145,14 +152,22 @@ const getDeniedProducts = async (userId) => {
 
 const invalidatePermissionsCache = async (userId) => {
   if (!isRedisReady()) return;
-  const cacheKey = `user:denied_groups:${userId}`;
+
   try {
-    await redisClient.del(cacheKey);
-    console.log(`Invalidated permissions cache for user ${userId}`);
+    const userQuery = 'SELECT a1_cod FROM users WHERE id = $1';
+    const userResult = await pool.query(userQuery, [userId]);
+    const userCode = userResult.rows.length > 0 ? userResult.rows[0].a1_cod : null;
+
+    if (userCode) {
+      const cacheKey = `user:denied_groups:code:${userCode}`;
+      await redisClient.del(cacheKey);
+      console.log(`Invalidated permissions cache for user ${userId} (Code: ${userCode})`);
+    }
   } catch (err) {
     console.error(`Error invalidating permissions cache for user ${userId}:`, err);
   }
 };
+
 /**
  * Busca y cuenta productos en la base de datos con filtros y paginación.
  * @param {object} filters - Los filtros para la búsqueda.
@@ -800,16 +815,9 @@ const getAllProductImageCodes = async () => {
   }
 };
 
-/**
- * Obtiene los Códigos de productos denegados globalmente.
- * @returns {Promise<string[]>} - Una promesa que se resuelve con un array de códigos de productos denegados globalmente.
- */
 const getGlobalDeniedProducts = async () => {
   try {
-    const query = `
-      SELECT product_code 
-      FROM global_product_permissions
-        `;
+    const query = 'SELECT product_code FROM global_product_permissions';
     const result = await pool2.query(query);
     return result.rows.map(row => row.product_code);
   } catch (error) {
@@ -822,29 +830,22 @@ const getGlobalDeniedProducts = async () => {
   }
 };
 
-/**
- * Obtiene los detalles completos de los productos denegados globalmente.
- * @returns {Promise<object[]>} - Una promesa que se resuelve con un array de objetos de productos.
- */
 const getGlobalDeniedProductsWithDetails = async () => {
   try {
-    const query = `
-      SELECT product_code 
-      FROM global_product_permissions
-        `;
+    // 1. Get codes from DB2
+    const query = 'SELECT product_code FROM global_product_permissions';
     const result = await pool2.query(query);
-    const deniedCodes = result.rows.map(row => row.product_code);
+    const codes = result.rows.map(row => row.product_code);
 
-    if (deniedCodes.length === 0) {
-      return [];
-    }
+    if (codes.length === 0) return [];
 
+    // 2. Get details from DB1
     const productsQuery = `
-      SELECT id, code, description, price, brand, product_group
-      FROM products
-      WHERE code = ANY($1:: varchar[])
-        `;
-    const productsResult = await pool.query(productsQuery, [deniedCodes]);
+      SELECT id, code, description, price 
+      FROM products 
+      WHERE code = ANY($1::varchar[])
+    `;
+    const productsResult = await pool.query(productsQuery, [codes]);
 
     return productsResult.rows.map(p => ({
       ...p,
