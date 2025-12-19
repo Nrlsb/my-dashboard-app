@@ -20,7 +20,7 @@ const pool = new Pool(poolConfig);
 // (OPTIMIZACIÓN) Manejo de errores en el pool para evitar caídas silenciosas
 pool.on('error', (err, client) => {
   logger.error('Error inesperado en cliente inactivo de Pool 1', err);
-  process.exit(-1);
+  // No salir del proceso, dejar que el pool maneje la reconexión o eliminación del cliente
 });
 
 const requiredDb2Vars = [
