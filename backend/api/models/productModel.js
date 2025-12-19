@@ -108,19 +108,6 @@ const getDeniedProductGroups = async (userId) => {
 
 /**
  * Obtiene los Códigos de productos denegados para un usuario específico.
- * @param {number} userId - El ID del usuario.
- * @returns {Promise<string[]>} - Una promesa que se resuelve con un array de códigos de productos denegados.
- */
-const getDeniedProducts = async (userId) => {
-  try {
-    const query = `
-      SELECT product_id 
-      FROM user_product_permissions 
-      WHERE user_id = $1;
-    `;
-    const result = await pool2.query(query, [userId]);
-    const deniedIds = result.rows.map((row) => row.product_id);
-
     if (deniedIds.length === 0) return [];
 
     const codesQuery = `
