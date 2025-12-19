@@ -8,7 +8,7 @@ const Footer = () => {
   return (
     <footer className="bg-espint-blue/95 text-slate-300 pt-16 pb-8 mt-auto border-t border-slate-800">
       <div className="max-w-6xl mx-auto px-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
           {/* Brand Section */}
           <div className="space-y-4">
             <h3 className="text-2xl font-bold text-white tracking-tight">
@@ -55,42 +55,7 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Contact Info */}
-          <div>
-            <h4 className="text-white font-semibold mb-6">Contacto</h4>
-            <ul className="space-y-4 text-sm">
-              <li className="flex items-start">
-                <MapPin size={18} className="mr-3 text-blue-500 shrink-0 mt-0.5" />
-                <span>Av. Principal 1234,<br />Esperanza, Santa Fe</span>
-              </li>
-              <li className="flex flex-col space-y-2">
-                <div className="flex items-center text-blue-500 mb-1">
-                  <Phone size={18} className="mr-3 shrink-0" />
-                  <span className="font-semibold">WhatsApp:</span>
-                </div>
-                <div className="pl-8 space-y-1 text-slate-300">
-                  <p>Aldo: +54 9 3496 660664</p>
-                  <p>Jonatan: +54 9 3496 505822</p>
-                  <p>Ezequiel: +54 9 342 6280360</p>
-                </div>
-              </li>
-              <li className="flex items-center">
-                <Mail size={18} className="mr-3 text-blue-500 shrink-0" />
-                <span>espint@pintureriamercurio.com.ar</span>
-              </li>
-            </ul>
-          </div>
 
-          {/* Newsletter / Extra */}
-          <div>
-            <h4 className="text-white font-semibold mb-6">Horarios</h4>
-            <ul className="space-y-3 text-sm text-slate-400">
-              <li className="flex justify-between">
-                <span>Lunes - Viernes:</span>
-                <span className="text-slate-200">8:00 - 17:00</span>
-              </li>
-            </ul>
-          </div>
         </div>
 
         {/* Bottom Bar */}
