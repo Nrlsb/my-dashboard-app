@@ -14,8 +14,7 @@ const {
   addAdmin,
   removeAdmin,
   getAllClientsController,
-  getDeniedProductsByUserController,
-  updateUserProductPermissionsController,
+
   getGlobalDeniedProductsController,
   updateGlobalProductPermissionsController,
 } = require('../controllers/adminController');
@@ -49,17 +48,7 @@ router.get(
 
 router.put('/users/:userId/product-groups', requireAdmin, updateUserGroupPermissions);
 
-router.get(
-  '/users/:userId/denied-products',
-  requireAdmin,
-  getDeniedProductsByUserController
-);
 
-router.put(
-  '/users/:userId/denied-products',
-  requireAdmin,
-  updateUserProductPermissionsController
-);
 
 router.get('/global-restrictions', requireAdmin, getGlobalDeniedProductsController);
 router.put('/global-restrictions', requireAdmin, updateGlobalProductPermissionsController);

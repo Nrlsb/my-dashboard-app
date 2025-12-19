@@ -113,43 +113,6 @@ const getDeniedProductGroups = async (userId) => {
   }
 };
 
-/**
- * Obtiene los Códigos de productos denegados para un usuario específico.
- * @param {number} userId - El ID del usuario.
- * @returns {Promise<string[]>} - Una promesa que se resuelve con un array de códigos de productos denegados.
- */
-const getDeniedProducts = async (userId) => {
-  try {
-    const query = `
-      SELECT product_id 
-      FROM user_product_permissions 
-      WHERE user_id = $1;
-    `;
-    const result = await pool2.query(query, [userId]);
-    const deniedIds = result.rows.map((row) => row.product_id);
-
-    if (deniedIds.length === 0) return [];
-
-    const codesQuery = `
-      SELECT code 
-      FROM products 
-      WHERE id = ANY($1::int[])
-    `;
-    const codesResult = await pool.query(codesQuery, [deniedIds]);
-
-    return codesResult.rows
-      .map((row) => row.code)
-      .filter((c) => c != null && c !== '');
-  } catch (error) {
-    console.error(`Error in getDeniedProducts for user ${userId}:`, error);
-    if (error.code === '42P01') {
-      console.warn('[WARNING] Table user_product_permissions does not exist.');
-      return [];
-    }
-    throw error;
-  }
-};
-
 const invalidatePermissionsCache = async (userId) => {
   if (!isRedisReady()) return;
 
@@ -176,7 +139,6 @@ const invalidatePermissionsCache = async (userId) => {
  * @param {string} [filters.search] - Término de búsqueda para descripción o código.
  * @param {string[]} [filters.brands] - Array de marcas para filtrar.
  * @param {string[]} [filters.deniedGroups] - Array de grupos de productos a excluir.
- * @param {string[]} [filters.deniedProductCodes] - Array de CÓDIGOS de productos a excluir (renamed from deniedProductIds).
  * @returns {Promise<{products: object[], totalProducts: number}>} - Una promesa que se resuelve con los productos y el conteo total.
  */
 const findProducts = async ({
@@ -185,22 +147,19 @@ const findProducts = async ({
   search,
   brands,
   deniedGroups,
-  deniedProductIds = [],
   allowedIds = [],
   excludedIds = [],
   bypassCache = false,
 }) => {
-  const cacheKey = `products: search:${JSON.stringify({
+  const cacheKey = `products:search:${JSON.stringify({
     limit,
     offset,
     search: search ? search.trim() : '',
     brands: brands ? brands.sort() : [],
     deniedGroups: deniedGroups ? deniedGroups.filter(g => g != null && g !== '').sort() : [],
-    deniedProductIds: deniedProductIds ? deniedProductIds.filter(id => id != null && id !== '').sort() : [],
     allowedIds: allowedIds ? allowedIds.sort() : [],
     excludedIds: excludedIds ? excludedIds.sort() : []
-  })
-    } `;
+  })}`;
 
   if (!bypassCache && isRedisReady()) {
     try {
@@ -227,18 +186,10 @@ const findProducts = async ({
   `;
 
   if (deniedGroups && deniedGroups.length > 0) {
-    const groupQuery = ` product_group NOT IN(SELECT unnest($${paramIndex}:: varchar[])) `;
+    const groupQuery = ` product_group NOT IN (SELECT unnest($${paramIndex}::varchar[])) `;
     countQuery += ` AND ${groupQuery} `;
     dataQuery += ` AND ${groupQuery} `;
     queryParams.push(deniedGroups);
-    paramIndex++;
-  }
-
-  if (deniedProductIds && deniedProductIds.length > 0) {
-    const deniedProductsQuery = ` code != ALL($${paramIndex}:: varchar[])`;
-    countQuery += ` AND ${deniedProductsQuery} `;
-    dataQuery += ` AND ${deniedProductsQuery} `;
-    queryParams.push(deniedProductIds);
     paramIndex++;
   }
 
@@ -257,13 +208,13 @@ const findProducts = async ({
     dataQuery += ` AND ${finalSearchQuery} `;
 
     searchTerms.forEach(term => {
-      queryParams.push(`% ${term}% `);
+      queryParams.push(`%${term}%`);
     });
   }
 
 
   if (brands && brands.length > 0) {
-    const brandQuery = ` brand = ANY($${paramIndex}:: varchar[])`;
+    const brandQuery = ` brand = ANY($${paramIndex}::varchar[])`;
     countQuery += ` AND ${brandQuery} `;
     dataQuery += ` AND ${brandQuery} `;
     queryParams.push(brands);
@@ -271,7 +222,7 @@ const findProducts = async ({
   }
 
   if (allowedIds && allowedIds.length > 0) {
-    const allowedQuery = ` code = ANY($${paramIndex}:: varchar[])`;
+    const allowedQuery = ` code = ANY($${paramIndex}::varchar[])`;
     countQuery += ` AND ${allowedQuery} `;
     dataQuery += ` AND ${allowedQuery} `;
     queryParams.push(allowedIds);
@@ -279,7 +230,7 @@ const findProducts = async ({
   }
 
   if (excludedIds && excludedIds.length > 0) {
-    const excludedQuery = ` code != ALL($${paramIndex}:: varchar[])`;
+    const excludedQuery = ` code != ALL($${paramIndex}::varchar[])`;
     countQuery += ` AND ${excludedQuery} `;
     dataQuery += ` AND ${excludedQuery} `;
     queryParams.push(excludedIds);
@@ -324,7 +275,7 @@ const findProducts = async ({
 const findAccessories = async (accessoryGroups) => {
   try {
     const query = `
-      WITH RandomSample AS(
+      WITH RandomSample AS (
           SELECT id, code, description, price, product_group
         FROM products
         WHERE product_group = ANY($1) 
@@ -347,12 +298,12 @@ const findAccessories = async (accessoryGroups) => {
 const findProductGroupsDetails = async (groupCodes) => {
   try {
     const query = `
-      SELECT DISTINCT ON(product_group)
+      SELECT DISTINCT ON (product_group)
       product_group,
         brand,
         description
       FROM products
-      WHERE product_group = ANY($1:: varchar[])
+      WHERE product_group = ANY($1::varchar[])
         AND brand IS NOT NULL AND brand != ''
         `;
     const result = await pool.query(query, [groupCodes]);
@@ -363,7 +314,7 @@ const findProductGroupsDetails = async (groupCodes) => {
   }
 };
 
-const findProductById = async (productId, deniedGroups = [], deniedProductCodes = []) => {
+const findProductById = async (productId, deniedGroups = []) => {
   try {
     let query = `
       SELECT
@@ -377,16 +328,12 @@ const findProductById = async (productId, deniedGroups = [], deniedProductCodes 
     let paramIndex = 2;
 
     if (deniedGroups.length > 0) {
-      query += ` AND product_group NOT IN(SELECT unnest($${paramIndex}:: varchar[])) `;
+      query += ` AND product_group NOT IN (SELECT unnest($${paramIndex}::varchar[])) `;
       queryParams.push(deniedGroups);
     }
 
     const result = await pool.query(query, queryParams);
     const product = result.rows[0];
-
-    if (product && deniedProductCodes && deniedProductCodes.includes(product.code)) {
-      return null;
-    }
 
     return product;
   } catch (error) {
@@ -409,7 +356,7 @@ const findProductByCode = async (productCode, deniedGroups = []) => {
     let paramIndex = 2;
 
     if (deniedGroups.length > 0) {
-      query += ` AND product_group NOT IN(SELECT unnest($${paramIndex}:: varchar[])) `;
+      query += ` AND product_group NOT IN (SELECT unnest($${paramIndex}::varchar[])) `;
       queryParams.push(deniedGroups);
     }
 
@@ -432,7 +379,7 @@ const findUniqueBrands = async (deniedGroups = []) => {
     let paramIndex = 1;
 
     if (deniedGroups.length > 0) {
-      query += ` AND product_group NOT IN(SELECT unnest($${paramIndex}:: varchar[]))`;
+      query += ` AND product_group NOT IN (SELECT unnest($${paramIndex}::varchar[]))`;
       queryParams.push(deniedGroups);
     }
 
@@ -464,13 +411,13 @@ const findOffers = async (deniedGroups = []) => {
         capacity_description, moneda, cotizacion, product_group,
         stock_disponible, stock_de_seguridad
       FROM products
-      WHERE code = ANY($1:: varchar[]) AND price > 0 AND description IS NOT NULL
+      WHERE code = ANY($1::varchar[]) AND price > 0 AND description IS NOT NULL
     `;
     let queryParams = [offerProductCodes];
     let paramIndex = 2;
 
     if (deniedGroups.length > 0) {
-      query += ` AND product_group NOT IN(SELECT unnest($${paramIndex}:: varchar[]))`;
+      query += ` AND product_group NOT IN (SELECT unnest($${paramIndex}::varchar[]))`;
       queryParams.push(deniedGroups);
     }
 
@@ -500,8 +447,7 @@ const findProductsByGroup = async (
   limit,
   offset,
   deniedGroups = [],
-  deniedProductCodes = [], // Renamed
-  allowedProductCodes = [] // New parameter
+  allowedProductCodes = []
 ) => {
   if (deniedGroups.includes(groupCode)) {
     console.log(`[DEBUG] Acceso denegado al grupo ${groupCode}.`);
@@ -523,17 +469,9 @@ const findProductsByGroup = async (
   let queryParams = [groupCode];
   let paramIndex = 2;
 
-  if (deniedProductCodes && deniedProductCodes.length > 0) {
-    const deniedQuery = ` AND code != ALL($${paramIndex}:: varchar[])`;
-    countQuery += deniedQuery;
-    dataQuery += deniedQuery;
-    queryParams.push(deniedProductCodes);
-    paramIndex++;
-  }
-
   // Add allowedProductCodes filter
   if (allowedProductCodes && allowedProductCodes.length > 0) {
-    const allowedQuery = ` AND code = ANY($${paramIndex}:: varchar[])`;
+    const allowedQuery = ` AND code = ANY($${paramIndex}::varchar[])`;
     countQuery += allowedQuery;
     dataQuery += allowedQuery;
     queryParams.push(allowedProductCodes);
@@ -591,7 +529,7 @@ const getRecentlyChangedProducts = async (productIds) => {
     const query = `
       SELECT product_code 
       FROM product_price_snapshots 
-      WHERE product_code = ANY($1:: varchar[]) 
+      WHERE product_code = ANY($1::varchar[]) 
         AND last_change_timestamp >= NOW() - INTERVAL '2 minutes'
     `;
     const result = await pool2.query(query, [codes]);
@@ -604,40 +542,43 @@ const getRecentlyChangedProducts = async (productIds) => {
   }
 };
 
-const updateProductOfferDetails = async (productId, { custom_title, custom_description, custom_image_url }) => {
+const updateProductOfferDetails = async (productId, details) => {
+  const { custom_title, custom_description, custom_image_url } = details;
   try {
-    // Get code
+    // 1. Get product code
     const productResult = await pool.query('SELECT code FROM products WHERE id = $1', [productId]);
     if (productResult.rows.length === 0) throw new Error('Product not found');
     const productCode = productResult.rows[0].code;
 
-    await pool2.query(
+    // 2. Update in DB2
+    const result = await pool2.query(
       `UPDATE product_offer_status 
        SET custom_title = $1, custom_description = $2, custom_image_url = $3, updated_at = CURRENT_TIMESTAMP
-       WHERE product_code = $4`,
+       WHERE product_code = $4
+       RETURNING *`,
       [custom_title, custom_description, custom_image_url, productCode]
     );
-    return { success: true };
+    return result.rows[0];
   } catch (error) {
-    console.error(`Error updating offer details for product ${productId}: `, error);
+    console.error('Error in updateProductOfferDetails:', error);
     throw error;
   }
 };
 
-// --- Carousel Management Methods ---
+// --- Carousel Content Methods ---
 
 const findCarouselAccessories = async () => {
   try {
-    const idsResult = await pool2.query('SELECT product_code FROM carousel_accessories ORDER BY created_at DESC');
+    const idsResult = await pool2.query('SELECT product_code FROM carousel_accessories');
     const productCodes = idsResult.rows.map(row => row.product_code);
 
     if (productCodes.length === 0) return [];
 
     const productsQuery = `
-      SELECT id, code, description, price, product_group
+      SELECT id, code, description, price, brand, capacity_description, product_group, stock_disponible, stock_de_seguridad
       FROM products
-      WHERE code = ANY($1:: varchar[])
-        `;
+      WHERE code = ANY($1::varchar[])
+    `;
     const productsResult = await pool.query(productsQuery, [productCodes]);
     return productsResult.rows;
   } catch (error) {
@@ -652,7 +593,7 @@ const addCarouselAccessory = async (productId) => {
     if (productResult.rows.length === 0) throw new Error('Product not found');
     const productCode = productResult.rows[0].code;
 
-    await pool2.query('INSERT INTO carousel_accessories (product_id, product_code) VALUES ($1, $2) ON CONFLICT DO NOTHING', [productId, productCode]);
+    await pool2.query('INSERT INTO carousel_accessories (product_code, product_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [productCode, productId]);
     return { success: true };
   } catch (error) {
     console.error('Error in addCarouselAccessory:', error);
@@ -739,7 +680,7 @@ const findCustomCollectionProducts = async (collectionId) => {
     const productsQuery = `
       SELECT id, code, description, price, brand, capacity_description, product_group, stock_disponible, stock_de_seguridad
       FROM products
-      WHERE code = ANY($1:: varchar[])
+      WHERE code = ANY($1::varchar[])
         `;
     const productsResult = await pool.query(productsQuery, [productCodes]);
     return productsResult.rows;
@@ -790,7 +731,7 @@ const getProductImages = async (productCodes) => {
     const query = `
       SELECT product_code, image_url 
       FROM product_images 
-      WHERE product_code = ANY($1:: varchar[])
+      WHERE product_code = ANY($1::varchar[])
         `;
     const result = await pool2.query(query, [productCodes]);
     return result.rows;
@@ -888,7 +829,7 @@ module.exports = {
   getProductImages,
   getAllProductImageCodes,
   getDeniedProductGroups,
-  getDeniedProducts,
+
   getGlobalDeniedProducts,
   getGlobalDeniedProductsWithDetails,
   invalidatePermissionsCache,

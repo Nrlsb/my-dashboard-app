@@ -66,7 +66,6 @@ const fetchProducts = async ({
 
     // 2. Determinar permisos
     let deniedGroups = [];
-    let deniedProductIds = [];
     if (userId) {
       // Verificar si el usuario es admin
       const userResult = await pool.query(
@@ -78,27 +77,7 @@ const fetchProducts = async ({
 
       if (!isUserAdmin) {
         deniedGroups = await productModel.getDeniedProductGroups(userId);
-        deniedProductIds = await productModel.getDeniedProducts(userId);
       }
-    }
-
-    // Global restrictions for non-admins (or if no user is logged in, assuming public view might need restrictions too, but usually public view is limited anyway. Let's apply to non-admins)
-    if (userId) {
-      const userResult = await pool.query(
-        'SELECT is_admin FROM users WHERE id = $1',
-        [userId]
-      );
-      const isUserAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin;
-
-      if (!isUserAdmin) {
-        const globalDeniedIds = await productModel.getGlobalDeniedProducts();
-        // Merge with existing deniedProductIds
-        deniedProductIds = [...new Set([...deniedProductIds, ...globalDeniedIds])];
-      }
-    } else {
-      // If no user (public?), apply global restrictions
-      const globalDeniedIds = await productModel.getGlobalDeniedProducts();
-      deniedProductIds = [...new Set([...deniedProductIds, ...globalDeniedIds])];
     }
 
     // 3. Preparar filtros para el modelo
@@ -111,7 +90,6 @@ const fetchProducts = async ({
       search,
       brands,
       deniedGroups,
-      deniedProductIds,
       bypassCache,
     };
 
@@ -244,16 +222,9 @@ const getAccessories = async (userId) => {
 
         if (!isUserAdmin) {
           const deniedGroups = await productModel.getDeniedProductGroups(userId);
-          let deniedProductCodes = await productModel.getDeniedProducts(userId);
-
-          // Add global restrictions
-          const globalDeniedCodes = await productModel.getGlobalDeniedProducts();
-          deniedProductCodes = [...new Set([...deniedProductCodes, ...globalDeniedCodes])];
-
           filteredAccessories = dbAccessories.filter(acc => {
             const isGroupDenied = deniedGroups.includes(acc.product_group);
-            const isProductDenied = deniedProductCodes.includes(acc.code);
-            return !isGroupDenied && !isProductDenied;
+            return !isGroupDenied;
           });
         }
       }
@@ -778,30 +749,25 @@ const getCustomCollectionProducts = async (collectionId, userId = null) => {
 
     if (!isUserAdmin) {
       const deniedGroups = await productModel.getDeniedProductGroups(userId);
-      let deniedProductCodes = await productModel.getDeniedProducts(userId);
 
-      const globalDeniedCodes = await productModel.getGlobalDeniedProducts();
-      deniedProductCodes = [...new Set([...deniedProductCodes, ...globalDeniedCodes])];
-
-      // Check marketing role
+      // Check for marketing role to decide on image restrictions
       const roleData = await userModel.getUserRoleFromDB2(userId);
       const userRole = roleData ? roleData.role : 'cliente';
-      let allowedImageCodes = null;
 
+      let allowedImageCodes = null;
       if (userRole !== 'marketing') {
         allowedImageCodes = await productModel.getAllProductImageCodes();
       }
 
       filteredProducts = rawProducts.filter(prod => {
         const isGroupDenied = deniedGroups.includes(prod.product_group);
-        const isProductDenied = deniedProductCodes.includes(prod.code);
 
         let isAllowedByImage = true;
         if (allowedImageCodes !== null) {
           isAllowedByImage = allowedImageCodes.includes(prod.code);
         }
 
-        return !isGroupDenied && !isProductDenied && isAllowedByImage;
+        return !isGroupDenied && isAllowedByImage;
       });
     }
   } else {
