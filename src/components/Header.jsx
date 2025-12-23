@@ -103,17 +103,17 @@ const Header = ({ onLogout, currentUser }) => {
                         </div>
                       )}
 
-                      {currentUser?.vendedor_email && (
-                        <div className="flex items-start gap-3 group/item">
-                          <div className="mt-0.5 p-1.5 rounded-lg bg-gray-50 group-hover/item:bg-espint-blue/5 transition-colors">
-                            <Mail className="w-3.5 h-3.5 text-gray-400 group-hover/item:text-espint-blue transition-colors" />
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Email</p>
-                            <p className="text-sm font-medium text-gray-700 break-all">{currentUser.vendedor_email}</p>
-                          </div>
+                      <div className="flex items-start gap-3 group/item">
+                        <div className="mt-0.5 p-1.5 rounded-lg bg-gray-50 group-hover/item:bg-espint-blue/5 transition-colors">
+                          <Mail className="w-3.5 h-3.5 text-gray-400 group-hover/item:text-espint-blue transition-colors" />
                         </div>
-                      )}
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Email</p>
+                          <p className="text-sm font-medium text-gray-700 break-all">
+                            {currentUser.vendedor_email || <span className="text-red-400 italic">Email no disponible</span>}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

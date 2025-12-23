@@ -33,6 +33,10 @@ const ManageContentPage = () => {
     const [collectionItems, setCollectionItems] = useState([]);
 
 
+    // Edit Group State
+    const [editGroupName, setEditGroupName] = useState('');
+    const [editGroupImage, setEditGroupImage] = useState('');
+
     useEffect(() => {
         fetchData();
     }, [activeTab]);
@@ -140,6 +144,8 @@ const ManageContentPage = () => {
 
     const handleEditCollection = async (group) => {
         setCurrentCollection(group);
+        setEditGroupName(group.name || '');
+        setEditGroupImage(group.image_url || '');
         setShowEditCollectionModal(true);
         // Fetch items
         try {
@@ -147,6 +153,24 @@ const ManageContentPage = () => {
             setCollectionItems(items);
         } catch (error) {
             toast.error('Error al cargar items de la colección');
+        }
+    };
+
+    const handleUpdateGroup = async () => {
+        try {
+            await apiService.updateCarouselGroup(currentCollection.id, {
+                name: editGroupName,
+                image_url: editGroupImage
+            });
+            toast.success('Grupo actualizado');
+            fetchData();
+            // Update local state to reflect changes immediately in the modal header if needed, 
+            // but fetchData handles the main list. 
+            // We might want to close the modal or keep it open. 
+            // Let's keep it open but update currentCollection name for the header.
+            setCurrentCollection(prev => ({ ...prev, name: editGroupName, image_url: editGroupImage }));
+        } catch (error) {
+            toast.error('Error al actualizar grupo');
         }
     };
 
@@ -203,14 +227,14 @@ const ManageContentPage = () => {
                     onClick={() => setActiveTab('accessories')}
                 >
                     <span className="md:hidden">Accesorios</span>
-                    <span className="hidden md:inline">Accesorios (Carousel)</span>
+                    <span className="hidden md:inline">Accesorios</span>
                 </button>
                 <button
                     className={`py-2 px-4 font-semibold ${activeTab === 'groups' ? 'text-espint-blue border-b-2 border-espint-blue' : 'text-gray-500'}`}
                     onClick={() => setActiveTab('groups')}
                 >
                     <span className="md:hidden">Grupos</span>
-                    <span className="hidden md:inline">Grupos de Productos (Carousel)</span>
+                    <span className="hidden md:inline">Grupos de Productos</span>
                 </button>
                 <button
                     className={`py-2 px-4 font-semibold ${activeTab === 'reports' ? 'text-espint-blue border-b-2 border-espint-blue' : 'text-gray-500'}`}
@@ -447,6 +471,39 @@ const ManageContentPage = () => {
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold">Editar Colección: {currentCollection.name}</h2>
                             <button onClick={() => setShowEditCollectionModal(false)}><X size={24} /></button>
+                        </div>
+
+                        {/* Edit Group Details */}
+                        <div className="mb-6 p-4 bg-gray-50 rounded border border-gray-200">
+                            <h3 className="font-bold mb-3 text-gray-700">Detalles del Grupo</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold mb-1">Nombre</label>
+                                    <input
+                                        type="text"
+                                        className="w-full border p-2 rounded"
+                                        value={editGroupName}
+                                        onChange={(e) => setEditGroupName(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold mb-1">URL de Imagen</label>
+                                    <input
+                                        type="text"
+                                        className="w-full border p-2 rounded"
+                                        value={editGroupImage}
+                                        onChange={(e) => setEditGroupImage(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="mt-3 text-right">
+                                <button
+                                    onClick={handleUpdateGroup}
+                                    className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700 transition"
+                                >
+                                    Guardar Cambios
+                                </button>
+                            </div>
                         </div>
 
                         {/* Search to add */}
