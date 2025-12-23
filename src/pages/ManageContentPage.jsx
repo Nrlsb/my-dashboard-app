@@ -262,7 +262,7 @@ const ManageContentPage = () => {
                                 {accessories.map(acc => (
                                     <div key={acc.id} className="relative aspect-square bg-gray-800 rounded shadow overflow-hidden group">
                                         <img
-                                            src={acc.image_url}
+                                            src={acc.imageUrl}
                                             alt={acc.name}
                                             className="w-full h-full object-cover opacity-70 group-hover:opacity-50 transition-opacity"
                                         />
@@ -380,9 +380,14 @@ const ManageContentPage = () => {
                         <div className="space-y-2">
                             {searchResults.map(prod => (
                                 <div key={prod.id} className="flex justify-between items-center border p-2 rounded hover:bg-gray-50">
-                                    <div>
-                                        <p className="font-bold">{prod.name}</p>
-                                        <p className="text-sm text-gray-500">{prod.code}</p>
+                                    <div className="flex items-center gap-3">
+                                        {prod.imageUrl && (
+                                            <img src={prod.imageUrl} alt={prod.name} className="w-12 h-12 object-cover rounded" />
+                                        )}
+                                        <div>
+                                            <p className="font-bold">{prod.name}</p>
+                                            <p className="text-sm text-gray-500">{prod.code}</p>
+                                        </div>
                                     </div>
                                     <button
                                         onClick={() => handleAddAccessory(prod.id)}
@@ -528,9 +533,14 @@ const ManageContentPage = () => {
                                 <div className="space-y-2 max-h-40 overflow-y-auto">
                                     {searchResults.map(prod => (
                                         <div key={prod.id} className="flex justify-between items-center border p-2 rounded hover:bg-gray-50">
-                                            <div>
-                                                <p className="font-bold text-sm">{prod.name}</p>
-                                                <p className="text-xs text-gray-500">{prod.code}</p>
+                                            <div className="flex items-center gap-3">
+                                                {prod.imageUrl && (
+                                                    <img src={prod.imageUrl} alt={prod.name} className="w-10 h-10 object-cover rounded" />
+                                                )}
+                                                <div>
+                                                    <p className="font-bold text-sm">{prod.name}</p>
+                                                    <p className="text-xs text-gray-500">{prod.code}</p>
+                                                </div>
                                             </div>
                                             <button
                                                 onClick={() => handleAddCollectionItem(prod.id)}
@@ -549,9 +559,14 @@ const ManageContentPage = () => {
                         <div className="space-y-2">
                             {collectionItems.map(item => (
                                 <div key={item.id} className="flex justify-between items-center border p-2 rounded">
-                                    <div>
-                                        <p className="font-bold text-sm">{item.name}</p>
-                                        <p className="text-xs text-gray-500">{item.code}</p>
+                                    <div className="flex items-center gap-3">
+                                        {item.imageUrl && (
+                                            <img src={item.imageUrl} alt={item.name} className="w-10 h-10 object-cover rounded" />
+                                        )}
+                                        <div>
+                                            <p className="font-bold text-sm">{item.name}</p>
+                                            <p className="text-xs text-gray-500">{item.code}</p>
+                                        </div>
                                     </div>
                                     <button
                                         onClick={() => handleRemoveCollectionItem(item.id)}
