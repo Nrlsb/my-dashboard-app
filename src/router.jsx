@@ -2,7 +2,7 @@ import React, { Suspense } from 'react';
 import { createBrowserRouter, createRoutesFromElements, Route, Navigate } from 'react-router-dom';
 import App from './App';
 import { lazyImport } from './utils/lazyImport';
-import { ProtectedRoute, AdminRoute, MarketingRoute, LoadingFallback, PublicRoute, ClientRoute, PermissionRoute } from './components/RouteGuards';
+import { ProtectedRoute, AdminRoute, MarketingRoute, LoadingFallback, PublicRoute, ClientRoute, PermissionRoute, VisibilityRoute } from './components/RouteGuards';
 
 
 // --- Carga diferida (Lazy Loading) de Páginas ---
@@ -152,17 +152,21 @@ const router = createBrowserRouter(
 
             <Route path="price-list" element={
                 <ProtectedRoute>
-                    <Suspense fallback={<LoadingFallback />}>
-                        <PriceListPage />
-                    </Suspense>
+                    <VisibilityRoute path="price-list">
+                        <Suspense fallback={<LoadingFallback />}>
+                            <PriceListPage />
+                        </Suspense>
+                    </VisibilityRoute>
                 </ProtectedRoute>
             } />
 
             <Route path="new-order" element={
                 <ProtectedRoute>
-                    <Suspense fallback={<LoadingFallback />}>
-                        <NewOrderPage />
-                    </Suspense>
+                    <VisibilityRoute path="new-order">
+                        <Suspense fallback={<LoadingFallback />}>
+                            <NewOrderPage />
+                        </Suspense>
+                    </VisibilityRoute>
                 </ProtectedRoute>
             } />
 
@@ -176,9 +180,11 @@ const router = createBrowserRouter(
 
             <Route path="order-history" element={
                 <ProtectedRoute>
-                    <Suspense fallback={<LoadingFallback />}>
-                        <OrderHistoryPage />
-                    </Suspense>
+                    <VisibilityRoute path="order-history">
+                        <Suspense fallback={<LoadingFallback />}>
+                            <OrderHistoryPage />
+                        </Suspense>
+                    </VisibilityRoute>
                 </ProtectedRoute>
             } />
 
@@ -208,9 +214,11 @@ const router = createBrowserRouter(
 
             <Route path="account-balance" element={
                 <ProtectedRoute>
-                    <Suspense fallback={<LoadingFallback />}>
-                        <AccountBalancePage />
-                    </Suspense>
+                    <VisibilityRoute path="account-balance">
+                        <Suspense fallback={<LoadingFallback />}>
+                            <AccountBalancePage />
+                        </Suspense>
+                    </VisibilityRoute>
                 </ProtectedRoute>
             } />
 
@@ -224,17 +232,21 @@ const router = createBrowserRouter(
 
             <Route path="offers" element={
                 <ProtectedRoute>
-                    <Suspense fallback={<LoadingFallback />}>
-                        <OffersPage />
-                    </Suspense>
+                    <VisibilityRoute path="offers">
+                        <Suspense fallback={<LoadingFallback />}>
+                            <OffersPage />
+                        </Suspense>
+                    </VisibilityRoute>
                 </ProtectedRoute>
             } />
 
             <Route path="queries" element={
                 <ProtectedRoute>
-                    <Suspense fallback={<LoadingFallback />}>
-                        <QueriesPage />
-                    </Suspense>
+                    <VisibilityRoute path="queries">
+                        <Suspense fallback={<LoadingFallback />}>
+                            <QueriesPage />
+                        </Suspense>
+                    </VisibilityRoute>
                 </ProtectedRoute>
             } />
 
