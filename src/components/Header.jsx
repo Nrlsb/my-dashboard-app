@@ -15,6 +15,7 @@ import {
   BarChart2,
   ChevronDown,
   Phone,
+  Mail,
 } from 'lucide-react';
 import logo from '../assets/espintBlanco.svg';
 import SearchBar from './SearchBar';
@@ -61,8 +62,8 @@ const Header = ({ onLogout, currentUser }) => {
                 <div className="absolute top-full mt-4 left-1/2 -translate-x-1/2 flex items-center gap-6 font-medium tracking-wide text-sm w-max">
                   <span className="text-espint-green font-bold">Dólar Oficial BNA</span>
                   <div className="flex items-center gap-4">
-                    <span className="text-white/90">Compra: <span className="text-white font-bold text-lg ml-1">${Number(dolar.compra).toFixed(2)}</span></span>
-                    <span className="text-white/90">Venta: <span className="text-white font-bold text-lg ml-1">${Number(dolar.venta).toFixed(2)}</span></span>
+                    <span className="text-white/90">Venta Billetes: <span className="text-white font-bold text-lg ml-1">${Number(dolar.billetes.venta).toFixed(2)}</span></span>
+                    <span className="text-white/90">Venta Divisas: <span className="text-white font-bold text-lg ml-1">${Number(dolar.divisas.venta).toFixed(2)}</span></span>
                   </div>
                 </div>
               )}
@@ -223,18 +224,26 @@ const Header = ({ onLogout, currentUser }) => {
 
                 {/* Seller Info - Outside Button */}
                 {currentUser?.vendedor_nombre && (
-                  <div className="flex flex-col items-end mr-2">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-[10px] text-gray-400 uppercase tracking-wider">Vendedor</span>
-                      <span className="text-xs text-espint-green font-bold uppercase tracking-wide">
-                        {currentUser.vendedor_nombre}
-                      </span>
-                    </div>
+                  <div className="flex flex-col items-end mr-2 text-right">
+                    <span className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Vendedor</span>
+
+                    <span className="text-xs text-espint-green font-bold uppercase tracking-wide mb-0.5">
+                      {currentUser.vendedor_nombre}
+                    </span>
+
                     {currentUser?.vendedor_telefono && (
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center justify-end gap-1.5 mb-0.5">
                         <Phone className="w-3 h-3 text-espint-green" />
                         <span className="text-[10px] text-white/80 font-medium tracking-wide">
                           {currentUser.vendedor_telefono}
+                        </span>
+                      </div>
+                    )}
+
+                    {currentUser?.vendedor_email && (
+                      <div className="flex items-center justify-end gap-1.5">
+                        <span className="text-[10px] text-white/80 font-medium tracking-wide">
+                          {currentUser.vendedor_email}
                         </span>
                       </div>
                     )}

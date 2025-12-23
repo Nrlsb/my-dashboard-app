@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import apiService from '../api/apiService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import CustomSelect from '../components/CustomSelect';
-import { Trash2, Plus, Edit, Search, X, Upload, Check, AlertCircle, FileImage } from 'lucide-react';
+import { Trash2, Plus, Edit, Search, X, Upload, Check, AlertCircle, FileImage, FileSpreadsheet } from 'lucide-react';
 
 const ManageContentPage = () => {
     const [activeTab, setActiveTab] = useState('accessories');
@@ -173,6 +173,24 @@ const ManageContentPage = () => {
         }
     };
 
+    const handleDownloadMissingImagesReport = async () => {
+        try {
+            const blob = await apiService.downloadMissingImagesReport();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'reporte_faltantes.xlsx';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            toast.success('Reporte descargado correctamente');
+        } catch (error) {
+            console.error(error);
+            toast.error('Error al descargar el reporte');
+        }
+    };
+
 
 
     return (
@@ -194,7 +212,13 @@ const ManageContentPage = () => {
                     <span className="md:hidden">Grupos</span>
                     <span className="hidden md:inline">Grupos de Productos (Carousel)</span>
                 </button>
-
+                <button
+                    className={`py-2 px-4 font-semibold ${activeTab === 'reports' ? 'text-espint-blue border-b-2 border-espint-blue' : 'text-gray-500'}`}
+                    onClick={() => setActiveTab('reports')}
+                >
+                    <span className="md:hidden">Reportes</span>
+                    <span className="hidden md:inline">Reportes y Análisis</span>
+                </button>
             </div>
 
             {loading ? (
@@ -278,6 +302,26 @@ const ManageContentPage = () => {
                                     </div>
                                 ))}
                                 {groups.length === 0 && <p className="text-gray-500">No hay grupos configurados.</p>}
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'reports' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div className="bg-white p-6 rounded shadow border border-gray-200 flex flex-col items-center text-center">
+                                <div className="bg-blue-100 p-4 rounded-full mb-4">
+                                    <FileSpreadsheet size={40} className="text-blue-600" />
+                                </div>
+                                <h3 className="font-bold text-lg mb-2">Productos Sin Imágenes</h3>
+                                <p className="text-gray-600 text-sm mb-6">
+                                    Genera un reporte Excel con todos los productos activos que no tienen imágenes asignadas.
+                                </p>
+                                <button
+                                    onClick={handleDownloadMissingImagesReport}
+                                    className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700 transition w-full"
+                                >
+                                    Descargar Excel
+                                </button>
                             </div>
                         </div>
                     )}

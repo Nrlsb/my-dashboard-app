@@ -16,5 +16,6 @@ router.use('/orders', require('./order.routes'));
 router.use('/admin', require('./admin.routes'));
 router.use('/images', require('./image.routes'));
 router.use('/analytics', require('./analytics.routes'));
+router.use('/reports', require('./report.routes'));
 
 module.exports = router;

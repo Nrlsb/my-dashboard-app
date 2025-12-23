@@ -8,12 +8,22 @@ const useDolar = () => {
     useEffect(() => {
         const fetchDolar = async () => {
             try {
-                const response = await fetch('https://dolarapi.com/v1/dolares/oficial');
-                if (!response.ok) {
+                const [oficialRes, mayoristaRes] = await Promise.all([
+                    fetch('https://dolarapi.com/v1/dolares/oficial'),
+                    fetch('https://dolarapi.com/v1/dolares/mayorista')
+                ]);
+
+                if (!oficialRes.ok || !mayoristaRes.ok) {
                     throw new Error('Error al obtener la cotización del dólar');
                 }
-                const data = await response.json();
-                setDolar(data);
+
+                const oficialData = await oficialRes.json();
+                const mayoristaData = await mayoristaRes.json();
+
+                setDolar({
+                    billetes: oficialData,
+                    divisas: mayoristaData
+                });
             } catch (err) {
                 console.error('Error fetching dolar:', err);
                 setError(err);

@@ -90,6 +90,17 @@ const CollectionPage = () => {
                             className="border p-4 rounded-lg shadow-md bg-white flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow"
                             onClick={() => handleViewProductDetails(product.id)}
                         >
+                            <div className="w-full h-48 mb-4 bg-gray-100 rounded-md flex items-center justify-center overflow-hidden">
+                                {product.imageUrl ? (
+                                    <img
+                                        src={product.imageUrl}
+                                        alt={product.name}
+                                        className="w-full h-full object-contain"
+                                    />
+                                ) : (
+                                    <span className="text-gray-400 text-sm">Sin imagen</span>
+                                )}
+                            </div>
                             <div>
                                 <h2 className="text-base font-semibold text-gray-800 h-12 overflow-hidden">
                                     {product.name}

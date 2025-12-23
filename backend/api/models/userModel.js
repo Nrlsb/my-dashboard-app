@@ -9,7 +9,7 @@ const { pool, pool2 } = require('../db');
  */
 const findUserByEmail = async (email) => {
   const result = await pool.query(
-    `SELECT u.*, v.nombre as vendedor_nombre, v.telefono as vendedor_telefono 
+    `SELECT u.*, v.nombre as vendedor_nombre, v.telefono as vendedor_telefono, v.email as vendedor_email 
      FROM users u 
      LEFT JOIN vendedores v ON u.vendedor_codigo = v.codigo 
      WHERE u.email = $1`,
@@ -34,7 +34,7 @@ const findUserById = async (userId) => {
   }
 
   const result = await pool.query(
-    `SELECT u.id, u.full_name, u.email, u.a1_cod, u.a1_loja, u.a1_cgc, u.a1_tel, u.a1_endereco, u.is_admin, u.vendedor_codigo, v.nombre as vendedor_nombre, v.telefono as vendedor_telefono 
+    `SELECT u.id, u.full_name, u.email, u.a1_cod, u.a1_loja, u.a1_cgc, u.a1_tel, u.a1_endereco, u.is_admin, u.vendedor_codigo, v.nombre as vendedor_nombre, v.telefono as vendedor_telefono, v.email as vendedor_email 
      FROM users u 
      LEFT JOIN vendedores v ON u.vendedor_codigo = v.codigo 
      WHERE u.id = $1`,

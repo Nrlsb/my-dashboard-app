@@ -175,6 +175,14 @@ function OrderHistoryPage() {
                   </div>
                 </div>
 
+                {/* Sales Order Number (Non-Vendor) */}
+                {!isVendor && order.status === 'Confirmado' && order.vendorSalesOrderNumber && (
+                  <div className="mb-3 text-sm font-medium text-gray-700">
+                    <span className="text-gray-500 mr-1">N° Pedido Venta:</span>
+                    #{order.vendorSalesOrderNumber}
+                  </div>
+                )}
+
                 {/* Vendor Controls (Vendor Only) */}
                 {isVendor && (
                   <div className="mb-4 space-y-3 bg-gray-50 p-3 rounded-md">
@@ -237,7 +245,7 @@ function OrderHistoryPage() {
                   <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Total</th>
                   <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Estado</th>
                   <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Cant. Items</th>
-                  {isVendor && <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">N° Pedido Venta</th>}
+                  <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">N° Pedido Venta</th>
                   {isVendor && <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Estado del Pedido</th>}
                   <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-b border-gray-200 bg-[#0B3D68]">Acciones</th>
                 </tr>
@@ -251,8 +259,8 @@ function OrderHistoryPage() {
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-mono">{order.formattedTotal}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{order.status}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 text-center">{order.item_count}</td>
-                    {isVendor && (
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 text-center">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 text-center">
+                      {isVendor ? (
                         <input
                           type="text"
                           value={vendorSalesOrderNumbers[order.id] || ''}
@@ -265,8 +273,12 @@ function OrderHistoryPage() {
                           placeholder="N° Pedido"
                           className="p-1 border border-gray-300 rounded-md w-24 text-center text-sm"
                         />
-                      </td>
-                    )}
+                      ) : (
+                        <span className="font-mono font-medium text-gray-700">
+                          {order.status === 'Confirmado' && order.vendorSalesOrderNumber ? `#${order.vendorSalesOrderNumber}` : '-'}
+                        </span>
+                      )}
+                    </td>
                     {isVendor && (
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 text-center">
                         <select
