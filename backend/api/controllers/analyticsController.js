@@ -12,11 +12,13 @@ exports.recordVisit = catchAsync(async (req, res) => {
 });
 
 exports.getAnalytics = catchAsync(async (req, res) => {
-    const { days } = req.query;
-    const visitStats = await analyticsModel.getVisitStats(days);
-    const orderStats = await analyticsModel.getOrderStats(days);
-    const clientStats = await analyticsModel.getClientStats();
-    const sellerStats = await analyticsModel.getSellerStats();
+    const { startDate, endDate } = req.query;
+
+    // Pass date range to all stats functions
+    const visitStats = await analyticsModel.getVisitStats(startDate, endDate);
+    const orderStats = await analyticsModel.getOrderStats(startDate, endDate);
+    const clientStats = await analyticsModel.getClientStats(startDate, endDate);
+    const sellerStats = await analyticsModel.getSellerStats(startDate, endDate);
 
     res.json({
         visits: visitStats,

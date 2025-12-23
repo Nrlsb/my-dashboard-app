@@ -459,9 +459,9 @@ const apiService = {
     });
   },
 
-  getAnalytics(days = 30) {
+  getAnalytics(params) {
     return this.request('/analytics/stats', {
-      params: { days },
+      params,
     });
   },
 

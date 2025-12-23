@@ -6,16 +6,22 @@ import { toast } from 'react-hot-toast';
 const AdminAnalyticsPage = () => {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [days, setDays] = useState(30);
+    // Default to last 30 days
+    const [startDate, setStartDate] = useState(() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 30);
+        return d.toISOString().split('T')[0];
+    });
+    const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
 
     useEffect(() => {
         fetchStats();
-    }, [days]);
+    }, [startDate, endDate]);
 
     const fetchStats = async () => {
         setLoading(true);
         try {
-            const data = await apiService.getAnalytics(days);
+            const data = await apiService.getAnalytics({ startDate, endDate });
             setStats(data);
         } catch (error) {
             console.error('Error fetching analytics:', error);
@@ -25,24 +31,33 @@ const AdminAnalyticsPage = () => {
         }
     };
 
-
-
     if (loading) return <LoadingSpinner text="Cargando análisis..." />;
     if (!stats) return <div className="p-4 text-center">No hay datos disponibles.</div>;
 
     return (
         <div className="container mx-auto p-6">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <h1 className="text-2xl font-bold text-gray-800">Panel de Análisis</h1>
-                <select
-                    value={days}
-                    onChange={(e) => setDays(Number(e.target.value))}
-                    className="border rounded p-2"
-                >
-                    <option value={7}>Últimos 7 días</option>
-                    <option value={30}>Últimos 30 días</option>
-                    <option value={90}>Últimos 90 días</option>
-                </select>
+                <div className="flex items-center gap-2">
+                    <div className="flex flex-col">
+                        <label className="text-xs text-gray-500">Desde</label>
+                        <input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="border rounded p-2 text-sm"
+                        />
+                    </div>
+                    <div className="flex flex-col">
+                        <label className="text-xs text-gray-500">Hasta</label>
+                        <input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="border rounded p-2 text-sm"
+                        />
+                    </div>
+                </div>
             </div>
 
             {/* Resumen Cards */}
@@ -60,12 +75,9 @@ const AdminAnalyticsPage = () => {
                     </p>
                 </div>
                 <div className="bg-white p-4 rounded shadow border border-gray-200">
-                    <h3 className="text-gray-500 text-sm font-medium">Ventas Totales</h3>
-                    <p
-                        className="text-2xl font-bold text-green-600 mt-2 truncate"
-                        title={`$${stats.orders.reduce((acc, curr) => acc + parseFloat(curr.total_amount || 0), 0).toLocaleString()}`}
-                    >
-                        ${stats.orders.reduce((acc, curr) => acc + parseFloat(curr.total_amount || 0), 0).toLocaleString()}
+                    <h3 className="text-gray-500 text-sm font-medium">Pedidos Confirmados</h3>
+                    <p className="text-3xl font-bold text-green-600 mt-2">
+                        {stats.orders.reduce((acc, curr) => acc + parseInt(curr.confirmed_count || 0), 0)}
                     </p>
                 </div>
                 <div className="bg-white p-4 rounded shadow border border-gray-200">
@@ -74,17 +86,18 @@ const AdminAnalyticsPage = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-6">
                 {/* Top Clientes */}
                 <div className="bg-white p-6 rounded shadow border border-gray-200">
-                    <h2 className="text-xl font-semibold mb-4 text-gray-800">Top Clientes</h2>
+                    <h2 className="text-xl font-semibold mb-4 text-gray-800">Tráfico por Cliente</h2>
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left">
+                        <table className="w-full text-left text-sm">
                             <thead>
                                 <tr className="border-b border-gray-200">
                                     <th className="pb-3 text-gray-600 font-medium">Cliente</th>
                                     <th className="pb-3 text-gray-600 font-medium">Pedidos</th>
-                                    <th className="pb-3 text-gray-600 font-medium">Total Gastado</th>
+                                    <th className="pb-3 text-gray-600 font-medium">Más Visto</th>
+                                    <th className="pb-3 text-gray-600 font-medium">Más Comprado</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -95,13 +108,16 @@ const AdminAnalyticsPage = () => {
                                             <div className="text-xs text-gray-500">{client.user.email}</div>
                                         </td>
                                         <td className="py-3 text-gray-700">{client.order_count}</td>
-                                        <td className="py-3 font-medium text-green-600">
-                                            ${parseFloat(client.total_spent).toLocaleString()}
+                                        <td className="py-3 text-gray-600 truncate max-w-[150px]" title={client.mostViewedProduct}>
+                                            {client.mostViewedProduct}
+                                        </td>
+                                        <td className="py-3 text-gray-600 truncate max-w-[150px]" title={client.mostBoughtProduct}>
+                                            {client.mostBoughtProduct}
                                         </td>
                                     </tr>
                                 ))}
                                 {stats.clients.topClients.length === 0 && (
-                                    <tr><td colSpan="3" className="py-4 text-center text-gray-500">Sin datos</td></tr>
+                                    <tr><td colSpan="4" className="py-4 text-center text-gray-500">Sin datos</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -110,28 +126,30 @@ const AdminAnalyticsPage = () => {
 
                 {/* Top Vendedores */}
                 <div className="bg-white p-6 rounded shadow border border-gray-200">
-                    <h2 className="text-xl font-semibold mb-4 text-gray-800">Rendimiento Vendedores</h2>
+                    <h2 className="text-xl font-semibold mb-4 text-gray-800">Tráfico por Vendedor</h2>
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left">
+                        <table className="w-full text-left text-sm">
                             <thead>
                                 <tr className="border-b border-gray-200">
                                     <th className="pb-3 text-gray-600 font-medium">Vendedor</th>
-                                    <th className="pb-3 text-gray-600 font-medium">Pedidos (Clientes)</th>
-                                    <th className="pb-3 text-gray-600 font-medium">Total Ventas</th>
+                                    <th className="pb-3 text-gray-600 font-medium">Visitas (Clientes)</th>
+                                    <th className="pb-3 text-gray-600 font-medium">Pedidos</th>
+                                    <th className="pb-3 text-gray-600 font-medium">Pedidos Confirmados</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {stats.sellers.map((seller, index) => (
                                     <tr key={index} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                                         <td className="py-3 font-medium text-gray-800">{seller.name}</td>
+                                        <td className="py-3 text-gray-700">{seller.visitCount}</td>
                                         <td className="py-3 text-gray-700">{seller.orderCount}</td>
                                         <td className="py-3 font-medium text-green-600">
-                                            ${seller.totalSales.toLocaleString()}
+                                            {seller.confirmedOrderCount}
                                         </td>
                                     </tr>
                                 ))}
                                 {stats.sellers.length === 0 && (
-                                    <tr><td colSpan="3" className="py-4 text-center text-gray-500">Sin datos</td></tr>
+                                    <tr><td colSpan="4" className="py-4 text-center text-gray-500">Sin datos</td></tr>
                                 )}
                             </tbody>
                         </table>
