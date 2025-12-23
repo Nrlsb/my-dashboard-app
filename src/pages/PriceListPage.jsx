@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useInfiniteQuery, useQuery, useMutation } from '@tanstack/react-query';
 import {
   Loader2,
@@ -117,10 +117,20 @@ export default function PriceListPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const [searchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
   const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
+
+  useEffect(() => {
+    const brandParam = searchParams.get('brand');
+    if (brandParam) {
+      // Decode and split by comma to support multiple brands
+      const brands = decodeURIComponent(brandParam).split(',');
+      setSelectedBrands(brands);
+    }
+  }, [searchParams]);
 
 
 
