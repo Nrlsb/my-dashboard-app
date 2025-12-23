@@ -70,35 +70,32 @@ const DashboardCard = ({
     <div
       onClick={onClick}
       className={`
-        group relative flex flex-col items-center justify-center p-4 md:p-6 h-32 md:h-40
-        cursor-pointer transition-all duration-500 ease-in-out
+        group relative flex flex-col items-center justify-center p-6 h-48
+        cursor-pointer transition-all duration-300 ease-out
         bg-white
-        w-1/2 md:w-auto md:flex-1
         ${hoverColorClass}
-        border-r border-b border-gray-100 last:border-r-0
-        md:border-b-0 md:border-r md:last:border-r-0
+        ${props.className || ''}
       `}
-      {...props}
     >
       {tag && (
-        <span className="absolute top-0 right-0 px-3 py-1 text-xs font-bold text-white bg-espint-magenta rounded-bl-lg z-10">
+        <span className="absolute top-3 right-3 px-2.5 py-1 text-[10px] font-bold text-white bg-espint-magenta rounded-full shadow-sm z-10 tracking-wide">
           {tag}
         </span>
       )}
 
-      <div className={`p-3 rounded-full mb-3 transition-all duration-300 ${iconColorClass}`}>
-        <Icon className="w-6 h-6 md:w-8 md:h-8" />
+      <div className={`p-4 rounded-2xl mb-4 transition-colors duration-300 ${iconColorClass}`}>
+        <Icon className="w-8 h-8 transition-transform duration-300" />
       </div>
 
-      <h3 className={`text-xs font-bold tracking-wider uppercase mb-1 text-center transition-colors duration-300 ${subTextColorClass}`}>{displayTitle}</h3>
+      <h3 className={`text-xs font-bold tracking-widest uppercase mb-2 text-center transition-colors duration-300 ${subTextColorClass}`}>
+        {displayTitle}
+      </h3>
 
-      {/* Content that appears/expands on hover */}
-      <div className="max-h-0 opacity-0 group-hover:max-h-20 group-hover:opacity-100 transition-all duration-500 overflow-hidden flex flex-col items-center">
-        <p className={`text-sm md:text-base font-semibold text-center px-2 transition-colors duration-300 ${textColorClass}`}>{subTitle}</p>
-        <div className={`mt-2 text-xs font-medium flex items-center transition-colors duration-300 ${arrowColorClass}`}>
-          Acceder <span className="ml-1">&rarr;</span>
-        </div>
-      </div>
+      <p className={`text-sm md:text-base font-bold text-center leading-tight px-2 transition-colors duration-300 ${textColorClass}`}>
+        {subTitle}
+      </p>
+
+
     </div>
   );
 };

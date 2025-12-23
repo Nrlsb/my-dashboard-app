@@ -48,7 +48,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="flex flex-wrap w-full bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
+    <div className="flex flex-col md:flex-row w-full mb-8 rounded-3xl shadow-xl overflow-hidden bg-white">
       {cards.map((card, index) => (
         <DashboardCard
           key={card.id}
@@ -56,8 +56,8 @@ const Dashboard = () => {
           subTitle={card.subtitle}
           icon={iconMap[card.icon] || HelpCircle}
           tag={card.tag}
-          isLast={index === cards.length - 1}
           onClick={() => navigate(`/${card.navigation_path.startsWith('/') ? card.navigation_path.substring(1) : card.navigation_path}`)}
+          className="flex-1 border-b md:border-b-0 md:border-r border-gray-100 last:border-0"
         />
       ))}
     </div>
