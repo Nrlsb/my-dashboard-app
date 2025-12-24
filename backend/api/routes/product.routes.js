@@ -67,4 +67,26 @@ router.put(
   updateProductOfferDetails
 );
 
+// AI Description Routes (Admin Only)
+router.post(
+  '/:id/ai-description/generate',
+  authenticateToken,
+  requireAdmin,
+  require('../controllers/productController').generateAiDescription
+);
+
+router.put(
+  '/:id/ai-description',
+  authenticateToken,
+  requireAdmin,
+  require('../controllers/productController').saveAiDescription
+);
+
+router.post(
+  '/batch-generate-descriptions',
+  authenticateToken,
+  requireAdmin,
+  require('../controllers/productController').batchGenerateAiDescriptions
+);
+
 module.exports = router;

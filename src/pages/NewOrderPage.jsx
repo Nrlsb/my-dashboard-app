@@ -93,11 +93,7 @@ const ProductModal = ({ product, onClose, onAddToCart }) => {
             {formatCurrency(product.price)}
           </p>
 
-          <p className="text-gray-600 leading-relaxed my-4 text-sm">
-            {product.capacity_description || 'Descripción no disponible.'}
-            Aquí tienes una descripción de producto para "Látex Interior
-            Constructor Mate Blanco 20L" de Alba.
-          </p>
+
 
           <div className="flex items-center space-x-4 my-4">
             <span className="font-medium text-gray-700">Cantidad:</span>

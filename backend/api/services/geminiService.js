@@ -12,7 +12,7 @@ const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
  */
 const identifyProductFromImage = async (imagePath, userContext = '') => {
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
         const imageBuffer = fs.readFileSync(imagePath);
         const imageBase64 = imageBuffer.toString("base64");
@@ -76,7 +76,7 @@ const selectBestMatch = async (imagePath, candidates) => {
     if (!candidates || candidates.length === 0) return null;
 
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
         const imageBuffer = fs.readFileSync(imagePath);
         const imageBase64 = imageBuffer.toString("base64");
@@ -135,9 +135,68 @@ const selectBestMatch = async (imagePath, candidates) => {
         console.error("Error in selectBestMatch:", error);
         return null;
     }
+
+};
+
+/**
+ * Generates a creative product description using Gemini.
+ * @param {string} productName - The name of the product.
+ * @param {object} productDetails - Additional details (price, brand, etc.).
+ * @returns {Promise<string>} - The generated description.
+ */
+const generateProductDescription = async (productName, productDetails = {}) => {
+    try {
+        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+
+        const prompt = `
+            Act as an expert technical writer for an e-commerce store specialized in car care, detailing, and paint products.
+            Generate a structured technical product sheet for:
+            
+            Product Name: ${productName}
+            Brand: ${productDetails.brand || 'N/A'}
+            
+            Context:
+            - Language: Spanish (Argentina).
+            - Style: Technical, professional, precise.
+            - Format: Use the following structure EXACTLY. Do not include "Health and Safety" sections.
+            
+            Structure:
+            
+            **Descripción del Producto**
+            [Write a technical paragraph describing the formula, technology, and main benefits. approx 50-80 words]
+            
+            **Información Principal**
+            [Generate 3-5 bullet points with key technical specifications RELEVANT TO THE SPECIFIC PRODUCT TYPE.
+             Examples (do not copy, adapt to product):
+             - For Paints/Liquids: Terminación, Rendimiento, Tiempo de secado, Manos.
+             - For Tools/Brushes: Material, Largo de pelo, Tipo de mango, Resistencia.
+             - For Machines: Potencia, Velocidad (RPM), Peso, Voltaje.
+             - For Accessories: Medidas, Material, Compatibilidad.]
+            
+            **Aplicación**
+            [List tools or application method: Pincel, Rodillo, Soplete, Manual, Máquina, etc.]
+            
+            **Características Destacadas**
+            - [Feature 1]
+            - [Feature 2]
+            - [Feature 3]
+            - [Feature 4]
+            
+            Note: Infer reasonable technical values based on the product name and type if exact details are not provided.
+            Output ONLY the formatted text.
+        `;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return response.text().trim();
+    } catch (error) {
+        console.error("Error generating product description:", error);
+        throw new Error("Failed to generate description.");
+    }
 };
 
 module.exports = {
     identifyProductFromImage,
-    selectBestMatch
+    selectBestMatch,
+    generateProductDescription
 };

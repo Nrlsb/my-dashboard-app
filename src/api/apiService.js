@@ -486,6 +486,28 @@ const apiService = {
 
     return response.blob();
   },
+
+  generateAiDescription(productId, productData) {
+    if (!productId) throw new Error('ID de producto requerido');
+    return this.request(`/products/${productId}/ai-description/generate`, {
+      method: 'POST',
+      body: productData,
+    });
+  },
+
+  saveAiDescription(productId, description) {
+    if (!productId) throw new Error('ID de producto requerido');
+    return this.request(`/products/${productId}/ai-description`, {
+      method: 'PUT',
+      body: { description },
+    });
+  },
+
+  batchGenerateAiDescriptions() {
+    return this.request('/products/batch-generate-descriptions', {
+      method: 'POST',
+    });
+  },
 };
 
 export default apiService;

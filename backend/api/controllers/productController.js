@@ -128,3 +128,35 @@ exports.getCustomCollectionProducts = catchAsync(async (req, res) => {
     const products = await productService.getCustomCollectionProducts(req.params.collectionId, req.userId);
     res.json(products);
 });
+
+exports.generateAiDescription = catchAsync(async (req, res) => {
+    const { id } = req.params;
+    const { name, brand, price } = req.body; // Or fetch from DB if preferred, but passing from frontend is faster if we have it
+
+    // If we want to be secure, we should fetch from DB using ID.
+    // Let's fetch from DB to be safe and consistent.
+    const product = await productService.fetchProductDetails(id, req.userId);
+    if (!product) {
+        return res.status(404).json({ message: 'Producto no encontrado.' });
+    }
+
+    const geminiService = require('../services/geminiService');
+    const description = await geminiService.generateProductDescription(product.name, {
+        brand: product.brand,
+        formattedPrice: product.formattedPrice
+    });
+
+    res.json({ description });
+});
+
+exports.saveAiDescription = catchAsync(async (req, res) => {
+    const { id } = req.params;
+    const { description } = req.body;
+
+    const updatedProduct = await productService.updateProductAiDescription(id, description);
+    res.json(updatedProduct);
+});
+exports.batchGenerateAiDescriptions = catchAsync(async (req, res) => {
+    const results = await productService.batchGenerateAiDescriptions();
+    res.json(results);
+});

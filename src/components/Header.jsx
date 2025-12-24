@@ -258,7 +258,7 @@ const Header = ({ onLogout, currentUser }) => {
                             className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-espint-blue rounded-lg transition-colors"
                           >
                             <Tag className="w-4 h-4 mr-3 text-gray-400" />
-                            Subir Imágenes
+                            Gestión de Catálogo
                           </button>
                         </>
                       )}

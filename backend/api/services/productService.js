@@ -5,6 +5,7 @@ const { formatCurrency } = require('../utils/helpers');
 const { pool, pool2 } = require('../db'); // Solo para verificar si el usuario es admin
 const { getImageUrl } = require('./cloudinaryService');
 const userModel = require('../models/userModel'); // Import userModel
+const geminiService = require('./geminiService');
 
 
 /**
@@ -350,6 +351,7 @@ const fetchProductDetails = async (productId, userId = null) => {
       capacityValue: null,
       additionalInfo: {},
       product_group: prod.product_group,
+      ai_description: prod.ai_description,
     };
 
     const [enrichedProduct] = await enrichProductsWithImages([productDetails]);
@@ -396,6 +398,7 @@ const fetchProductDetailsByCode = async (productCode, userId = null) => {
       capacityValue: null,
       additionalInfo: {},
       product_group: prod.product_group,
+      ai_description: prod.ai_description,
     };
 
     const [enrichedProduct] = await enrichProductsWithImages([productDetails]);
@@ -800,18 +803,62 @@ const getCustomCollectionProducts = async (collectionId, userId = null) => {
     }
 
     return {
-      id: prod.id,
-      code: prod.code,
-      name: prod.description,
-      price: finalPrice,
-      formattedPrice: formatCurrency(finalPrice),
-      brand: prod.brand,
-      imageUrl: getImageUrl(prod.code),
-      capacityDesc: prod.capacity_description,
+      ...prod,
+      price: finalPrice
     };
   });
-
   return await enrichProductsWithImages(mappedProducts);
+};
+
+const updateProductAiDescription = async (productId, description) => {
+  // Fetch product code first
+  const productResult = await pool.query('SELECT code FROM products WHERE id = $1', [productId]);
+  if (productResult.rows.length === 0) {
+    throw new Error('Product not found');
+  }
+  const productCode = productResult.rows[0].code;
+
+  const result = await productModel.updateProductAiDescription(productCode, description);
+  return result;
+};
+
+const batchGenerateAiDescriptions = async () => {
+  try {
+    const productsToProcess = await productModel.findProductsWithImagesNoDescription();
+    const results = {
+      total: productsToProcess.length,
+      success: 0,
+      failed: 0,
+      details: []
+    };
+
+    // Process in parallel with a limit or sequentially to avoid rate limits?
+    // Gemini Flash is fast, but let's do chunks or sequential to be safe.
+    // Sequential for now to monitor progress easier if we were streaming, but here we just return result.
+    // Let's do Promise.all with a small concurrency or just sequential for simplicity and safety.
+
+    for (const product of productsToProcess) {
+      try {
+        const description = await geminiService.generateProductDescription(product.name, {
+          brand: product.brand,
+          formattedPrice: formatCurrency(product.price)
+        });
+
+        await productModel.updateProductAiDescription(product.code, description);
+        results.success++;
+        results.details.push({ id: product.id, code: product.code, status: 'success' });
+      } catch (err) {
+        console.error(`Error generating description for product ${product.code}:`, err);
+        results.failed++;
+        results.details.push({ id: product.id, code: product.code, status: 'failed', error: err.message });
+      }
+    }
+
+    return results;
+  } catch (error) {
+    console.error('Error in batchGenerateAiDescriptions:', error);
+    throw error;
+  }
 };
 
 const addCustomGroupItem = async (groupId, productId) => {
@@ -847,4 +894,6 @@ module.exports = {
   getCustomCollectionProducts,
   addCustomGroupItem,
   removeCustomGroupItem,
+  updateProductAiDescription,
+  batchGenerateAiDescriptions,
 };

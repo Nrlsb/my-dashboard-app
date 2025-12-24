@@ -13,7 +13,10 @@ import {
   Loader2,
   ShoppingCart,
   Info,
+
   Circle,
+  Sparkles,
+  Edit,
 } from 'lucide-react';
 
 // Formateador de moneda
@@ -150,8 +153,7 @@ export default function ProductDetailPage() {
 
             <p className="text-gray-600 leading-relaxed">
               {product.description ||
-                product.capacity_description ||
-                'Detalles del producto no disponibles.'}
+                product.capacity_description}
             </p>
 
             <div className="flex items-center space-x-4">
@@ -215,7 +217,20 @@ export default function ProductDetailPage() {
             </div>
           </div>
         </div>
-      </div>
+
+
+        {/* AI Description Section */}
+        <div className="mt-12 border-t pt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-2xl font-bold text-gray-800 flex items-center">
+              <Sparkles className="w-6 h-6 text-purple-600 mr-2" />
+              Detalles del Producto
+            </h3>
+          </div>
+
+          <AiDescriptionEditor product={product} isAdmin={user?.is_admin} />
+        </div>
+      </div >
     );
   };
 
@@ -240,3 +255,175 @@ export default function ProductDetailPage() {
     </div>
   );
 }
+
+const AiDescriptionEditor = ({ product, isAdmin }) => {
+  const [description, setDescription] = useState(product.ai_description || '');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    try {
+      const data = await apiService.generateAiDescription(product.id, {
+        name: product.name,
+        brand: product.brand,
+        price: product.price, // Send raw price if needed, or formatted
+        formattedPrice: product.formattedPrice
+      });
+      setDescription(data.description);
+      setIsEditing(true); // Allow editing after generation
+    } catch (error) {
+      console.error('Error generating description:', error);
+      alert('Error al generar la descripción');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await apiService.saveAiDescription(product.id, description);
+      setIsEditing(false);
+      // Optionally refresh product data or show success toast
+    } catch (error) {
+      console.error('Error saving description:', error);
+      alert('Error al guardar la descripción');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // If not admin and no description, show nothing
+  if (!isAdmin && !description) return null;
+
+  return (
+    <div className="bg-purple-50 p-6 rounded-lg border border-purple-100">
+      {!isEditing && !description ? (
+        <div className="text-center py-8">
+          <p className="text-gray-600 mb-4">No hay descripción generada por IA para este producto.</p>
+          {isAdmin && (
+            <button
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Generando...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Generar Descripción con IA
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {isEditing ? (
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full h-40 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              placeholder="Descripción del producto..."
+            />
+          ) : (
+
+            <div className="prose max-w-none text-gray-700">
+              {description.split('\n').map((line, index) => {
+                const trimmedLine = line.trim();
+                if (!trimmedLine) return <div key={index} className="h-2"></div>;
+
+                // Headers like **Header**
+                if (trimmedLine.startsWith('**') && trimmedLine.endsWith('**') && !trimmedLine.includes(':')) {
+                  return (
+                    <h4 key={index} className="text-lg font-bold text-gray-900 mt-4 mb-2">
+                      {trimmedLine.replace(/\*\*/g, '')}
+                    </h4>
+                  );
+                }
+
+                // List items
+                if (trimmedLine.startsWith('* ') || trimmedLine.startsWith('- ')) {
+                  const content = trimmedLine.substring(2);
+                  const parts = content.split(/(\*\*.*?\*\*)/g);
+                  return (
+                    <div key={index} className="flex items-start mb-1 ml-4">
+                      <span className="mr-2 text-purple-500">•</span>
+                      <span>
+                        {parts.map((part, i) => {
+                          if (part.startsWith('**') && part.endsWith('**')) {
+                            return <strong key={i} className="font-semibold text-gray-900">{part.replace(/\*\*/g, '')}</strong>;
+                          }
+                          return part;
+                        })}
+                      </span>
+                    </div>
+                  );
+                }
+
+                // Regular text with bold
+                const parts = line.split(/(\*\*.*?\*\*)/g);
+                return (
+                  <p key={index} className="mb-2 leading-relaxed">
+                    {parts.map((part, i) => {
+                      if (part.startsWith('**') && part.endsWith('**')) {
+                        return <strong key={i} className="font-semibold text-gray-900">{part.replace(/\*\*/g, '')}</strong>;
+                      }
+                      return part;
+                    })}
+                  </p>
+                );
+              })}
+            </div>
+          )}
+
+          {isAdmin && (
+            <div className="flex justify-end space-x-3">
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                  >
+                    {isSaving ? 'Guardando...' : 'Guardar'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleGenerate}
+                    disabled={isGenerating}
+                    className="px-4 py-2 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors"
+                  >
+                    {isGenerating ? 'Regenerando...' : 'Regenerar'}
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Editar
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )
+      }
+    </div >
+  );
+};
