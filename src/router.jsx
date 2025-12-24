@@ -13,6 +13,7 @@ const DashboardPage = lazyImport(() => import('./pages/DashboardPage.jsx'));
 const NewOrderPage = lazyImport(() => import('./pages/NewOrderPage.jsx'));
 const OrderHistoryPage = lazyImport(() => import('./pages/OrderHistoryPage.jsx'));
 const PriceListPage = lazyImport(() => import('./pages/PriceListPage.jsx'));
+const ProductsPage = lazyImport(() => import('./pages/ProductsPage.jsx'));
 const OffersPage = lazyImport(() => import('./pages/OffersPage.jsx'));
 const AccountBalancePage = lazyImport(() => import('./pages/AccountBalancePage.jsx'));
 const QueriesPage = lazyImport(() => import('./pages/QueriesPage.jsx'));
@@ -157,6 +158,14 @@ const router = createBrowserRouter(
                             <PriceListPage />
                         </Suspense>
                     </VisibilityRoute>
+                </ProtectedRoute>
+            } />
+
+            <Route path="products" element={
+                <ProtectedRoute>
+                    <Suspense fallback={<LoadingFallback />}>
+                        <ProductsPage />
+                    </Suspense>
                 </ProtectedRoute>
             } />
 

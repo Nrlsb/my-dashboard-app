@@ -36,7 +36,7 @@ const Footer = () => {
             ].map((brand) => (
               <Link
                 key={brand.name}
-                to={`/price-list?brand=${encodeURIComponent(brand.value)}`}
+                to={`/products?brand=${encodeURIComponent(brand.value)}`}
                 className="bg-white w-20 h-20 rounded-full hover:bg-gray-200 transition-all duration-300 flex items-center justify-center group shadow-lg hover:shadow-xl hover:scale-105"
               >
                 <img
@@ -82,7 +82,7 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/price-list" className="hover:text-blue-400 transition-colors duration-200 flex items-center">
+                <Link to="/products" className="hover:text-blue-400 transition-colors duration-200 flex items-center">
                   <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2 opacity-0 hover:opacity-100 transition-opacity"></span>
                   Productos
                 </Link>
