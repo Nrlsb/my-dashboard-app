@@ -8,7 +8,7 @@ const BatchDescriptionGenerator = () => {
     const [results, setResults] = useState(null);
 
     const handleGenerate = async () => {
-        if (!window.confirm('¿Estás seguro de que deseas generar descripciones para todos los productos que tienen imagen pero no descripción? Esto puede tardar unos minutos.')) {
+        if (!window.confirm('¿Estás seguro de que deseas generar descripciones para un lote de hasta 50 productos que tienen imagen pero no descripción? Esto puede tardar unos minutos.')) {
             return;
         }
 
@@ -35,7 +35,7 @@ const BatchDescriptionGenerator = () => {
                 </div>
                 <h2 className="text-2xl font-bold text-gray-800 mb-2">Generación Masiva de Descripciones IA</h2>
                 <p className="text-gray-600 max-w-2xl mx-auto">
-                    Esta herramienta buscará automáticamente todos los productos que tienen imagen cargada pero no tienen una descripción generada.
+                    Esta herramienta buscará automáticamente un lote de hasta 50 productos que tienen imagen cargada pero no tienen una descripción generada.
                     Utilizará inteligencia artificial para crear una descripción técnica basada en el nombre, marca y precio del producto.
                 </p>
             </div>

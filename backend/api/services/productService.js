@@ -824,7 +824,7 @@ const updateProductAiDescription = async (productId, description) => {
 
 const batchGenerateAiDescriptions = async () => {
   try {
-    const productsToProcess = await productModel.findProductsWithImagesNoDescription();
+    const productsToProcess = await productModel.findProductsWithImagesNoDescription(50);
     const results = {
       total: productsToProcess.length,
       success: 0,
@@ -842,7 +842,7 @@ const batchGenerateAiDescriptions = async () => {
         const description = await geminiService.generateProductDescription(product.name, {
           brand: product.brand,
           formattedPrice: formatCurrency(product.price)
-        });
+        }, product.imageUrl);
 
         await productModel.updateProductAiDescription(product.code, description);
         results.success++;

@@ -1,5 +1,6 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const fs = require("fs");
+const axios = require("axios");
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
@@ -144,7 +145,7 @@ const selectBestMatch = async (imagePath, candidates) => {
  * @param {object} productDetails - Additional details (price, brand, etc.).
  * @returns {Promise<string>} - The generated description.
  */
-const generateProductDescription = async (productName, productDetails = {}) => {
+const generateProductDescription = async (productName, productDetails = {}, imageUrl = null) => {
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
@@ -186,7 +187,37 @@ const generateProductDescription = async (productName, productDetails = {}) => {
             Output ONLY the formatted text.
         `;
 
-        const result = await model.generateContent(prompt);
+        let promptParts = [prompt];
+
+        if (imageUrl) {
+            try {
+                // Fetch image from URL
+                const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+                const imageBase64 = Buffer.from(imageResponse.data).toString('base64');
+
+                promptParts.push({
+                    inlineData: {
+                        data: imageBase64,
+                        mimeType: "image/jpeg", // Assuming JPEG, Gemini is flexible but good to specify
+                    },
+                });
+
+                // Add instruction to look at the image
+                promptParts[0] += `
+                
+                **IMPORTANT: VISUAL ANALYSIS**
+                I have attached an image of the product. 
+                - Use the image to CONFIRM the product type (e.g., is it a paint can, a spray, a brush, a machine?).
+                - If the image contradicts the name (e.g., name says "Paint" but image is a "Brush"), TRUST THE IMAGE but mention the discrepancy if possible or just describe what you see.
+                - Extract colors, packaging details, or specific features visible in the image to make the description more accurate.
+                `;
+            } catch (imgErr) {
+                console.error("Error fetching image for Gemini description:", imgErr.message);
+                // Continue without image if fetch fails
+            }
+        }
+
+        const result = await model.generateContent(promptParts);
         const response = await result.response;
         return response.text().trim();
     } catch (error) {

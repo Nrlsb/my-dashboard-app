@@ -833,7 +833,7 @@ const updateProductAiDescription = async (productCode, description) => {
   }
 };
 
-const findProductsWithImagesNoDescription = async () => {
+const findProductsWithImagesNoDescription = async (limit = 50) => {
   try {
     // 1. Get all product codes that already have a description (DB2)
     const descResult = await pool2.query('SELECT product_code FROM description');
@@ -846,10 +846,15 @@ const findProductsWithImagesNoDescription = async () => {
     const imageCodes = imagesResult.rows.map(row => row.product_code);
 
     // 3. Filter codes: Have Image AND No Description
-    const codesToProcess = imageCodes.filter(code => !existingDescCodes.has(code));
+    let codesToProcess = imageCodes.filter(code => !existingDescCodes.has(code));
 
     if (codesToProcess.length === 0) {
       return [];
+    }
+
+    // Apply limit
+    if (limit > 0) {
+      codesToProcess = codesToProcess.slice(0, limit);
     }
 
     // 4. Fetch product details from DB1 for these codes
@@ -861,8 +866,29 @@ const findProductsWithImagesNoDescription = async () => {
     `;
 
     const productsResult = await pool.query(productsQuery, codesToProcess);
+    const products = productsResult.rows;
 
-    return productsResult.rows;
+    // 5. Fetch image URLs for these codes from DB2
+    const imagesQuery = `
+      SELECT product_code, image_url 
+      FROM product_images 
+      WHERE product_code = ANY($1::varchar[])
+    `;
+    const imagesData = await pool2.query(imagesQuery, [codesToProcess]);
+
+    // Create a map for quick lookup
+    const imageMap = new Map();
+    imagesData.rows.forEach(row => {
+      if (row.image_url) {
+        imageMap.set(row.product_code, row.image_url);
+      }
+    });
+
+    // Merge image URL into product objects
+    return products.map(p => ({
+      ...p,
+      imageUrl: imageMap.get(p.code) || null
+    }));
   } catch (error) {
     console.error('Error in findProductsWithImagesNoDescription:', error);
     throw error;
