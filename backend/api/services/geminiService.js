@@ -1,6 +1,7 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const fs = require("fs");
 const axios = require("axios");
+const { registrarFacturacion } = require("./geminiBillingService");
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
@@ -48,6 +49,10 @@ const identifyProductFromImage = async (imagePath, userContext = '') => {
         ]);
 
         const response = await result.response;
+        const usage = response.usageMetadata;
+        if (usage) {
+            registrarFacturacion("Identify Product", usage.promptTokenCount, usage.candidatesTokenCount);
+        }
         let text = response.text();
 
         // Clean up any potential markdown formatting if the model ignores the instruction
@@ -122,6 +127,10 @@ const selectBestMatch = async (imagePath, candidates) => {
         ]);
 
         const response = await result.response;
+        const usage = response.usageMetadata;
+        if (usage) {
+            registrarFacturacion("Select Best Match", usage.promptTokenCount, usage.candidatesTokenCount);
+        }
         let text = response.text();
         text = text.replace(/```json/g, '').replace(/```/g, '').trim();
 
@@ -219,6 +228,10 @@ const generateProductDescription = async (productName, productDetails = {}, imag
 
         const result = await model.generateContent(promptParts);
         const response = await result.response;
+        const usage = response.usageMetadata;
+        if (usage) {
+            registrarFacturacion(`Desc: ${productName}`, usage.promptTokenCount, usage.candidatesTokenCount);
+        }
         return response.text().trim();
     } catch (error) {
         console.error("Error generating product description:", error);
