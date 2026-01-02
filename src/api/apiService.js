@@ -508,6 +508,10 @@ const apiService = {
       method: 'POST',
     });
   },
+
+  getBatchGenerationProgress() {
+    return this.request('/products/batch-generate-descriptions/progress');
+  },
 };
 
 export default apiService;

@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast';
 const BatchDescriptionGenerator = () => {
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState(null);
+    const [progress, setProgress] = useState(null);
 
     const handleGenerate = async () => {
         if (!window.confirm('¿Estás seguro de que deseas generar descripciones para un lote de hasta 50 productos que tienen imagen pero no descripción? Esto puede tardar unos minutos.')) {
@@ -14,6 +15,19 @@ const BatchDescriptionGenerator = () => {
 
         setLoading(true);
         setResults(null);
+        setProgress({ current: 0, total: 0 });
+
+        // Start polling
+        const pollInterval = setInterval(async () => {
+            try {
+                const progressData = await apiService.getBatchGenerationProgress();
+                if (progressData && progressData.status === 'processing') {
+                    setProgress(progressData);
+                }
+            } catch (error) {
+                console.error('Error polling progress:', error);
+            }
+        }, 1000);
 
         try {
             const data = await apiService.batchGenerateAiDescriptions();
@@ -23,7 +37,9 @@ const BatchDescriptionGenerator = () => {
             console.error('Error en generación masiva:', error);
             toast.error('Error al iniciar la generación masiva.');
         } finally {
+            clearInterval(pollInterval);
             setLoading(false);
+            setProgress(null);
         }
     };
 
@@ -40,7 +56,7 @@ const BatchDescriptionGenerator = () => {
                 </p>
             </div>
 
-            <div className="flex justify-center mb-8">
+            <div className="flex flex-col items-center justify-center mb-8">
                 <button
                     onClick={handleGenerate}
                     disabled={loading}
@@ -49,7 +65,9 @@ const BatchDescriptionGenerator = () => {
                     {loading ? (
                         <>
                             <Loader2 className="w-6 h-6 mr-3 animate-spin" />
-                            Procesando...
+                            {progress && progress.total > 0
+                                ? `Procesando ${progress.current} de ${progress.total}...`
+                                : 'Procesando...'}
                         </>
                     ) : (
                         <>
@@ -58,6 +76,20 @@ const BatchDescriptionGenerator = () => {
                         </>
                     )}
                 </button>
+
+                {loading && progress && progress.total > 0 && (
+                    <div className="w-full max-w-md mt-4">
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                            <div
+                                className="bg-purple-600 h-2.5 rounded-full transition-all duration-500"
+                                style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                            ></div>
+                        </div>
+                        <p className="text-center text-sm text-gray-500 mt-2">
+                            {Math.round((progress.current / progress.total) * 100)}% completado
+                        </p>
+                    </div>
+                )}
             </div>
 
             {results && (

@@ -7,6 +7,19 @@ const { getImageUrl } = require('./cloudinaryService');
 const userModel = require('../models/userModel'); // Import userModel
 const geminiService = require('./geminiService');
 
+// Global variable to track batch generation progress
+let batchProgress = {
+  total: 0,
+  current: 0,
+  status: 'idle', // idle, processing, completed, error
+  startTime: null,
+  endTime: null
+};
+
+const getBatchProgress = () => {
+  return batchProgress;
+};
+
 
 /**
  * Helper function to merge DB2 images into products list
@@ -825,6 +838,16 @@ const updateProductAiDescription = async (productId, description) => {
 const batchGenerateAiDescriptions = async () => {
   try {
     const productsToProcess = await productModel.findProductsWithImagesNoDescription(50);
+
+    // Reset progress
+    batchProgress = {
+      total: productsToProcess.length,
+      current: 0,
+      status: 'processing',
+      startTime: new Date(),
+      endTime: null
+    };
+
     const results = {
       total: productsToProcess.length,
       success: 0,
@@ -851,8 +874,14 @@ const batchGenerateAiDescriptions = async () => {
         console.error(`Error generating description for product ${product.code}:`, err);
         results.failed++;
         results.details.push({ id: product.id, code: product.code, status: 'failed', error: err.message });
+      } finally {
+        // Update progress
+        batchProgress.current++;
       }
     }
+
+    batchProgress.status = 'completed';
+    batchProgress.endTime = new Date();
 
     return results;
   } catch (error) {
@@ -895,5 +924,7 @@ module.exports = {
   addCustomGroupItem,
   removeCustomGroupItem,
   updateProductAiDescription,
+  updateProductAiDescription,
   batchGenerateAiDescriptions,
+  getBatchProgress,
 };

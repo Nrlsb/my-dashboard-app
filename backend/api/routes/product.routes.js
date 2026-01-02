@@ -89,4 +89,11 @@ router.post(
   require('../controllers/productController').batchGenerateAiDescriptions
 );
 
+router.get(
+  '/batch-generate-descriptions/progress',
+  authenticateToken,
+  requireAdmin,
+  require('../controllers/productController').getBatchGenerationProgress
+);
+
 module.exports = router;

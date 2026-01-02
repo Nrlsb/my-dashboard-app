@@ -160,3 +160,8 @@ exports.batchGenerateAiDescriptions = catchAsync(async (req, res) => {
     const results = await productService.batchGenerateAiDescriptions();
     res.json(results);
 });
+
+exports.getBatchGenerationProgress = catchAsync(async (req, res) => {
+    const progress = productService.getBatchProgress();
+    res.json(progress);
+});
