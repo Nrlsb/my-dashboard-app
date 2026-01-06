@@ -46,7 +46,7 @@ function App() {
       {isAuthenticated && !firstLogin && (
         <Header onLogout={handleLogout} currentUser={user} />
       )}
-      <div className="page-content p-6 max-w-6xl mx-auto my-5 w-full box-border flex-grow">
+      <div className="page-content p-2 w-[95%] mx-auto my-2 box-border flex-grow">
         <Outlet context={{ onCompleteOrder: handleCompleteOrder }} />
       </div>
       {location.pathname !== '/login' && <Footer />}

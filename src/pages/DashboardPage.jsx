@@ -25,8 +25,9 @@ const iconMap = {
 };
 
 import DashboardSkeleton from '../components/DashboardSkeleton';
+import NewReleasesBanner from '../components/NewReleasesBanner';
 
-const Dashboard = () => {
+const DashboardCards = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -48,7 +49,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="flex flex-col md:flex-row w-full mb-8 rounded-3xl shadow-xl bg-white relative z-0">
+    <div className="flex flex-col md:flex-row w-full rounded-3xl shadow-xl bg-white relative z-0 mb-8">
       {cards.map((card, index) => (
         <DashboardCard
           key={card.id}
@@ -67,15 +68,32 @@ const Dashboard = () => {
 const DashboardPage = () => {
   return (
     <div className="font-sans">
-      <main className="p-4 md:p-8 max-w-7xl mx-auto">
-        <Dashboard />
-        <ProductGroupCarousel />
-        <AccessoryCarousel />
+      <main className="p-2 md:p-4 w-full">
+        <DashboardCards />
+
+        <div className="flex flex-col md:flex-row gap-6 mt-8">
+          {/* Sidebar Banner */}
+          <div className="flex-shrink-0 hidden md:flex md:flex-col mt-8 py-4">
+            <h2 className="text-2xl font-bold mb-4 text-espint-blue break-words w-64 lg:w-72 leading-tight">
+              Nuevos Lanzamientos
+            </h2>
+            <NewReleasesBanner />
+          </div>
+
+          {/* Mobile Banner (Horizontal) */}
+          <div className="block md:hidden mb-4">
+            <NewReleasesBanner />
+          </div>
+
+          {/* Main Content Area */}
+          <div className="flex-grow w-full min-w-0 space-y-8">
+            <ProductGroupCarousel />
+            <AccessoryCarousel />
+          </div>
+        </div>
       </main>
     </div>
   );
 };
-
-
 
 export default DashboardPage;
