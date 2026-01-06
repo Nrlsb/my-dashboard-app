@@ -13,6 +13,9 @@ const {
   toggleProductOfferStatus,
   updateProductOfferDetails,
   getCustomCollectionProducts,
+  getNewReleasesController,
+  toggleProductNewRelease,
+  updateProductNewReleaseDetails,
 } = require('../controllers/productController');
 const {
   optionalAuthenticateToken,
@@ -45,6 +48,8 @@ router.get('/offers', getOffersController);
 
 router.get('/orders', getProductsOrdersController); // Nueva ruta para /api/products/orders
 
+router.get('/new-releases', getNewReleasesController);
+
 // Cachear producto individual por 5 minutos (300s)
 router.get('/:id', getProductsByIdController);
 
@@ -65,6 +70,20 @@ router.put(
   authenticateToken,
   requireMarketingOrAdmin,
   updateProductOfferDetails
+);
+
+router.put(
+  '/:id/toggle-new-release',
+  authenticateToken,
+  requireMarketingOrAdmin,
+  toggleProductNewRelease
+);
+
+router.put(
+  '/:id/new-release-details',
+  authenticateToken,
+  requireMarketingOrAdmin,
+  updateProductNewReleaseDetails
 );
 
 // AI Description Routes (Admin Only)

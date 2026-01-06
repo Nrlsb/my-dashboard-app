@@ -901,6 +901,126 @@ const removeCustomGroupItem = async (groupId, productId) => {
   return result;
 };
 
+const fetchNewReleases = async (userId = null) => {
+  try {
+    let deniedGroups = [];
+    if (userId) {
+      const userResult = await pool.query(
+        'SELECT is_admin FROM users WHERE id = $1',
+        [userId]
+      );
+      const isUserAdmin =
+        userResult.rows.length > 0 && userResult.rows[0].is_admin;
+      if (!isUserAdmin) {
+        deniedGroups = await productModel.getDeniedProductGroups(userId);
+      }
+    }
+
+    const newReleasesData = await productModel.getNewReleasesData();
+    const rawOffers = await productModel.findOffers(newReleasesData, deniedGroups);
+
+    if (rawOffers.length === 0) {
+      return [];
+    }
+
+    let exchangeRates;
+    try {
+      exchangeRates = await getExchangeRates();
+    } catch (error) {
+      exchangeRates = { venta_billete: 1, venta_divisa: 1 };
+    }
+    const ventaBillete = exchangeRates.venta_billete || 1;
+    const ventaDivisa = exchangeRates.venta_divisa || 1;
+
+    const releases = rawOffers.map((prod) => {
+      let originalPrice = prod.price;
+      let finalPrice = prod.price;
+
+      if (prod.moneda === 2) {
+        finalPrice = originalPrice * ventaBillete;
+      } else if (prod.moneda === 3) {
+        finalPrice = originalPrice * ventaDivisa;
+      }
+
+      return {
+        id: prod.id,
+        code: prod.code,
+        name: prod.description,
+        price: finalPrice,
+        formattedPrice: formatCurrency(finalPrice),
+        brand: prod.brand,
+        imageUrl: getImageUrl(prod.code),
+        capacityDesc: prod.capacity_description,
+        moneda: prod.moneda,
+        cotizacion:
+          prod.moneda === 2
+            ? ventaBillete
+            : prod.moneda === 3
+              ? ventaDivisa
+              : 1,
+        originalPrice: originalPrice,
+        product_group: prod.product_group,
+        is_new_release: true,
+        custom_title: prod.custom_title,
+        custom_description: prod.custom_description,
+        custom_image_url: prod.custom_image_url,
+      };
+    });
+
+    return await enrichProductsWithImages(releases);
+  } catch (error) {
+    console.error('Error in fetchNewReleases (service):', error);
+    throw error;
+  }
+};
+
+const toggleProductNewRelease = async (productId) => {
+  try {
+    const productResult = await pool.query(
+      'SELECT id, description, code, price FROM products WHERE id = $1',
+      [productId]
+    );
+    if (productResult.rows.length === 0) {
+      throw new Error('Producto no encontrado en la base de datos principal.');
+    }
+    const productDetails = productResult.rows[0];
+
+    const existingEntry = await pool2.query(
+      'SELECT is_new_release FROM product_new_release_status WHERE product_code = $1',
+      [productDetails.code]
+    );
+
+    let newStatus = true;
+    if (existingEntry.rows.length > 0) {
+      newStatus = !existingEntry.rows[0].is_new_release;
+    }
+
+    await productModel.toggleProductNewReleaseStatus(productId, productDetails.code, newStatus);
+
+    return {
+      id: productDetails.id,
+      is_new_release: newStatus,
+    };
+  } catch (error) {
+    console.error('Error in toggleProductNewRelease:', error);
+    throw error;
+  }
+};
+
+const updateProductNewReleaseDetails = async (productId, details) => {
+  try {
+    const productResult = await pool.query('SELECT code FROM products WHERE id = $1', [productId]);
+    if (productResult.rows.length === 0) throw new Error('Product not found');
+    const productCode = productResult.rows[0].code;
+
+    const updatedProduct = await productModel.updateProductNewReleaseDetails(productCode, details);
+    return updatedProduct;
+  } catch (error) {
+    console.error('Error in updateProductNewReleaseDetails (service):', error);
+    throw error;
+  }
+};
+
 module.exports = {
   fetchProducts,
   getAccessories,
@@ -928,4 +1048,8 @@ module.exports = {
   updateProductAiDescription,
   batchGenerateAiDescriptions,
   getBatchProgress,
+  // New Release Exports
+  fetchNewReleases,
+  toggleProductNewRelease,
+  updateProductNewReleaseDetails,
 };

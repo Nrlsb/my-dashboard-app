@@ -219,6 +219,10 @@ const apiService = {
     return this.request('/products/offers');
   },
 
+  fetchNewReleases() {
+    return this.request('/products/new-releases');
+  },
+
   fetchUserProfile() {
     return this.request('/profile');
   },
@@ -288,6 +292,21 @@ const apiService = {
   updateProductOfferDetails(productId, details) {
     if (!productId) throw new Error('ID de producto requerido');
     return this.request(`/products/${productId}/offer-details`, {
+      method: 'PUT',
+      body: details,
+    });
+  },
+
+  toggleProductNewRelease(productId) {
+    if (!productId) throw new Error('ID de producto requerido');
+    return this.request(`/products/${productId}/toggle-new-release`, {
+      method: 'PUT',
+    });
+  },
+
+  updateProductNewReleaseDetails(productId, details) {
+    if (!productId) throw new Error('ID de producto requerido');
+    return this.request(`/products/${productId}/new-release-details`, {
       method: 'PUT',
       body: details,
     });

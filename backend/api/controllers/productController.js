@@ -165,3 +165,29 @@ exports.getBatchGenerationProgress = catchAsync(async (req, res) => {
     const progress = productService.getBatchProgress();
     res.json(progress);
 });
+
+// --- New Releases Controllers ---
+
+exports.getNewReleasesController = catchAsync(async (req, res) => {
+    console.log('GET /api/new-releases -> Consultando nuevos lanzamientos...');
+    const releases = await productService.fetchNewReleases(req.userId);
+    res.set('Cache-Control', 'no-store');
+    res.json(releases);
+});
+
+exports.toggleProductNewRelease = catchAsync(async (req, res) => {
+    const { id } = req.params;
+    const result = await productService.toggleProductNewRelease(id);
+    res.json(result);
+});
+
+exports.updateProductNewReleaseDetails = catchAsync(async (req, res) => {
+    const { id } = req.params;
+    const { custom_title, custom_description, custom_image_url } = req.body;
+    const result = await productService.updateProductNewReleaseDetails(id, {
+        custom_title,
+        custom_description,
+        custom_image_url,
+    });
+    res.json(result);
+});

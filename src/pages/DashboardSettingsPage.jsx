@@ -62,13 +62,9 @@ const DashboardSettingsPage = () => {
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Configuración del Sitio</h1>
-
-
-
-      <h2 className="text-xl font-semibold mb-4">
+      <h1 className="text-2xl font-bold mb-6">
         Visibilidad de Paneles del Dashboard
-      </h2>
+      </h1>
       <div className="bg-white shadow rounded-lg">
         <ul className="divide-y divide-gray-200">
           {panels.map((panel) => (

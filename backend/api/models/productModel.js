@@ -60,6 +60,25 @@ const getOnOfferProductCodes = async (bypassCache = false) => {
   return data.map(item => item.product_code).filter(code => code != null);
 };
 
+// --- NEW RELEASES METHODS ---
+
+const getNewReleasesData = async () => {
+  try {
+    const result = await pool2.query(
+      'SELECT product_id, product_code, custom_title, custom_description, custom_image_url FROM product_new_release_status WHERE is_new_release = true'
+    );
+    return result.rows;
+  } catch (error) {
+    console.error('Error fetching new releases data:', error);
+    return [];
+  }
+};
+
+const getNewReleasesProductCodes = async () => {
+  const data = await getNewReleasesData();
+  return data.map(item => item.product_code).filter(code => code != null);
+};
+
 /**
  * Obtiene los grupos de productos denegados para un usuario especÃ­fico.
  * Utiliza una cachÃ© en memoria para evitar consultas repetidas a la base de datos.
@@ -539,6 +558,48 @@ const getRecentlyChangedProducts = async (productIds) => {
   }
 };
 
+const toggleProductNewReleaseStatus = async (productId, productCode, status) => {
+  try {
+    const existingEntry = await pool2.query(
+      'SELECT product_code FROM product_new_release_status WHERE product_code = $1',
+      [productCode]
+    );
+
+    if (existingEntry.rows.length > 0) {
+      await pool2.query(
+        'UPDATE product_new_release_status SET is_new_release = $1, updated_at = CURRENT_TIMESTAMP WHERE product_code = $2',
+        [status, productCode]
+      );
+    } else {
+      await pool2.query(
+        'INSERT INTO product_new_release_status (product_id, product_code, is_new_release) VALUES ($1, $2, $3)',
+        [productId, productCode, status]
+      );
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Error in toggleProductNewReleaseStatus:', error);
+    throw error;
+  }
+};
+
+const updateProductNewReleaseDetails = async (productCode, details) => {
+  const { custom_title, custom_description, custom_image_url } = details;
+  try {
+    const result = await pool2.query(
+      `UPDATE product_new_release_status 
+       SET custom_title = $1, custom_description = $2, custom_image_url = $3, updated_at = CURRENT_TIMESTAMP
+       WHERE product_code = $4
+       RETURNING *`,
+      [custom_title, custom_description, custom_image_url, productCode]
+    );
+    return result.rows[0];
+  } catch (error) {
+    console.error('Error in updateProductNewReleaseDetails:', error);
+    throw error;
+  }
+};
+
 const updateProductOfferDetails = async (productId, details) => {
   const { custom_title, custom_description, custom_image_url } = details;
   try {
@@ -926,4 +987,9 @@ module.exports = {
   updateProductAiDescription,
   findProductsWithImagesNoDescription,
   invalidatePermissionsCache,
+  // New Releases
+  getNewReleasesData,
+  getNewReleasesProductCodes,
+  toggleProductNewReleaseStatus,
+  updateProductNewReleaseDetails,
 };

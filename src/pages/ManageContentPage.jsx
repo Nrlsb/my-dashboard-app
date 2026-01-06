@@ -3,10 +3,10 @@ import { toast } from 'react-hot-toast';
 import apiService from '../api/apiService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import CustomSelect from '../components/CustomSelect';
-import { Trash2, Plus, Edit, Search, X, Upload, Check, AlertCircle, FileImage, FileSpreadsheet } from 'lucide-react';
+import { Trash2, Plus, Edit, Search, X, Upload, Check, AlertCircle, FileImage, FileSpreadsheet, Tag, Star, LayoutDashboard } from 'lucide-react';
 
 const ManageContentPage = () => {
-    const [activeTab, setActiveTab] = useState('accessories');
+    const [activeTab, setActiveTab] = useState('general');
     const [loading, setLoading] = useState(false);
     const [accessories, setAccessories] = useState([]);
     const [groups, setGroups] = useState([]);
@@ -38,7 +38,9 @@ const ManageContentPage = () => {
     const [editGroupImage, setEditGroupImage] = useState('');
 
     useEffect(() => {
-        fetchData();
+        if (activeTab !== 'general') {
+            fetchData();
+        }
     }, [activeTab]);
 
     const fetchData = async () => {
@@ -47,7 +49,7 @@ const ManageContentPage = () => {
             if (activeTab === 'accessories') {
                 const data = await apiService.getAccessories();
                 setAccessories(data);
-            } else {
+            } else if (activeTab === 'groups') {
                 const dbGroups = await apiService.getCarouselGroups();
                 setGroups(dbGroups);
             }
@@ -223,6 +225,13 @@ const ManageContentPage = () => {
 
             <div className="flex space-x-4 mb-6 border-b border-gray-200 overflow-x-auto whitespace-nowrap pb-1">
                 <button
+                    className={`py-2 px-4 font-semibold ${activeTab === 'general' ? 'text-espint-blue border-b-2 border-espint-blue' : 'text-gray-500'}`}
+                    onClick={() => setActiveTab('general')}
+                >
+                    <span className="md:hidden">General</span>
+                    <span className="hidden md:inline">General</span>
+                </button>
+                <button
                     className={`py-2 px-4 font-semibold ${activeTab === 'accessories' ? 'text-espint-blue border-b-2 border-espint-blue' : 'text-gray-500'}`}
                     onClick={() => setActiveTab('accessories')}
                 >
@@ -249,6 +258,40 @@ const ManageContentPage = () => {
                 <LoadingSpinner />
             ) : (
                 <div>
+                    {activeTab === 'general' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                            <a
+                                href="/manage-offers"
+                                className="p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow flex flex-col items-center justify-center text-center border border-gray-100 group"
+                            >
+                                <div className="p-3 bg-blue-50 rounded-full mb-3 group-hover:bg-blue-100 transition-colors">
+                                    <Tag className="h-8 w-8 text-blue-600" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-800">
+                                    Gestionar Ofertas
+                                </h3>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Activar/desactivar y personalizar ofertas
+                                </p>
+                            </a>
+
+                            <a
+                                href="/manage-new-releases"
+                                className="p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow flex flex-col items-center justify-center text-center border border-gray-100 group"
+                            >
+                                <div className="p-3 bg-purple-50 rounded-full mb-3 group-hover:bg-purple-100 transition-colors">
+                                    <Star className="h-8 w-8 text-purple-600" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-800">
+                                    Gestionar Nuevos Lanzamientos
+                                </h3>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Destacar productos como nuevos
+                                </p>
+                            </a>
+                        </div>
+                    )}
+
                     {activeTab === 'accessories' && (
                         <div>
                             <button

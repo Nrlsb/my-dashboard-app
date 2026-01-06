@@ -1,45 +1,164 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, ArrowRight } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Sparkles, ArrowRight, ChevronRight, ChevronLeft, Package } from 'lucide-react';
+import apiService from '../api/apiService';
 
-const NewReleasesBanner = () => {
+const NewReleasesBanner = ({ products: propProducts }) => {
     const navigate = useNavigate();
+    const [currentIndex, setCurrentIndex] = useState(0);
+
+    const { data: fetchedProducts = [], isLoading } = useQuery({
+        queryKey: ['new-releases-banner'],
+        queryFn: () => apiService.fetchNewReleases(),
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        enabled: !propProducts, // Only fetch if not provided via props
+    });
+
+    const products = propProducts || fetchedProducts;
+
+    useEffect(() => {
+        if (products.length <= 1) return;
+
+        const interval = setInterval(() => {
+            setCurrentIndex((prevIndex) => (prevIndex + 1) % products.length);
+        }, 5000); // Change every 5 seconds
+
+        return () => clearInterval(interval);
+    }, [products.length]);
+
+    const handleNext = (e) => {
+        e.stopPropagation();
+        setCurrentIndex((prev) => (prev + 1) % products.length);
+    };
+
+    const handlePrev = (e) => {
+        e.stopPropagation();
+        setCurrentIndex((prev) => (prev - 1 + products.length) % products.length);
+    };
+
+    if (isLoading) {
+        return (
+            <div className="w-full md:w-64 lg:w-72 h-[400px] md:h-auto md:flex-grow rounded-3xl bg-gray-100 animate-pulse flex items-center justify-center">
+                <Sparkles className="w-8 h-8 text-gray-300" />
+            </div>
+        );
+    }
+
+    if (products.length === 0) {
+        // Fallback state if no releases
+        return (
+            <div
+                onClick={() => navigate('/new-releases')}
+                className="
+                group cursor-pointer 
+                bg-gradient-to-b from-indigo-600 to-purple-700 
+                text-white 
+                rounded-3xl p-6 
+                shadow-lg hover:shadow-2xl 
+                transition-all duration-300 transform hover:scale-[1.02]
+                flex flex-col items-center justify-center
+                w-full md:w-64 lg:w-72
+                h-[400px] md:h-auto md:flex-grow min-h-[500px]
+                relative overflow-hidden
+            "
+            >
+                <div className="absolute top-0 left-0 w-full h-full bg-white opacity-5 rounded-3xl pointer-events-none"></div>
+                <div className="p-3 bg-white/20 rounded-full backdrop-blur-sm mb-4">
+                    <Sparkles className="w-8 h-8 text-yellow-300" />
+                </div>
+                <h3 className="text-xl font-bold text-center mb-2">Nuevos Lanzamientos</h3>
+                <p className="text-white/80 text-center text-sm">Descubre las novedades</p>
+            </div>
+        );
+    }
+
+    const currentProduct = products[currentIndex];
 
     return (
         <div
-            onClick={() => navigate('/new-releases')}
+            onClick={() => navigate(`/product-detail/${currentProduct.id}`)}
             className="
             group cursor-pointer 
             bg-gradient-to-b from-indigo-600 to-purple-700 
             text-white 
-            rounded-3xl p-4 
+            rounded-3xl p-0 
             shadow-lg hover:shadow-2xl 
             transition-all duration-300 transform hover:scale-[1.02]
-            flex flex-row md:flex-col items-center justify-between md:justify-center 
+            flex flex-col
             w-full md:w-64 lg:w-72
-            h-full md:h-auto md:flex-grow min-h-[500px]
-            mb-4 md:mb-0
+            h-[400px] md:h-auto md:flex-grow min-h-[500px]
             relative overflow-hidden
         "
         >
-            {/* Decorative background elements */}
-            <div className="absolute top-0 left-0 w-full h-full bg-white opacity-5 rounded-3xl pointer-events-none"></div>
-            <div className="absolute -top-10 -right-10 w-20 h-20 bg-purple-400 rounded-full blur-2xl opacity-30 group-hover:opacity-50 transition-opacity"></div>
+            {/* Background Decor */}
+            <div className="absolute top-0 left-0 w-full h-full bg-white opacity-5 pointer-events-none"></div>
+            <div className="absolute -top-10 -right-10 w-32 h-32 bg-purple-400 rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-opacity"></div>
 
-            <div className="flex items-center md:flex-col gap-3 z-10 md:mt-auto md:mb-auto">
-                <div className="p-2 bg-white/20 rounded-full backdrop-blur-sm group-hover:scale-110 transition-transform">
-                    <Sparkles className="w-6 h-6 text-yellow-300" />
+            {/* Badge */}
+            <div className="absolute top-4 right-4 z-20">
+                <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-full shadow-md flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" />
+                    NUEVO
+                </span>
+            </div>
+
+            {/* Image Area */}
+            <div className="w-full h-1/2 bg-white/10 p-6 flex items-center justify-center relative">
+                {currentProduct.custom_image_url || currentProduct.imageUrl ? (
+                    <img
+                        src={currentProduct.custom_image_url || currentProduct.imageUrl}
+                        alt={currentProduct.name}
+                        className="w-full h-full object-contain drop-shadow-xl transition-transform duration-500 group-hover:scale-110"
+                    />
+                ) : (
+                    <div className="flex flex-col items-center text-white/50">
+                        <Package className="w-16 h-16 mb-2" />
+                        <span className="text-xs">Sin imagen</span>
+                    </div>
+                )}
+            </div>
+
+            {/* Content Area */}
+            <div className="p-6 flex flex-col flex-grow relative z-10">
+                <div className="mb-2">
+                    <span className="text-xs font-medium text-white/70 uppercase tracking-wider">
+                        {currentProduct.brand}
+                    </span>
                 </div>
 
-                {/* Horizontal Text for Mobile */}
-                <div className="block md:hidden font-bold text-lg">
-                    Nuevos Lanzamientos
+                <h3 className="text-xl font-bold leading-tight mb-2 line-clamp-3" title={currentProduct.custom_title || currentProduct.name}>
+                    {currentProduct.custom_title || currentProduct.name}
+                </h3>
+
+                <p className="text-sm text-white/80 line-clamp-2 mb-4">
+                    {currentProduct.custom_description || currentProduct.capacityDesc || "Un nuevo producto destacado para ti."}
+                </p>
+
+                <div className="mt-auto flex items-center justify-between">
+                    <div className="flex flex-col">
+                        <span className="text-2xl font-bold text-white">
+                            {currentProduct.formattedPrice}
+                        </span>
+                    </div>
+                    <div className="bg-white/20 p-2 rounded-full backdrop-blur-sm group-hover:bg-white/30 transition-colors">
+                        <ArrowRight className="w-5 h-5" />
+                    </div>
                 </div>
             </div>
 
-            <div className="mt-0 md:mt-4 md:mb-2 opacity-80 group-hover:opacity-100 transition-opacity">
-                <ArrowRight className="w-5 h-5 md:rotate-90 md:w-6 md:h-6" />
-            </div>
+            {/* Navigation Dots */}
+            {products.length > 1 && (
+                <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2 z-20">
+                    {products.map((_, idx) => (
+                        <div
+                            key={idx}
+                            className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === currentIndex ? 'bg-white w-6' : 'bg-white/40'
+                                }`}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     );
 };

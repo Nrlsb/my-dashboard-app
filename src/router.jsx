@@ -39,6 +39,7 @@ const ImageUpload = lazyImport(() => import('./components/ImageUpload.jsx'));
 const AdminAnalyticsPage = lazyImport(() => import('./pages/AdminAnalyticsPage.jsx'));
 const AboutPage = lazyImport(() => import('./pages/AboutPage.jsx'));
 const NewReleasesPage = lazyImport(() => import('./pages/NewReleasesPage.jsx'));
+const ManageNewReleasesPage = lazyImport(() => import('./pages/ManageNewReleasesPage.jsx'));
 
 // Error Element for Dashboard
 const DashboardError = () => (
@@ -287,6 +288,14 @@ const router = createBrowserRouter(
                 <MarketingRoute>
                     <Suspense fallback={<LoadingFallback />}>
                         <ManageOffersPage />
+                    </Suspense>
+                </MarketingRoute>
+            } />
+
+            <Route path="manage-new-releases" element={
+                <MarketingRoute>
+                    <Suspense fallback={<LoadingFallback />}>
+                        <ManageNewReleasesPage />
                     </Suspense>
                 </MarketingRoute>
             } />
