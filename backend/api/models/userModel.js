@@ -15,7 +15,29 @@ const findUserByEmail = async (email) => {
      WHERE u.email = $1`,
     [email]
   );
-  return result.rows[0] || null;
+
+  const user = result.rows[0] || null;
+
+  if (user) {
+    try {
+      const credsResult = await pool2.query(
+        'SELECT password_hash, temp_password_hash FROM user_credentials WHERE user_id = $1',
+        [user.id]
+      );
+      if (credsResult.rows.length > 0) {
+        user.password_hash = credsResult.rows[0].password_hash;
+        user.temp_password_hash = credsResult.rows[0].temp_password_hash;
+      } else {
+        user.password_hash = null;
+        user.temp_password_hash = null;
+      }
+    } catch (err) {
+      console.error('[userModel] Error fetching credentials from DB2:', err);
+      user.password_hash = null;
+    }
+  }
+
+  return user;
 };
 
 /**
@@ -53,6 +75,20 @@ const findUserById = async (userId) => {
       user.role = roleData ? roleData.role : 'cliente';
       user.permissions = roleData ? roleData.permissions : [];
       user.is_admin = user.role === 'admin';
+
+      // [NUEVO] Obtener credenciales desde DB2 user_credentials
+      try {
+        const credsResult = await pool2.query(
+          'SELECT password_hash, temp_password_hash FROM user_credentials WHERE user_id = $1',
+          [user.id]
+        );
+        if (credsResult.rows.length > 0) {
+          user.password_hash = credsResult.rows[0].password_hash;
+          user.temp_password_hash = credsResult.rows[0].temp_password_hash;
+        }
+      } catch (err) {
+        console.error('[userModel] Error fetching credentials by ID from DB2:', err);
+      }
     }
   }
   console.log(
@@ -77,6 +113,10 @@ const findUserById = async (userId) => {
  */
 const createUser = async (userData, passwordHash) => {
   const { nombre, email, a1_cod, a1_loja, a1_cgc, a1_tel } = userData;
+
+  // Placeholder para DB1
+  const passwordPlaceholder = 'MOVED_TO_DB2';
+
   const query = `
     INSERT INTO users 
       (full_name, email, password_hash, a1_cod, a1_loja, a1_cgc, a1_tel, is_admin)
@@ -87,15 +127,31 @@ const createUser = async (userData, passwordHash) => {
   const values = [
     nombre,
     email,
-    passwordHash,
+    passwordPlaceholder,
     a1_cod,
     a1_loja,
     a1_cgc,
     a1_tel,
     false,
   ];
+
   const result = await pool.query(query, values);
-  return result.rows[0];
+  const newUser = result.rows[0];
+
+  if (newUser) {
+    try {
+      await pool2.query(
+        'INSERT INTO user_credentials (user_id, password_hash, temp_password_hash) VALUES ($1, $2, $3)',
+        [newUser.id, passwordHash, null]
+      );
+      newUser.password_hash = passwordHash;
+    } catch (err) {
+      console.error('[userModel] Error creating credentials in DB2:', err);
+      throw new Error('Error guardando credenciales en DB2.');
+    }
+  }
+
+  return newUser;
 };
 
 /**
@@ -185,8 +241,8 @@ const findUsersByVendedorCodigo = async (vendedorCodigo) => {
  * @returns {Promise<boolean>}
  */
 const clearTempPasswordHash = async (userId) => {
-  const result = await pool.query(
-    'UPDATE users SET temp_password_hash = NULL WHERE id = $1',
+  const result = await pool2.query(
+    'UPDATE user_credentials SET temp_password_hash = NULL WHERE user_id = $1',
     [userId]
   );
   return result.rowCount > 0;
@@ -200,13 +256,13 @@ const clearTempPasswordHash = async (userId) => {
  */
 const updatePassword = async (userId, passwordHash) => {
   const query = `
-    UPDATE users 
+    UPDATE user_credentials 
     SET 
       password_hash = $1, 
       temp_password_hash = NULL
-    WHERE id = $2
+    WHERE user_id = $2
   `;
-  const result = await pool.query(query, [passwordHash, userId]);
+  const result = await pool2.query(query, [passwordHash, userId]);
   return result.rowCount > 0;
 };
 

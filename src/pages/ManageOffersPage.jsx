@@ -4,22 +4,23 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import {
   useInfiniteQuery,
+  useQuery,
   useQueryClient,
   useMutation,
 } from '@tanstack/react-query';
-import { Loader2, ArrowLeft, Search, CheckCircle, XCircle, Edit2, Save, X } from 'lucide-react';
+import { Loader2, ArrowLeft, Search, CheckCircle, XCircle, Edit2, Save, X, Filter } from 'lucide-react';
 import apiService from '../api/apiService.js';
 import { useAuth } from "../context/AuthContext.jsx";
 
 // --- Componente Reutilizable para el Interruptor ---
-const ToggleSwitch = ({ checked, onChange, disabled }) => (
+const ToggleSwitch = ({ checked, onChange, disabled, labelOff, labelOn, colorClass = 'bg-green-600' }) => (
   <button
     type="button"
     onClick={onChange}
     disabled={disabled}
-    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${checked ? 'bg-green-600' : 'bg-gray-300'
+    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${checked ? colorClass : 'bg-gray-300'
       } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-    aria-label={checked ? 'Desactivar oferta' : 'Activar oferta'}
+    aria-label={checked ? (labelOn || 'Desactivar') : (labelOff || 'Activar')}
   >
     <span
       className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 ease-in-out ${checked ? 'translate-x-6' : 'translate-x-1'
@@ -166,6 +167,8 @@ const ProductRow = ({ product, onToggle, isToggling, onEdit }) => (
           checked={product.oferta}
           onChange={onToggle}
           disabled={isToggling}
+          labelOff="Activar oferta"
+          labelOn="Desactivar oferta"
         />
         {product.oferta && (
           <button
@@ -186,6 +189,7 @@ export default function ManageOffersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
   const [editingProduct, setEditingProduct] = useState(null);
+  const [showOnlyActive, setShowOnlyActive] = useState(false);
   const debounceTimeout = useRef(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -200,19 +204,19 @@ export default function ManageOffersPage() {
     return () => clearTimeout(debounceTimeout.current);
   }, [searchTerm]);
 
-  // Query para obtener los productos con paginación infinita
+  // Query para obtener TODOS los productos (paginado)
   const {
-    data,
+    data: infiniteData,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    isLoading,
-    isError,
-    error,
+    isLoading: isLoadingInfinite,
+    isError: isErrorInfinite,
+    error: errorInfinite,
   } = useInfiniteQuery({
-    queryKey: ['products', debounceSearchTerm, []], // Usamos una queryKey que no colisione
+    queryKey: ['products', debounceSearchTerm, []],
     queryFn: ({ pageParam = 1 }) =>
-      apiService.fetchProducts(pageParam, debounceSearchTerm, [], true), // Filtros vacíos para traer todo, bypassCache = true
+      apiService.fetchProducts(pageParam, debounceSearchTerm, [], true),
     getNextPageParam: (lastPage, allPages) => {
       const productsLoaded = allPages.reduce(
         (acc, page) => acc + page.products.length,
@@ -223,14 +227,35 @@ export default function ManageOffersPage() {
         : undefined;
     },
     initialPageParam: 1,
-    enabled: !!(user?.is_admin || user?.role === 'marketing'), // Habilitar si es admin o marketing
+    enabled: !!(user?.is_admin || user?.role === 'marketing') && !showOnlyActive, // Deshabilitar si filtramos por activos
+  });
+
+  // Query para obtener SOLO productos en oferta
+  const {
+    data: activeOffersData,
+    isLoading: isLoadingActive,
+    isError: isErrorActive,
+    error: errorActive,
+  } = useQuery({
+    queryKey: ['activeOffers', debounceSearchTerm],
+    queryFn: async () => {
+      const offers = await apiService.fetchOffers();
+      // Filtro local por nombre si hay búsqueda (la API de offers devuelve todo)
+      if (!debounceSearchTerm) return offers;
+      const lowerInfos = debounceSearchTerm.toLowerCase();
+      return offers.filter(p =>
+        p.name.toLowerCase().includes(lowerInfos) ||
+        p.code.toLowerCase().includes(lowerInfos)
+      );
+    },
+    enabled: !!(user?.is_admin || user?.role === 'marketing') && showOnlyActive,
   });
 
   // Mutación para cambiar el estado de la oferta
   const { mutate: toggleOffer, isPending: isToggling } = useMutation({
     mutationFn: (productId) => apiService.toggleProductOffer(productId),
     onSuccess: (data) => {
-      // Actualizamos el caché de react-query para reflejar el cambio instantáneamente
+      // Actualizar caché de productoss
       queryClient.setQueryData(
         ['products', debounceSearchTerm, []],
         (oldData) => {
@@ -248,6 +273,10 @@ export default function ManageOffersPage() {
           };
         }
       );
+
+      // Actualizar caché de ofertas activas
+      queryClient.invalidateQueries({ queryKey: ['activeOffers'] });
+
       // Invalidate offers query to refresh the public offers page immediately
       queryClient.invalidateQueries({ queryKey: ['offers'] });
 
@@ -266,7 +295,7 @@ export default function ManageOffersPage() {
   const { mutate: saveOfferDetails, isPending: isSavingDetails } = useMutation({
     mutationFn: ({ productId, details }) => apiService.updateProductOfferDetails(productId, details),
     onSuccess: (data, variables) => {
-      // Actualizar caché local
+      // Actualizar caché local de productos
       queryClient.setQueryData(
         ['products', debounceSearchTerm, []],
         (oldData) => {
@@ -284,7 +313,8 @@ export default function ManageOffersPage() {
           };
         }
       );
-      // Invalidate offers query to refresh the public offers page immediately
+
+      queryClient.invalidateQueries({ queryKey: ['activeOffers'] });
       queryClient.invalidateQueries({ queryKey: ['offers'] });
 
       setEditingProduct(null);
@@ -295,7 +325,15 @@ export default function ManageOffersPage() {
     },
   });
 
-  const allProducts = data?.pages.flatMap((page) => page.products) || [];
+  // Determinar qué lista de productos mostrar
+  const productsToShow = showOnlyActive
+    ? (activeOffersData || [])
+    : (infiniteData?.pages.flatMap((page) => page.products) || []);
+
+  const isLoading = showOnlyActive ? isLoadingActive : isLoadingInfinite;
+  const isError = showOnlyActive ? isErrorActive : isErrorInfinite;
+  const error = showOnlyActive ? errorActive : errorInfinite;
+
 
   if (!user?.is_admin && user?.role !== 'marketing') {
     return <div className="p-8 text-center text-red-500">Acceso denegado.</div>;
@@ -323,19 +361,34 @@ export default function ManageOffersPage() {
         </div>
       </header>
 
-      <div className="mb-6 relative">
-        <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Buscar por nombre o código..."
-          className="w-full max-w-sm pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por nombre o código..."
+            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div className="flex items-center space-x-3 bg-white p-2 rounded-lg shadow-sm border border-gray-200">
+          <div className="flex items-center space-x-2">
+            <Filter className={`w-5 h-5 ${showOnlyActive ? 'text-blue-600' : 'text-gray-400'}`} />
+            <span className="text-sm font-medium text-gray-700">Ver solo activas</span>
+          </div>
+          <ToggleSwitch
+            checked={showOnlyActive}
+            onChange={() => setShowOnlyActive(!showOnlyActive)}
+            labelOff="Mostrar todo"
+            labelOn="Solo activos"
+            colorClass="bg-blue-600"
+          />
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
-
         {/* Mobile Card View */}
         <div className="md:hidden divide-y divide-gray-200">
           {isLoading && (
@@ -345,15 +398,15 @@ export default function ManageOffersPage() {
           )}
           {isError && (
             <div className="p-8 text-center text-red-500">
-              Error: {error.message}
+              Error: {error?.message}
             </div>
           )}
-          {!isLoading && !isError && allProducts.length === 0 && (
+          {!isLoading && !isError && productsToShow.length === 0 && (
             <div className="p-8 text-center text-gray-500">
-              No se encontraron productos.
+              No se encontraron productos{showOnlyActive ? ' activos.' : '.'}
             </div>
           )}
-          {allProducts.map((product) => (
+          {productsToShow.map((product) => (
             <div key={product.id} className="p-4 flex flex-col space-y-3">
               <div className="flex justify-between items-start">
                 <div className="pr-4">
@@ -436,18 +489,18 @@ export default function ManageOffersPage() {
               {isError && (
                 <tr>
                   <td colSpan="4" className="p-8 text-center text-red-500">
-                    Error: {error.message}
+                    Error: {error?.message}
                   </td>
                 </tr>
               )}
-              {!isLoading && !isError && allProducts.length === 0 && (
+              {!isLoading && !isError && productsToShow.length === 0 && (
                 <tr>
                   <td colSpan="4" className="p-8 text-center text-gray-500">
-                    No se encontraron productos.
+                    No se encontraron productos{showOnlyActive ? ' activos.' : '.'}
                   </td>
                 </tr>
               )}
-              {allProducts.map((product) => (
+              {productsToShow.map((product) => (
                 <ProductRow
                   key={product.id}
                   product={product}
@@ -459,20 +512,24 @@ export default function ManageOffersPage() {
             </tbody>
           </table>
         </div>
-        <div className="p-4 text-center">
-          {hasNextPage && (
-            <button
-              onClick={() => fetchNextPage()}
-              disabled={isFetchingNextPage}
-              className="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-            >
-              {isFetchingNextPage ? 'Cargando...' : 'Cargar más productos'}
-            </button>
-          )}
-          {!hasNextPage && !isLoading && allProducts.length > 0 && (
-            <p className="text-gray-500 text-sm">Fin de los resultados.</p>
-          )}
-        </div>
+
+        {/* Helper for pagination only when not filtering */}
+        {!showOnlyActive && (
+          <div className="p-4 text-center">
+            {hasNextPage && (
+              <button
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+              >
+                {isFetchingNextPage ? 'Cargando...' : 'Cargar más productos'}
+              </button>
+            )}
+            {!hasNextPage && !isLoading && productsToShow.length > 0 && (
+              <p className="text-gray-500 text-sm">Fin de los resultados.</p>
+            )}
+          </div>
+        )}
       </div>
 
       {editingProduct && (

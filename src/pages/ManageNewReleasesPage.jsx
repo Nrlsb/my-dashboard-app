@@ -4,22 +4,23 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import {
     useInfiniteQuery,
+    useQuery,
     useQueryClient,
     useMutation,
 } from '@tanstack/react-query';
-import { Loader2, ArrowLeft, Search, CheckCircle, XCircle, Edit2, Save, X, Star } from 'lucide-react';
+import { Loader2, ArrowLeft, Search, CheckCircle, XCircle, Edit2, Save, X, Star, Filter } from 'lucide-react';
 import apiService from '../api/apiService.js';
 import { useAuth } from "../context/AuthContext.jsx";
 
 // --- Componente Reutilizable para el Interruptor ---
-const ToggleSwitch = ({ checked, onChange, disabled }) => (
+const ToggleSwitch = ({ checked, onChange, disabled, labelOff, labelOn, colorClass = 'bg-purple-600' }) => (
     <button
         type="button"
         onClick={onChange}
         disabled={disabled}
-        className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${checked ? 'bg-purple-600' : 'bg-gray-300'
+        className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${checked ? colorClass : 'bg-gray-300'
             } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-        aria-label={checked ? 'Desactivar lanzamiento' : 'Activar lanzamiento'}
+        aria-label={checked ? (labelOn || 'Desactivar') : (labelOff || 'Activar')}
     >
         <span
             className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 ease-in-out ${checked ? 'translate-x-6' : 'translate-x-1'
@@ -186,6 +187,7 @@ export default function ManageNewReleasesPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
     const [editingProduct, setEditingProduct] = useState(null);
+    const [showOnlyActive, setShowOnlyActive] = useState(false);
     const debounceTimeout = useRef(null);
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -200,36 +202,22 @@ export default function ManageNewReleasesPage() {
         return () => clearTimeout(debounceTimeout.current);
     }, [searchTerm]);
 
-    // Query para obtener nuevos lanzamientos
+    // Query para obtener TODOS los productos
     const {
-        data: newReleases = [],
-        isLoading: isLoadingReleases,
-    } = useQueryClient().getQueryData(['newReleases']) || {}; // Optimization: Check local cache first? No, useQuery
-
-    // We need to fetch ALL products or reuse the product search endpoint to find products to toggle.
-    // The ManageOffersPage uses apiService.fetchProducts with pagination. We should do the same.
-
-    const {
-        data,
+        data: infiniteData,
         fetchNextPage,
         hasNextPage,
         isFetchingNextPage,
-        isLoading,
-        isError,
-        error,
+        isLoading: isLoadingInfinite,
+        isError: isErrorInfinite,
+        error: errorInfinite,
     } = useInfiniteQuery({
-        queryKey: ['products', debounceSearchTerm, ['new_releases']],
+        queryKey: ['products', debounceSearchTerm, ['new_releases']], // Key original
         queryFn: async ({ pageParam = 1 }) => {
             // Fetch standard products
             const productsData = await apiService.fetchProducts(pageParam, debounceSearchTerm, [], true);
 
-            // Fetch new releases status to merge? 
-            // Or better: The backend findProducts should return 'is_new_release' status if we updated it to do so?
-            // Wait, I updated productModel.js findProducts to header "oferta" but NOT "is_new_release".
-            // So I need to fetch new releases separately and merge them on client side OR update findProducts.
-            // Updating findProducts in backend is cleaner but risky to break existing things.
-            // Let's fetch active new releases and merge on client for now.
-
+            // Fetch active new releases to merge info
             const newReleases = await apiService.fetchNewReleases();
             const newReleasesMap = new Map(newReleases.map(r => [r.code, r]));
 
@@ -256,12 +244,37 @@ export default function ManageNewReleasesPage() {
                 : undefined;
         },
         initialPageParam: 1,
-        enabled: !!(user?.is_admin || user?.role === 'marketing'),
+        enabled: !!(user?.is_admin || user?.role === 'marketing') && !showOnlyActive,
     });
+
+    // Query para obtener SOLO los lanzamientos activos
+    const {
+        data: activeReleasesData,
+        isLoading: isLoadingActive,
+        isError: isErrorActive,
+        error: errorActive,
+    } = useQuery({
+        queryKey: ['activeNewReleases', debounceSearchTerm],
+        queryFn: async () => {
+            const releases = await apiService.fetchNewReleases();
+            const releasesWithFlag = releases.map(r => ({ ...r, is_new_release: true }));
+
+            // Filtro local por nombre si hay búsqueda
+            if (!debounceSearchTerm) return releasesWithFlag;
+            const lowerInfos = debounceSearchTerm.toLowerCase();
+            return releasesWithFlag.filter(p =>
+                p.name.toLowerCase().includes(lowerInfos) ||
+                p.code.toLowerCase().includes(lowerInfos)
+            );
+        },
+        enabled: !!(user?.is_admin || user?.role === 'marketing') && showOnlyActive,
+    });
+
 
     const { mutate: toggleRelease, isPending: isToggling } = useMutation({
         mutationFn: (productId) => apiService.toggleProductNewRelease(productId),
         onSuccess: (data) => {
+            // Update Infinite Query cache
             queryClient.setQueryData(
                 ['products', debounceSearchTerm, ['new_releases']],
                 (oldData) => {
@@ -279,7 +292,11 @@ export default function ManageNewReleasesPage() {
                     };
                 }
             );
-            queryClient.invalidateQueries({ queryKey: ['newReleases'] });
+
+            // Invalidate active releases query
+            queryClient.invalidateQueries({ queryKey: ['activeNewReleases'] });
+            queryClient.invalidateQueries({ queryKey: ['newReleases'] }); // Public query
+
             toast.success(
                 data.is_new_release
                     ? 'Lanzamiento activado correctamente'
@@ -295,6 +312,7 @@ export default function ManageNewReleasesPage() {
         mutationFn: ({ productId, details }) => apiService.updateProductNewReleaseDetails(productId, details),
         onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['products', debounceSearchTerm, ['new_releases']] });
+            queryClient.invalidateQueries({ queryKey: ['activeNewReleases'] });
             queryClient.invalidateQueries({ queryKey: ['newReleases'] });
             setEditingProduct(null);
             toast.success('Detalles actualizados');
@@ -304,7 +322,14 @@ export default function ManageNewReleasesPage() {
         },
     });
 
-    const allProducts = data?.pages.flatMap((page) => page.products) || [];
+    // Determinar lista de visualización
+    const productsToShow = showOnlyActive
+        ? (activeReleasesData || [])
+        : (infiniteData?.pages.flatMap((page) => page.products) || []);
+
+    const isLoading = showOnlyActive ? isLoadingActive : isLoadingInfinite;
+    const isError = showOnlyActive ? isErrorActive : isErrorInfinite;
+    const error = showOnlyActive ? errorActive : errorInfinite;
 
     if (!user?.is_admin && user?.role !== 'marketing') {
         return <div className="p-8 text-center text-red-500">Acceso denegado.</div>;
@@ -332,15 +357,31 @@ export default function ManageNewReleasesPage() {
                 </div>
             </header>
 
-            <div className="mb-6 relative">
-                <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Buscar por nombre o código..."
-                    className="w-full max-w-sm pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+            <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="relative flex-1 max-w-sm">
+                    <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Buscar por nombre o código..."
+                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                </div>
+
+                <div className="flex items-center space-x-3 bg-white p-2 rounded-lg shadow-sm border border-gray-200">
+                    <div className="flex items-center space-x-2">
+                        <Filter className={`w-5 h-5 ${showOnlyActive ? 'text-purple-600' : 'text-gray-400'}`} />
+                        <span className="text-sm font-medium text-gray-700">Ver solo activos</span>
+                    </div>
+                    <ToggleSwitch
+                        checked={showOnlyActive}
+                        onChange={() => setShowOnlyActive(!showOnlyActive)}
+                        labelOff="Mostrar todo"
+                        labelOn="Solo activos"
+                        colorClass="bg-purple-600"
+                    />
+                </div>
             </div>
 
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -360,12 +401,12 @@ export default function ManageNewReleasesPage() {
                                 <tr><td colSpan="4" className="p-0"><LoadingSpinner text="Cargando productos..." /></td></tr>
                             )}
                             {isError && (
-                                <tr><td colSpan="4" className="p-8 text-center text-red-500">Error: {error.message}</td></tr>
+                                <tr><td colSpan="4" className="p-8 text-center text-red-500">Error: {error?.message}</td></tr>
                             )}
-                            {!isLoading && !isError && allProducts.length === 0 && (
-                                <tr><td colSpan="4" className="p-8 text-center text-gray-500">No se encontraron productos.</td></tr>
+                            {!isLoading && !isError && productsToShow.length === 0 && (
+                                <tr><td colSpan="4" className="p-8 text-center text-gray-500">No se encontraron productos{showOnlyActive ? ' activos.' : '.'}</td></tr>
                             )}
-                            {allProducts.map((product) => (
+                            {productsToShow.map((product) => (
                                 <ProductRow
                                     key={product.id}
                                     product={product}
@@ -378,19 +419,24 @@ export default function ManageNewReleasesPage() {
                     </table>
                 </div>
 
-                {/* Mobile View Omitted for brevity but should implemented similarly to offers if needed */}
+                {/* Mobile View Omitted - Rendering Logic reuse if needed similar to ManageOffers */}
 
-                <div className="p-4 text-center">
-                    {hasNextPage && (
-                        <button
-                            onClick={() => fetchNextPage()}
-                            disabled={isFetchingNextPage}
-                            className="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-                        >
-                            {isFetchingNextPage ? 'Cargando...' : 'Cargar más productos'}
-                        </button>
-                    )}
-                </div>
+                {!showOnlyActive && (
+                    <div className="p-4 text-center">
+                        {hasNextPage && (
+                            <button
+                                onClick={() => fetchNextPage()}
+                                disabled={isFetchingNextPage}
+                                className="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+                            >
+                                {isFetchingNextPage ? 'Cargando...' : 'Cargar más productos'}
+                            </button>
+                        )}
+                        {!hasNextPage && !isLoading && productsToShow.length > 0 && (
+                            <p className="text-gray-500 text-sm">Fin de los resultados.</p>
+                        )}
+                    </div>
+                )}
             </div>
 
             {editingProduct && (
