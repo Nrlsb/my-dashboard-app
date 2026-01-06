@@ -306,7 +306,7 @@ export default function ManageOffersPage() {
       <header className="mb-6 flex items-center justify-between">
         <div className="flex items-center">
           <button
-            onClick={() => navigate('/dashboard-settings')}
+            onClick={() => navigate('/manage-content')}
             className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors cursor-pointer"
             aria-label="Volver a Configuración"
           >

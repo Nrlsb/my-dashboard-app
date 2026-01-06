@@ -23,7 +23,7 @@ const OrderPreviewPage = lazyImport(() => import('./pages/OrderPreviewPage.jsx')
 const OrderDetailPage = lazyImport(() => import('./pages/OrderDetailPage.jsx'));
 const CategoryPage = lazyImport(() => import('./pages/CategoryPage.jsx'));
 const ProductDetailPage = lazyImport(() => import('./pages/ProductDetailPage.jsx'));
-const DashboardSettingsPage = lazyImport(() => import('./pages/DashboardSettingsPage.jsx'));
+// const DashboardSettingsPage = lazyImport(() => import('./pages/DashboardSettingsPage.jsx'));
 const ManageOffersPage = lazyImport(() => import('./pages/ManageOffersPage.jsx'));
 const ClientGroupPermissionsPage = lazyImport(() => import('./pages/ClientGroupPermissionsPage.jsx'));
 const ClientProductPermissionsPage = lazyImport(() => import('./pages/ClientProductPermissionsPage.jsx'));
@@ -267,13 +267,7 @@ const router = createBrowserRouter(
                 </ProtectedRoute>
             } />
 
-            <Route path="dashboard-settings" element={
-                <ProtectedRoute>
-                    <Suspense fallback={<LoadingFallback />}>
-                        <DashboardSettingsPage />
-                    </Suspense>
-                </ProtectedRoute>
-            } />
+            <Route path="dashboard-settings" element={<Navigate to="/dashboard" replace />} />
 
             <Route path="collection/:collectionId" element={
                 <ProtectedRoute>
