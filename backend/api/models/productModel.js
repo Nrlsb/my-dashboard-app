@@ -902,6 +902,7 @@ module.exports = {
   findProductById,
   findProductByCode,
   findUniqueBrands: async () => [], // Placeholder if missing, or I should check if it exists. 
+  getOnOfferData,
   findOffers,
   findProductsByGroup,
   getRecentlyChangedProducts,

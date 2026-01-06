@@ -463,7 +463,8 @@ const fetchProtheusOffers = async (userId = null) => {
       }
     }
 
-    const rawOffers = await productModel.findOffers(deniedGroups);
+    const offerData = await productModel.getOnOfferData();
+    const rawOffers = await productModel.findOffers(offerData, deniedGroups);
 
     if (rawOffers.length === 0) {
       return [];
