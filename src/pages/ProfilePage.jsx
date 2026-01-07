@@ -4,7 +4,7 @@ import {
   User,
   Mail,
   Phone,
-  Building,
+
   Save,
   Home,
   AlertTriangle,
@@ -202,14 +202,7 @@ export default function ProfilePage() {
               onChange={handleChange}
               disabled
             />
-            <ProfileInput
-              icon={Building}
-              label="Sucursal (Loja)"
-              id="A1_LOJA"
-              value={formData.A1_LOJA}
-              onChange={handleChange}
-              disabled
-            />
+
           </div>
 
           <ProfileInput
