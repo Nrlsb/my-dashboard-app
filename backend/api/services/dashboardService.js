@@ -34,6 +34,30 @@ const getDashboardPanels = async (user) => {
     }
   }
 
+  // Lógica para Nuevos Lanzamientos (Vendedores)
+  if (isVendedor) {
+    const newReleases = await productService.fetchNewReleases(user.userId);
+    if (newReleases.length > 0) {
+      // Verificar si ya existe el panel para evitar duplicados (aunque no debería si no está en DB para vendor)
+      const hasNewReleasesPanel = panels.some(
+        (p) =>
+          p.navigation_path === 'new-releases' ||
+          p.navigation_path === '/new-releases'
+      );
+
+      if (!hasNewReleasesPanel) {
+        panels.push({
+          id: 'new-releases-auto', // ID temporal
+          title: 'Nuevos Lanzamientos',
+          subtitle: 'Descubre las últimas novedades y productos destacados.',
+          navigation_path: '/new-releases',
+          tag: 'vendedor',
+          is_visible: true,
+        });
+      }
+    }
+  }
+
   // Si es vendedor, eliminamos el tag "vendedor" para que no se muestre visualmente
   console.log('DEBUG: isVendedor:', isVendedor);
   console.log('DEBUG: panels before map:', JSON.stringify(panels));
