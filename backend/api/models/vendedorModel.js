@@ -15,6 +15,18 @@ const findVendedorByEmail = async (email) => {
 };
 
 /**
+ * Busca un vendedor por su código.
+ * @param {string} codigo - El código del vendedor.
+ * @returns {Promise<object|null>}
+ */
+const findVendedorByCodigo = async (codigo) => {
+  const query =
+    'SELECT codigo, nombre, email, telefono FROM vendedores WHERE codigo = $1';
+  const result = await pool.query(query, [codigo]);
+  return result.rows[0] || null;
+};
+
+/**
  * Limpia (pone a NULL) el hash de la contraseña temporal de un vendedor.
  * @param {string} vendedorCodigo - El código del vendedor.
  * @returns {Promise<boolean>}
@@ -49,4 +61,5 @@ module.exports = {
   findVendedorByEmail,
   clearTempPasswordHash,
   updatePassword,
+  findVendedorByCodigo,
 };

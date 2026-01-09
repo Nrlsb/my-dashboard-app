@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useCart } from '../context/CartContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { AlertCircle, CheckCircle } from 'lucide-react';
 import apiService from '../api/apiService.js';
 
@@ -21,6 +22,7 @@ const formatCurrency = (value) => {
 const OrderPreviewPage = () => {
   const { onCompleteOrder } = useOutletContext();
   const { cart } = useCart();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [deliveryType, setDeliveryType] = useState('shipping');
   const [isLoading, setIsLoading] = useState(false);
@@ -50,6 +52,11 @@ const OrderPreviewPage = () => {
   }
 
   const handleSendOrder = async (orderType) => {
+    if (user?.role === 'test_user') {
+      navigate('/test-user-access-denied');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setSuccess(null);

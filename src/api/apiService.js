@@ -9,7 +9,9 @@ const handleResponse = async (response) => {
     message: response.statusText,
   }));
   if (!response.ok) {
-    throw new Error(data.message || 'Error en la solicitud a la red');
+    const error = new Error(data.message || 'Error en la solicitud a la red');
+    error.data = data;
+    throw error;
   }
   return data;
 };
@@ -244,6 +246,19 @@ const apiService = {
 
   getVendedorClients() {
     return this.request('/vendedor/clientes');
+  },
+
+  // (NUEVO) Métodos para usuarios de prueba
+  getTestUsers() {
+    return this.request('/test-users');
+  },
+
+  createTestUser(userData) {
+    return this.request('/test-users', { method: 'POST', body: userData });
+  },
+
+  deleteTestUser(userId) {
+    return this.request(`/test-users/${userId}`, { method: 'DELETE' });
   },
 
   // (NUEVO) Método para obtener todos los clientes (para administradores)

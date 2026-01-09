@@ -38,6 +38,16 @@ exports.loginController = catchAsync(async (req, res, next) => {
         });
     } else {
         logger.warn(`Intento de login fallido para: ${email} - Razón: ${result.message}`);
+        if (result.isExpired) {
+            logger.warn(`Test User expirado: ${email}`);
+            return res.status(401).json({
+                success: false,
+                message: result.message,
+                isExpired: true,
+                vendor: result.vendor
+            });
+        }
+        logger.warn(`Intento de login fallido para: ${email} - Razón: ${result.message}`);
         return next(new AppError(result.message, 401));
     }
 });

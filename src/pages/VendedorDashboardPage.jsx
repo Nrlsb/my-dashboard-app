@@ -39,6 +39,7 @@ const VendedorDashboardPage = () => {
         </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        {/* Manual Panel for Test Users */}
         {panels.map((panel) => (
           <div
             key={panel.id}

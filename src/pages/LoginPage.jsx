@@ -19,6 +19,10 @@ const LoginPage = () => {
     try {
       const result = await login(email, password);
       if (!result.success) {
+        if (result.isExpired) {
+          navigate('/test-user-expired', { state: { vendor: result.vendor } });
+          return;
+        }
         setError(
           result.message || 'Credenciales inválidas. Inténtalo de nuevo.'
         );
@@ -56,7 +60,7 @@ const LoginPage = () => {
               htmlFor="email"
               className="block text-sm font-medium text-gray-700"
             >
-              Email
+              Nro de Cliente / Usuario
             </label>
             <div className="relative mt-1">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3">
@@ -65,12 +69,12 @@ const LoginPage = () => {
               <input
                 id="email"
                 name="email"
-                type="email"
+                type="text"
                 required
                 className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#0B3D68] focus:border-[#0B3D68]"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="tu@email.com"
+                placeholder="Número de Cliente o Nombre de Usuario"
                 disabled={isLoading}
               />
             </div>

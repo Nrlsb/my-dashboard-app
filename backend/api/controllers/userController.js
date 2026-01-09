@@ -18,6 +18,23 @@ exports.getVendedorClientsController = catchAsync(async (req, res) => {
 
 exports.getProfileController = catchAsync(async (req, res) => {
     console.log('GET /api/profile -> Consultando perfil de usuario en DB...');
+
+    // Validar si es usuario de prueba
+    if (req.user && req.user.role === 'test_user') {
+        // Para usuario de prueba, devolvemos los datos básicos disponibles en req.user
+        // o podríamos consultar DB2 si necesitamos más detalles
+        return res.json({
+            A1_NOME: req.user.full_name, // Mapeamos al formato esperado por el frontend
+            A1_EMAIL: req.user.email || req.user.name,
+            A1_COD: 'TEST-' + req.user.id,
+            A1_LOJA: '00',
+            A1_CGC: '',
+            A1_NUMBER: '',
+            A1_END: '',
+            role: 'test_user'
+        });
+    }
+
     // req.userId es añadido por el middleware authenticateToken
     const profileData = await userService.getUserProfile(req.userId);
 

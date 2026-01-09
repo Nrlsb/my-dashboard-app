@@ -3,6 +3,7 @@
 const bcrypt = require('bcryptjs');
 const userModel = require('../models/userModel');
 const vendedorModel = require('../models/vendedorModel'); // Importar el modelo de vendedor
+const testUserModel = require('../models/testUserModel');
 
 /**
  * Autentica a un usuario, sea cliente o vendedor, usando contraseña temporal o principal.
@@ -11,14 +12,21 @@ const vendedorModel = require('../models/vendedorModel'); // Importar el modelo 
  * @returns {Promise<object>}
  */
 const authenticateUser = async (email, password) => {
+  // 'email' parameter acts as a generic identifier (email, client code, or username)
+  const identifier = email;
+
   try {
-    console.log(`Buscando usuario con email: ${email}`);
-    let userRecord = await userModel.findUserByEmail(email);
-    console.log('[DEBUG AUTH] userRecord desde userModel.findUserByEmail:', userRecord);
+    console.log(`[AUTH] Iniciando autenticación. Identificador: ${identifier}`);
     let userType = 'cliente';
-    let user;
+    let user = null;
+
+    // 1. Intentar buscar como Cliente Normal usando Número de Cliente (A1_COD)
+    // Se asume que el identificador es el código de cliente.
+    console.log(`[AUTH] Buscando usuario por Código de Cliente: ${identifier}`);
+    let userRecord = await userModel.findUserByCode(identifier);
 
     if (userRecord) {
+      console.log('[AUTH] Usuario encontrado por Código de Cliente.');
       // Fetch role from DB2
       const roleData = await userModel.getUserRoleFromDB2(userRecord.id);
       user = {
@@ -27,30 +35,102 @@ const authenticateUser = async (email, password) => {
         permissions: roleData ? roleData.permissions : [],
         is_admin: roleData ? roleData.role === 'admin' : false
       };
-      console.log('[DEBUG AUTH] Usuario identificado como CLIENTE/ADMIN/MARKETING:', JSON.stringify(user, null, 2));
     } else {
-      console.log(
-        'Usuario no encontrado en la tabla de clientes, buscando en vendedores...'
-      );
-      const vendedorRecord = await vendedorModel.findVendedorByEmail(email);
-      if (!vendedorRecord) {
-        console.log('Usuario no encontrado tampoco en vendedores.');
-        return { success: false, message: 'Usuario o contraseña incorrectos.' };
+      // 2. Si no es cliente, buscar como Usuario de Prueba (Test User) por Nombre
+      console.log('[AUTH] No es cliente. Buscando como Test User por Nombre...');
+      const testUserRecord = await testUserModel.getTestUserByName(identifier);
+
+      if (testUserRecord) {
+        // Calcular si el usuario ha expirado (1 semana = 7 días)
+        const ONE_WEEK_IN_MS = 7 * 24 * 60 * 60 * 1000;
+        const createdAt = new Date(testUserRecord.created_at).getTime();
+        const now = new Date().getTime();
+
+        if (now - createdAt > ONE_WEEK_IN_MS) {
+          console.log('[AUTH] Test User expirado due to > 1 week.');
+
+          let vendorInfo = null;
+          if (testUserRecord.vendedor_code) {
+            const vendor = await vendedorModel.findVendedorByCodigo(testUserRecord.vendedor_code);
+            if (vendor) {
+              vendorInfo = {
+                name: vendor.nombre,
+                email: vendor.email,
+                phone: vendor.telefono
+              };
+            }
+          }
+
+          return {
+            success: false,
+            isExpired: true,
+            message: 'El acceso ha expirado. Su cuenta de prueba solo era válida por 1 semana.',
+            vendor: vendorInfo
+          };
+        }
+
+        // Chequeo directo de contraseña para test users
+        if (testUserRecord.password === password) {
+          console.log('[DEBUG AUTH] Autenticado EXITOSAMENTE como TEST USER:', testUserRecord.name);
+          return {
+            success: true,
+            user: {
+              id: testUserRecord.id,
+              full_name: testUserRecord.name,
+              role: 'test_user',
+              is_admin: false,
+              vendedor_code: testUserRecord.vendedor_code
+            },
+            first_login: false
+          };
+        } else {
+          console.log('Contraseña incorrecta para test user.');
+          return { success: false, message: 'Usuario o contraseña incorrectos.' };
+        }
       }
 
-      user = {
-        id: vendedorRecord.codigo,
-        password_hash: vendedorRecord.password,
-        temp_password_hash: vendedorRecord.temp_password_hash, // Incluir la nueva columna
-        full_name: vendedorRecord.nombre,
-        email: vendedorRecord.email,
-        a1_cod: vendedorRecord.codigo,
-        is_admin: false,
-        role: 'vendedor',
-        codigo: vendedorRecord.codigo,
-      };
-      userType = 'vendedor';
-      console.log('[DEBUG AUTH] Usuario identificado como VENDEDOR:', JSON.stringify(user, null, 2));
+      // 3. (Fallback) Intentar buscar por Email (Vendedores o Clientes legacy)
+      // Solo si el identificador parece un email
+      if (identifier.includes('@')) {
+        console.log('[AUTH] No es Test User. El identificador parece email, buscando legacy/vendedor...');
+
+        // Primero buscar vendedor
+        const vendedorRecord = await vendedorModel.findVendedorByEmail(identifier);
+
+        if (vendedorRecord) {
+          user = {
+            id: vendedorRecord.codigo,
+            password_hash: vendedorRecord.password,
+            temp_password_hash: vendedorRecord.temp_password_hash,
+            full_name: vendedorRecord.nombre,
+            email: vendedorRecord.email,
+            a1_cod: vendedorRecord.codigo,
+            is_admin: false,
+            role: 'vendedor',
+            codigo: vendedorRecord.codigo,
+          };
+          userType = 'vendedor';
+          console.log('[DEBUG AUTH] Usuario identificado como VENDEDOR:', JSON.stringify(user, null, 2));
+        } else {
+          // Por último, intentar buscar cliente por email (legacy)
+          userRecord = await userModel.findUserByEmail(identifier);
+          if (userRecord) {
+            const roleData = await userModel.getUserRoleFromDB2(userRecord.id);
+            user = {
+              ...userRecord,
+              role: roleData ? roleData.role : 'cliente',
+              permissions: roleData ? roleData.permissions : [],
+              is_admin: roleData ? roleData.role === 'admin' : false
+            };
+            console.log('[AUTH] Cliente encontrado por Email (Legacy).');
+          }
+        }
+      }
+    }
+
+    if (!user) {
+      console.log('[AUTH] Usuario NO encontrado en ningún registro.');
+      return { success: false, message: 'Usuario o contraseña incorrectos.' };
     }
 
     console.log(
@@ -58,6 +138,7 @@ const authenticateUser = async (email, password) => {
       JSON.stringify(user, null, 2)
     );
 
+    // Verificación de credenciales (Hash) para Clientes y Vendedores
     // 1. Intentar con la contraseña temporal
     if (user.temp_password_hash) {
       console.log('[DEBUG] Intentando con la contraseña temporal...');
@@ -98,17 +179,10 @@ const authenticateUser = async (email, password) => {
     );
     const { password_hash, temp_password_hash, ...userWithoutPassword } = user;
 
-    // Asegurarse de que is_admin se establezca correctamente para todos los usuarios autenticados
     if (userType === 'vendedor') {
       userWithoutPassword.is_admin = false;
-    } else {
-      // Role and is_admin are already set above
-      // userWithoutPassword.is_admin = await userModel.isUserAdmin(user.id);
     }
     console.log('[DEBUG AUTH] Valor FINAL de userWithoutPassword.is_admin:', userWithoutPassword.is_admin, 'para userType:', userType);
-    console.log(
-      `El usuario ${user.id} ${userWithoutPassword.is_admin ? 'ES' : 'NO ES'} administrador.`
-    );
 
     return { success: true, user: userWithoutPassword, first_login: false };
   } catch (error) {

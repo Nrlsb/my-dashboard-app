@@ -59,6 +59,11 @@ export const AuthProvider = ({ children }) => {
       logout();
       console.error('Error during login API call:', error);
       setLoading(false);
+
+      if (error.data) {
+        return { success: false, ...error.data };
+      }
+
       return { success: false, message: error.message };
     }
   };

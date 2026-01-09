@@ -207,6 +207,17 @@ const Header = ({ onLogout, currentUser }) => {
                         </button>
                       )}
 
+                      {/* (NUEVO) Enlace para Vendedores */}
+                      {currentUser?.role === 'vendedor' && (
+                        <button
+                          onClick={() => handleNavigation('/vendedor-test-users')}
+                          className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-espint-blue rounded-lg transition-colors"
+                        >
+                          <Users className="w-4 h-4 mr-3 text-gray-400" />
+                          Usuarios de Prueba
+                        </button>
+                      )}
+
                       {(currentUser?.is_admin || hasPermission('view_analytics')) && (
                         <button
                           onClick={() => handleNavigation('/analytics')}

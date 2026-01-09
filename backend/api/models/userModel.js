@@ -283,6 +283,48 @@ const findAllClients = async () => {
   return result.rows;
 };
 
+/**
+ * Busca un usuario por su código de cliente (a1_cod) en la base de datos principal.
+ * @param {string} code - El código del cliente.
+ * @returns {Promise<object|null>}
+ */
+const findUserByCode = async (code) => {
+  // Aseguramos que el código sea tratado como string y sin espacios extra, 
+  // aunque a1_cod en DB suele ser varchar.
+  const cleanCode = String(code).trim();
+
+  const result = await pool.query(
+    `SELECT u.*, v.nombre as vendedor_nombre, v.telefono as vendedor_telefono, v.email as vendedor_email 
+     FROM users u 
+     LEFT JOIN vendedores v ON u.vendedor_codigo = v.codigo 
+     WHERE u.a1_cod = $1`,
+    [cleanCode]
+  );
+
+  const user = result.rows[0] || null;
+
+  if (user) {
+    try {
+      const credsResult = await pool2.query(
+        'SELECT password_hash, temp_password_hash FROM user_credentials WHERE user_id = $1',
+        [user.id]
+      );
+      if (credsResult.rows.length > 0) {
+        user.password_hash = credsResult.rows[0].password_hash;
+        user.temp_password_hash = credsResult.rows[0].temp_password_hash;
+      } else {
+        user.password_hash = null;
+        user.temp_password_hash = null;
+      }
+    } catch (err) {
+      console.error('[userModel] Error fetching credentials from DB2:', err);
+      user.password_hash = null;
+    }
+  }
+
+  return user;
+};
+
 module.exports = {
   findUserByEmail,
   findUserById,
@@ -293,5 +335,6 @@ module.exports = {
   clearTempPasswordHash,
   updatePassword,
   findAllClients,
-  getUserRoleFromDB2, // Export new function
+  getUserRoleFromDB2,
+  findUserByCode, // Export new function
 };

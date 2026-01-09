@@ -40,6 +40,9 @@ const AdminAnalyticsPage = lazyImport(() => import('./pages/AdminAnalyticsPage.j
 const AboutPage = lazyImport(() => import('./pages/AboutPage.jsx'));
 const NewReleasesPage = lazyImport(() => import('./pages/NewReleasesPage.jsx'));
 const ManageNewReleasesPage = lazyImport(() => import('./pages/ManageNewReleasesPage.jsx'));
+const TestUsersPage = lazyImport(() => import('./pages/TestUsersPage.jsx'));
+const TestUserAccessDeniedPage = lazyImport(() => import('./pages/TestUserAccessDeniedPage.jsx'));
+const TestUserExpiredPage = lazyImport(() => import('./pages/TestUserExpiredPage.jsx'));
 
 // Error Element for Dashboard
 const DashboardError = () => (
@@ -71,6 +74,11 @@ const router = createBrowserRouter(
                         <LoginPage />
                     </Suspense>
                 </PublicRoute>
+            } />
+            <Route path="test-user-expired" element={
+                <Suspense fallback={<LoadingFallback />}>
+                    <TestUserExpiredPage />
+                </Suspense>
             } />
             <Route path="register" element={
                 <PublicRoute>
@@ -151,6 +159,14 @@ const router = createBrowserRouter(
                 </ProtectedRoute>
             } />
 
+            <Route path="vendedor-test-users" element={
+                <ProtectedRoute>
+                    <Suspense fallback={<LoadingFallback />}>
+                        <TestUsersPage />
+                    </Suspense>
+                </ProtectedRoute>
+            } />
+
             <Route path="profile" element={
                 <ProtectedRoute>
                     <Suspense fallback={<LoadingFallback />}>
@@ -191,6 +207,14 @@ const router = createBrowserRouter(
                 <ProtectedRoute>
                     <Suspense fallback={<LoadingFallback />}>
                         <OrderPreviewPage />
+                    </Suspense>
+                </ProtectedRoute>
+            } />
+
+            <Route path="test-user-access-denied" element={
+                <ProtectedRoute>
+                    <Suspense fallback={<LoadingFallback />}>
+                        <TestUserAccessDeniedPage />
                     </Suspense>
                 </ProtectedRoute>
             } />
