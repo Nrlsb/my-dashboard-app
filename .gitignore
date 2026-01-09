@@ -25,3 +25,8 @@ dist-ssr
 .env
 .env.production
 .env.development
+
+# Google Drive Credentials
+backend/api/credentials.json
+backend/api/oauth_credentials.json
+backend/api/token.json

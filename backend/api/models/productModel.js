@@ -956,13 +956,40 @@ const findProductsWithImagesNoDescription = async (limit = 50) => {
   }
 };
 
+
+const findUniqueBrands = async (deniedGroups = []) => {
+  try {
+    let query = `
+      SELECT DISTINCT brand 
+      FROM products 
+      WHERE brand IS NOT NULL AND brand != ''
+    `;
+    let queryParams = [];
+    let paramIndex = 1;
+
+    if (deniedGroups.length > 0) {
+      query += ` AND product_group NOT IN(SELECT unnest($${paramIndex}::varchar[])) `;
+      queryParams.push(deniedGroups);
+      paramIndex++;
+    }
+
+    query += ' ORDER BY brand ASC';
+
+    const result = await pool.query(query, queryParams);
+    return result.rows.map(row => row.brand);
+  } catch (error) {
+    console.error('Error in findUniqueBrands:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   findProducts,
   findAccessories,
   findProductGroupsDetails,
   findProductById,
   findProductByCode,
-  findUniqueBrands: async () => [], // Placeholder if missing, or I should check if it exists. 
+  findUniqueBrands, // Exporting the actual function
   getOnOfferData,
   findOffers,
   findProductsByGroup,
