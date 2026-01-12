@@ -1,0 +1,1 @@
+import{g as e}from"./vendor-qkC6yhPU.js";import{r}from"./excel-w3LXhgQu.js";var o=r();const t=e(o),m=Object.freeze(Object.defineProperty({__proto__:null,default:t},Symbol.toStringTag,{value:"Module"}));export{m as e};

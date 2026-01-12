@@ -40,6 +40,17 @@ export default defineConfig({
       // }
     },
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          'ui-libs': ['lucide-react', 'react-icons', 'react-hot-toast'],
+          excel: ['exceljs'],
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       '/api': {
