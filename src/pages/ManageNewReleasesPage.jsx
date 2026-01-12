@@ -49,7 +49,7 @@ const EditReleaseModal = ({ product, onClose, onSave, isSaving }) => {
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
                 <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
                     <h3 className="text-lg font-semibold text-gray-800">Editar Lanzamiento</h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600 cursor-pointer">
@@ -57,125 +57,127 @@ const EditReleaseModal = ({ product, onClose, onSave, isSaving }) => {
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Título Personalizado
-                        </label>
-                        <input
-                            type="text"
-                            name="custom_title"
-                            value={formData.custom_title}
-                            onChange={handleChange}
-                            placeholder={product.name}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Dejar en blanco para usar el nombre original.</p>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Descripción Personalizada
-                        </label>
-                        <textarea
-                            name="custom_description"
-                            value={formData.custom_description}
-                            onChange={handleChange}
-                            rows="3"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Imagen Personalizada
-                        </label>
-
-                        {/* Image Preview */}
-                        {(formData.custom_image_url || formData.previewUrl) && (
-                            <div className="mb-2 relative w-full h-48 bg-gray-100 rounded-md overflow-hidden border border-gray-200">
-                                <img
-                                    src={formData.previewUrl || formData.custom_image_url}
-                                    alt="Preview"
-                                    className="w-full h-full object-contain"
-                                    referrerPolicy="no-referrer"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setFormData(prev => ({ ...prev, custom_image_url: '', previewUrl: '' }))}
-                                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-sm"
-                                    title="Eliminar imagen"
-                                >
-                                    <X className="w-4 h-4" />
-                                </button>
-                            </div>
-                        )}
-
-                        <div className="flex items-center gap-2">
-                            <label className="flex-1 cursor-pointer bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2">
-                                <Upload className="w-4 h-4" />
-                                {formData.isUploading ? 'Subiendo...' : 'Seleccionar Imagen'}
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    disabled={formData.isUploading}
-                                    onChange={async (e) => {
-                                        const file = e.target.files[0];
-                                        if (!file) return;
-
-                                        const previewUrl = URL.createObjectURL(file);
-                                        setFormData(prev => ({ ...prev, isUploading: true, previewUrl }));
-
-                                        const data = new FormData();
-                                        data.append('image', file);
-
-                                        try {
-                                            const res = await apiService.uploadToDrive(data);
-                                            setFormData(prev => ({
-                                                ...prev,
-                                                custom_image_url: res.imageUrl,
-                                                isUploading: false
-                                            }));
-                                            toast.success('Imagen subida a Drive correctamente');
-                                        } catch (err) {
-                                            console.error(err);
-                                            toast.error('Error al subir imagen');
-                                            setFormData(prev => ({ ...prev, isUploading: false }));
-                                        }
-                                    }}
-                                />
+                <div className="overflow-y-auto p-6">
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Título Personalizado
                             </label>
+                            <input
+                                type="text"
+                                name="custom_title"
+                                value={formData.custom_title}
+                                onChange={handleChange}
+                                placeholder={product.name}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Dejar en blanco para usar el nombre original.</p>
                         </div>
-                    </div>
 
-                    <div className="pt-4 flex justify-end space-x-3">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={isSaving}
-                            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 flex items-center disabled:opacity-50 cursor-pointer"
-                        >
-                            {isSaving ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Guardando...
-                                </>
-                            ) : (
-                                <>
-                                    <Save className="w-4 h-4 mr-2" />
-                                    Guardar Cambios
-                                </>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Descripción Personalizada
+                            </label>
+                            <textarea
+                                name="custom_description"
+                                value={formData.custom_description}
+                                onChange={handleChange}
+                                rows="3"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Imagen Personalizada
+                            </label>
+
+                            {/* Image Preview */}
+                            {(formData.custom_image_url || formData.previewUrl) && (
+                                <div className="mb-2 relative w-full h-48 bg-gray-100 rounded-md overflow-hidden border border-gray-200">
+                                    <img
+                                        src={formData.previewUrl || formData.custom_image_url}
+                                        alt="Preview"
+                                        className="w-full h-full object-contain"
+                                        referrerPolicy="no-referrer"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData(prev => ({ ...prev, custom_image_url: '', previewUrl: '' }))}
+                                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-sm"
+                                        title="Eliminar imagen"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
                             )}
-                        </button>
-                    </div>
-                </form>
+
+                            <div className="flex items-center gap-2">
+                                <label className="flex-1 cursor-pointer bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2">
+                                    <Upload className="w-4 h-4" />
+                                    {formData.isUploading ? 'Subiendo...' : 'Seleccionar Imagen'}
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        disabled={formData.isUploading}
+                                        onChange={async (e) => {
+                                            const file = e.target.files[0];
+                                            if (!file) return;
+
+                                            const previewUrl = URL.createObjectURL(file);
+                                            setFormData(prev => ({ ...prev, isUploading: true, previewUrl }));
+
+                                            const data = new FormData();
+                                            data.append('image', file);
+
+                                            try {
+                                                const res = await apiService.uploadToDrive(data);
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    custom_image_url: res.imageUrl,
+                                                    isUploading: false
+                                                }));
+                                                toast.success('Imagen subida a Drive correctamente');
+                                            } catch (err) {
+                                                console.error(err);
+                                                toast.error('Error al subir imagen');
+                                                setFormData(prev => ({ ...prev, isUploading: false }));
+                                            }
+                                        }}
+                                    />
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="pt-4 flex justify-end space-x-3">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={isSaving}
+                                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 flex items-center disabled:opacity-50 cursor-pointer"
+                            >
+                                {isSaving ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Guardando...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="w-4 h-4 mr-2" />
+                                        Guardar Cambios
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     );
