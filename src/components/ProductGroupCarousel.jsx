@@ -65,7 +65,7 @@ const ProductGroupCarousel = () => {
               <img
                 src={group.imageUrl}
                 alt={group.name}
-                className="w-full h-32 md:h-32 object-cover"
+                className="w-full h-32 md:h-32 object-contain p-2"
                 referrerPolicy="no-referrer"
                 loading="lazy"
               />
