@@ -13,13 +13,40 @@ const getDateFilter = (startDate, endDate) => {
     };
 };
 
-const recordVisit = async (path, userId, ip, userAgent) => {
+const ensurePageVisitsTable = async () => {
+    const query = `
+      CREATE TABLE IF NOT EXISTS page_visits (
+        id SERIAL PRIMARY KEY,
+        path VARCHAR(255) NOT NULL,
+        user_id INTEGER,
+        ip_address VARCHAR(50),
+        user_agent TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        user_role VARCHAR(50) DEFAULT 'cliente'
+      );
+    `;
+    try {
+        await pool2.query(query);
+        try {
+            await pool2.query("ALTER TABLE page_visits ADD COLUMN IF NOT EXISTS user_role VARCHAR(50) DEFAULT 'cliente';");
+        } catch (e) {
+            // Ignore if column exists
+        }
+    } catch (error) {
+        console.error('Error ensuring page_visits table:', error);
+    }
+};
+
+// Initialize table
+ensurePageVisitsTable();
+
+const recordVisit = async (path, userId, ip, userAgent, userRole = 'cliente') => {
     try {
         const query = `
-      INSERT INTO page_visits (path, user_id, ip_address, user_agent)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO page_visits (path, user_id, ip_address, user_agent, user_role)
+      VALUES ($1, $2, $3, $4, $5)
     `;
-        await pool2.query(query, [path, userId, ip, userAgent]);
+        await pool2.query(query, [path, userId, ip, userAgent, userRole]);
     } catch (error) {
         console.error('Error recording visit:', error);
     }
@@ -277,10 +304,55 @@ const getSellerStats = async (startDate, endDate) => {
     }
 }
 
+const getTestUserStats = async (userId) => {
+    try {
+        // 1. Total Visits
+        const countQuery = `
+            SELECT COUNT(*) 
+            FROM page_visits 
+            WHERE user_id = $1 AND user_role = 'test_user'
+        `;
+        const countResult = await pool2.query(countQuery, [userId]);
+        const totalVisits = parseInt(countResult.rows[0].count, 10);
+
+        // 2. Last Visit
+        const lastVisitQuery = `
+            SELECT created_at 
+            FROM page_visits 
+            WHERE user_id = $1 AND user_role = 'test_user'
+            ORDER BY created_at DESC 
+            LIMIT 1
+        `;
+        const lastVisitResult = await pool2.query(lastVisitQuery, [userId]);
+        const lastVisit = lastVisitResult.rows.length > 0 ? lastVisitResult.rows[0].created_at : null;
+
+        // 3. Top Pages
+        const topPagesQuery = `
+            SELECT path, COUNT(*) as count
+            FROM page_visits
+            WHERE user_id = $1 AND user_role = 'test_user'
+            GROUP BY path
+            ORDER BY count DESC
+            LIMIT 5
+        `;
+        const topPagesResult = await pool2.query(topPagesQuery, [userId]);
+
+        return {
+            totalVisits,
+            lastVisit,
+            topPages: topPagesResult.rows
+        };
+    } catch (error) {
+        console.error('Error getting test user stats:', error);
+        return { totalVisits: 0, lastVisit: null, topPages: [] };
+    }
+};
+
 module.exports = {
     recordVisit,
     getVisitStats,
     getOrderStats,
     getClientStats,
-    getSellerStats
+    getSellerStats,
+    getTestUserStats
 };

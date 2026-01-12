@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiService from '../api/apiService';
 import { FaTrash, FaUserPlus, FaWhatsapp } from 'react-icons/fa';
+import { BarChart2 } from 'lucide-react';
+import TestUserAnalyticsModal from './TestUserAnalyticsModal';
 
 const TestUserManager = () => {
     const queryClient = useQueryClient();
@@ -11,6 +13,8 @@ const TestUserManager = () => {
         cellphone: '',
     });
     const [error, setError] = useState(null);
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     const { data: users = [], isLoading } = useQuery({
         queryKey: ['testUsers'],
@@ -60,6 +64,11 @@ const TestUserManager = () => {
         if (window.confirm('¿Estás seguro de eliminar este usuario de prueba?')) {
             deleteMutation.mutate(id);
         }
+    };
+
+    const openAnalytics = (user) => {
+        setSelectedUser(user);
+        setIsModalOpen(true);
     };
 
     return (
@@ -148,10 +157,17 @@ const TestUserManager = () => {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {new Date(user.created_at).toLocaleDateString()}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex items-center justify-end gap-2">
+                                            <button
+                                                onClick={() => openAnalytics(user)}
+                                                className="text-blue-600 hover:text-blue-900 bg-blue-50 p-2 rounded-full transition-colors focus:outline-none"
+                                                title="Ver Análisis"
+                                            >
+                                                <BarChart2 className="w-5 h-5" />
+                                            </button>
                                             <button
                                                 onClick={() => handleDelete(user.id)}
-                                                className="text-red-600 hover:text-red-900 focus:outline-none"
+                                                className="text-red-600 hover:text-red-900 bg-red-50 p-2 rounded-full transition-colors focus:outline-none"
                                                 title="Eliminar usuario"
                                                 disabled={deleteMutation.isPending}
                                             >
@@ -165,6 +181,13 @@ const TestUserManager = () => {
                     </div>
                 )}
             </div>
+
+            <TestUserAnalyticsModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                userId={selectedUser?.id}
+                userName={selectedUser?.name}
+            />
         </div>
     );
 };

@@ -22,10 +22,16 @@ router.use(authenticateToken);
 // Solo permitir a vendedores y admin
 router.use(restrictTo('vendedor', 'admin'));
 
+const analyticsController = require('../controllers/analyticsController');
+
+// ... (previous code)
+
 router
     .route('/')
     .get(testUserController.getMyTestUsers)
     .post(testUserController.createTestUser);
+
+router.get('/:id/analytics', analyticsController.getTestUserAnalytics);
 
 router
     .route('/:id')

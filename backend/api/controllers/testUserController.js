@@ -1,4 +1,6 @@
+
 const testUserModel = require('../models/testUserModel');
+const userModel = require('../models/userModel');
 const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
 
@@ -27,7 +29,39 @@ exports.createTestUser = catchAsync(async (req, res, next) => {
     });
 });
 
+
+
+
 exports.getMyTestUsers = catchAsync(async (req, res, next) => {
+    // Si es administrador, obtener todos los usuarios de prueba
+    if (req.user.role === 'admin' || req.user.isAdmin) {
+        const users = await testUserModel.getAllTestUsers();
+
+        // Obtener la información de los vendedores creadores
+        const vendedorCodes = users.map(u => u.vendedor_code);
+        const vendedores = await userModel.getVendedoresByCodes(vendedorCodes);
+
+        // Mapear para facilitar búsqueda
+        const vendedoresMap = {};
+        vendedores.forEach(v => {
+            vendedoresMap[v.codigo] = v;
+        });
+
+        // Enriquecer usuarios con info del vendedor
+        const enrichedUsers = users.map(u => ({
+            ...u,
+            vendedor: vendedoresMap[u.vendedor_code] || { nombre: 'Desconocido', email: '-' }
+        }));
+
+        return res.status(200).json({
+            status: 'success',
+            results: enrichedUsers.length,
+            data: {
+                users: enrichedUsers
+            }
+        });
+    }
+
     const vendedorCode = req.user.role === 'vendedor' ? req.user.codigo : req.user.vendedor_codigo;
 
     if (!vendedorCode) {

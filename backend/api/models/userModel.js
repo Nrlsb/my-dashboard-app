@@ -325,6 +325,30 @@ const findUserByCode = async (code) => {
   return user;
 };
 
+/**
+ * Busca vendedores por una lista de códigos.
+ * @param {Array<string>} codes - Lista de códigos de vendedores.
+ * @returns {Promise<Array<object>>} - Lista de objetos con info del vendedor (codigo, nombre, email, telefono).
+ */
+const getVendedoresByCodes = async (codes) => {
+  if (!codes || codes.length === 0) return [];
+
+  // Filtrar duplicados y valores nulos/vacíos
+  const uniqueCodes = [...new Set(codes.filter(c => c))];
+
+  if (uniqueCodes.length === 0) return [];
+
+  const query = `
+    SELECT codigo, nombre, email, telefono
+    FROM vendedores
+    WHERE codigo = ANY($1)
+  `;
+
+  const result = await pool.query(query, [uniqueCodes]);
+  return result.rows;
+};
+
+
 module.exports = {
   findUserByEmail,
   findUserById,
@@ -337,4 +361,5 @@ module.exports = {
   findAllClients,
   getUserRoleFromDB2,
   findUserByCode, // Export new function
+  getVendedoresByCodes, // Export new function
 };

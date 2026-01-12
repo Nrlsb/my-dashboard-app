@@ -261,6 +261,10 @@ const apiService = {
     return this.request(`/test-users/${userId}`, { method: 'DELETE' });
   },
 
+  getTestUserAnalytics(userId) {
+    return this.request(`/test-users/${userId}/analytics`);
+  },
+
   // (NUEVO) Método para obtener todos los clientes (para administradores)
   getAllClients() {
     return this.request('/admin/clients');

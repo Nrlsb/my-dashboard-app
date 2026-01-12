@@ -12,7 +12,7 @@ const poolConfig = {
   // (OPTIMIZACIÓN) Ajustes para producción
   max: 20, // Máximo de conexiones en el pool
   idleTimeoutMillis: 30000, // Cerrar conexiones inactivas tras 30s
-  connectionTimeoutMillis: 2000, // Fallar si no conecta en 2s
+  connectionTimeoutMillis: 10000, // Aumentar timeout a 10s
 };
 
 const pool = new Pool(poolConfig);
@@ -49,7 +49,7 @@ const pool2Config = {
   port: process.env.DB2_PORT,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000,
 };
 
 const pool2 = new Pool(pool2Config);
