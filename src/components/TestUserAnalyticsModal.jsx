@@ -3,6 +3,20 @@ import { X, BarChart2, Calendar, Eye } from 'lucide-react';
 import apiService from '../api/apiService';
 import LoadingSpinner from './LoadingSpinner';
 
+const PATH_NAMES = {
+    '/dashboard': 'Inicio',
+    '/login': 'Iniciar Sesión',
+    '/new-order': 'Nuevo Pedido',
+    '/price-list': 'Lista de Precios',
+    '/products': 'Productos',
+    '/cart': 'Carrito',
+    '/orders': 'Mis Pedidos',
+    '/profile': 'Mi Perfil',
+    '/admin/dashboard': 'Panel Admin',
+    '/admin/users': 'Gestión Usuarios',
+    '/admin/products': 'Gestión Productos'
+};
+
 const TestUserAnalyticsModal = ({ isOpen, onClose, userId, userName }) => {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -78,7 +92,7 @@ const TestUserAnalyticsModal = ({ isOpen, onClose, userId, userName }) => {
                                         {stats.topPages.map((page, index) => (
                                             <li key={index} className="py-2 flex justify-between items-center">
                                                 <span className="text-sm text-gray-600 truncate max-w-[250px]" title={page.path}>
-                                                    {page.path}
+                                                    {PATH_NAMES[page.path] || page.path}
                                                 </span>
                                                 <span className="text-xs font-semibold bg-gray-100 text-gray-600 px-2 py-1 rounded">
                                                     {page.count} visitas
