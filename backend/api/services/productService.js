@@ -62,6 +62,7 @@ const fetchProducts = async ({
   userId = null,
   bypassCache = false,
   hasImage = '',
+  isExport = false,
 }) => {
   try {
     // 1. Obtener cotizaciones
@@ -95,11 +96,17 @@ const fetchProducts = async ({
     }
 
     // 3. Preparar filtros para el modelo
+    let finalLimit = limit;
+    if (isExport) {
+      // En exportación, permitimos límites más altos o ignoramos paginación estricta si se requiere
+      // Pero el frontend envía limit=9999, así que respetamos eso.
+    }
+
     const offset = (page - 1) * limit;
     const brands = brand ? brand.split(',') : [];
 
     const filters = {
-      limit,
+      limit: finalLimit,
       offset,
       search,
       brands,
@@ -163,11 +170,16 @@ const fetchProducts = async ({
 
     // 5. Aplicar lógica de negocio (cálculo de precios, formato)
     // Obtener IDs de productos que cambiaron de precio recientemente
-    const productIds = rawProducts.map(p => p.id);
-    console.log('[DEBUG] Checking changes for product IDs:', productIds);
-    const recentlyChangedIds = await productModel.getRecentlyChangedProducts(productIds);
-    console.log('[DEBUG] Recently changed IDs found:', recentlyChangedIds);
-    const recentlyChangedSet = new Set(recentlyChangedIds);
+
+    // OPTIMIZACIÓN: Si es exportación, saltamos la verificación de cambios recientes
+    let recentlyChangedSet = new Set();
+    if (!isExport) {
+      const productIds = rawProducts.map(p => p.id);
+      // console.log('[DEBUG] Checking changes for product IDs:', productIds);
+      const recentlyChangedIds = await productModel.getRecentlyChangedProducts(productIds);
+      // console.log('[DEBUG] Recently changed IDs found:', recentlyChangedIds);
+      recentlyChangedSet = new Set(recentlyChangedIds);
+    }
 
     const products = rawProducts.map((prod) => {
       let originalPrice = prod.price;
@@ -188,6 +200,7 @@ const fetchProducts = async ({
         price: finalPrice,
         formattedPrice: formatCurrency(finalPrice),
         brand: prod.brand,
+        // En exportación a veces no se necesita imageUrl, pero es ligero
         imageUrl: getImageUrl(prod.code),
         capacityDesc: prod.capacity_description,
         capacityValue: null,
@@ -206,6 +219,14 @@ const fetchProducts = async ({
         stock_de_seguridad: prod.stock_de_seguridad,
       };
     });
+
+    // OPTIMIZACIÓN: Si es exportación, saltamos el enriquecimiento de imágenes DB2
+    if (isExport) {
+      return {
+        products: products,
+        totalProducts,
+      };
+    }
 
     const productsWithImages = await enrichProductsWithImages(products);
 

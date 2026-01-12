@@ -11,10 +11,12 @@ exports.getProductsController = catchAsync(async (req, res) => {
         moneda = '0',
         bypassCache = 'false',
         hasImage = '',
+        isExport = 'false',
     } = req.query;
-    console.log(`[DEBUG] getProductsController - bypassCache param: ${bypassCache}`);
+    console.log(`[DEBUG] getProductsController - bypassCache: ${bypassCache}, isExport: ${isExport}`);
 
     const shouldBypass = String(bypassCache).toLowerCase() === 'true';
+    const shouldExport = String(isExport).toLowerCase() === 'true';
 
     const data = await productService.fetchProducts({
         page,
@@ -25,6 +27,7 @@ exports.getProductsController = catchAsync(async (req, res) => {
         userId: req.userId,
         bypassCache: shouldBypass,
         hasImage,
+        isExport: shouldExport,
     });
     res.set('Cache-Control', 'no-store');
     res.json(data);

@@ -111,6 +111,7 @@ const apiService = {
       page: 1,
       limit: 9999,
       search: searchTerm,
+      isExport: 'true',
     };
     if (brands && brands.length > 0) {
       params.brand = brands.join(',');
