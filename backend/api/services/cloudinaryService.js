@@ -62,12 +62,12 @@ const deleteImage = async (publicId) => {
  * @param {string} folder - Carpeta en Cloudinary.
  * @returns {string|null} - URL de la imagen o null si no está configurado.
  */
-const getImageUrl = (publicId, folder = 'products') => {
+const getImageUrl = (publicId, folder = 'products', width = 500) => {
     if (!process.env.CLOUD_NAME) return null;
     return cloudinary.url(`${folder}/${publicId}`, {
         secure: true,
         transformation: [
-            { width: 500, crop: "limit" },
+            { width: width, crop: "limit" },
             { quality: "auto" },
             { fetch_format: "auto" }
         ]

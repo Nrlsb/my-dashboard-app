@@ -38,7 +38,18 @@ const enrichProductsWithImages = async (products) => {
   return products.map(p => {
     const dbImage = imageMap.get(p.code);
     if (dbImage) {
-      return { ...p, imageUrl: dbImage };
+      let thumb = dbImage;
+      let full = dbImage;
+
+      // Optimización para imágenes de Google Drive (lh3)
+      if (dbImage.includes('lh3.googleusercontent.com')) {
+        // Remover parámetros existentes si los hay para evitar conflictos
+        const baseUrl = dbImage.split('=')[0];
+        thumb = `${baseUrl}=w300`;
+        full = `${baseUrl}=w800`;
+      }
+
+      return { ...p, imageUrl: full, thumbnailUrl: thumb };
     }
     return p;
   });
@@ -201,7 +212,8 @@ const fetchProducts = async ({
         formattedPrice: formatCurrency(finalPrice),
         brand: prod.brand,
         // En exportación a veces no se necesita imageUrl, pero es ligero
-        imageUrl: getImageUrl(prod.code),
+        imageUrl: getImageUrl(prod.code, 'products', 800),
+        thumbnailUrl: getImageUrl(prod.code, 'products', 300),
         capacityDesc: prod.capacity_description,
         capacityValue: null,
         moneda: prod.moneda,
@@ -270,7 +282,8 @@ const getAccessories = async (userId) => {
         name: prod.description,
         price: prod.price,
         formattedPrice: formatCurrency(prod.price),
-        imageUrl: getImageUrl(prod.code) || `https://placehold.co/150/2D3748/FFFFFF?text=${encodeURIComponent(prod.description.split(' ')[0])}`,
+        imageUrl: getImageUrl(prod.code, 'products', 800) || `https://placehold.co/150/2D3748/FFFFFF?text=${encodeURIComponent(prod.description.split(' ')[0])}`,
+        thumbnailUrl: getImageUrl(prod.code, 'products', 300) || `https://placehold.co/150/2D3748/FFFFFF?text=${encodeURIComponent(prod.description.split(' ')[0])}`,
         group_code: prod.product_group,
       }));
 
@@ -380,7 +393,9 @@ const fetchProductDetails = async (productId, userId = null) => {
       price: prod.price,
       formattedPrice: formatCurrency(prod.price),
       brand: prod.brand,
-      imageUrl: getImageUrl(prod.code),
+      brand: prod.brand,
+      imageUrl: getImageUrl(prod.code, 'products', 800),
+      thumbnailUrl: getImageUrl(prod.code, 'products', 300),
       capacityDesc: prod.capacity_description,
       capacityValue: null,
       additionalInfo: {},
@@ -429,7 +444,9 @@ const fetchProductDetailsByCode = async (productCode, userId = null) => {
       price: prod.price,
       formattedPrice: formatCurrency(prod.price),
       brand: prod.brand,
-      imageUrl: getImageUrl(prod.code),
+      brand: prod.brand,
+      imageUrl: getImageUrl(prod.code, 'products', 800),
+      thumbnailUrl: getImageUrl(prod.code, 'products', 300),
       capacityDesc: prod.capacity_description,
       capacityValue: null,
       additionalInfo: {},
@@ -527,7 +544,9 @@ const fetchProtheusOffers = async (userId = null) => {
         price: finalPrice,
         formattedPrice: formatCurrency(finalPrice),
         brand: prod.brand,
-        imageUrl: getImageUrl(prod.code),
+        brand: prod.brand,
+        imageUrl: getImageUrl(prod.code, 'products', 800),
+        thumbnailUrl: getImageUrl(prod.code, 'products', 300),
         capacityDesc: prod.capacity_description,
         moneda: prod.moneda,
         cotizacion:
@@ -637,7 +656,9 @@ const fetchProductsByGroup = async (
         price: finalPrice,
         formattedPrice: formatCurrency(finalPrice),
         brand: prod.brand,
-        imageUrl: getImageUrl(prod.code),
+        brand: prod.brand,
+        imageUrl: getImageUrl(prod.code, 'products', 800),
+        thumbnailUrl: getImageUrl(prod.code, 'products', 300),
         capacityDesc: prod.capacity_description,
       };
     });

@@ -43,7 +43,7 @@ const ProductCard = ({ product }) => {
             <div className="relative aspect-square bg-gray-50 overflow-hidden">
                 {product.imageUrl ? (
                     <img
-                        src={product.imageUrl}
+                        src={product.thumbnailUrl || product.imageUrl}
                         alt={product.name}
                         className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-105"
                         loading="lazy"
