@@ -3,6 +3,7 @@ import LoadingSpinner from './components/LoadingSpinner';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
+import ScrollToTop from './components/ScrollToTop';
 
 // --- Contexto y Componentes ---
 import { useAuth } from './context/AuthContext.jsx';
@@ -43,6 +44,7 @@ function App() {
   return (
     <div className="app-container flex flex-col min-h-screen">
       <AnalyticsTracker />
+      <ScrollToTop />
       {isAuthenticated && !firstLogin && (
         <Header onLogout={handleLogout} currentUser={user} />
       )}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Facebook, Instagram, Twitter, Mail, Phone, MapPin, Heart } from 'lucide-react';
+import { Mail, Phone, MapPin, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Footer = () => {
@@ -73,17 +73,7 @@ const Footer = () => {
             <p className="text-sm leading-relaxed text-slate-400">
               Transformamos espacios con color y calidad. Tu socio confiable en pintura y decoración desde hace más de 45 años.
             </p>
-            <div className="flex space-x-4 pt-2">
-              <a href="#" className="hover:text-blue-400 transition-colors duration-300">
-                <Facebook size={20} />
-              </a>
-              <a href="#" className="hover:text-pink-500 transition-colors duration-300">
-                <Instagram size={20} />
-              </a>
-              <a href="#" className="hover:text-blue-400 transition-colors duration-300">
-                <Twitter size={20} />
-              </a>
-            </div>
+
           </div>
 
           {/* Quick Links */}
