@@ -804,10 +804,30 @@ const getProductImages = async (productCodes) => {
  * @returns {Promise<string[]>} - Array de cÃ³digos de productos.
  */
 const getAllProductImageCodes = async () => {
+  const cacheKey = 'products:all_image_codes';
+
+  if (isRedisReady()) {
+    try {
+      const cachedData = await redisClient.get(cacheKey);
+      if (cachedData) {
+        return JSON.parse(cachedData);
+      }
+    } catch (err) {
+      console.error('Redis error in getAllProductImageCodes:', err);
+    }
+  }
+
   try {
     const query = 'SELECT DISTINCT product_code FROM product_images';
     const result = await pool2.query(query);
-    return result.rows.map(row => row.product_code);
+    const codes = result.rows.map(row => row.product_code);
+
+    if (isRedisReady()) {
+      // Cache for 1 hour (3600 seconds) - List of images changes infrequently
+      await redisClient.set(cacheKey, JSON.stringify(codes), { EX: 3600 });
+    }
+
+    return codes;
   } catch (error) {
     console.error('Error in getAllProductImageCodes:', error);
     return [];
@@ -815,14 +835,38 @@ const getAllProductImageCodes = async () => {
 };
 
 const getGlobalDeniedProducts = async () => {
+  const cacheKey = 'products:global_denied';
+
+  if (isRedisReady()) {
+    try {
+      const cachedData = await redisClient.get(cacheKey);
+      if (cachedData) {
+        return JSON.parse(cachedData);
+      }
+    } catch (err) {
+      console.error('Redis error in getGlobalDeniedProducts:', err);
+    }
+  }
+
   try {
     const query = 'SELECT product_code FROM global_product_permissions';
     const result = await pool2.query(query);
-    return result.rows.map(row => row.product_code);
+    const codes = result.rows.map(row => row.product_code);
+
+    if (isRedisReady()) {
+      // Cache for 1 hour
+      await redisClient.set(cacheKey, JSON.stringify(codes), { EX: 3600 });
+    }
+
+    return codes;
   } catch (error) {
     console.error('Error in getGlobalDeniedProducts:', error);
     if (error.code === '42P01') {
       console.warn('[WARNING] Table global_product_permissions does not exist.');
+      // Cache empty array to avoid repeated DB errors if table is missing
+      if (isRedisReady()) {
+        await redisClient.set(cacheKey, JSON.stringify([]), { EX: 600 });
+      }
       return [];
     }
     throw error;
