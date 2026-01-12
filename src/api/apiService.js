@@ -295,6 +295,16 @@ const apiService = {
     return this.request('/admin/clients');
   },
 
+  // (NUEVO) Método para resetear contraseña de usuario por admin
+  resetUserPassword(userId, password) {
+    if (!userId) throw new Error('ID de usuario requerido');
+    if (!password) throw new Error('Contraseña requerida');
+    return this.request(`/admin/users/${userId}/password`, {
+      method: 'PUT',
+      body: { password },
+    });
+  },
+
   createCreditNoteApi({ targetUserCod, reason, items, invoiceRefId }) {
     const body = { targetUserCod, reason, items, invoiceRefId };
     return this.request('/credit-note', { method: 'POST', body });

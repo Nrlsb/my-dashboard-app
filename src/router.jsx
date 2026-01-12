@@ -43,6 +43,7 @@ const ManageNewReleasesPage = lazyImport(() => import('./pages/ManageNewReleases
 const TestUsersPage = lazyImport(() => import('./pages/TestUsersPage.jsx'));
 const TestUserAccessDeniedPage = lazyImport(() => import('./pages/TestUserAccessDeniedPage.jsx'));
 const TestUserExpiredPage = lazyImport(() => import('./pages/TestUserExpiredPage.jsx'));
+const ManageUsersPage = lazyImport(() => import('./pages/ManageUsersPage.jsx')); // NUEVO IMPORT
 
 // Error Element for Dashboard
 const DashboardError = () => (
@@ -346,6 +347,14 @@ const router = createBrowserRouter(
                         <ManageAdminsPage />
                     </Suspense>
                 </PermissionRoute>
+            } />
+
+            <Route path="manage-users" element={
+                <AdminRoute>
+                    <Suspense fallback={<LoadingFallback />}>
+                        <ManageUsersPage />
+                    </Suspense>
+                </AdminRoute>
             } />
 
             <Route path="manage-content" element={

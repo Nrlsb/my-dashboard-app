@@ -72,6 +72,10 @@ router.delete('/roles/:id', requirePermission('manage_admins'), roleController.d
 // (NUEVO) Ruta para obtener todos los clientes
 router.get('/clients', requireAdmin, getAllClientsController); // Add the new route
 
+// (NUEVO) Ruta para resetear contraseña de usuario
+const { resetUserPassword } = require('../controllers/adminController');
+router.put('/users/:userId/password', requireAdmin, resetUserPassword);
+
 const {
   getCarouselGroups,
   createCarouselGroup,

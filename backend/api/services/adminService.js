@@ -1,6 +1,7 @@
 const { pool, pool2 } = require('../db');
 const { formatCurrency } = require('../utils/helpers');
 const productModel = require('../models/productModel');
+const userService = require('./userService');
 
 /**
  * (Admin) Obtiene detalles de CUALQUIER pedido (para NC)
@@ -342,5 +343,23 @@ module.exports = {
   removeAdmin,
   getProductGroupsForAdmin,
   updateGlobalProductPermissions,
+
+  /**
+   * (Admin) Restablece la contraseña de un usuario.
+   * @param {number} userId - ID del usuario.
+   * @param {string} newPassword - Nueva contraseña.
+   */
+  resetUserPassword: async (userId, newPassword) => {
+    try {
+      // Por defecto asumimos que es un 'cliente' si estamos gestionando desde la tabla de usuarios
+      // Si necesitamos soportar vendedores aquí, podríamos verificar primero el tipo de usuario.
+      // Para esta implementación, usaremos 'cliente' ya que la tabla de admins suele gestionar la tabla 'users'.
+      // userService.changePassword maneja el hashing.
+      return await userService.changePassword(userId, newPassword, 'cliente');
+    } catch (error) {
+      console.error(`Error resetUserPassword for user ${userId}:`, error);
+      throw error;
+    }
+  },
 };
 

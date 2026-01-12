@@ -276,6 +276,16 @@ const Header = ({ onLogout, currentUser }) => {
                         </button>
                       )}
 
+                      {(currentUser?.is_admin || hasPermission('manage_admins')) && (
+                        <button
+                          onClick={() => handleNavigation('/manage-users')}
+                          className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-espint-blue rounded-lg transition-colors"
+                        >
+                          <Users className="w-4 h-4 mr-3 text-gray-400" />
+                          Gestionar Usuarios
+                        </button>
+                      )}
+
                       <div className="my-2 border-t border-gray-50"></div>
 
                       <button

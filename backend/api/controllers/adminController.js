@@ -90,3 +90,15 @@ exports.getAllClientsController = catchAsync(async (req, res) => {
     const clients = await userService.getAllClients();
     res.json(clients);
 });
+
+exports.resetUserPassword = catchAsync(async (req, res) => {
+    const { userId } = req.params;
+    const { password } = req.body;
+
+    if (!password) {
+        return res.status(400).json({ message: 'La contraseña es requerida.' });
+    }
+
+    const result = await adminService.resetUserPassword(userId, password);
+    res.json(result);
+});
