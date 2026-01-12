@@ -5,12 +5,12 @@ import { useAuth } from '../context/AuthContext';
 
 const AnalyticsTracker = () => {
     const location = useLocation();
-    const { authToken } = useAuth();
+    const { isAuthenticated } = useAuth();
 
     useEffect(() => {
         const track = async () => {
             try {
-                if (authToken) {
+                if (isAuthenticated) {
                     await apiService.recordVisit(location.pathname);
                 }
             } catch (error) {
@@ -19,7 +19,7 @@ const AnalyticsTracker = () => {
             }
         };
         track();
-    }, [location, authToken]);
+    }, [location, isAuthenticated]);
 
     return null;
 };
