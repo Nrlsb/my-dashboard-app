@@ -399,7 +399,7 @@ const ManageContentPage = () => {
 
             {/* Add Accessory Modal */}
             {showAddAccessoryModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
                     <div className="bg-white p-6 rounded-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold">Agregar Producto</h2>
@@ -447,7 +447,7 @@ const ManageContentPage = () => {
 
             {/* Add Group Modal */}
             {showAddGroupModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
                     <div className="bg-white p-6 rounded-lg w-full max-w-lg">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold">Agregar Grupo al Carousel</h2>
@@ -564,7 +564,7 @@ const ManageContentPage = () => {
 
             {/* Edit Collection Modal */}
             {showEditCollectionModal && currentCollection && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
                     <div className="bg-white p-6 rounded-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold">Editar Colección: {currentCollection.name}</h2>
@@ -648,9 +648,10 @@ const ManageContentPage = () => {
                             <div className="mt-3 text-right">
                                 <button
                                     onClick={handleUpdateGroup}
-                                    className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700 transition"
+                                    className={`bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700 transition ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    disabled={loading}
                                 >
-                                    Guardar Cambios
+                                    {loading ? 'Guardando...' : 'Guardar Cambios'}
                                 </button>
                             </div>
                         </div>
