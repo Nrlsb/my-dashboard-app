@@ -365,6 +365,8 @@ const fetchProductDetails = async (productId, userId = null) => {
       additionalInfo: {},
       product_group: prod.product_group,
       ai_description: prod.ai_description,
+      stock_disponible: prod.stock_disponible,
+      stock_de_seguridad: prod.stock_de_seguridad,
     };
 
     const [enrichedProduct] = await enrichProductsWithImages([productDetails]);
@@ -412,6 +414,8 @@ const fetchProductDetailsByCode = async (productCode, userId = null) => {
       additionalInfo: {},
       product_group: prod.product_group,
       ai_description: prod.ai_description,
+      stock_disponible: prod.stock_disponible,
+      stock_de_seguridad: prod.stock_de_seguridad,
     };
 
     const [enrichedProduct] = await enrichProductsWithImages([productDetails]);

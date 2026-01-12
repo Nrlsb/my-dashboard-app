@@ -217,6 +217,31 @@ const apiService = {
     });
   },
 
+  uploadOrderInvoice(orderId, formData) {
+    if (!orderId) throw new Error('ID de pedido requerido');
+    return this.request(`/orders/${orderId}/invoice`, {
+      method: 'POST',
+      body: formData,
+      isFormData: true,
+    });
+  },
+
+  async downloadOrderInvoice(orderId) {
+    if (!orderId) throw new Error('ID de pedido requerido');
+    const headers = {};
+    if (this.authToken) {
+      headers['Authorization'] = `Bearer ${this.authToken}`;
+    }
+    const response = await fetch(`${API_BASE_URL}/orders/${orderId}/invoice`, {
+      headers,
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Error al descargar la factura.' }));
+      throw new Error(errorData.message || 'Error en la solicitud de descarga.');
+    }
+    return response.blob();
+  },
+
   fetchOffers() {
     return this.request('/products/offers');
   },
@@ -477,6 +502,14 @@ const apiService = {
 
   uploadImages(formData) {
     return this.request('/images/upload', {
+      method: 'POST',
+      body: formData,
+      isFormData: true,
+    });
+  },
+
+  uploadToDrive(formData) {
+    return this.request('/upload/drive', {
       method: 'POST',
       body: formData,
       isFormData: true,

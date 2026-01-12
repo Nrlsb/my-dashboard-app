@@ -72,6 +72,8 @@ const AccessoryCarousel = () => {
               src={item.imageUrl}
               alt={item.name}
               className="w-full h-32 object-contain p-2"
+              referrerPolicy="no-referrer"
+              loading="lazy"
             />
             <div className="p-3">
               <h3 className="text-sm font-bold text-espint-blue whitespace-nowrap truncate">{item.name}</h3>

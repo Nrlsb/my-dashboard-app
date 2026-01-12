@@ -260,7 +260,7 @@ const IndividualImageUpload = () => {
                             <div className="p-4 flex flex-col md:flex-row gap-6">
                                 {/* Image Preview */}
                                 <div className="w-full md:w-1/3 flex-shrink-0">
-                                    <img src={res.imageUrl} alt={res.file} className="w-full h-64 object-contain bg-white rounded-lg border" />
+                                    <img src={res.imageUrl} alt={res.file} className="w-full h-64 object-contain bg-white rounded-lg border" referrerPolicy="no-referrer" />
                                     <p className="text-sm text-gray-500 mt-2 text-center">{res.file}</p>
                                 </div>
 

@@ -6,6 +6,7 @@ import apiService from '../api/apiService';
 import { useAuth } from '../context/AuthContext';
 
 import LoadingSpinner from '../components/LoadingSpinner';
+import { UploadCloud, FileText } from 'lucide-react';
 
 const useCurrencyFormatter = () => {
   return new Intl.NumberFormat('es-AR', {
@@ -21,6 +22,9 @@ function OrderDetailPage() {
   const { user } = useAuth();
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isDownloadingCsv, setIsDownloadingCsv] = useState(false);
+  const [isUploadingInvoice, setIsUploadingInvoice] = useState(false);
+  const [isDownloadingInvoice, setIsDownloadingInvoice] = useState(false);
+  const fileInputRef = React.useRef(null);
 
   const {
     data: orderDetails,
@@ -72,6 +76,56 @@ function OrderDetailPage() {
     }
   };
 
+  const handleInvoiceUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      alert('Solo se permiten archivos PDF.');
+      return;
+    }
+
+    setIsUploadingInvoice(true);
+    const formData = new FormData();
+    formData.append('invoiceFile', file);
+
+    try {
+      await apiService.uploadOrderInvoice(orderId, formData);
+      alert('Factura subida exitosamente.');
+      // Recargar detalles del pedido
+      window.location.reload();
+    } catch (err) {
+      console.error('Error al subir factura:', err);
+      alert(`Error al subir factura: ${err.message}`);
+    } finally {
+      setIsUploadingInvoice(false);
+    }
+  };
+
+  const handleDownloadInvoice = async () => {
+    setIsDownloadingInvoice(true);
+    try {
+      const blob = await apiService.downloadOrderInvoice(orderId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Factura_Pedido_${orderId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error al descargar factura:', err);
+      alert(`Error al descargar factura: ${err.message}`);
+    } finally {
+      setIsDownloadingInvoice(false);
+    }
+  };
+
+  const triggerFileUpload = () => {
+    fileInputRef.current?.click();
+  };
+
   if (isLoading) {
     return <LoadingSpinner text="Cargando detalles del pedido..." />;
   }
@@ -121,6 +175,38 @@ function OrderDetailPage() {
             >
               {isDownloadingCsv ? 'CSV...' : 'Descargar CSV'}
             </button>
+          )}
+
+          {/* Botones de Factura */}
+          {orderDetails.invoice_url && (
+            <button
+              onClick={handleDownloadInvoice}
+              className="flex-1 md:flex-none inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+              disabled={isDownloadingInvoice}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              {isDownloadingInvoice ? 'Descargando...' : 'Descargar Factura'}
+            </button>
+          )}
+
+          {user?.role === 'vendedor' && (
+            <>
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="application/pdf"
+                onChange={handleInvoiceUpload}
+              />
+              <button
+                onClick={triggerFileUpload}
+                className="flex-1 md:flex-none inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-200"
+                disabled={isUploadingInvoice}
+              >
+                <UploadCloud className="w-4 h-4 mr-2" />
+                {isUploadingInvoice ? 'Subiendo...' : 'Adjuntar Factura'}
+              </button>
+            </>
           )}
         </div>
       </div>

@@ -160,9 +160,22 @@ const updateOrderDetails = async (updates) => {
   }
 };
 
+/**
+ * Actualiza la URL de la factura de un pedido.
+ * @param {number} orderId - El ID del pedido.
+ * @param {string} invoiceUrl - La URL/path de la factura.
+ * @returns {Promise<boolean>}
+ */
+const updateOrderInvoice = async (orderId, invoiceUrl) => {
+  const query = 'UPDATE orders SET invoice_url = $1 WHERE id = $2';
+  const result = await pool2.query(query, [invoiceUrl, orderId]);
+  return result.rowCount > 0;
+};
+
 module.exports = {
   validateOrderItems,
   findOrders,
   findOrderDetailsById,
   updateOrderDetails,
+  updateOrderInvoice,
 };

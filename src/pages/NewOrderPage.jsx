@@ -55,7 +55,7 @@ const ProductModal = ({ product, onClose, onAddToCart }) => {
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-50"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
@@ -117,23 +117,18 @@ const ProductModal = ({ product, onClose, onAddToCart }) => {
                 <Plus className="w-4 h-4" />
               </button>
             </div>
-            <span className="text-sm text-gray-500">
-              ({product.stock_disponible} disponibles)
-            </span>
             {product.stock_disponible <= 0 ? (
-              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                <div className="w-2 h-2 bg-red-500 rounded-full mr-1"></div>
-                Sin Stock
+              <span className="ml-2 inline-flex items-center p-1.5 rounded-full bg-red-100 bg-opacity-50 text-red-800" title="Sin Stock">
+                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
               </span>
             ) : product.stock_disponible <= (product.stock_de_seguridad || 0) ? (
-              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 bg-opacity-50 text-yellow-800">
                 <div className="w-2 h-2 bg-yellow-500 rounded-full mr-1"></div>
                 Stock Bajo
               </span>
             ) : (
-              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
-                Disponible
+              <span className="ml-2 inline-flex items-center p-1.5 rounded-full bg-green-100 bg-opacity-50 text-green-800" title="Disponible">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
               </span>
             )}
           </div>
@@ -306,21 +301,18 @@ const NewOrderPage = () => {
               {product.brand} <span className="mx-1">•</span> Cód: {product.code}
             </p>
             <div className="flex items-center mt-1">
-              <span className="text-xs md:text-sm text-gray-500 mr-2">Stock: {product.stock_disponible}</span>
               {product.stock_disponible <= 0 ? (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full mr-1"></div>
-                  Sin Stock
+                <span className="inline-flex items-center p-1.5 rounded-full bg-red-100 bg-opacity-50 text-red-800" title="Sin Stock">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                 </span>
               ) : product.stock_disponible <= (product.stock_de_seguridad || 0) ? (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                  <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-1"></div>
-                  Bajo
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 bg-opacity-50 text-yellow-800">
+                  <div className="w-2 h-2 bg-yellow-500 rounded-full mr-1"></div>
+                  Stock Bajo
                 </span>
               ) : (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></div>
-                  Disponible
+                <span className="inline-flex items-center p-1.5 rounded-full bg-green-100 bg-opacity-50 text-green-800" title="Disponible">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 </span>
               )}
             </div>
@@ -503,14 +495,7 @@ const NewOrderPage = () => {
 
               {cart.length > 0 && (
                 <div className="flex-shrink-0 p-6 border-t border-gray-200 space-y-3">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-700">
-                      Costo de envío:
-                    </span>
-                    <span className="text-sm font-medium text-green-600">
-                      Gratuito
-                    </span>
-                  </div>
+
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-lg font-medium text-gray-900">
                       Total:

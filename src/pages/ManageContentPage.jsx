@@ -493,18 +493,68 @@ const ManageContentPage = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-bold mb-1">URL de Imagen (Opcional)</label>
-                                        <input
-                                            type="text"
-                                            className="w-full border p-2 rounded"
-                                            value={groupImage}
-                                            onChange={(e) => setGroupImage(e.target.value)}
-                                        />
+                                        <label className="block text-sm font-bold mb-1">Imagen de la Colección</label>
+
+                                        {/* Image Preview */}
+                                        {(groupImage) && (
+                                            <div className="mb-2 relative w-full h-32 bg-gray-100 rounded-md overflow-hidden border border-gray-200">
+                                                <img
+                                                    src={groupImage}
+                                                    alt="Preview"
+                                                    className="w-full h-full object-contain"
+                                                    referrerPolicy="no-referrer"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setGroupImage('')}
+                                                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-sm"
+                                                    title="Eliminar imagen"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        <div className="flex items-center gap-2">
+                                            <label className="flex-1 cursor-pointer bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2">
+                                                <Upload className="w-4 h-4" />
+                                                {loading ? 'Subiendo...' : 'Seleccionar Imagen'}
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                    disabled={loading}
+                                                    onChange={async (e) => {
+                                                        const file = e.target.files[0];
+                                                        if (!file) return;
+
+                                                        const previewUrl = URL.createObjectURL(file);
+                                                        setGroupImage(previewUrl); // Show local preview initially
+                                                        setLoading(true);
+
+                                                        const data = new FormData();
+                                                        data.append('image', file);
+
+                                                        try {
+                                                            const res = await apiService.uploadToDrive(data);
+                                                            setGroupImage(res.imageUrl);
+                                                            toast.success('Imagen subida a Drive correctamente');
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                            toast.error('Error al subir imagen');
+                                                            setGroupImage(''); // Reset on error
+                                                        } finally {
+                                                            setLoading(false);
+                                                        }
+                                                    }}
+                                                />
+                                            </label>
+                                        </div>
                                     </div>
                                 </>
                             )}
 
-                            <button type="submit" className="w-full bg-espint-blue text-white py-2 rounded font-bold hover:bg-blue-800 transition">
+                            <button type="submit" className="w-full bg-espint-blue text-white py-2 rounded font-bold hover:bg-blue-800 transition" disabled={loading}>
                                 Crear Grupo
                             </button>
                         </form>
@@ -535,13 +585,64 @@ const ManageContentPage = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold mb-1">URL de Imagen</label>
-                                    <input
-                                        type="text"
-                                        className="w-full border p-2 rounded"
-                                        value={editGroupImage}
-                                        onChange={(e) => setEditGroupImage(e.target.value)}
-                                    />
+                                    <label className="block text-sm font-bold mb-1">Imagen</label>
+
+                                    {/* Image Preview for Edit */}
+                                    {(editGroupImage) && (
+                                        <div className="mb-2 relative w-full h-32 bg-white rounded-md overflow-hidden border border-gray-200">
+                                            <img
+                                                src={editGroupImage}
+                                                alt="Preview"
+                                                className="w-full h-full object-contain"
+                                                referrerPolicy="no-referrer"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setEditGroupImage('')}
+                                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-sm"
+                                                title="Eliminar imagen"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    <div className="flex items-center gap-2">
+                                        <label className="flex-1 cursor-pointer bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2">
+                                            <Upload className="w-4 h-4" />
+                                            {loading ? 'Subiendo...' : 'Cambiar Imagen'}
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                disabled={loading}
+                                                onChange={async (e) => {
+                                                    const file = e.target.files[0];
+                                                    if (!file) return;
+
+                                                    const previewUrl = URL.createObjectURL(file);
+                                                    setEditGroupImage(previewUrl);
+                                                    setLoading(true);
+
+                                                    const data = new FormData();
+                                                    data.append('image', file);
+
+                                                    try {
+                                                        const res = await apiService.uploadToDrive(data);
+                                                        setEditGroupImage(res.imageUrl);
+                                                        toast.success('Imagen subida a Drive correctamente');
+                                                    } catch (err) {
+                                                        console.error(err);
+                                                        toast.error('Error al subir imagen');
+                                                        setEditGroupImage('');
+                                                    } finally {
+                                                        setLoading(false);
+                                                    }
+                                                }}
+                                            />
+                                        </label>
+                                    </div>
+
                                 </div>
                             </div>
                             <div className="mt-3 text-right">

@@ -110,6 +110,7 @@ const NewReleasesBanner = ({ products: propProducts }) => {
                         src={currentProduct.custom_image_url || currentProduct.imageUrl}
                         alt={currentProduct.name}
                         className="w-full h-full object-contain drop-shadow-xl transition-transform duration-500 group-hover:scale-110"
+                        referrerPolicy="no-referrer"
                     />
                 ) : (
                     <div className="flex flex-col items-center text-white/50">

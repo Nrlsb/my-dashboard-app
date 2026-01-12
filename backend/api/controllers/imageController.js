@@ -1,5 +1,5 @@
 const fs = require('fs');
-const { uploadImage } = require('../services/cloudinaryService');
+const { uploadFile } = require('../services/googleDriveService');
 const { identifyProductFromImage, selectBestMatch } = require('../services/geminiService');
 const { saveProductImage, replaceProductImage } = require('../services/imageService');
 const { pool } = require('../db'); // DB1 for reading products
@@ -36,12 +36,12 @@ const uploadAndAnalyzeImage = async (req, res) => {
                     logger.info(`AI Analysis for ${originalName}: SKIPPED (useAI=false)`);
                 }
 
-                // 2. Upload to Cloudinary
-                const publicId = `temp_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-                const uploadResult = await uploadImage(filePath, publicId, 'temp_uploads');
-                console.log('Upload Result:', JSON.stringify(uploadResult, null, 2));
-                const imageUrl = uploadResult.secure_url;
-                console.log('Generated Image URL:', imageUrl);
+                // 2. Upload to Google Drive
+                const uploadResult = await uploadFile(file);
+                console.log('Drive Upload Result:', JSON.stringify(uploadResult, null, 2));
+                const imageUrl = uploadResult.directLink;
+                console.log('File ID:', uploadResult.id);
+                console.log('Generated Drive URL:', imageUrl);
 
                 // 3. Search for potential product matches in DB1
                 let foundProducts = [];

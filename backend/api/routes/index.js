@@ -18,6 +18,7 @@ router.use('/images', require('./image.routes'));
 router.use('/analytics', require('./analytics.routes'));
 router.use('/reports', require('./report.routes'));
 router.use('/test-users', require('./testUserRoutes'));
+router.use('/upload', require('./upload.routes'));
 
 
 module.exports = router;

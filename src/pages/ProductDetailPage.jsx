@@ -86,23 +86,21 @@ export default function ProductDetailPage() {
 
     if (stock <= 0) {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-          <div className="w-2 h-2 bg-red-500 rounded-full mr-1"></div>
-          Sin Stock
+        <span className="inline-flex items-center p-1.5 rounded-full bg-red-100 bg-opacity-50 text-red-800" title="Sin Stock">
+          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
         </span>
       );
     } else if (stock <= securityStock) {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 bg-opacity-50 text-yellow-800">
           <div className="w-2 h-2 bg-yellow-500 rounded-full mr-1"></div>
           Stock Bajo
         </span>
       );
     } else {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-          <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
-          Disponible
+        <span className="inline-flex items-center p-1.5 rounded-full bg-green-100 bg-opacity-50 text-green-800" title="Disponible">
+          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
         </span>
       );
     }
@@ -130,6 +128,7 @@ export default function ProductDetailPage() {
                 src={product.imageUrl}
                 alt={product.name}
                 className="w-full h-full object-contain"
+                referrerPolicy="no-referrer"
               />
             ) : (
               <>
@@ -209,9 +208,6 @@ export default function ProductDetailPage() {
                 <span>Cód: {product.code}</span>
               </div>
               <div className="flex items-center font-medium">
-                <span className="mr-2">
-                  Stock: {product.stock_disponible !== undefined ? product.stock_disponible : product.stock}
-                </span>
                 {renderStockStatus(product)}
               </div>
             </div>

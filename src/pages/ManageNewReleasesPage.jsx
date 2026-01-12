@@ -8,7 +8,7 @@ import {
     useQueryClient,
     useMutation,
 } from '@tanstack/react-query';
-import { Loader2, ArrowLeft, Search, CheckCircle, XCircle, Edit2, Save, X, Star, Filter } from 'lucide-react';
+import { Loader2, ArrowLeft, Search, CheckCircle, XCircle, Edit2, Save, X, Star, Filter, Upload } from 'lucide-react';
 import apiService from '../api/apiService.js';
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -88,16 +88,65 @@ const EditReleaseModal = ({ product, onClose, onSave, isSaving }) => {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            URL de Imagen Personalizada
+                            Imagen Personalizada
                         </label>
-                        <input
-                            type="text"
-                            name="custom_image_url"
-                            value={formData.custom_image_url}
-                            onChange={handleChange}
-                            placeholder="https://ejemplo.com/imagen.jpg"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+
+                        {/* Image Preview */}
+                        {(formData.custom_image_url || formData.previewUrl) && (
+                            <div className="mb-2 relative w-full h-48 bg-gray-100 rounded-md overflow-hidden border border-gray-200">
+                                <img
+                                    src={formData.previewUrl || formData.custom_image_url}
+                                    alt="Preview"
+                                    className="w-full h-full object-contain"
+                                    referrerPolicy="no-referrer"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData(prev => ({ ...prev, custom_image_url: '', previewUrl: '' }))}
+                                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-sm"
+                                    title="Eliminar imagen"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="flex items-center gap-2">
+                            <label className="flex-1 cursor-pointer bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2">
+                                <Upload className="w-4 h-4" />
+                                {formData.isUploading ? 'Subiendo...' : 'Seleccionar Imagen'}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    disabled={formData.isUploading}
+                                    onChange={async (e) => {
+                                        const file = e.target.files[0];
+                                        if (!file) return;
+
+                                        const previewUrl = URL.createObjectURL(file);
+                                        setFormData(prev => ({ ...prev, isUploading: true, previewUrl }));
+
+                                        const data = new FormData();
+                                        data.append('image', file);
+
+                                        try {
+                                            const res = await apiService.uploadToDrive(data);
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                custom_image_url: res.imageUrl,
+                                                isUploading: false
+                                            }));
+                                            toast.success('Imagen subida a Drive correctamente');
+                                        } catch (err) {
+                                            console.error(err);
+                                            toast.error('Error al subir imagen');
+                                            setFormData(prev => ({ ...prev, isUploading: false }));
+                                        }
+                                    }}
+                                />
+                            </label>
+                        </div>
                     </div>
 
                     <div className="pt-4 flex justify-end space-x-3">

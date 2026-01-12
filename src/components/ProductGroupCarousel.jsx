@@ -66,6 +66,8 @@ const ProductGroupCarousel = () => {
                 src={group.imageUrl}
                 alt={group.name}
                 className="w-full h-32 md:h-32 object-cover"
+                referrerPolicy="no-referrer"
+                loading="lazy"
               />
             ) : (
               <div className="w-full h-full md:h-32 bg-[#183B64] flex items-center justify-center p-4">

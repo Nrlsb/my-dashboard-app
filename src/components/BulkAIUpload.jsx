@@ -145,7 +145,7 @@ const BulkAIUpload = () => {
                     {uploadResults.map((result, idx) => (
                         <div key={idx} className={`border rounded p-4 flex flex-col md:flex-row gap-4 ${result.assigned ? 'bg-green-50 border-green-200' : 'bg-gray-50'}`}>
                             <div className="w-32 h-32 shrink-0 bg-white rounded border flex items-center justify-center overflow-hidden">
-                                <img src={result.imageUrl} alt={result.file} className="max-w-full max-h-full object-contain" />
+                                <img src={result.imageUrl} alt={result.file} className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />
                             </div>
 
                             <div className="flex-1">

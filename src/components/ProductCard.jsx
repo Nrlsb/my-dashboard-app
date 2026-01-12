@@ -34,6 +34,7 @@ const ProductCard = ({ product }) => {
                         alt={product.name}
                         className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-105"
                         loading="lazy"
+                        referrerPolicy="no-referrer"
                     />
                 ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
