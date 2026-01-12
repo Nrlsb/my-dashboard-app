@@ -33,6 +33,21 @@ const Footer = () => {
               },
               { name: 'Cetol', value: 'AKZO NOBEL - CETOL', img: 'https://res.cloudinary.com/dstuwukxl/image/upload/v1766495632/Cetol_bt7kvk.png' },
               { name: 'Lumar', value: 'LUMAR', img: 'https://res.cloudinary.com/dstuwukxl/image/upload/v1766495729/fSj32K3OOShrXD1ooaDT8sjiaRuR5x4aJf2lvu3c_nactdj.png' },
+              {
+                name: 'Sinteplast',
+                value: 'SINTEPLAST,SINTEPLAST INDUSTRIA,SINTEPLAST SISTEMA',
+                img: 'https://lh3.googleusercontent.com/d/1Mwn-r8JxeSKTHOXjIcE_R3bgd1nOkeVE'
+              },
+              {
+                name: 'Plavicon',
+                value: 'PLAVICON,PLAVICON INDUSTRIA,PLAVICON SISTEMA',
+                img: 'https://lh3.googleusercontent.com/d/1AIp5DCbXc7SoHEh58ORv7Go1g9c-fhTn'
+              },
+              {
+                name: 'Petrilac',
+                value: 'PETRILAC,PETRILAC FERRO BET',
+                img: 'https://lh3.googleusercontent.com/d/1HdC40nPvYgbaMYQTTgmjf5uHGVZu1ksD'
+              },
             ].map((brand) => (
               <Link
                 key={brand.name}
