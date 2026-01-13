@@ -8,6 +8,34 @@ const { pool, pool2 } = require('../db');
  * @returns {Promise<object|null>}
  */
 const findUserByEmail = async (email) => {
+  try {
+    // 1. Try to find user in DB2 (New Source for Admins/Marketing)
+    const db2Result = await pool2.query(
+      `SELECT u.*, uc.password_hash, uc.temp_password_hash 
+       FROM users u
+       LEFT JOIN user_credentials uc ON u.id = uc.user_id
+       WHERE u.email = $1`,
+      [email]
+    );
+
+    if (db2Result.rows.length > 0) {
+      const user = db2Result.rows[0];
+      console.log(`[userModel] User found in DB2: ${email}`);
+
+      // Determine role from DB2
+      const roleData = await getUserRoleFromDB2(user.id);
+      user.role = roleData ? roleData.role : 'cliente'; // Should be admin/marketing usually
+      user.permissions = roleData ? roleData.permissions : [];
+      user.is_admin = user.role === 'admin';
+
+      return user;
+    }
+  } catch (err) {
+    console.error('[userModel] Error checking DB2 for user:', err);
+    // Fallback to DB1 on error
+  }
+
+  // 2. Fallback to DB1 (Legacy/Clients)
   const result = await pool.query(
     `SELECT u.*, v.nombre as vendedor_nombre, v.telefono as vendedor_telefono, v.email as vendedor_email 
      FROM users u 
@@ -55,6 +83,31 @@ const findUserById = async (userId) => {
     return null;
   }
 
+  try {
+    // 1. Try to find user in DB2
+    const db2Result = await pool2.query(
+      `SELECT u.*, uc.password_hash, uc.temp_password_hash 
+       FROM users u
+       LEFT JOIN user_credentials uc ON u.id = uc.user_id
+       WHERE u.id = $1`,
+      [numericUserId]
+    );
+
+    if (db2Result.rows.length > 0) {
+      const user = db2Result.rows[0];
+
+      const roleData = await getUserRoleFromDB2(user.id);
+      user.role = roleData ? roleData.role : 'cliente';
+      user.permissions = roleData ? roleData.permissions : [];
+      user.is_admin = user.role === 'admin';
+
+      return user;
+    }
+  } catch (err) {
+    console.error('[userModel] Error checking DB2 by ID:', err);
+  }
+
+  // 2. Fallback to DB1
   const result = await pool.query(
     `SELECT u.id, u.full_name, u.email, u.a1_cod, u.a1_loja, u.a1_cgc, u.a1_tel, u.a1_endereco, u.is_admin, u.vendedor_codigo, v.nombre as vendedor_nombre, v.telefono as vendedor_telefono, v.email as vendedor_email 
      FROM users u 

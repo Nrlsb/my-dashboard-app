@@ -19,6 +19,13 @@ exports.createTestUser = catchAsync(async (req, res, next) => {
         return next(new AppError('Nombre y contraseña son obligatorios.', 400));
     }
 
+    if (req.user.role === 'vendedor') {
+        const currentUsers = await testUserModel.getTestUsersByVendor(vendedorCode);
+        if (currentUsers.length >= 5) {
+            return next(new AppError('Has alcanzado el límite máximo de 5 usuarios de prueba activos. Elimina alguno para crear uno nuevo.', 400));
+        }
+    }
+
     const newUser = await testUserModel.createTestUser(vendedorCode, { name, password, cellphone });
 
     res.status(201).json({

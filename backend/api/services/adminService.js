@@ -207,40 +207,25 @@ const updateGlobalProductPermissions = async (productCodes) => {
  */
 const getAdmins = async () => {
   try {
-    // 1. Fetch all users with roles from DB2
-    const query = `
-      SELECT ur.user_id, ur.assigned_at, r.name as role_name, r.permissions
+    // 1. Fetch all users with roles from DB2 (users table joined with user_roles)
+    constquery = `
+      SELECT u.id, u.full_name, u.email, u.created_at, ur.assigned_at, r.name as role_name, r.permissions
       FROM user_roles ur
       JOIN roles r ON ur.role_id = r.id
+      JOIN users u ON ur.user_id = u.id
       ORDER BY ur.assigned_at DESC
     `;
     const result = await pool2.query(query);
 
-    if (result.rows.length === 0) {
-      return [];
-    }
-
-    const privilegedUsers = result.rows;
-    const userIds = privilegedUsers.map((row) => row.user_id);
-
-    // 2. Fetch user details from DB1
-    const usersResult = await pool.query(
-      'SELECT id, full_name, email FROM users WHERE id = ANY($1::int[])',
-      [userIds]
-    );
-
-    // 3. Merge data
-    const usersMap = new Map(usersResult.rows.map(u => [u.id, u]));
-
-    return privilegedUsers.map(p => {
-      const userDetails = usersMap.get(p.user_id);
-      return userDetails ? {
-        ...userDetails,
-        role: p.role_name,
-        permissions: p.permissions,
-        assigned_at: p.assigned_at
-      } : null;
-    }).filter(u => u !== null);
+    return result.rows.map(row => ({
+      id: row.id,
+      full_name: row.full_name,
+      email: row.email,
+      role: row.role_name,
+      permissions: row.permissions,
+      assigned_at: row.assigned_at,
+      created_at: row.created_at
+    }));
 
   } catch (error) {
     console.error('Error en getAdmins:', error);

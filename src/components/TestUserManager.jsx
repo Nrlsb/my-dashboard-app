@@ -16,6 +16,8 @@ const TestUserManager = () => {
     const [selectedUser, setSelectedUser] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
+    const MAX_TEST_USERS = 5;
+
     const { data: users = [], isLoading } = useQuery({
         queryKey: ['testUsers'],
         queryFn: async () => {
@@ -23,6 +25,8 @@ const TestUserManager = () => {
             return response.data.users || [];
         },
     });
+
+    const isLimitReached = users.length >= MAX_TEST_USERS;
 
     const createMutation = useMutation({
         mutationFn: (newData) => apiService.createTestUser(newData),
@@ -80,6 +84,11 @@ const TestUserManager = () => {
             {/* Formulario de creación */}
             <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-700 mb-4">Crear Nuevo Usuario</h3>
+                {isLimitReached && (
+                    <div className="mb-4 text-amber-700 bg-amber-50 p-3 rounded border border-amber-200">
+                        Has alcanzado el límite de {MAX_TEST_USERS} usuarios activos. Debes eliminar uno para poder crear otro.
+                    </div>
+                )}
                 {error && <div className="mb-4 text-red-600 bg-red-50 p-3 rounded">{error}</div>}
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div>
@@ -89,8 +98,9 @@ const TestUserManager = () => {
                             name="name"
                             value={formData.name}
                             onChange={handleChange}
-                            className="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
+                            className="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border disabled:bg-gray-100 disabled:text-gray-500"
                             placeholder="Ej. Cliente Prueba"
+                            disabled={isLimitReached}
                         />
                     </div>
                     <div>
@@ -100,8 +110,9 @@ const TestUserManager = () => {
                             name="password"
                             value={formData.password}
                             onChange={handleChange}
-                            className="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
+                            className="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border disabled:bg-gray-100 disabled:text-gray-500"
                             placeholder="Contraseña"
+                            disabled={isLimitReached}
                         />
                     </div>
                     <div>
@@ -111,14 +122,18 @@ const TestUserManager = () => {
                             name="cellphone"
                             value={formData.cellphone}
                             onChange={handleChange}
-                            className="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
+                            className="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border disabled:bg-gray-100 disabled:text-gray-500"
                             placeholder="Ej. +549..."
+                            disabled={isLimitReached}
                         />
                     </div>
                     <button
                         type="submit"
-                        disabled={createMutation.isPending}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 h-[42px]"
+                        disabled={createMutation.isPending || isLimitReached}
+                        className={`px-4 py-2 rounded-md transition-colors flex items-center justify-center gap-2 h-[42px] ${isLimitReached || createMutation.isPending
+                                ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                            }`}
                     >
                         {createMutation.isPending ? 'Creando...' : 'Crear Usuario'}
                     </button>
@@ -141,6 +156,7 @@ const TestUserManager = () => {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credenciales</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contacto</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Creado</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Baja Automática</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                                 </tr>
                             </thead>
@@ -156,6 +172,9 @@ const TestUserManager = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {new Date(user.created_at).toLocaleDateString()}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {new Date(new Date(user.created_at).getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString()}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex items-center justify-end gap-2">
                                             <button
