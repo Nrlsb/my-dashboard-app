@@ -346,6 +346,35 @@ const findUserByCode = async (code) => {
   // aunque a1_cod en DB suele ser varchar.
   const cleanCode = String(code).trim();
 
+  // 1. Try to find user in DB2 (New Source for Admins/Marketing)
+  // [RESTORING THIS BLOCK AS REQUESTED]
+  try {
+    const db2Result = await pool2.query(
+      `SELECT u.*, uc.password_hash, uc.temp_password_hash 
+       FROM users u
+       LEFT JOIN user_credentials uc ON u.id = uc.user_id
+       WHERE u.a1_cod = $1`,
+      [cleanCode]
+    );
+
+    if (db2Result.rows.length > 0) {
+      const user = db2Result.rows[0];
+      console.log(`[userModel] User found in DB2 by Code: ${cleanCode}`);
+
+      // Determine role from DB2
+      const roleData = await getUserRoleFromDB2(user.id);
+      user.role = roleData ? roleData.role : 'cliente';
+      user.permissions = roleData ? roleData.permissions : [];
+      user.is_admin = user.role === 'admin';
+
+      return user;
+    }
+  } catch (err) {
+    console.error('[userModel] Error checking DB2 by Code:', err);
+  }
+
+  // 2. Fallback to DB1 (Legacy)
+
   const result = await pool.query(
     `SELECT u.*, v.nombre as vendedor_nombre, v.telefono as vendedor_telefono, v.email as vendedor_email 
      FROM users u 
