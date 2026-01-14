@@ -234,7 +234,7 @@ const findProducts = async ({
 
 
   if (brands && brands.length > 0) {
-    const brandQuery = ` sbm_desc = ANY($${paramIndex}::varchar[])`;
+    const brandQuery = ` TRIM(sbm_desc) = ANY($${paramIndex}::varchar[])`;
     countQuery += ` AND ${brandQuery} `;
     dataQuery += ` AND ${brandQuery} `;
     queryParams.push(brands);
@@ -1005,7 +1005,7 @@ const findProductsWithImagesNoDescription = async (limit = 50) => {
 const findUniqueBrands = async (deniedGroups = []) => {
   try {
     let query = `
-      SELECT DISTINCT sbm_desc AS brand 
+      SELECT DISTINCT TRIM(sbm_desc) AS brand 
       FROM products 
       WHERE sbm_desc IS NOT NULL AND sbm_desc != ''
     `;
