@@ -119,6 +119,18 @@ const syncProducts = async () => {
                 }
             }
 
+            // 3. Delete products that are not in the fetched list (Cleanup)
+            const syncedCodes = products.map(p => p.b1_cod.trim());
+            if (syncedCodes.length > 0) {
+                const deleteRes = await client.query(
+                    'DELETE FROM products WHERE NOT (b1_cod = ANY($1))',
+                    [syncedCodes]
+                );
+                if (deleteRes.rowCount > 0) {
+                    logger.info(`Deleted ${deleteRes.rowCount} obsolete products from DB2.`);
+                }
+            }
+
             await client.query('COMMIT');
             logger.info(`Synced ${products.length} products (Basic Data + Descriptions).`);
         } catch (e) {
