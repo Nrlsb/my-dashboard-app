@@ -227,9 +227,9 @@ const fetchProducts = async ({
         capacityValue: null,
         moneda: prod.moneda,
         cotizacion:
-          prod.moneda === 2
+          moneda === 2
             ? ventaBillete
-            : prod.moneda === 3
+            : moneda === 3
               ? ventaDivisa
               : 1,
         originalPrice: originalPrice,
