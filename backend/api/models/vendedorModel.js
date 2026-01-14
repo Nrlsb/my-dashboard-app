@@ -29,7 +29,7 @@ const findVendedorByEmail = async (email) => {
 
     // 3. Buscar credenciales en DB2 (user_credentials) usando el email
     const credsResult = await pool2.query(
-      'SELECT password_hash, temp_password_hash FROM user_credentials WHERE email = $1',
+      'SELECT user_id, password_hash, temp_password_hash FROM user_credentials WHERE email = $1',
       [cleanEmail]
     );
 
@@ -45,6 +45,7 @@ const findVendedorByEmail = async (email) => {
       temp_password_hash: credentials.temp_password_hash || null,
       // Mapear password_hash a password para compatibilidad si userService lo usa así
       password: credentials.password_hash || null,
+      user_id: credentials.user_id || null,
       // Internal fields for auth logic
       a1_cod: seller.a3_cod.trim(),
       role: 'vendedor'

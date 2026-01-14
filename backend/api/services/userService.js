@@ -99,7 +99,7 @@ const authenticateUser = async (email, password) => {
 
         if (vendedorRecord) {
           user = {
-            id: vendedorRecord.codigo,
+            id: vendedorRecord.user_id || vendedorRecord.codigo, // Prefer DB ID if available
             password_hash: vendedorRecord.password,
             temp_password_hash: vendedorRecord.temp_password_hash,
             full_name: vendedorRecord.nombre,

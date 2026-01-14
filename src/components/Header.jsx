@@ -66,10 +66,10 @@ const Header = ({ onLogout, currentUser }) => {
           {/* Right: User & Seller Info */}
           <div className="flex items-center gap-6">
             {/* Seller Name (Visible) */}
-            {currentUser?.vendedor_nombre && (
+            {currentUser?.vendedor?.nombre && (
               <div className="flex items-center gap-2 text-white/70">
                 <span className="uppercase tracking-wider text-[10px]">Tu Vendedor:</span>
-                <span className="text-espint-green font-semibold">{currentUser.vendedor_nombre}</span>
+                <span className="text-espint-green font-semibold">{currentUser.vendedor.nombre}</span>
               </div>
             )}
 
@@ -89,16 +89,16 @@ const Header = ({ onLogout, currentUser }) => {
                   className="absolute right-0 top-full mt-3 w-72 bg-white rounded-xl shadow-2xl border border-gray-100 p-5 z-50 text-gray-800 transform origin-top-right animate-in fade-in slide-in-from-top-2"
                   onMouseLeave={() => setIsSellerInfoOpen(false)}
                 >
-                  {currentUser?.vendedor_nombre && (
+                  {currentUser?.vendedor?.nombre && (
                     <div className="space-y-3">
-                      {currentUser?.vendedor_telefono && (
+                      {currentUser.vendedor.telefono && (
                         <div className="flex items-start gap-3 group/item">
                           <div className="mt-0.5 p-1.5 rounded-lg bg-gray-50 group-hover/item:bg-espint-blue/5 transition-colors">
                             <Phone className="w-3.5 h-3.5 text-gray-400 group-hover/item:text-espint-blue transition-colors" />
                           </div>
                           <div>
                             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Teléfono</p>
-                            <p className="text-sm font-medium text-gray-700">{currentUser.vendedor_telefono}</p>
+                            <p className="text-sm font-medium text-gray-700">{currentUser.vendedor.telefono}</p>
                           </div>
                         </div>
                       )}
@@ -110,7 +110,7 @@ const Header = ({ onLogout, currentUser }) => {
                         <div>
                           <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Email</p>
                           <p className="text-sm font-medium text-gray-700 break-all">
-                            {currentUser.vendedor_email || <span className="text-red-400 italic">Email no disponible</span>}
+                            {currentUser.vendedor.email || <span className="text-red-400 italic">Email no disponible</span>}
                           </p>
                         </div>
                       </div>

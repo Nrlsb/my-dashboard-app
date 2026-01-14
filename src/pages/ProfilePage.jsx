@@ -196,7 +196,7 @@ export default function ProfilePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <ProfileInput
               icon={User}
-              label="Código de Cliente"
+              label={user?.role === 'vendedor' ? "Código de Vendedor" : "Código de Cliente"}
               id="A1_COD"
               value={formData.A1_COD}
               onChange={handleChange}
@@ -207,30 +207,35 @@ export default function ProfilePage() {
 
           <ProfileInput
             icon={User}
-            label="Nombre / Razón Social"
+            label={user?.role === 'vendedor' ? "Nombre" : "Nombre / Razón Social"}
             id="A1_NOME"
             value={formData.A1_NOME}
             onChange={handleChange}
             disabled={mutation.isPending}
           />
 
-          <ProfileInput
-            icon={User}
-            label="CUIT"
-            id="A1_CGC"
-            value={formData.A1_CGC}
-            onChange={handleChange}
-            disabled={mutation.isPending}
-          />
+          {/* Mostrar CUIT y Dirección solo si NO es vendedor */}
+          {user?.role !== 'vendedor' && (
+            <>
+              <ProfileInput
+                icon={User}
+                label="CUIT"
+                id="A1_CGC"
+                value={formData.A1_CGC}
+                onChange={handleChange}
+                disabled={mutation.isPending}
+              />
 
-          <ProfileInput
-            icon={Home}
-            label="Dirección"
-            id="A1_END"
-            value={formData.A1_END}
-            onChange={handleChange}
-            disabled={mutation.isPending}
-          />
+              <ProfileInput
+                icon={Home}
+                label="Dirección"
+                id="A1_END"
+                value={formData.A1_END}
+                onChange={handleChange}
+                disabled={mutation.isPending}
+              />
+            </>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <ProfileInput
