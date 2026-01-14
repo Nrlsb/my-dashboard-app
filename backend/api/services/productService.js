@@ -6,6 +6,7 @@ const { pool, pool2 } = require('../db'); // Solo para verificar si el usuario e
 const { getImageUrl } = require('./cloudinaryService');
 const userModel = require('../models/userModel'); // Import userModel
 const geminiService = require('./geminiService');
+const protheusService = require('./protheusService');
 
 // Global variable to track batch generation progress
 let batchProgress = {
@@ -386,12 +387,42 @@ const fetchProductDetails = async (productId, userId = null) => {
       return null;
     }
 
+    // --- REAL TIME SYNC START ---
+    try {
+      const [liveProduct, livePrice] = await Promise.all([
+        protheusService.getProductByCode(prod.code),
+        protheusService.getPriceByCode(prod.code)
+      ]);
+
+      if (liveProduct && liveProduct.stock_disp !== undefined) {
+        prod.stock_disponible = parseFloat(liveProduct.stock_disp || 0);
+        prod.stock_de_seguridad = parseFloat(liveProduct.stock_prev || 0);
+      }
+      if (livePrice && livePrice.da1_prcven !== undefined) {
+        prod.price = parseFloat(livePrice.da1_prcven || 0);
+        prod.moneda = parseInt(livePrice.da1_moeda || 1);
+      }
+    } catch (err) {
+      console.error(`[RealTime] Failed to fetch live data for ${prod.code}`, err);
+    }
+    // --- REAL TIME SYNC END ---
+
+    // Currency Conversion
+    let exchangeRates = { venta_billete: 1, venta_divisa: 1 };
+    try { exchangeRates = await getExchangeRates(); } catch (e) { console.error('Error fetching rates', e); }
+    const ventaBillete = exchangeRates.venta_billete || 1;
+    const ventaDivisa = exchangeRates.venta_divisa || 1;
+
+    let finalPrice = prod.price;
+    if (prod.moneda === 2) finalPrice = prod.price * ventaBillete;
+    if (prod.moneda === 3) finalPrice = prod.price * ventaDivisa;
+
     const productDetails = {
       id: prod.id,
       code: prod.code,
       name: prod.description,
-      price: prod.price,
-      formattedPrice: formatCurrency(prod.price),
+      price: finalPrice,
+      formattedPrice: formatCurrency(finalPrice),
       brand: prod.brand,
       brand: prod.brand,
       imageUrl: getImageUrl(prod.code, 'products', 800),
@@ -437,12 +468,42 @@ const fetchProductDetailsByCode = async (productCode, userId = null) => {
       return null;
     }
 
+    // --- REAL TIME SYNC START ---
+    try {
+      const [liveProduct, livePrice] = await Promise.all([
+        protheusService.getProductByCode(prod.code),
+        protheusService.getPriceByCode(prod.code)
+      ]);
+
+      if (liveProduct && liveProduct.stock_disp !== undefined) {
+        prod.stock_disponible = parseFloat(liveProduct.stock_disp || 0);
+        prod.stock_de_seguridad = parseFloat(liveProduct.stock_prev || 0);
+      }
+      if (livePrice && livePrice.da1_prcven !== undefined) {
+        prod.price = parseFloat(livePrice.da1_prcven || 0);
+        prod.moneda = parseInt(livePrice.da1_moeda || 1);
+      }
+    } catch (err) {
+      console.error(`[RealTime] Failed to fetch live data for ${prod.code}`, err);
+    }
+    // --- REAL TIME SYNC END ---
+
+    // Currency Conversion
+    let exchangeRates = { venta_billete: 1, venta_divisa: 1 };
+    try { exchangeRates = await getExchangeRates(); } catch (e) { console.error('Error fetching rates', e); }
+    const ventaBillete = exchangeRates.venta_billete || 1;
+    const ventaDivisa = exchangeRates.venta_divisa || 1;
+
+    let finalPrice = prod.price;
+    if (prod.moneda === 2) finalPrice = prod.price * ventaBillete;
+    if (prod.moneda === 3) finalPrice = prod.price * ventaDivisa;
+
     const productDetails = {
       id: prod.id,
       code: prod.code,
       name: prod.description,
-      price: prod.price,
-      formattedPrice: formatCurrency(prod.price),
+      price: finalPrice,
+      formattedPrice: formatCurrency(finalPrice),
       brand: prod.brand,
       brand: prod.brand,
       imageUrl: getImageUrl(prod.code, 'products', 800),

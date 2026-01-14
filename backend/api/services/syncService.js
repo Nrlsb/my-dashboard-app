@@ -38,9 +38,7 @@ const syncProducts = async () => {
             {}, // No server-side params since they are ignored
             (pageObjects) => {
                 for (const item of pageObjects) {
-                    if (item.bz_filial === '010100') {
-                        indicatorMap.set(item.bz_cod.trim(), item);
-                    }
+                    indicatorMap.set(item.bz_cod.trim(), item);
                 }
             }
         );
@@ -60,6 +58,8 @@ const syncProducts = async () => {
             await client.query('BEGIN');
 
             let missCount = 0;
+            let batchCount = 0;
+            const BATCH_SIZE = 50;
 
             for (const p of products) {
                 // Prepare descriptions
@@ -111,6 +111,12 @@ const syncProducts = async () => {
                         p.b1_qe
                     ]
                 );
+
+                batchCount++;
+                if (batchCount % BATCH_SIZE === 0) {
+                    await client.query('COMMIT');
+                    await client.query('BEGIN');
+                }
             }
 
             await client.query('COMMIT');
@@ -251,9 +257,9 @@ const syncSellers = async () => {
 const runFullSync = async () => {
     logger.info('=== Starting Full Sync with Unified Product Data ===');
     await syncProducts();
-    await syncClients();
-    await syncSellers();
+    // await syncClients();
+    // await syncSellers();
     logger.info('=== Full Sync Completed ===');
 };
 
-module.exports = { runFullSync };
+module.exports = { runFullSync, syncProducts };

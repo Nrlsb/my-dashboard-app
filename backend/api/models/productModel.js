@@ -339,7 +339,7 @@ const findProductById = async (productId, deniedGroups = []) => {
 SELECT
 id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, b1_grupo AS brand,
   z02_descri AS capacity_description, b1_grupo AS product_group,
-  stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad
+  stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, da1_moeda AS moneda
       FROM products
       WHERE id = $1 AND da1_prcven > 0 AND b1_desc IS NOT NULL
     `;
@@ -382,7 +382,7 @@ const findProductByCode = async (productCode, deniedGroups = []) => {
 SELECT
 id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, b1_grupo AS brand,
   z02_descri AS capacity_description, b1_grupo AS product_group,
-  stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad
+  stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, da1_moeda AS moneda
       FROM products
       WHERE b1_cod = $1 AND da1_prcven > 0 AND b1_desc IS NOT NULL
     `;

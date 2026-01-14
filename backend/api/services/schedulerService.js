@@ -1,20 +1,31 @@
 const cron = require('node-cron');
-const syncPrices = require('../scripts/syncPrices');
+const { runFullSync, syncProducts } = require('./syncService');
 const testUserModel = require('../models/testUserModel');
 
 const initScheduler = () => {
     console.log('Initializing Scheduler...');
 
-    // Schedule price sync every hour
-    // Cron format: Minute Hour DayOfMonth Month DayOfWeek
-    // '0 8,12 * * *' = At minute 0 of hour 8 and 12
-    cron.schedule('0 8,12 * * *', async () => {
-        console.log('[Scheduler] Running scheduled price synchronization...');
+    // 1. Hourly Sync: Products (Stock) & Prices
+    // '0 * * * *' = At minute 0 of every hour
+    cron.schedule('0 * * * *', async () => {
+        console.log('[Scheduler] Running scheduled Hourly Sync (Products & Prices)...');
         try {
-            await syncPrices();
-            console.log('[Scheduler] Price synchronization completed successfully.');
+            await syncProducts();
+            console.log('[Scheduler] Hourly Sync completed successfully.');
         } catch (error) {
-            console.error('[Scheduler] Error during scheduled price synchronization:', error);
+            console.error('[Scheduler] Error during Hourly Sync:', error);
+        }
+    });
+
+    // 2. Daily Full Sync: Everything (including Clients and Sellers)
+    // '0 4 * * *' = At 04:00 AM every day
+    cron.schedule('0 4 * * *', async () => {
+        console.log('[Scheduler] Running scheduled Daily Full Sync...');
+        try {
+            await runFullSync();
+            console.log('[Scheduler] Daily Full Sync completed successfully.');
+        } catch (error) {
+            console.error('[Scheduler] Error during Daily Full Sync:', error);
         }
     });
 

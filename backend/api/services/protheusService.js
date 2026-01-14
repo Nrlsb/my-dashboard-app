@@ -98,6 +98,44 @@ const getCapacities = async () => {
     return fetchAllPages('/get_z02');
 };
 
+/**
+ * Fetch a single product by code directly from Protheus API
+ * Warning: This endpoint might return a single object instead of `{ objects: [] }` structure
+ * based on user provided examples.
+ */
+const getProductByCode = async (code) => {
+    try {
+        const response = await api.get('/get_sb1', { params: { cod: code } });
+        // The API returns { objects: [ { ... } ] }
+        if (response.data && response.data.objects && response.data.objects.length > 0) {
+            // console.log(`[ProtheusService] Fetched product ${code}:`, response.data.objects[0]);
+            return response.data.objects[0];
+        }
+        return null;
+    } catch (error) {
+        console.error(`[ProtheusService] Error fetching product by code ${code}:`, error.message);
+        return null;
+    }
+};
+
+/**
+ * Fetch a single price by code directly from Protheus API
+ */
+const getPriceByCode = async (code) => {
+    try {
+        const response = await api.get('/get_da1', { params: { cod: code } });
+        // The API returns { objects: [ { ... } ] }
+        if (response.data && response.data.objects && response.data.objects.length > 0) {
+            // console.log(`[ProtheusService] Fetched price ${code}:`, response.data.objects[0]);
+            return response.data.objects[0];
+        }
+        return null;
+    } catch (error) {
+        console.error(`[ProtheusService] Error fetching price by code ${code}:`, error.message);
+        return null;
+    }
+};
+
 module.exports = {
     getProducts,
     getClients,
@@ -106,4 +144,6 @@ module.exports = {
     getProductGroups,
     getIndicators,
     getCapacities,
+    getProductByCode,
+    getPriceByCode,
 };
