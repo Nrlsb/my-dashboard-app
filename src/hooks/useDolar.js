@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import apiService from '../api/apiService';
 
 const useDolar = () => {
     const [dolar, setDolar] = useState(null);
@@ -8,21 +9,12 @@ const useDolar = () => {
     useEffect(() => {
         const fetchDolar = async () => {
             try {
-                const [oficialRes, mayoristaRes] = await Promise.all([
-                    fetch('https://dolarapi.com/v1/dolares/oficial'),
-                    fetch('https://dolarapi.com/v1/dolares/mayorista')
-                ]);
-
-                if (!oficialRes.ok || !mayoristaRes.ok) {
-                    throw new Error('Error al obtener la cotización del dólar');
-                }
-
-                const oficialData = await oficialRes.json();
-                const mayoristaData = await mayoristaRes.json();
+                // Use backend endpoint instead of external API
+                const rates = await apiService.getExchangeRates();
 
                 setDolar({
-                    billetes: oficialData,
-                    divisas: mayoristaData
+                    billetes: { venta: rates.venta_billete },
+                    divisas: { venta: rates.venta_divisa }
                 });
             } catch (err) {
                 console.error('Error fetching dolar:', err);

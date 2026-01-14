@@ -603,6 +603,10 @@ const apiService = {
   getBatchGenerationProgress() {
     return this.request('/products/batch-generate-descriptions/progress');
   },
+
+  getExchangeRates() {
+    return this.request('/exchange-rates');
+  },
 };
 
 export default apiService;

@@ -40,7 +40,14 @@ const app = express();
 app.use(helmet());
 
 // (OPTIMIZACIÓN) Habilitar compresión Gzip para todas las respuestas HTTP
+// (OPTIMIZACIÓN) Habilitar compresión Gzip para todas las respuestas HTTP
 app.use(compression());
+
+// DEBUG LOGGER - Verify requests reach the server
+app.use((req, res, next) => {
+  console.log(`[SERVER-HIT] ${req.method} ${req.originalUrl} at ${new Date().toISOString()}`);
+  next();
+});
 
 const PORT = process.env.PORT || 3001;
 

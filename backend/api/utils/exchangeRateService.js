@@ -68,6 +68,8 @@ const getExchangeRates = async () => {
       },
     });
 
+    console.log('[DEBUG-BNA] HTML recibido, longitud:', html.length);
+
     const $ = cheerio.load(html);
 
     // --- LÓGICA PARA BILLETES (Solo Venta) ---
@@ -80,6 +82,8 @@ const getExchangeRates = async () => {
     const filaDolarDivisa = tablaDivisas.find('tbody tr').first();
     const divisaVenta = limpiarTexto(filaDolarDivisa.find('td').eq(2).text());
 
+    console.log(`[DEBUG-BNA] Extracted RAW: Billete=${billeteVenta}, Divisa=${divisaVenta}`);
+
     // 3. Crear la nueva respuesta simplificada
     const nuevaRespuesta = {
       status: 'ok',
@@ -89,6 +93,8 @@ const getExchangeRates = async () => {
       venta_billete: parsearFormatoBillete(billeteVenta),
       venta_divisa: parsearFormatoDivisa(divisaVenta),
     };
+
+    console.log(`[DEBUG-BNA] Parsed: Billete=${nuevaRespuesta.venta_billete}, Divisa=${nuevaRespuesta.venta_divisa}`);
 
     // 4. Guardar la nueva respuesta en el caché
     cache.data = nuevaRespuesta;

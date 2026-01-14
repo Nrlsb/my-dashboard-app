@@ -6,9 +6,9 @@ const router = express.Router();
 // ya contienen sus propias rutas y middlewares de seguridad.
 
 router.use('/', require('./auth.routes'));
+router.use('/', require('./misc.routes')); // Move up to avoid auth block from user.routes
 router.use('/', require('./user.routes'));
 router.use('/', require('./accounting.routes'));
-router.use('/', require('./misc.routes'));
 router.use('/products', require('./product.routes'));
 
 router.use('/vendedor', require('./vendedor.routes'));
