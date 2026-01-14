@@ -292,8 +292,9 @@ const apiService = {
   },
 
   // (NUEVO) Método para obtener todos los clientes (para administradores)
-  getAllClients() {
-    return this.request('/admin/clients');
+  getAllClients(search = '') {
+    const params = search ? { search } : null;
+    return this.request('/admin/clients', { params });
   },
 
   // (NUEVO) Método para resetear contraseña de usuario por admin
@@ -303,6 +304,14 @@ const apiService = {
     return this.request(`/admin/users/${userId}/password`, {
       method: 'PUT',
       body: { password },
+    });
+  },
+
+  // (NUEVO) Método para asignar contraseña a un cliente (puede crear credencial)
+  assignClientPassword({ a1_cod, password, email }) {
+    return this.request('/admin/users/assign-password', {
+      method: 'POST',
+      body: { a1_cod, password, email },
     });
   },
 

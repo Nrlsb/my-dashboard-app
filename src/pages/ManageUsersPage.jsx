@@ -17,11 +17,11 @@ const ManageUsersPage = () => {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
-    const fetchClients = useCallback(async () => {
+    const fetchClients = useCallback(async (term) => {
         try {
-            setLoading(true);
+            // Do NOT set loading(true) here to keep UI input active
             setError(null);
-            const data = await apiService.getAllClients();
+            const data = await apiService.getAllClients(term);
             setClients(data);
         } catch (err) {
             setError(err.message || 'Error al cargar los clientes.');
@@ -31,22 +31,21 @@ const ManageUsersPage = () => {
     }, []);
 
     useEffect(() => {
-        fetchClients();
-    }, [fetchClients]);
+        const timer = setTimeout(() => {
+            fetchClients(searchTerm);
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [searchTerm, fetchClients]);
+
+    // Initial load handled by the search effect above because searchTerm starts empty
 
     const handleSearchChange = (e) => {
         setSearchTerm(e.target.value);
     };
 
-    const filteredClients = useMemo(() => {
-        if (!searchTerm) return clients;
-        const lowerTerm = searchTerm.toLowerCase();
-        return clients.filter(client =>
-            (client.full_name?.toLowerCase() || '').includes(lowerTerm) ||
-            (client.email?.toLowerCase() || '').includes(lowerTerm) ||
-            (client.a1_cod?.toLowerCase() || '').includes(lowerTerm)
-        );
-    }, [clients, searchTerm]);
+    // Client side filtering removed, rely on backend result which returns filtered list
+    const filteredClients = clients;
 
     const openResetModal = (user) => {
         setSelectedUser(user);
@@ -78,13 +77,26 @@ const ManageUsersPage = () => {
 
         try {
             setActionError(null);
-            await apiService.resetUserPassword(selectedUser.id, newPassword);
-            setActionSuccess(`Contraseña restablecida correctamente para ${selectedUser.full_name}.`);
+            if (selectedUser.has_password) {
+                // Reset Mode
+                await apiService.resetUserPassword(selectedUser.id, newPassword);
+                setActionSuccess(`Contraseña restablecida correctamente para ${selectedUser.full_name}.`);
+            } else {
+                // Assign Mode (New Credential)
+                await apiService.assignClientPassword({
+                    a1_cod: selectedUser.a1_cod,
+                    password: newPassword,
+                    email: selectedUser.email
+                });
+                setActionSuccess(`Contraseña asignada correctamente a ${selectedUser.full_name}.`);
+                // Refresh list to update status, maintaining the current search
+                fetchClients(searchTerm);
+            }
+
             closeResetModal();
-            // Clear success message after 3 seconds
             setTimeout(() => setActionSuccess(null), 3000);
         } catch (err) {
-            setActionError(err.message || 'Error al restablecer la contraseña.');
+            setActionError(err.message || 'Error al procesar la contraseña.');
         }
     };
 
@@ -113,18 +125,22 @@ const ManageUsersPage = () => {
 
             <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
                 <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gray-50/50">
-                    <div className="relative w-full sm:w-96">
+                    <form className="relative w-full sm:w-96" onSubmit={(e) => e.preventDefault()} autoComplete="off">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <Search className="h-5 w-5 text-gray-400" />
                         </div>
                         <input
-                            type="text"
+                            type="search"
+                            name="search_users_query"
+                            id="search_users_query"
                             placeholder="Buscar por nombre, email o código..."
                             className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm"
                             value={searchTerm}
                             onChange={handleSearchChange}
+                            autoComplete="off"
+                            results={5}
                         />
-                    </div>
+                    </form>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -172,10 +188,13 @@ const ManageUsersPage = () => {
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <button
                                                 onClick={() => openResetModal(client)}
-                                                className="text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-300 font-medium rounded-lg text-xs px-4 py-2 transition-all shadow-sm focus:outline-none flex items-center justify-center ml-auto gap-2"
+                                                className={`text-white font-medium rounded-lg text-xs px-4 py-2 transition-all shadow-sm focus:outline-none flex items-center justify-center ml-auto gap-2 ${client.has_password
+                                                    ? "bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-300"
+                                                    : "bg-green-600 hover:bg-green-700 focus:ring-4 focus:ring-green-300"
+                                                    }`}
                                             >
-                                                <Lock className="w-3.5 h-3.5" />
-                                                Reset Password
+                                                {client.has_password ? <Lock className="w-3.5 h-3.5" /> : <Edit className="w-3.5 h-3.5" />}
+                                                {client.has_password ? "Reset Pwd" : "Asignar Pwd"}
                                             </button>
                                         </td>
                                     </tr>
@@ -204,7 +223,7 @@ const ManageUsersPage = () => {
                             {/* Header */}
                             <div className="flex items-start justify-between p-5 border-b border-solid border-gray-200 rounded-t-xl bg-gray-50">
                                 <h3 className="text-xl font-bold text-gray-800">
-                                    Restablecer Contraseña
+                                    {selectedUser?.has_password ? 'Restablecer Contraseña' : 'Asignar Nueva Contraseña'}
                                 </h3>
                                 <button
                                     className="p-1 ml-auto bg-transparent border-0 text-gray-400 hover:text-gray-900 float-right text-3xl leading-none font-semibold outline-none focus:outline-none transition-colors"
@@ -224,6 +243,10 @@ const ManageUsersPage = () => {
                                 </p>
 
                                 <div className="space-y-4">
+                                    {/* Invisible dummy inputs to capture browser autofill */}
+                                    <input type="text" readOnly className="opacity-0 absolute w-0 h-0 -z-10" autoComplete="username" />
+                                    <input type="password" readOnly className="opacity-0 absolute w-0 h-0 -z-10" autoComplete="current-password" />
+
                                     <div>
                                         <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
                                             Nueva Contraseña

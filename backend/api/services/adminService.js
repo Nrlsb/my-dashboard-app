@@ -2,6 +2,8 @@ const { pool, pool2 } = require('../db');
 const { formatCurrency } = require('../utils/helpers');
 const productModel = require('../models/productModel');
 const userService = require('./userService');
+const protheusService = require('./protheusService');
+const bcrypt = require('bcryptjs');
 
 /**
  * (Admin) Obtiene detalles de CUALQUIER pedido (para NC)
@@ -77,19 +79,154 @@ const fetchAdminOrderDetails = async (orderId) => {
 /**
  * (Admin) Obtiene la lista de clientes (no-admins)
  */
-const getUsersForAdmin = async () => {
+/**
+ * (Admin) Obtiene la lista de usuarios combinando DB y API.
+ * Soporta búsqueda y paginación (simulada).
+ */
+const getUsersForAdmin = async (search = '') => {
   try {
-    const query = `
-      SELECT id, full_name, email, a1_cod 
+    const term = search ? search.toLowerCase().trim() : '';
+
+    // 1. Fetch Local Users (Admins, Vendors, synced Clients)
+    const dbQuery = `
+      SELECT id, full_name, email, a1_cod, is_admin 
       FROM users 
-      WHERE is_admin = false 
       ORDER BY full_name ASC;
     `;
-    const result = await pool.query(query);
-    return result.rows;
+    const dbUsersResult = await pool.query(dbQuery);
+    const dbUsers = dbUsersResult.rows;
+
+    // 2. Fetch All Credentials (to check who has password)
+    // We fetch just the necessary fields to map
+    const credsQuery = `SELECT user_id, a1_cod, email FROM user_credentials`;
+    const credsResult = await pool2.query(credsQuery);
+    const credsMapByCode = new Map();
+    const credsMapById = new Map();
+
+    credsResult.rows.forEach(c => {
+      if (c.a1_cod) credsMapByCode.set(c.a1_cod.trim(), c);
+      credsMapById.set(c.user_id, c);
+    });
+
+    // 3. Fetch API Clients
+    // Note: getClients fetches ALL pages. Might be heavy if thousands of clients.
+    // Optimization: If we had an API search endpoint, we'd use it.
+    const apiClients = await protheusService.getClients();
+
+    // 4. Merge & Filter
+    const mergedUsers = [];
+    const processedCodes = new Set();
+
+    // Process DB Users first
+    for (const user of dbUsers) {
+      // Filter by search term
+      const matches = !term ||
+        (user.full_name && user.full_name.toLowerCase().includes(term)) ||
+        (user.email && user.email.toLowerCase().includes(term)) ||
+        (user.a1_cod && user.a1_cod.toLowerCase().includes(term));
+
+      if (!matches) continue;
+
+      const credential = credsMapById.get(user.id) || (user.a1_cod ? credsMapByCode.get(user.a1_cod.trim()) : null);
+
+      mergedUsers.push({
+        id: user.id,
+        full_name: user.full_name,
+        email: user.email,
+        a1_cod: user.a1_cod,
+        is_admin: user.is_admin,
+        role: user.is_admin ? 'admin' : (user.a1_cod ? 'cliente/vendedor' : 'admin'), // Basic inference
+        has_password: !!credential,
+        source: 'db'
+      });
+
+      if (user.a1_cod) processedCodes.add(user.a1_cod.trim());
+    }
+
+    // Process API Clients (that are NOT in DB Users)
+    for (const client of apiClients) {
+      const code = client.a1_cod ? client.a1_cod.trim() : null;
+      if (!code) continue; // Skip invalid
+
+      // If already processed via DB user, skip
+      if (processedCodes.has(code)) continue;
+
+      // Check if it's a Decoupled Client (Has credential but no User record)
+      const credential = credsMapByCode.get(code);
+
+      // Filter by search term
+      const matches = !term ||
+        (client.a1_nome && client.a1_nome.toLowerCase().includes(term)) ||
+        (client.a1_email && client.a1_email.toLowerCase().includes(term)) ||
+        (code.toLowerCase().includes(term));
+
+      if (!matches) continue;
+
+      mergedUsers.push({
+        id: credential ? credential.user_id : `virtual_${code}`, // Virtual ID for UI if no credential
+        full_name: client.a1_nome.trim(),
+        email: client.a1_email ? client.a1_email.trim() : null,
+        a1_cod: code,
+        is_admin: false,
+        role: 'cliente',
+        has_password: !!credential,
+        source: credential ? 'decoupled_db' : 'api_only'
+      });
+    }
+
+    // Sort by name
+    return mergedUsers.sort((a, b) => a.full_name.localeCompare(b.full_name));
+
   } catch (error) {
     console.error('Error in getUsersForAdmin:', error);
     throw error;
+  }
+};
+
+/**
+ * (Admin) Asigna una contraseña a un cliente (Creando credencial desacoplada o vinculada).
+ */
+const assignClientPassword = async (a1_cod, password, email) => {
+  const client = await pool2.connect();
+  try {
+    const cleanCode = a1_cod.trim();
+    await client.query('BEGIN');
+
+    // 1. Check if credential already exists
+    const checkRes = await client.query('SELECT user_id FROM user_credentials WHERE a1_cod = $1', [cleanCode]);
+
+    let userId;
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(password, salt);
+
+    if (checkRes.rows.length > 0) {
+      // Update existing
+      userId = checkRes.rows[0].user_id;
+      await client.query(
+        'UPDATE user_credentials SET password_hash = $1, temp_password_hash = NULL, email = COALESCE($2, email) WHERE user_id = $3',
+        [hash, email, userId]
+      );
+    } else {
+      // Create New Virtual ID
+      // Safe range start
+      const MIN_CLIENT_ID = 100000;
+      const maxRes = await client.query('SELECT GREATEST(MAX(user_id), $1) as max_id FROM user_credentials', [MIN_CLIENT_ID]);
+      userId = (parseInt(maxRes.rows[0].max_id) || MIN_CLIENT_ID) + 1;
+
+      await client.query(
+        'INSERT INTO user_credentials (user_id, email, a1_cod, password_hash) VALUES ($1, $2, $3, $4)',
+        [userId, email, cleanCode, hash]
+      );
+    }
+
+    await client.query('COMMIT');
+    return { success: true, userId };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error in assignClientPassword:', err);
+    throw err;
+  } finally {
+    client.release();
   }
 };
 
@@ -321,6 +458,7 @@ const getProductGroupsForAdmin = async () => {
 module.exports = {
   fetchAdminOrderDetails,
   getUsersForAdmin,
+  assignClientPassword,
   updateUserGroupPermissions,
 
   getAdmins,

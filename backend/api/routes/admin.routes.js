@@ -14,6 +14,7 @@ const {
   addAdmin,
   removeAdmin,
   getAllClientsController,
+  assignClientPassword,
 
   getGlobalDeniedProductsController,
   updateGlobalProductPermissionsController,
@@ -75,6 +76,9 @@ router.get('/clients', requireAdmin, getAllClientsController); // Add the new ro
 // (NUEVO) Ruta para resetear contraseña de usuario
 const { resetUserPassword } = require('../controllers/adminController');
 router.put('/users/:userId/password', requireAdmin, resetUserPassword);
+
+// (NUEVO) Ruta para asignar contraseña a clientes (incluso sin usuario en BD)
+router.post('/users/assign-password', requireAdmin, assignClientPassword);
 
 const {
   getCarouselGroups,

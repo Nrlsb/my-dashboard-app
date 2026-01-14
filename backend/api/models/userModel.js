@@ -1,15 +1,13 @@
 // backend/api/models/userModel.js
 
 const { pool, pool2 } = require('../db');
+const protheusService = require('../services/protheusService');
 
 /**
- * Busca un usuario por su email en la base de datos principal (Ahora sincronizada en DB2).
- * @param {string} email - El email del usuario.
- * @returns {Promise<object|null>}
+ * Busca un usuario por su email.
  */
 const findUserByEmail = async (email) => {
   try {
-    // Busca en la tabla 'users' de DB2 y une con credenciales
     const db2Result = await pool2.query(
       `SELECT u.*, uc.password_hash, uc.temp_password_hash 
        FROM users u
@@ -21,15 +19,8 @@ const findUserByEmail = async (email) => {
     if (db2Result.rows.length > 0) {
       const user = db2Result.rows[0];
 
-      // Determine role from DB2 roles table
       const roleData = await getUserRoleFromDB2(user.id);
-      user.role = roleData ? roleData.role : (user.vendedor_codigo ? 'vendedor' : 'cliente'); // Logic adjusted: if has vendor code, might be vendor attached OR just client with vendor.
-      // Wait, 'vendedor_codigo' in 'users' table means "This client belongs to vendor X".
-      // It DOES NOT mean the user IS a vendor.
-      // The logic for 'vendedor' role usually implies 'is_admin' is false but they are in 'vendedores' table?
-      // Re-reading logic: users (clients) have 'vendedor_codigo'.
-      // If user is actually a VENDOR, they log in via 'vendedores' table (vendedorModel).
-      // So here in userModel, 'role' usually defaults to 'cliente' or 'admin'.
+      user.role = roleData ? roleData.role : (user.vendedor_codigo ? 'vendedor' : 'cliente');
 
       if (user.is_admin) {
         user.role = 'admin';
@@ -44,11 +35,6 @@ const findUserByEmail = async (email) => {
   return null;
 };
 
-/**
- * Busca un usuario por su ID.
- * @param {number} userId - El ID del usuario.
- * @returns {Promise<object|null>}
- */
 const findUserById = async (userId) => {
   const numericUserId = parseInt(userId, 10);
   if (isNaN(numericUserId)) return null;
@@ -64,37 +50,39 @@ const findUserById = async (userId) => {
 
     if (db2Result.rows.length > 0) {
       const user = db2Result.rows[0];
-
       const roleData = await getUserRoleFromDB2(user.id);
-
       if (user.is_admin) {
         user.role = 'admin';
       } else {
         user.role = roleData ? roleData.role : 'cliente';
       }
-
       user.permissions = roleData ? roleData.permissions : [];
       return user;
     }
+
+    // Fallback: Check if it's a virtual ID from user_credentials (decoupled client)
+    const credResult = await pool2.query(
+      'SELECT * FROM user_credentials WHERE user_id = $1',
+      [numericUserId]
+    );
+    if (credResult.rows.length > 0) {
+      // It's a virtual user (Client or Decoupled Vendor)
+      // We lack profile data here as it lives in API, but for basic ID check it exists.
+      return {
+        id: numericUserId,
+        role: 'cliente', // Default
+        permissions: []
+      };
+    }
+
   } catch (err) {
     console.error('[userModel] Error checking DB2 by ID:', err);
   }
   return null;
 };
 
-/**
- * Crea un nuevo usuario en la base de datos (DB2).
- * @param {object} userData - Datos del usuario.
- * @param {string} passwordHash - El hash de la contraseña.
- * @returns {Promise<object>}
- */
 const createUser = async (userData, passwordHash) => {
   const { nombre, email, a1_cod, a1_loja, a1_cgc, a1_tel } = userData;
-
-  // Insert into DB2 'users'
-  // Note: If syncing from ERP, maybe we shouldn't create users here manually?
-  // But for 'Admin' creation or 'Test' users, we might need it.
-
   const query = `
     INSERT INTO users 
       (full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, is_admin)
@@ -102,16 +90,7 @@ const createUser = async (userData, passwordHash) => {
       ($1, $2, $3, $4, $5, $6, $7)
     RETURNING *;
   `;
-  // Note: Removed password_hash from users table insert, assuming it's only in credentials
-  const values = [
-    nombre,
-    email,
-    a1_cod || null,
-    a1_loja || null,
-    a1_cgc || null,
-    a1_tel || null,
-    false,
-  ];
+  const values = [nombre, email, a1_cod || null, a1_loja || null, a1_cgc || null, a1_tel || null, false];
 
   const result = await pool2.query(query, values);
   const newUser = result.rows[0];
@@ -132,11 +111,6 @@ const createUser = async (userData, passwordHash) => {
   return newUser;
 };
 
-/**
- * Verifica el rol del usuario consultando las tablas de roles en DB2.
- * @param {number} userId - El ID del usuario.
- * @returns {Promise<object|null>} - { role: string, permissions: string[] } o null.
- */
 const getUserRoleFromDB2 = async (userId) => {
   try {
     const query = `
@@ -154,7 +128,6 @@ const getUserRoleFromDB2 = async (userId) => {
         permissions: result.rows[0].permissions
       };
     }
-
     return null;
   } catch (error) {
     console.error('Error checking user role in DB2:', error);
@@ -162,23 +135,11 @@ const getUserRoleFromDB2 = async (userId) => {
   }
 };
 
-/**
- * Verifica si un usuario es administrador.
- * @param {number} userId - El ID del usuario.
- * @returns {Promise<boolean>}
- */
 const isUserAdmin = async (userId) => {
-  // Check is_admin flag first for speed if available, or role
   const user = await findUserById(userId);
   return user && user.role === 'admin';
 };
 
-/**
- * Actualiza los datos de un usuario en la base de datos (DB2).
- * @param {number} userId - El ID del usuario a actualizar.
- * @param {object} profileData - Los nuevos datos del perfil.
- * @returns {Promise<object|null>}
- */
 const updateUser = async (userId, profileData) => {
   const { A1_NOME, A1_NUMBER, A1_EMAIL, A1_END, A1_CGC } = profileData;
   const query = `
@@ -188,16 +149,10 @@ const updateUser = async (userId, profileData) => {
     RETURNING *;
   `;
   const values = [A1_NOME, A1_NUMBER, A1_EMAIL, A1_END || null, A1_CGC, userId];
-
   const result = await pool2.query(query, values);
   return result.rows[0] || null;
 };
 
-/**
- * Busca todos los usuarios (clientes) asignados a un código de vendedor.
- * @param {string} vendedorCodigo - El código del vendedor.
- * @returns {Promise<Array<object>>}
- */
 const findUsersByVendedorCodigo = async (vendedorCodigo) => {
   const result = await pool2.query(
     'SELECT id, full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, a1_endereco FROM users WHERE vendedor_codigo = $1',
@@ -206,11 +161,6 @@ const findUsersByVendedorCodigo = async (vendedorCodigo) => {
   return result.rows;
 };
 
-/**
- * Limpia (pone a NULL) el hash de la contraseña temporal de un usuario.
- * @param {number} userId - El ID del usuario.
- * @returns {Promise<boolean>}
- */
 const clearTempPasswordHash = async (userId) => {
   const result = await pool2.query(
     'UPDATE user_credentials SET temp_password_hash = NULL WHERE user_id = $1',
@@ -219,12 +169,6 @@ const clearTempPasswordHash = async (userId) => {
   return result.rowCount > 0;
 };
 
-/**
- * Actualiza la contraseña de un usuario y limpia los campos de contraseña temporal.
- * @param {number} userId - El ID del usuario.
- * @param {string} passwordHash - El nuevo hash de la contraseña.
- * @returns {Promise<boolean>}
- */
 const updatePassword = async (userId, passwordHash) => {
   const query = `
     UPDATE user_credentials 
@@ -237,11 +181,6 @@ const updatePassword = async (userId, passwordHash) => {
   return result.rowCount > 0;
 };
 
-
-/**
- * Busca todos los usuarios con rol de cliente en la base de datos.
- * @returns {Promise<Array<object>>}
- */
 const findAllClients = async () => {
   const result = await pool2.query(
     'SELECT id, full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, a1_endereco FROM users WHERE is_admin = FALSE'
@@ -249,55 +188,103 @@ const findAllClients = async () => {
   return result.rows;
 };
 
+
 /**
- * Busca un usuario por su código de cliente (a1_cod) en la base de datos principal.
- * @param {string} code - El código del cliente.
- * @returns {Promise<object|null>}
+ * Busca un usuario por su código de cliente (a1_cod).
+ * VERSIÓN DECOUPLED: Prioriza API + user_credentials.
+ * No requiere registro en tabla 'users'.
  */
 const findUserByCode = async (code) => {
   const cleanCode = String(code).trim();
 
   try {
-    const db2Result = await pool2.query(
+    // 1. PRIMERO: Buscar en base de datos local (users)
+    // Esto cubre Vendedores y Admins que tienen a1_cod asignado en la BD
+    const dbResult = await pool2.query(
       `SELECT u.*, uc.password_hash, uc.temp_password_hash 
-       FROM users u
-       LEFT JOIN user_credentials uc ON u.id = uc.user_id
-       WHERE u.a1_cod = $1`,
+         FROM users u
+         LEFT JOIN user_credentials uc ON (u.id = uc.user_id OR u.a1_cod = uc.a1_cod)
+         WHERE u.a1_cod = $1`,
       [cleanCode]
     );
 
-    if (db2Result.rows.length > 0) {
-      const user = db2Result.rows[0];
-
-      // Determine role from DB2
+    if (dbResult.rows.length > 0) {
+      const user = dbResult.rows[0];
       const roleData = await getUserRoleFromDB2(user.id);
 
-      if (user.is_admin) {
-        user.role = 'admin';
-      } else {
-        user.role = roleData ? roleData.role : 'cliente';
-      }
+      user.role = roleData ? roleData.role : (user.is_admin ? 'admin' : 'vendedor'); // Defaulting to vendedor/admin if in DB
       user.permissions = roleData ? roleData.permissions : [];
-
+      console.log(`[userModel] User ${cleanCode} found in LOCAL DB (Role: ${user.role}).`);
       return user;
     }
+
+    // 2. SEGUNDO: Si no está en BD local, buscar en API (Flujo Cliente Desacoplado)
+    const clients = await protheusService.getClients();
+    const apiClient = clients.find(c => c.a1_cod && c.a1_cod.trim() === cleanCode);
+
+    if (!apiClient) {
+      console.log(`[userModel] Client ${cleanCode} not found in API.`);
+      return null;
+    }
+
+    // 3. Buscar Credenciales DIRECTAMENTE en user_credentials
+    // Usamos a1_cod como llave de enlace
+    const credsResult = await pool2.query(
+      `SELECT user_id, password_hash, temp_password_hash, email 
+       FROM user_credentials 
+       WHERE a1_cod = $1`,
+      [cleanCode]
+    );
+
+    let credentials = {};
+    let roleData = null;
+    let userId = null;
+
+    if (credsResult.rows.length > 0) {
+      credentials = credsResult.rows[0];
+      userId = credentials.user_id;
+
+      roleData = await getUserRoleFromDB2(userId);
+    } else {
+      console.log(`[userModel] Client ${cleanCode} has NO credentials in DB.`);
+      return null;
+    }
+
+    // 4. Combinar datos
+    return {
+      id: userId,
+      full_name: apiClient.a1_nome.trim(),
+      email: apiClient.a1_email ? apiClient.a1_email.trim() : (credentials.email || null),
+      a1_cod: apiClient.a1_cod.trim(),
+      a1_loja: apiClient.a1_loja,
+      a1_cgc: apiClient.a1_cgc ? apiClient.a1_cgc.trim() : null,
+      a1_tel: apiClient.a1_xtel1 ? apiClient.a1_xtel1.trim() : null,
+      a1_endereco: apiClient.a1_end ? apiClient.a1_end.trim() : null,
+
+      // Credenciales
+      password_hash: credentials.password_hash,
+      temp_password_hash: credentials.temp_password_hash,
+
+      // Roles
+      is_admin: false,
+      role: roleData ? roleData.role : 'cliente',
+      permissions: roleData ? roleData.permissions : [],
+
+      // Metadata extra
+      a1_mun: apiClient.a1_mun ? apiClient.a1_mun.trim() : null,
+      a1_est: apiClient.a1_est,
+      vendedor_codigo: apiClient.a1_vend ? apiClient.a1_vend.trim() : null
+    };
+
   } catch (err) {
-    console.error('[userModel] Error checking DB2 by Code:', err);
+    console.error('[userModel] Error checking API/DB by Code:', err);
+    return null;
   }
-  return null;
 };
 
-/**
- * Busca vendedores por una lista de códigos.
- * @param {Array<string>} codes - Lista de códigos de vendedores.
- * @returns {Promise<Array<object>>} - Lista de objetos con info del vendedor (codigo, nombre, email, telefono).
- */
 const getVendedoresByCodes = async (codes) => {
   if (!codes || codes.length === 0) return [];
-
-  // Filtrar duplicados y valores nulos/vacíos
   const uniqueCodes = [...new Set(codes.filter(c => c))];
-
   if (uniqueCodes.length === 0) return [];
 
   const query = `
@@ -305,11 +292,9 @@ const getVendedoresByCodes = async (codes) => {
     FROM vendedores
     WHERE codigo = ANY($1)
   `;
-
   const result = await pool.query(query, [uniqueCodes]);
   return result.rows;
 };
-
 
 module.exports = {
   findUserByEmail,
@@ -322,6 +307,6 @@ module.exports = {
   updatePassword,
   findAllClients,
   getUserRoleFromDB2,
-  findUserByCode, // Export new function
-  getVendedoresByCodes, // Export new function
+  findUserByCode,
+  getVendedoresByCodes,
 };

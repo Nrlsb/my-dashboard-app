@@ -14,7 +14,8 @@ exports.fetchAdminOrderDetails = catchAsync(async (req, res) => {
 });
 
 exports.getUsersForAdmin = catchAsync(async (req, res) => {
-    const users = await adminService.getUsersForAdmin();
+    const { search } = req.query; // Capture 'search' query param
+    const users = await adminService.getUsersForAdmin(search);
     res.json(users);
 });
 
@@ -85,10 +86,11 @@ exports.removeAdmin = catchAsync(async (req, res) => {
 });
 
 exports.getAllClientsController = catchAsync(async (req, res) => {
-    console.log('GET /api/admin/clients -> Admin consultando todos los clientes...');
-    // No se filtra por vendedor_codigo, se obtienen todos.
-    const clients = await userService.getAllClients();
-    res.json(clients);
+    // Redirecting to the new service that handles search + API + DB
+    // We reuse the logic from getUsersForAdmin
+    const { search } = req.query;
+    const users = await adminService.getUsersForAdmin(search);
+    res.json(users);
 });
 
 exports.resetUserPassword = catchAsync(async (req, res) => {
@@ -100,5 +102,16 @@ exports.resetUserPassword = catchAsync(async (req, res) => {
     }
 
     const result = await adminService.resetUserPassword(userId, password);
+    res.json(result);
+});
+
+exports.assignClientPassword = catchAsync(async (req, res) => {
+    const { a1_cod, password, email } = req.body;
+
+    if (!a1_cod || !password) {
+        return res.status(400).json({ message: 'Código de cliente y contraseña son requeridos.' });
+    }
+
+    const result = await adminService.assignClientPassword(a1_cod, password, email);
     res.json(result);
 });
