@@ -1,29 +1,11 @@
 const { Pool } = require('pg');
 // require('dotenv').config(); // Configuración cargada en server.js
-const logger = require('./utils/logger'); // (NUEVO) Importar logger
+const logger = require('./utils/logger');
 
-// Configuración optimizada del Pool
-const poolConfig = {
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_DATABASE,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
-  // (OPTIMIZACIÓN) Ajustes para producción
-  max: 20, // Máximo de conexiones en el pool
-  idleTimeoutMillis: 30000, // Cerrar conexiones inactivas tras 30s
-  connectionTimeoutMillis: 10000, // Aumentar timeout a 10s
-};
+// Configuración de base de datos única (BD2 - Protheus)
+// Anteriormente pool2, ahora es la única conexión.
 
-const pool = new Pool(poolConfig);
-
-// (OPTIMIZACIÓN) Manejo de errores en el pool para evitar caídas silenciosas
-pool.on('error', (err, client) => {
-  logger.error('Error inesperado en cliente inactivo de Pool 1', err);
-  // No salir del proceso, dejar que el pool maneje la reconexión o eliminación del cliente
-});
-
-const requiredDb2Vars = [
+const requiredDbVars = [
   'DB2_USER',
   'DB2_HOST',
   'DB2_DATABASE',
@@ -31,17 +13,15 @@ const requiredDb2Vars = [
   'DB2_PORT',
 ];
 
-let db2ConfigError = false;
-requiredDb2Vars.forEach((v) => {
+requiredDbVars.forEach((v) => {
   if (!process.env[v]) {
     logger.error(
-      `[DB2 Config Error] La variable de entorno ${v} no está definida. Revisa tu archivo .env.`
+      `[DB Config Error] La variable de entorno ${v} no está definida. Revisa tu archivo .env.`
     );
-    db2ConfigError = true;
   }
 });
 
-const pool2Config = {
+const poolConfig = {
   user: process.env.DB2_USER,
   host: process.env.DB2_HOST,
   database: process.env.DB2_DATABASE,
@@ -52,15 +32,17 @@ const pool2Config = {
   connectionTimeoutMillis: 10000,
 };
 
-const pool2 = new Pool(pool2Config);
+const pool2 = new Pool(poolConfig);
 
 pool2.on('error', (err, client) => {
-  logger.error('Error inesperado en cliente inactivo de Pool 2', err);
-  // No salimos del proceso aquí si la DB2 es secundaria, pero logueamos fuerte.
+  logger.error('Error inesperado en cliente inactivo de BD (pool2)', err);
 });
 
-// Si hay un error de configuración, podrías querer manejarlo aquí,
-// por ejemplo, no exportando un pool que sabes que fallará.
-// Por ahora, solo se loguea el error.
+// Exportamos pool2 como 'pool2' para mantener contratos existentes donde se usa especificamente pool2,
+// y TAMBIÉN como 'pool' para reemplazar la vieja conexión donde se importaba 'pool'.
+// De esta forma, 'pool' y 'pool2' apuntan a la MISMA base de datos (BD2).
 
-module.exports = { pool, pool2 };
+module.exports = {
+  pool: pool2,
+  pool2
+};

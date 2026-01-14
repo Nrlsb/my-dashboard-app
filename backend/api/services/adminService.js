@@ -38,9 +38,9 @@ const fetchAdminOrderDetails = async (orderId) => {
       // 4. Obtener los IDs de los productos
       const productIds = items.map((item) => item.product_id);
 
-      // 5. Obtener las descripciones de los productos desde BD1
-      const productsQuery = `SELECT id, description FROM products WHERE id = ANY($1::int[]);`;
-      const productsResult = await pool.query(productsQuery, [productIds]);
+      // 5. Obtener las descripciones de los productos desde BD2
+      const productsQuery = `SELECT id, b1_desc as description FROM products WHERE id = ANY($1::int[]);`;
+      const productsResult = await pool2.query(productsQuery, [productIds]);
       const productMap = new Map(
         productsResult.rows.map((p) => [p.id, p.description])
       );
@@ -163,9 +163,9 @@ const updateGlobalProductPermissions = async (productCodes) => {
 
     // 2. Insert new permissions if any
     if (productCodes && productCodes.length > 0) {
-      // Resolve IDs from DB1
-      const productsQuery = `SELECT id, code FROM products WHERE code = ANY($1::varchar[])`;
-      const productsResult = await pool.query(productsQuery, [productCodes]);
+      // Resolve IDs from BD2
+      const productsQuery = `SELECT id, b1_cod as code FROM products WHERE b1_cod = ANY($1::varchar[])`;
+      const productsResult = await pool2.query(productsQuery, [productCodes]);
 
       // Create a map for quick lookup
       const productMap = new Map(productsResult.rows.map(p => [p.code, p.id]));

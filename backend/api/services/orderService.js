@@ -27,7 +27,7 @@ const createOrder = async (orderData, userId) => {
   // --- 1. Obtener datos del usuario para el email ---
   let user;
   try {
-    const userResult = await pool.query(
+    const userResult = await pool2.query(
       'SELECT full_name, email, a1_cod FROM users WHERE id = $1',
       [userId]
     );
@@ -92,14 +92,14 @@ const createOrder = async (orderData, userId) => {
 
   // --- Lógica Post-Transacción ---
   try {
-    // 4. Si paga con 'Cuenta Corriente', registrar el débito en BD 1
+    // 4. Si paga con 'Cuenta Corriente', registrar el débito en BD 2
     if (paymentMethod === 'Cuenta Corriente') {
       try {
         const updateBalanceQuery = `
           INSERT INTO account_movements (user_id, debit, description, order_ref, date)
           VALUES ($1, $2, $3, $4, CURRENT_DATE);
         `;
-        await pool.query(updateBalanceQuery, [
+        await pool2.query(updateBalanceQuery, [
           userId,
           total,
           `Débito por Pedido #${newOrderId}`,
@@ -115,8 +115,8 @@ const createOrder = async (orderData, userId) => {
 
     // 5. Enviar correos y generar archivos
     const productIds = items.map((item) => item.id);
-    const productsResult = await pool.query(
-      'SELECT id, description FROM products WHERE id = ANY($1::int[])',
+    const productsResult = await pool2.query(
+      'SELECT id, b1_desc as description FROM products WHERE id = ANY($1::int[])',
       [productIds]
     );
     const productMap = new Map(
@@ -251,7 +251,7 @@ const fetchOrders = async (user) => {
   // Si el usuario es un vendedor y hay pedidos, los enriquecemos con el nombre del cliente
   if (user.role === 'vendedor' && orders.length > 0) {
     const clientIds = [...new Set(orders.map((o) => o.user_id))];
-    const usersResult = await pool.query(
+    const usersResult = await pool2.query(
       'SELECT id, full_name FROM users WHERE id = ANY($1::int[])',
       [clientIds]
     );
@@ -343,7 +343,7 @@ const downloadOrderPdf = async (orderId, user) => {
 
     // 3. Obtener datos del usuario QUE HIZO EL PEDIDO (no el vendedor)
     const orderOwnerId = orderDetails.user_id; // El ID del dueño del pedido
-    const userResult = await pool.query(
+    const userResult = await pool2.query(
       'SELECT id, full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, a1_endereco FROM users WHERE id = $1',
       [orderOwnerId]
     );
@@ -356,8 +356,8 @@ const downloadOrderPdf = async (orderId, user) => {
 
     // 4. Enriquecer items con nombres de productos para el PDF
     const productIds = orderDetails.items.map((item) => item.product_id);
-    const productsResult = await pool.query(
-      'SELECT id, description FROM products WHERE id = ANY($1::int[])',
+    const productsResult = await pool2.query(
+      'SELECT id, b1_desc as description FROM products WHERE id = ANY($1::int[])',
       [productIds]
     );
     const productMap = new Map(

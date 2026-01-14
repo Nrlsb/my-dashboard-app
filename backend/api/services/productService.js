@@ -681,9 +681,9 @@ const fetchProductsByGroup = async (
  */
 const toggleProductOfferStatus = async (productId) => {
   try {
-    // 1. Verificar si el producto existe en DB1 (solo lectura)
-    const productResult = await pool.query(
-      'SELECT id, description, code, price FROM products WHERE id = $1',
+    // 1. Verificar si el producto existe en DB2
+    const productResult = await pool2.query(
+      'SELECT id, b1_desc as description, b1_cod as code, da1_prcven as price FROM products WHERE id = $1',
       [productId]
     );
     if (productResult.rows.length === 0) {

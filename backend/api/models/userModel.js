@@ -3,13 +3,13 @@
 const { pool, pool2 } = require('../db');
 
 /**
- * Busca un usuario por su email en la base de datos principal.
+ * Busca un usuario por su email en la base de datos principal (Ahora sincronizada en DB2).
  * @param {string} email - El email del usuario.
  * @returns {Promise<object|null>}
  */
 const findUserByEmail = async (email) => {
   try {
-    // 1. Try to find user in DB2 (New Source for Admins/Marketing)
+    // Busca en la tabla 'users' de DB2 y une con credenciales
     const db2Result = await pool2.query(
       `SELECT u.*, uc.password_hash, uc.temp_password_hash 
        FROM users u
@@ -20,52 +20,28 @@ const findUserByEmail = async (email) => {
 
     if (db2Result.rows.length > 0) {
       const user = db2Result.rows[0];
-      console.log(`[userModel] User found in DB2: ${email}`);
 
-      // Determine role from DB2
+      // Determine role from DB2 roles table
       const roleData = await getUserRoleFromDB2(user.id);
-      user.role = roleData ? roleData.role : 'cliente'; // Should be admin/marketing usually
-      user.permissions = roleData ? roleData.permissions : [];
-      user.is_admin = user.role === 'admin';
+      user.role = roleData ? roleData.role : (user.vendedor_codigo ? 'vendedor' : 'cliente'); // Logic adjusted: if has vendor code, might be vendor attached OR just client with vendor.
+      // Wait, 'vendedor_codigo' in 'users' table means "This client belongs to vendor X".
+      // It DOES NOT mean the user IS a vendor.
+      // The logic for 'vendedor' role usually implies 'is_admin' is false but they are in 'vendedores' table?
+      // Re-reading logic: users (clients) have 'vendedor_codigo'.
+      // If user is actually a VENDOR, they log in via 'vendedores' table (vendedorModel).
+      // So here in userModel, 'role' usually defaults to 'cliente' or 'admin'.
 
+      if (user.is_admin) {
+        user.role = 'admin';
+      }
+
+      user.permissions = roleData ? roleData.permissions : [];
       return user;
     }
   } catch (err) {
     console.error('[userModel] Error checking DB2 for user:', err);
-    // Fallback to DB1 on error
   }
-
-  // 2. Fallback to DB1 (Legacy/Clients)
-  const result = await pool.query(
-    `SELECT u.*, v.nombre as vendedor_nombre, v.telefono as vendedor_telefono, v.email as vendedor_email 
-     FROM users u 
-     LEFT JOIN vendedores v ON u.vendedor_codigo = v.codigo 
-     WHERE u.email = $1`,
-    [email]
-  );
-
-  const user = result.rows[0] || null;
-
-  if (user) {
-    try {
-      const credsResult = await pool2.query(
-        'SELECT password_hash, temp_password_hash FROM user_credentials WHERE user_id = $1',
-        [user.id]
-      );
-      if (credsResult.rows.length > 0) {
-        user.password_hash = credsResult.rows[0].password_hash;
-        user.temp_password_hash = credsResult.rows[0].temp_password_hash;
-      } else {
-        user.password_hash = null;
-        user.temp_password_hash = null;
-      }
-    } catch (err) {
-      console.error('[userModel] Error fetching credentials from DB2:', err);
-      user.password_hash = null;
-    }
-  }
-
-  return user;
+  return null;
 };
 
 /**
@@ -74,17 +50,10 @@ const findUserByEmail = async (email) => {
  * @returns {Promise<object|null>}
  */
 const findUserById = async (userId) => {
-  // Convertir userId a entero para asegurar la comparación correcta con la columna ID numérica
   const numericUserId = parseInt(userId, 10);
-  if (isNaN(numericUserId)) {
-    console.error(
-      `[userModel] Invalid userId provided to findUserById: ${userId}`
-    );
-    return null;
-  }
+  if (isNaN(numericUserId)) return null;
 
   try {
-    // 1. Try to find user in DB2
     const db2Result = await pool2.query(
       `SELECT u.*, uc.password_hash, uc.temp_password_hash 
        FROM users u
@@ -97,69 +66,24 @@ const findUserById = async (userId) => {
       const user = db2Result.rows[0];
 
       const roleData = await getUserRoleFromDB2(user.id);
-      user.role = roleData ? roleData.role : 'cliente';
-      user.permissions = roleData ? roleData.permissions : [];
-      user.is_admin = user.role === 'admin';
 
+      if (user.is_admin) {
+        user.role = 'admin';
+      } else {
+        user.role = roleData ? roleData.role : 'cliente';
+      }
+
+      user.permissions = roleData ? roleData.permissions : [];
       return user;
     }
   } catch (err) {
     console.error('[userModel] Error checking DB2 by ID:', err);
   }
-
-  // 2. Fallback to DB1
-  const result = await pool.query(
-    `SELECT u.id, u.full_name, u.email, u.a1_cod, u.a1_loja, u.a1_cgc, u.a1_tel, u.a1_endereco, u.is_admin, u.vendedor_codigo, v.nombre as vendedor_nombre, v.telefono as vendedor_telefono, v.email as vendedor_email 
-     FROM users u 
-     LEFT JOIN vendedores v ON u.vendedor_codigo = v.codigo 
-     WHERE u.id = $1`,
-    [numericUserId]
-  );
-  const user = result.rows[0] || null;
-
-  if (user) {
-    if (user.vendedor_codigo) {
-      user.role = 'vendedor';
-      user.codigo = user.vendedor_codigo;
-      user.is_admin = false;
-    } else {
-      // Check role in DB2
-      const roleData = await getUserRoleFromDB2(user.id);
-      user.role = roleData ? roleData.role : 'cliente';
-      user.permissions = roleData ? roleData.permissions : [];
-      user.is_admin = user.role === 'admin';
-
-      // [NUEVO] Obtener credenciales desde DB2 user_credentials
-      try {
-        const credsResult = await pool2.query(
-          'SELECT password_hash, temp_password_hash FROM user_credentials WHERE user_id = $1',
-          [user.id]
-        );
-        if (credsResult.rows.length > 0) {
-          user.password_hash = credsResult.rows[0].password_hash;
-          user.temp_password_hash = credsResult.rows[0].temp_password_hash;
-        }
-      } catch (err) {
-        console.error('[userModel] Error fetching credentials by ID from DB2:', err);
-      }
-    }
-  }
-  console.log(
-    `[userModel] findUserById(${userId}) -> user:`,
-    user
-      ? {
-        id: user.id,
-        role: user.role,
-        codigo: user.codigo,
-        vendedor_codigo: user.vendedor_codigo,
-      }
-      : 'null'
-  );
-  return user;
+  return null;
 };
 
 /**
- * Crea un nuevo usuario en la base de datos.
+ * Crea un nuevo usuario en la base de datos (DB2).
  * @param {object} userData - Datos del usuario.
  * @param {string} passwordHash - El hash de la contraseña.
  * @returns {Promise<object>}
@@ -167,28 +91,29 @@ const findUserById = async (userId) => {
 const createUser = async (userData, passwordHash) => {
   const { nombre, email, a1_cod, a1_loja, a1_cgc, a1_tel } = userData;
 
-  // Placeholder para DB1
-  const passwordPlaceholder = 'MOVED_TO_DB2';
+  // Insert into DB2 'users'
+  // Note: If syncing from ERP, maybe we shouldn't create users here manually?
+  // But for 'Admin' creation or 'Test' users, we might need it.
 
   const query = `
     INSERT INTO users 
-      (full_name, email, password_hash, a1_cod, a1_loja, a1_cgc, a1_tel, is_admin)
+      (full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, is_admin)
     VALUES 
-      ($1, $2, $3, $4, $5, $6, $7, $8)
+      ($1, $2, $3, $4, $5, $6, $7)
     RETURNING *;
   `;
+  // Note: Removed password_hash from users table insert, assuming it's only in credentials
   const values = [
     nombre,
     email,
-    passwordPlaceholder,
-    a1_cod,
-    a1_loja,
-    a1_cgc,
-    a1_tel,
+    a1_cod || null,
+    a1_loja || null,
+    a1_cgc || null,
+    a1_tel || null,
     false,
   ];
 
-  const result = await pool.query(query, values);
+  const result = await pool2.query(query, values);
   const newUser = result.rows[0];
 
   if (newUser) {
@@ -214,10 +139,6 @@ const createUser = async (userData, passwordHash) => {
  */
 const getUserRoleFromDB2 = async (userId) => {
   try {
-    // Query user_roles and roles
-    // We assume a user has one role for now, or we pick the first one.
-    // If we want to support multiple roles, we might need to aggregate permissions.
-    // For now, let's pick the one with most permissions or just the first one.
     const query = `
       SELECT r.name, r.permissions
       FROM user_roles ur
@@ -247,12 +168,13 @@ const getUserRoleFromDB2 = async (userId) => {
  * @returns {Promise<boolean>}
  */
 const isUserAdmin = async (userId) => {
-  const roleData = await getUserRoleFromDB2(userId);
-  return roleData && roleData.role === 'admin';
+  // Check is_admin flag first for speed if available, or role
+  const user = await findUserById(userId);
+  return user && user.role === 'admin';
 };
 
 /**
- * Actualiza los datos de un usuario en la base de datos.
+ * Actualiza los datos de un usuario en la base de datos (DB2).
  * @param {number} userId - El ID del usuario a actualizar.
  * @param {object} profileData - Los nuevos datos del perfil.
  * @returns {Promise<object|null>}
@@ -267,7 +189,7 @@ const updateUser = async (userId, profileData) => {
   `;
   const values = [A1_NOME, A1_NUMBER, A1_EMAIL, A1_END || null, A1_CGC, userId];
 
-  const result = await pool.query(query, values);
+  const result = await pool2.query(query, values);
   return result.rows[0] || null;
 };
 
@@ -277,13 +199,9 @@ const updateUser = async (userId, profileData) => {
  * @returns {Promise<Array<object>>}
  */
 const findUsersByVendedorCodigo = async (vendedorCodigo) => {
-  const result = await pool.query(
+  const result = await pool2.query(
     'SELECT id, full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, a1_endereco FROM users WHERE vendedor_codigo = $1',
     [vendedorCodigo]
-  );
-  console.log(
-    `[userModel] findUsersByVendedorCodigo(${vendedorCodigo}) -> found ${result.rows.length} clients. IDs:`,
-    result.rows.map((r) => r.id)
   );
   return result.rows;
 };
@@ -322,16 +240,11 @@ const updatePassword = async (userId, passwordHash) => {
 
 /**
  * Busca todos los usuarios con rol de cliente en la base de datos.
- * Excluye a los que tienen 'vendedor_codigo' establecido o 'is_admin' en true (si queremos separar roles).
- * Para este caso, solo buscaremos todos los usuarios en la tabla 'users' que no sean administradores.
  * @returns {Promise<Array<object>>}
  */
 const findAllClients = async () => {
-  const result = await pool.query(
+  const result = await pool2.query(
     'SELECT id, full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, a1_endereco FROM users WHERE is_admin = FALSE'
-  );
-  console.log(
-    `[userModel] findAllClients -> found ${result.rows.length} clients.`
   );
   return result.rows;
 };
@@ -342,12 +255,8 @@ const findAllClients = async () => {
  * @returns {Promise<object|null>}
  */
 const findUserByCode = async (code) => {
-  // Aseguramos que el código sea tratado como string y sin espacios extra, 
-  // aunque a1_cod en DB suele ser varchar.
   const cleanCode = String(code).trim();
 
-  // 1. Try to find user in DB2 (New Source for Admins/Marketing)
-  // [RESTORING THIS BLOCK AS REQUESTED]
   try {
     const db2Result = await pool2.query(
       `SELECT u.*, uc.password_hash, uc.temp_password_hash 
@@ -359,52 +268,23 @@ const findUserByCode = async (code) => {
 
     if (db2Result.rows.length > 0) {
       const user = db2Result.rows[0];
-      console.log(`[userModel] User found in DB2 by Code: ${cleanCode}`);
 
       // Determine role from DB2
       const roleData = await getUserRoleFromDB2(user.id);
-      user.role = roleData ? roleData.role : 'cliente';
+
+      if (user.is_admin) {
+        user.role = 'admin';
+      } else {
+        user.role = roleData ? roleData.role : 'cliente';
+      }
       user.permissions = roleData ? roleData.permissions : [];
-      user.is_admin = user.role === 'admin';
 
       return user;
     }
   } catch (err) {
     console.error('[userModel] Error checking DB2 by Code:', err);
   }
-
-  // 2. Fallback to DB1 (Legacy)
-
-  const result = await pool.query(
-    `SELECT u.*, v.nombre as vendedor_nombre, v.telefono as vendedor_telefono, v.email as vendedor_email 
-     FROM users u 
-     LEFT JOIN vendedores v ON u.vendedor_codigo = v.codigo 
-     WHERE u.a1_cod = $1`,
-    [cleanCode]
-  );
-
-  const user = result.rows[0] || null;
-
-  if (user) {
-    try {
-      const credsResult = await pool2.query(
-        'SELECT password_hash, temp_password_hash FROM user_credentials WHERE user_id = $1',
-        [user.id]
-      );
-      if (credsResult.rows.length > 0) {
-        user.password_hash = credsResult.rows[0].password_hash;
-        user.temp_password_hash = credsResult.rows[0].temp_password_hash;
-      } else {
-        user.password_hash = null;
-        user.temp_password_hash = null;
-      }
-    } catch (err) {
-      console.error('[userModel] Error fetching credentials from DB2:', err);
-      user.password_hash = null;
-    }
-  }
-
-  return user;
+  return null;
 };
 
 /**

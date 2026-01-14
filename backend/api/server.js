@@ -20,7 +20,11 @@ const dotenv = require('dotenv');
 
 // Cargar configuración según el entorno
 const envFile = process.env.NODE_ENV === 'development' ? '.env.development' : '.env';
-dotenv.config({ path: path.resolve(__dirname, envFile) });
+dotenv.config({ path: path.resolve(__dirname, envFile), override: true }); // FORCE OVERRIDE
+
+// Validar conexión DB2 al inicio
+console.log(`[SERVER-INIT] DB_HOST: ${process.env.DB_HOST} | DB2_HOST: ${process.env.DB2_HOST}`);
+console.log(`[SERVER-INIT] DB_DATABASE: ${process.env.DB_DATABASE} | DB2_DATABASE: ${process.env.DB2_DATABASE}`);
 const express = require('express');
 const cors = require('cors');
 // const path = require('path'); // Removed duplicate

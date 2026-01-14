@@ -87,8 +87,8 @@ const findOrderDetailsById = async (orderId, allowedUserIds) => {
   // 3. Enriquecer items con descripción de productos de la otra DB
   if (items.length > 0) {
     const productIds = items.map((item) => item.product_id);
-    const productsQuery = `SELECT id, description FROM products WHERE id = ANY($1::int[]);`;
-    const productsResult = await pool.query(productsQuery, [productIds]);
+    const productsQuery = `SELECT id, b1_desc as description FROM products WHERE id = ANY($1::int[]);`;
+    const productsResult = await pool2.query(productsQuery, [productIds]);
     const productMap = new Map(
       productsResult.rows.map((p) => [p.id, p.description])
     );

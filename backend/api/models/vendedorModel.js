@@ -1,6 +1,6 @@
 // backend/api/models/vendedorModel.js
 
-const { pool } = require('../db');
+const { pool2 } = require('../db');
 
 /**
  * Busca un vendedor por su email.
@@ -10,7 +10,7 @@ const { pool } = require('../db');
 const findVendedorByEmail = async (email) => {
   const query =
     'SELECT codigo, nombre, email, telefono, password, temp_password_hash FROM vendedores WHERE email = $1';
-  const result = await pool.query(query, [email]);
+  const result = await pool2.query(query, [email]);
   return result.rows[0] || null;
 };
 
@@ -22,7 +22,7 @@ const findVendedorByEmail = async (email) => {
 const findVendedorByCodigo = async (codigo) => {
   const query =
     'SELECT codigo, nombre, email, telefono FROM vendedores WHERE codigo = $1';
-  const result = await pool.query(query, [codigo]);
+  const result = await pool2.query(query, [codigo]);
   return result.rows[0] || null;
 };
 
@@ -32,7 +32,7 @@ const findVendedorByCodigo = async (codigo) => {
  * @returns {Promise<boolean>}
  */
 const clearTempPasswordHash = async (vendedorCodigo) => {
-  const result = await pool.query(
+  const result = await pool2.query(
     'UPDATE vendedores SET temp_password_hash = NULL WHERE codigo = $1',
     [vendedorCodigo.trim()]
   );
@@ -47,13 +47,13 @@ const clearTempPasswordHash = async (vendedorCodigo) => {
  */
 const updatePassword = async (vendedorCodigo, passwordHash) => {
   const query = `
-    UPDATE vendedores 
-    SET 
-      password = $1, 
-      temp_password_hash = NULL
-    WHERE codigo = $2
-  `;
-  const result = await pool.query(query, [passwordHash, vendedorCodigo.trim()]);
+     UPDATE vendedores 
+     SET 
+       password = $1, 
+       temp_password_hash = NULL
+     WHERE codigo = $2
+   `;
+  const result = await pool2.query(query, [passwordHash, vendedorCodigo.trim()]);
   return result.rowCount > 0;
 };
 
