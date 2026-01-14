@@ -118,18 +118,27 @@ const ProductModal = ({ product, onClose, onAddToCart }) => {
               </button>
             </div>
             {product.stock_disponible <= 0 ? (
-              <span className="ml-2 inline-flex items-center p-1.5 rounded-full bg-red-100 bg-opacity-50 text-red-800" title="Sin Stock">
-                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-              </span>
-            ) : product.stock_disponible <= (product.stock_de_seguridad || 0) ? (
-              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 bg-opacity-50 text-yellow-800">
-                <div className="w-2 h-2 bg-yellow-500 rounded-full mr-1"></div>
-                Stock Bajo
-              </span>
+              <div className="flex items-center ml-2">
+                <span className="text-sm font-medium text-red-600">
+                  Sin Stock
+                </span>
+                {product.stock_de_seguridad > 0 && (
+                  <span className="ml-2 text-xs text-blue-600 font-medium">
+                    | Previsto de ingreso
+                  </span>
+                )}
+              </div>
             ) : (
-              <span className="ml-2 inline-flex items-center p-1.5 rounded-full bg-green-100 bg-opacity-50 text-green-800" title="Disponible">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              </span>
+              <div className="flex items-center ml-2">
+                <span className="text-sm font-medium text-gray-600">
+                  Stock: {product.stock_disponible > 100 ? '+100' : product.stock_disponible}
+                </span>
+                {product.stock_de_seguridad > 0 && (
+                  <span className="ml-2 text-xs text-blue-600 font-medium">
+                    | Previsto de ingreso
+                  </span>
+                )}
+              </div>
             )}
           </div>
 
@@ -302,18 +311,27 @@ const NewOrderPage = () => {
             </p>
             <div className="flex items-center mt-1">
               {product.stock_disponible <= 0 ? (
-                <span className="inline-flex items-center p-1.5 rounded-full bg-red-100 bg-opacity-50 text-red-800" title="Sin Stock">
-                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                </span>
-              ) : product.stock_disponible <= (product.stock_de_seguridad || 0) ? (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 bg-opacity-50 text-yellow-800">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full mr-1"></div>
-                  Stock Bajo
-                </span>
+                <div className="flex items-center">
+                  <span className="text-xs md:text-sm font-medium text-red-600">
+                    Sin Stock
+                  </span>
+                  {product.stock_de_seguridad > 0 && (
+                    <span className="ml-2 text-[10px] md:text-xs text-blue-600 font-medium">
+                      | Previsto de ingreso
+                    </span>
+                  )}
+                </div>
               ) : (
-                <span className="inline-flex items-center p-1.5 rounded-full bg-green-100 bg-opacity-50 text-green-800" title="Disponible">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                </span>
+                <div className="flex items-center">
+                  <span className="text-xs md:text-sm font-medium text-gray-600">
+                    Stock: {product.stock_disponible > 100 ? '+100' : product.stock_disponible}
+                  </span>
+                  {product.stock_de_seguridad > 0 && (
+                    <span className="ml-2 text-[10px] md:text-xs text-blue-600 font-medium">
+                      | Previsto de ingreso
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           </div>

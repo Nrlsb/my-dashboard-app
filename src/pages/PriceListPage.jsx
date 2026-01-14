@@ -8,10 +8,15 @@ import {
   X,
   ChevronDown,
   Download,
+  Plus,
+  Minus,
+  ShoppingCart,
+  CheckCircle,
 } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
 import apiService from '/src/api/apiService.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useCart } from '../context/CartContext.jsx';
 
 // --- Formateadores ---
 const formatCurrency = (amount) =>
@@ -36,37 +41,92 @@ const formatMoneda = (moneda) => {
 };
 
 // --- Componentes de UI Internos ---
-const ProductRow = ({ product }) => (
-  <tr className={`border-b border-gray-200 hover:bg-gray-50 ${product.recentlyChanged ? 'bg-yellow-50' : ''}`}>
-    <td className="py-3 px-4 text-sm text-gray-500 font-mono">
-      {product.code}
-    </td>
-    <td className="py-3 px-4 text-sm text-gray-900 font-medium">
-      {product.name}
-      {product.recentlyChanged && (
-        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-          Precio modificado
-        </span>
-      )}
-    </td>
-    <td className="py-3 px-4 text-sm text-gray-500">{product.brand}</td>
-    <td className="py-3 px-4 text-sm text-gray-500">{product.product_group}</td>
-    <td className="py-3 px-4 text-sm text-gray-500 text-right">
-      {formatMoneda(product.moneda)}
-    </td>
-    <td className="py-3 px-4 text-sm text-gray-500 text-right">
-      {formatRate(product.cotizacion)}
-    </td>
-    <td className="py-3 px-4 text-sm text-gray-600 font-medium text-right">
-      {Number(product.moneda) === 2 || Number(product.moneda) === 3
-        ? formatUSD(product.originalPrice)
-        : '-'}
-    </td>
-    <td className="py-3 px-4 text-sm text-gray-900 font-semibold text-right">
-      {formatCurrency(product.price)}
-    </td>
-  </tr>
-);
+const ProductRow = ({ product, onAddToCart }) => {
+  const [quantity, setQuantity] = useState(1);
+  const [isAdded, setIsAdded] = useState(false);
+
+  const handleAddToCart = () => {
+    onAddToCart(product, quantity);
+    setIsAdded(true);
+    setTimeout(() => setIsAdded(false), 2000);
+    setQuantity(1);
+  };
+
+  return (
+    <tr className={`border-b border-gray-200 hover:bg-gray-50 ${product.recentlyChanged ? 'bg-yellow-50' : ''}`}>
+      <td className="py-3 px-4 text-sm text-gray-500 font-mono">
+        {product.code}
+      </td>
+      <td className="py-3 px-4 text-sm text-gray-900 font-medium">
+        {product.name}
+        {product.recentlyChanged && (
+          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+            Precio modificado
+          </span>
+        )}
+      </td>
+      <td className="py-3 px-4 text-sm text-gray-500">{product.brand}</td>
+      <td className="py-3 px-4 text-sm text-center">
+        {product.stock_disponible <= 0 ? (
+          <span className="text-red-600 font-medium">Sin Stock</span>
+        ) : (
+          <span className="text-gray-600 font-medium">
+            {product.stock_disponible > 100 ? '+100' : product.stock_disponible}
+          </span>
+        )}
+        {product.stock_de_seguridad > 0 && (
+          <div className="text-[10px] text-blue-600 font-medium">Previsto de ingreso</div>
+        )}
+      </td>
+      <td className="py-3 px-4 text-sm text-gray-500 text-right">
+        {formatMoneda(product.moneda)}
+      </td>
+      <td className="py-3 px-4 text-sm text-gray-900 font-semibold text-right">
+        {formatCurrency(product.price)}
+      </td>
+      <td className="py-3 px-4 text-sm">
+        <div className="flex items-center justify-end space-x-2">
+          <div className="flex items-center border border-gray-300 rounded-md bg-white">
+            <button
+              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              className="px-2 py-1 text-gray-600 hover:bg-gray-100 rounded-l-md"
+            >
+              <Minus className="w-3 h-3" />
+            </button>
+            <input
+              type="number"
+              min="1"
+              value={quantity}
+              onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+              className="w-10 text-center text-xs border-none focus:ring-0 p-1"
+            />
+            <button
+              onClick={() => setQuantity((q) => q + 1)}
+              className="px-2 py-1 text-gray-600 hover:bg-gray-100 rounded-r-md"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+          </div>
+          <button
+            onClick={handleAddToCart}
+            disabled={isAdded}
+            className={`p-1.5 rounded-md transition-colors ${isAdded
+              ? 'bg-green-100 text-green-600'
+              : 'bg-espint-blue text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
+              }`}
+            title={isAdded ? 'Agregado' : 'Agregar al carrito'}
+          >
+            {isAdded ? (
+              <CheckCircle className="w-4 h-4" />
+            ) : (
+              <ShoppingCart className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+};
 
 const ProductRowSkeleton = () => (
   <tr className="border-b border-gray-200 animate-pulse">
@@ -80,7 +140,7 @@ const ProductRowSkeleton = () => (
       <div className="h-4 bg-gray-200 rounded w-24"></div>
     </td>
     <td className="py-3 px-4">
-      <div className="h-4 bg-gray-200 rounded w-16"></div>
+      <div className="h-4 bg-gray-200 rounded w-16 mx-auto"></div>
     </td>
     <td className="py-3 px-4">
       <div className="h-4 bg-gray-200 rounded w-10 ml-auto"></div>
@@ -89,10 +149,10 @@ const ProductRowSkeleton = () => (
       <div className="h-4 bg-gray-200 rounded w-16 ml-auto"></div>
     </td>
     <td className="py-3 px-4">
-      <div className="h-4 bg-gray-200 rounded w-16 ml-auto"></div>
-    </td>
-    <td className="py-3 px-4">
-      <div className="h-4 bg-gray-200 rounded w-16 ml-auto"></div>
+      <div className="flex justify-end space-x-2">
+        <div className="h-6 w-16 bg-gray-200 rounded"></div>
+        <div className="h-6 w-6 bg-gray-200 rounded"></div>
+      </div>
     </td>
   </tr>
 );
@@ -115,6 +175,7 @@ const ErrorMessage = ({ message, onRetry, showRetry = true }) => (
 // --- Componente Principal de la Página ---
 export default function PriceListPage() {
   const { user } = useAuth();
+  const { addToCart } = useCart();
   const navigate = useNavigate();
 
   const [searchParams] = useSearchParams();
@@ -159,10 +220,8 @@ export default function PriceListPage() {
           { header: 'Código', key: 'code', width: 15 },
           { header: 'Descripción', key: 'name', width: 40 },
           { header: 'Marca', key: 'brand', width: 20 },
-          { header: 'Grupo', key: 'product_group', width: 15 },
+          { header: 'Stock', key: 'stock', width: 15 },
           { header: 'Moneda', key: 'moneda', width: 12 },
-          { header: 'Cotización', key: 'cotizacion', width: 12 },
-          { header: 'Precio USD', key: 'originalPrice', width: 15 },
           { header: 'Precio Final (ARS)', key: 'price', width: 20 },
         ];
 
@@ -180,19 +239,18 @@ export default function PriceListPage() {
             code: p.code,
             name: p.name,
             brand: p.brand,
-            product_group: p.product_group,
+            stock:
+              p.stock_disponible <= 0
+                ? 'Sin Stock' + (p.stock_de_seguridad > 0 ? ' (Previsto)' : '')
+                : (p.stock_disponible > 100
+                  ? '+100'
+                  : p.stock_disponible) +
+                (p.stock_de_seguridad > 0 ? ' (Previsto)' : ''),
             moneda: formatMoneda(p.moneda),
-            cotizacion: Number(p.cotizacion),
-            originalPrice:
-              Number(p.moneda) === 2 || Number(p.moneda) === 3
-                ? Number(p.originalPrice)
-                : null,
             price: Number(p.price),
           });
 
           // Formato de celdas numéricas
-          row.getCell('cotizacion').numFmt = '#,##0.00';
-          row.getCell('originalPrice').numFmt = '"$"#,##0.00';
           row.getCell('price').numFmt = '"$"#,##0.00';
         });
 
@@ -456,20 +514,17 @@ export default function PriceListPage() {
                 <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider">
                   Marca
                 </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider">
-                  Grupo
+                <th className="py-3 px-4 text-center text-xs font-semibold text-espint-blue uppercase tracking-wider">
+                  Stock
                 </th>
                 <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider text-right">
                   Moneda
                 </th>
                 <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider text-right">
-                  Cotización
-                </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider text-right">
-                  Precio (USD)
-                </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider text-right">
                   Precio Final (ARS)
+                </th>
+                <th className="py-3 px-4 text-right text-xs font-semibold text-espint-blue uppercase tracking-wider">
+                  Acciones
                 </th>
               </tr>
             </thead>
@@ -481,7 +536,7 @@ export default function PriceListPage() {
                 ))}
               {isError && (
                 <tr>
-                  <td colSpan="8">
+                  <td colSpan="6">
                     <ErrorMessage
                       message={error.message}
                       onRetry={() => window.location.reload()}
@@ -491,7 +546,7 @@ export default function PriceListPage() {
               )}
               {allProducts.length > 0 &&
                 allProducts.map((product) => (
-                  <ProductRow key={product.id} product={product} />
+                  <ProductRow key={product.id} product={product} onAddToCart={addToCart} />
                 ))}
             </tbody>
           </table>
@@ -536,4 +591,3 @@ export default function PriceListPage() {
     </div>
   );
 }
-
