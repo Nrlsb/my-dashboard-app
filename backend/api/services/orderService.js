@@ -27,14 +27,10 @@ const createOrder = async (orderData, userId) => {
   // --- 1. Obtener datos del usuario para el email ---
   let user;
   try {
-    const userResult = await pool2.query(
-      'SELECT full_name, email, a1_cod FROM users WHERE id = $1',
-      [userId]
-    );
-    if (userResult.rows.length === 0) {
+    user = await userModel.findUserById(userId);
+    if (!user) {
       throw new Error(`Usuario con ID ${userId} no encontrado.`);
     }
-    user = userResult.rows[0];
   } catch (error) {
     console.error('Error al buscar usuario en createOrder:', error);
     throw error; // Detener la ejecución si no encontramos al usuario
@@ -212,56 +208,60 @@ const fetchOrders = async (user) => {
   }
 
   // 2. Si el usuario es un vendedor, obtener los IDs de sus clientes
+  let orders = [];
+
+  // 2. Si el usuario es un vendedor, buscar por CÓDIGOS de cliente (a1_cod)
   if (user.role === 'vendedor' && user.codigo) {
     console.log(
       `[orderService] Usuario ${user.userId} es VENDEDOR con codigo: ${user.codigo}`
-    ); // Usar user.userId
-    const clients = await userModel.findUsersByVendedorCodigo(user.codigo);
-    console.log(
-      `[orderService] Clientes encontrados para vendedor ${user.codigo}:`,
-      clients.map((c) => c.id)
     );
-    targetUserIds = clients.map((client) => client.id);
-    // Si el vendedor también es un cliente y tiene pedidos propios,
-    // podríamos querer incluir su propio ID aquí si no está ya en la lista de clientes.
-    // Por ahora, nos basamos en que findUsersByVendedorCodigo devuelve todos los clientes.
-    // Si el vendedor puede tener pedidos propios no asociados a un cliente,
-    // y quiere verlos, habría que añadir user.id a targetUserIds.
-    // Por la descripción, parece que solo quiere ver los de sus clientes.
+    const clients = await userModel.findUsersByVendedorCodigo(user.codigo);
 
-    if (targetUserIds.length === 0) {
+    // Extraer códigos únicos de clientes (a1_cod)
+    const clientCodes = [...new Set(clients.map(c => c.a1_cod).filter(cod => cod))];
+
+    console.log(
+      `[orderService] Clientes encontrados para vendedor ${user.codigo}: ${clients.length}`
+    );
+    console.log(`[orderService] Códigos de cliente a buscar:`, clientCodes);
+
+    if (clientCodes.length === 0) {
       console.log(
-        `[orderService] Vendedor ${user.userId} no tiene clientes asignados. Devolviendo array vacío.`
-      ); // Usar user.userId
+        `[orderService] Vendedor ${user.userId} no tiene clientes con código válido. Devolviendo array vacío.`
+      );
       return [];
     }
-  } else {
-    console.log(
-      `[orderService] Usuario ${user.userId} NO es vendedor o no tiene codigo. Role: ${user.role}, Codigo: ${user.codigo}`
-    ); // Usar user.userId
-  }
 
-  console.log(
-    `[orderService] Buscando pedidos para targetUserIds:`,
-    targetUserIds
-  );
-  const orders = await orderModel.findOrders(targetUserIds);
+    orders = await orderModel.findOrdersByClientCodes(clientCodes);
+
+  } else {
+    // Si es cliente, buscar por SU propio ID
+    console.log(
+      `[orderService] Usuario ${user.userId} es CLIENTE. Buscando sus pedidos.`
+    );
+    orders = await orderModel.findOrders([user.userId]);
+  }
   console.log(`[orderService] Pedidos encontrados: ${orders.length}`);
 
   // Si el usuario es un vendedor y hay pedidos, los enriquecemos con el nombre del cliente
   if (user.role === 'vendedor' && orders.length > 0) {
-    const clientIds = [...new Set(orders.map((o) => o.user_id))];
-    const usersResult = await pool2.query(
-      'SELECT id, full_name FROM users WHERE id = ANY($1::int[])',
-      [clientIds]
-    );
-    const clientNamesMap = new Map(
-      usersResult.rows.map((u) => [u.id, u.full_name])
-    );
+    // Si ya buscamos clients arriba para filtrar, usémoslos.
+    // Pero si no entramos al if de vendedor (raro si role es vendedor), tendríamos que buscarlos.
+    // Asumimos que entramos al if de arriba.
+
+    // Recuperar clientes de nuevo si es necesario, o mejor refactorizar para que 'clients' esté disponible.
+    // Como 'clients' está dentro del scope del if anterior, necesitamos moverlo o volvemos a buscar (menos eficiente).
+    // Mejor: mover 'clients' a un scope superior.
+
+    // REFACTOR: Vamos a asumir que duplicamos la búsqueda por ahora para no romper mucho codigo, 
+    // o mejor, reutilizar la logica de mapa si tenemos los codigos.
+
+    const clients = await userModel.findUsersByVendedorCodigo(user.codigo);
+    const clientMap = new Map(clients.map(c => [c.a1_cod, c.full_name]));
 
     const enrichedOrders = orders.map((order) => ({
       ...order,
-      client_name: clientNamesMap.get(order.user_id) || 'N/A',
+      client_name: clientMap.get(order.a1_cod) || 'Cliente Desconocido',
     }));
 
     return enrichedOrders.map((order) => ({
@@ -269,6 +269,7 @@ const fetchOrders = async (user) => {
       vendorSalesOrderNumber: order.vendor_sales_order_number,
       isConfirmed: order.is_confirmed,
       formattedTotal: formatCurrency(order.total),
+      // Asegurar que items esté o no
     }));
   }
 
@@ -288,17 +289,21 @@ const fetchOrders = async (user) => {
  */
 const fetchOrderDetails = async (orderId, user) => {
   let allowedUserIds = [user.userId]; // Por defecto, el propio usuario
+  let allowedClientCodes = [];
 
   if (user.role === 'vendedor' && user.codigo) {
     const clients = await userModel.findUsersByVendedorCodigo(user.codigo);
     allowedUserIds = clients.map((client) => client.id);
+    allowedClientCodes = clients.map((client) => client.a1_cod).filter(cod => cod);
+
     // Si el vendedor también puede ver sus propios pedidos, añadir user.userId
     // allowedUserIds.push(user.userId);
   }
 
   const orderDetails = await orderModel.findOrderDetailsById(
     orderId,
-    allowedUserIds
+    allowedUserIds,
+    allowedClientCodes
   );
 
   if (!orderDetails) {
@@ -327,15 +332,19 @@ const downloadOrderPdf = async (orderId, user) => {
   try {
     // 1. Determinar los IDs de usuario permitidos para la consulta
     let allowedUserIds = [user.userId]; // Por defecto, el propio usuario
+    let allowedClientCodes = [];
+
     if (user.role === 'vendedor' && user.codigo) {
       const clients = await userModel.findUsersByVendedorCodigo(user.codigo);
       allowedUserIds = clients.map((client) => client.id);
+      allowedClientCodes = clients.map((client) => client.a1_cod).filter(cod => cod);
     }
 
     // 2. Obtener detalles del pedido usando los IDs permitidos
     const orderDetails = await orderModel.findOrderDetailsById(
       orderId,
-      allowedUserIds
+      allowedUserIds,
+      allowedClientCodes
     );
     if (!orderDetails) {
       throw new Error('Pedido no encontrado o no le pertenece al usuario.');
@@ -343,16 +352,13 @@ const downloadOrderPdf = async (orderId, user) => {
 
     // 3. Obtener datos del usuario QUE HIZO EL PEDIDO (no el vendedor)
     const orderOwnerId = orderDetails.user_id; // El ID del dueño del pedido
-    const userResult = await pool2.query(
-      'SELECT id, full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, a1_endereco FROM users WHERE id = $1',
-      [orderOwnerId]
-    );
-    if (userResult.rows.length === 0) {
+    const orderOwner = await userModel.findUserById(orderOwnerId);
+
+    if (!orderOwner) {
       throw new Error(
         `El dueño del pedido con ID ${orderOwnerId} no fue encontrado.`
       );
     }
-    const orderOwner = userResult.rows[0];
 
     // 4. Enriquecer items con nombres de productos para el PDF
     const productIds = orderDetails.items.map((item) => item.product_id);
@@ -407,15 +413,19 @@ const downloadOrderCsv = async (orderId, user) => {
   try {
     // 1. Determinar los IDs de usuario permitidos (lógica idéntica a la de PDF)
     let allowedUserIds = [user.userId];
+    let allowedClientCodes = [];
+
     if (user.role === 'vendedor' && user.codigo) {
       const clients = await userModel.findUsersByVendedorCodigo(user.codigo);
       allowedUserIds = clients.map((client) => client.id);
+      allowedClientCodes = clients.map((client) => client.a1_cod).filter(cod => cod);
     }
 
     // 2. Obtener detalles del pedido
     const orderDetails = await orderModel.findOrderDetailsById(
       orderId,
-      allowedUserIds
+      allowedUserIds,
+      allowedClientCodes
     );
     if (!orderDetails) {
       throw new Error('Pedido no encontrado o no le pertenece al usuario.');

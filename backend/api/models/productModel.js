@@ -234,7 +234,7 @@ const findProducts = async ({
 
 
   if (brands && brands.length > 0) {
-    const brandQuery = ` b1_grupo = ANY($${paramIndex}::varchar[])`;
+    const brandQuery = ` sbm_desc = ANY($${paramIndex}::varchar[])`;
     countQuery += ` AND ${brandQuery} `;
     dataQuery += ` AND ${brandQuery} `;
     queryParams.push(brands);

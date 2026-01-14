@@ -47,8 +47,8 @@ async function generateOrderPDF(orderData) {
                 nombre: user.full_name,
                 // Soporte para nombres de campos de DB (a1_endereco) y legacy (a1_dom)
                 domicilio: user.a1_endereco || user.a1_dom || '',
-                localidad: user.a1_loc || '', // Nota: Verificar si existe en DB
-                provincia: user.a1_prov || '', // Nota: Verificar si existe en DB
+                localidad: user.a1_mun || user.a1_loc || '',
+                provincia: user.a1_est || user.a1_prov || '',
                 cuenta: user.a1_cod,
                 // Soporte para nombres de campos de DB (a1_cgc) y legacy (a1_cuit)
                 cuit: user.a1_cgc || user.a1_cuit || '',
@@ -56,7 +56,7 @@ async function generateOrderPDF(orderData) {
                 // Soporte para nombres de campos de DB (a1_tel)
                 telefono: user.a1_tel || '',
                 condPago: user.a1_condpago || '',
-                vendedor: user.a1_vend || '',
+                vendedor: (user.vendedor && user.vendedor.nombre) ? user.vendedor.nombre : (user.vendedor_nombre || user.a1_vend || ''),
             },
             items: items.map(item => ({
                 codigo: item.code,
@@ -179,10 +179,7 @@ async function generateOrderPDF(orderData) {
         drawText('Fecha Emisión:', labelX, infoY, { bold: true, size: smallTextSize });
         drawText(fechaEmision, valueX, infoY, { size: smallTextSize });
 
-        // Línea 3
-        infoY -= infoLineSpacing;
-        drawText('Nro.Ped.Suc:', labelX, infoY, { bold: true, size: smallTextSize });
-        drawText(sucursal, valueX, infoY, { size: smallTextSize });
+
 
         y -= 80;
 
@@ -228,9 +225,7 @@ async function generateOrderPDF(orderData) {
         clientRightY -= lineSpacing;
         drawText('Cuit:', clientRightCol, clientRightY, { bold: true, size: smallTextSize });
         drawText(cliente.cuit, clientRightCol + rightLabelWidth, clientRightY, { size: smallTextSize });
-        clientRightY -= lineSpacing;
-        drawText('Cond. I.V.A:', clientRightCol, clientRightY, { bold: true, size: smallTextSize });
-        drawText(cliente.condIva, clientRightCol + rightLabelWidth, clientRightY, { size: smallTextSize });
+
         clientRightY -= lineSpacing;
         drawText('Tel:', clientRightCol, clientRightY, { bold: true, size: smallTextSize });
         drawText(cliente.telefono, clientRightCol + rightLabelWidth, clientRightY, { size: smallTextSize });
@@ -242,8 +237,7 @@ async function generateOrderPDF(orderData) {
             thickness: 0.5,
         });
         let clientBottomY = y - 100;
-        drawText('Cond. Pago:', clientLeftCol, clientBottomY, { bold: true, size: smallTextSize });
-        drawText(cliente.condPago, clientLeftCol + 70, clientBottomY, { size: smallTextSize });
+
 
         drawText('Vendedor:', clientRightCol, clientBottomY, { bold: true, size: smallTextSize });
         drawText(cliente.vendedor, clientRightCol + 60, clientBottomY, { size: smallTextSize });

@@ -50,28 +50,27 @@ const findOrders = async (userIds) => {
  * @param {number} userId - El ID del usuario.
  * @returns {Promise<object|null>} - Una promesa que se resuelve con los detalles del pedido o null si no se encuentra.
  */
-const findOrderDetailsById = async (orderId, allowedUserIds) => {
+const findOrderDetailsById = async (orderId, allowedUserIds, allowedClientCodes = []) => {
   // 1. Obtener datos del pedido y verificar pertenencia
   let orderQuery;
   let values;
 
-  if (Array.isArray(allowedUserIds)) {
-    orderQuery = `
+  // Normalizar allowedUserIds a array si no lo es
+  const userIds = Array.isArray(allowedUserIds) ? allowedUserIds : [allowedUserIds];
+  const clientCodes = Array.isArray(allowedClientCodes) ? allowedClientCodes : [];
+
+  orderQuery = `
       SELECT *, TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') as formatted_date,
              vendor_sales_order_number, is_confirmed
       FROM orders
-      WHERE id = $1 AND user_id = ANY($2::int[]);
+      WHERE id = $1 
+      AND (
+          user_id = ANY($2::int[]) 
+          OR 
+          ($3::text[] IS NOT NULL AND a1_cod = ANY($3::text[]))
+      );
     `;
-    values = [orderId, allowedUserIds];
-  } else {
-    orderQuery = `
-      SELECT *, TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') as formatted_date,
-             vendor_sales_order_number, is_confirmed
-      FROM orders
-      WHERE id = $1 AND user_id = $2;
-    `;
-    values = [orderId, allowedUserIds];
-  }
+  values = [orderId, userIds, clientCodes.length > 0 ? clientCodes : null];
 
   const orderResult = await pool2.query(orderQuery, values);
   if (orderResult.rows.length === 0) {
@@ -172,9 +171,31 @@ const updateOrderInvoice = async (orderId, invoiceUrl) => {
   return result.rowCount > 0;
 };
 
+const findOrdersByClientCodes = async (clientCodes) => {
+  if (!clientCodes || clientCodes.length === 0) {
+    return [];
+  }
+
+  const query = `
+      SELECT id, user_id, a1_cod, total, status, 
+             TO_CHAR(created_at, 'DD/MM/YYYY') as formatted_date,
+             (SELECT COUNT(*) FROM order_items WHERE order_id = orders.id) as item_count,
+             vendor_sales_order_number,
+             is_confirmed
+      FROM orders
+      WHERE a1_cod = ANY($1::text[])
+      ORDER BY created_at DESC;
+    `;
+
+  console.log(`[orderModel] Buscando pedidos por codigos de cliente:`, clientCodes);
+  const result = await pool2.query(query, [clientCodes]);
+  return result.rows;
+};
+
 module.exports = {
   validateOrderItems,
   findOrders,
+  findOrdersByClientCodes,
   findOrderDetailsById,
   updateOrderDetails,
   updateOrderInvoice,
