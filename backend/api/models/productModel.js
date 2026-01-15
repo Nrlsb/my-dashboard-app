@@ -170,7 +170,7 @@ const findProducts = async ({
   excludedIds = [],
   bypassCache = false,
 }) => {
-  const cacheKey = `products:search:${JSON.stringify({
+  const cacheKey = `products:search:v3:${JSON.stringify({
     limit,
     offset,
     search: search ? search.trim() : '',
@@ -339,7 +339,8 @@ const findProductById = async (productId, deniedGroups = []) => {
 SELECT
 id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, b1_grupo AS brand,
   z02_descri AS capacity_description, b1_grupo AS product_group,
-  stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, da1_moeda AS moneda
+  stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, da1_moeda AS moneda,
+  sbz_desc AS indicator_description, b1_qe AS pack_quantity
       FROM products
       WHERE id = $1 AND da1_prcven > 0 AND b1_desc IS NOT NULL
     `;
@@ -382,7 +383,8 @@ const findProductByCode = async (productCode, deniedGroups = []) => {
 SELECT
 id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, b1_grupo AS brand,
   z02_descri AS capacity_description, b1_grupo AS product_group,
-  stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, da1_moeda AS moneda
+  stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, da1_moeda AS moneda,
+  sbz_desc AS indicator_description, b1_qe AS pack_quantity
       FROM products
       WHERE b1_cod = $1 AND da1_prcven > 0 AND b1_desc IS NOT NULL
     `;
@@ -433,7 +435,8 @@ const findOffers = async (offerData, deniedGroups = []) => {
 SELECT
 id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, b1_grupo AS brand,
   z02_descri AS capacity_description, da1_moeda AS moneda, cotizacion, b1_grupo AS product_group,
-  stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad
+  stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad,
+  sbz_desc AS indicator_description, b1_qe AS pack_quantity
       FROM products
       WHERE b1_cod = ANY($1:: varchar[]) AND da1_prcven > 0 AND b1_desc IS NOT NULL
     `;
@@ -484,7 +487,8 @@ const findProductsByGroup = async (
 SELECT
 id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, b1_grupo AS brand,
   z02_descri AS capacity_description, da1_moeda AS moneda, cotizacion, b1_grupo AS product_group,
-  stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad
+  stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad,
+  sbz_desc AS indicator_description, b1_qe AS pack_quantity
     FROM products
     WHERE b1_grupo = $1 AND da1_prcven > 0 AND b1_desc IS NOT NULL
   `;

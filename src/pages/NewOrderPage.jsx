@@ -207,7 +207,7 @@ const NewOrderPage = () => {
 
   const [selectedProduct, setSelectedProduct] = useState(null);
 
-  const { cart, addToCart, updateQuantity, removeFromCart } = useCart();
+  const { cart, addToCart, updateQuantity, removeFromCart, setCart } = useCart();
 
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
@@ -267,13 +267,102 @@ const NewOrderPage = () => {
     }
   }, [currentPage, searchTerm, selectedBrand, user]);
 
-  const handleQuantityChange = (productId, quantityStr) => {
-    const quantity = parseInt(quantityStr, 10);
-    updateQuantity(productId, isNaN(quantity) ? 0 : quantity);
+  const handleQuantityChange = (productId, quantityStr, product) => {
+    let quantity = parseInt(quantityStr, 10);
+    if (isNaN(quantity) || quantity < 1) {
+      updateQuantity(productId, 0); // Or 1? Let's assume 0 removes or invalid.
+      return;
+    }
+
+    // Validation logic
+    const stock = Number(product?.stock_disponible) || 0;
+    const packQty = Number(product?.pack_quantity) > 0 ? Number(product.pack_quantity) : 1;
+    const rawIndicator = product?.indicator_description;
+    const isRestricted = rawIndicator !== null && rawIndicator !== undefined && (String(rawIndicator).trim() === '0' || Number(rawIndicator) === 0);
+
+    if (isRestricted) {
+      if (stock <= 0) {
+        // Must be multiple of packQty
+        if (quantity % packQty !== 0) {
+          // Round to nearest multiple? Or just warn?
+          // User wants enforcement. Let's snap to nearest bucket.
+          const remainder = quantity % packQty;
+          if (remainder >= packQty / 2) {
+            quantity = quantity + (packQty - remainder);
+          } else {
+            quantity = quantity - remainder;
+          }
+          if (quantity < packQty) quantity = packQty;
+        }
+      } else {
+        // Stock > 0
+        if (quantity > stock) {
+          // Rule: Once stock is covered, subsequent increments by closed packaging.
+          // Meaning: quantity = stock + (N * packQty).
+          const surplus = quantity - stock;
+          if (surplus % packQty !== 0) {
+            const remainder = surplus % packQty;
+            let newSurplus = surplus;
+            if (remainder >= packQty / 2) {
+              newSurplus = surplus + (packQty - remainder);
+            } else {
+              newSurplus = surplus - remainder;
+            }
+            if (newSurplus < packQty) newSurplus = packQty; // Minimum 1 package excess if exceeding stock
+            quantity = stock + newSurplus;
+          }
+        }
+      }
+    }
+
+    updateQuantity(productId, quantity);
   };
 
   const handleAddToCartClick = (product) => {
-    addToCart(product, 1);
+    // Calculate correct initial quantity based on stock and restriction
+    const stock = Number(product?.stock_disponible) || 0;
+    const rawIndicator = product?.indicator_description;
+    const isRestricted = rawIndicator !== null && rawIndicator !== undefined && (String(rawIndicator).trim() === '0' || Number(rawIndicator) === 0);
+    const packQty = Number(product?.pack_quantity) > 0 ? Number(product.pack_quantity) : 1;
+
+    let qtyToAdd = 1;
+    if (stock <= 0 && isRestricted) {
+      qtyToAdd = packQty;
+    }
+
+    addToCart(product, qtyToAdd);
+  };
+
+  const handleReviewOrder = () => {
+    let hasChanges = false;
+    const reviewCart = cart.map(item => {
+      const product = productMap.get(item.id) || item;
+      const stock = Number(product?.stock_disponible) || 0;
+      const rawIndicator = product?.indicator_description;
+      const isRestricted = rawIndicator !== null && rawIndicator !== undefined && (String(rawIndicator).trim() === '0' || Number(rawIndicator) === 0);
+      const packQty = Number(product?.pack_quantity) > 0 ? Number(product.pack_quantity) : 1;
+
+      let quantity = item.quantity;
+      if (isRestricted && quantity > stock) {
+        const surplus = quantity - stock;
+        const remainder = surplus % packQty;
+
+        if (remainder !== 0) {
+          // Rule: Adjust UP to the next multiple if user wants to proceed
+          const correction = packQty - remainder;
+          quantity = quantity + correction;
+          hasChanges = true;
+        }
+      }
+
+      return { ...item, quantity };
+    });
+
+    if (hasChanges) {
+      setCart(reviewCart);
+    }
+
+    navigate('/order-preview');
   };
 
   const totalPrice = useMemo(() => {
@@ -483,47 +572,57 @@ const NewOrderPage = () => {
                     Tu carrito está vacío.
                   </p>
                 )}
-                {cart.map((item) => (
-                  <div
-                    key={item.id}
-                    className="py-4 flex items-center space-x-3"
-                  >
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">
-                        {item.name}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {formatCurrency(item.price)}
-                      </p>
-                      <div className="flex items-center mt-2">
-                        <label
-                          htmlFor={`qty-${item.id}`}
-                          className="text-xs text-gray-600 mr-2"
-                        >
-                          Cant:
-                        </label>
-                        <input
-                          id={`qty-${item.id}`}
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) =>
-                            handleQuantityChange(item.id, e.target.value)
-                          }
-                          className="w-16 px-2 py-1 border border-gray-300 rounded-md text-sm"
-                          min="0"
-                          max={item.stock_disponible}
-                        />
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => removeFromCart(item.id)}
-                      className="p-1 text-gray-400 hover:text-red-600"
-                      aria-label="Quitar item"
+                {cart.map((item) => {
+                  const product = productMap.get(item.id) || item;
+                  const rawIndicator = product?.indicator_description;
+                  const isRestricted = rawIndicator !== null && rawIndicator !== undefined && (String(rawIndicator).trim() === '0' || Number(rawIndicator) === 0);
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="py-4 flex items-center space-x-3"
                     >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                ))}
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900">
+                          {item.name}
+                        </p>
+                        {isRestricted && (
+                          <span className="inline-block px-2 py-0.5 mt-1 text-[10px] font-bold text-blue-700 bg-blue-100 rounded-full border border-blue-200">
+                            Pedido por embalaje
+                          </span>
+                        )}
+                        <p className="text-sm text-gray-500 mt-1">
+                          {formatCurrency(item.price)}
+                        </p>
+                        <div className="flex items-center mt-2">
+                          <label
+                            htmlFor={`qty-${item.id}`}
+                            className="text-xs text-gray-600 mr-2"
+                          >
+                            Cant:
+                          </label>
+                          <input
+                            id={`qty-${item.id}`}
+                            key={`qty-${item.id}`}
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => updateQuantity(item.id, e.target.value)}
+                            onBlur={(e) => handleQuantityChange(item.id, e.target.value, productMap.get(item.id) || item)}
+                            className="w-16 border-gray-300 rounded-md shadow-sm focus:ring-espint-blue focus:border-espint-blue text-center"
+                            min="0"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => removeFromCart(item.id)}
+                        className="p-1 text-gray-400 hover:text-red-600"
+                        aria-label="Quitar item"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
 
               {cart.length > 0 && (
@@ -538,7 +637,7 @@ const NewOrderPage = () => {
                     </span>
                   </div>
                   <button
-                    onClick={() => navigate('/order-preview')}
+                    onClick={handleReviewOrder}
                     disabled={cart.length === 0}
                     className="w-full inline-flex items-center justify-center px-6 py-3 font-semibold text-white bg-[#8CB818] rounded-md shadow-sm hover:bg-[#7aa315] transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
@@ -563,7 +662,7 @@ const NewOrderPage = () => {
             <span className="text-xl font-bold text-espint-blue">{formatCurrency(totalPrice)}</span>
           </div>
           <button
-            onClick={() => navigate('/order-preview')}
+            onClick={handleReviewOrder}
             className="flex items-center justify-center px-6 py-3 bg-[#8CB818] text-white font-bold rounded-lg shadow-md hover:bg-[#7aa315] transition-colors"
           >
             Ver Pedido

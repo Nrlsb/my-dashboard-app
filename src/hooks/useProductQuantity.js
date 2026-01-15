@@ -18,9 +18,10 @@ export const useProductQuantity = (product, initialValue = 1) => {
     const stock = Number(product?.stock_disponible) || 0;
 
     // Check for restriction. "sbz_desc" comes as "indicator_description" usually.
-    // We handle string "0", "0.00", number 0.
-    // If it's null or undefined, not restricted.
     const rawIndicator = product?.indicator_description;
+
+
+
     const isRestricted = rawIndicator !== null && rawIndicator !== undefined && (String(rawIndicator).trim() === '0' || Number(rawIndicator) === 0);
 
     const packQty = Number(product?.pack_quantity) > 0 ? Number(product.pack_quantity) : 1;

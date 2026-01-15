@@ -238,6 +238,8 @@ const fetchProducts = async ({
         recentlyChanged: recentlyChangedSet.has(prod.id), // Nueva bandera
         stock_disponible: prod.stock_disponible,
         stock_de_seguridad: prod.stock_de_seguridad,
+        indicator_description: prod.indicator_description,
+        pack_quantity: prod.pack_quantity,
       };
     });
 
