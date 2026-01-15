@@ -42,14 +42,120 @@ const formatMoneda = (moneda) => {
 
 // --- Componentes de UI Internos ---
 const ProductRow = ({ product, onAddToCart }) => {
-  const [quantity, setQuantity] = useState(1);
+  const stock = product.stock_disponible || 0;
+  const isRestricted = product.indicator_description == 0; // "sbz_desc" rule
+  const packQty = product.pack_quantity > 0 ? product.pack_quantity : 1; // "b1_qe" rule
+
+  // Initial quantity logic:
+  // If restricted and no stock, start at packQty.
+  // Otherwise start at 1.
+  const initialQty = (isRestricted && stock <= 0) ? packQty : 1;
+
+  const [quantity, setQuantity] = useState(initialQty);
   const [isAdded, setIsAdded] = useState(false);
 
   const handleAddToCart = () => {
     onAddToCart(product, quantity);
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 2000);
-    setQuantity(1);
+    // Reset to initial correct quantity
+    setQuantity(initialQty);
+  };
+
+  const increment = () => {
+    setQuantity(prev => {
+      // Normal behavior if not restricted
+      if (!isRestricted) return prev + 1;
+
+      // Restricted logic
+      if (prev < stock) {
+        return prev + 1;
+      } else {
+        // Once we reach or exceed stock, we add by package
+        return prev + packQty;
+      }
+    });
+  };
+
+  const decrement = () => {
+    setQuantity(prev => {
+      // Normal behavior if not restricted
+      if (!isRestricted) return Math.max(1, prev - 1);
+
+      // Restricted logic
+      // If we are above stock (meaning we are in packaging mode)
+      if (prev > stock) {
+        const nextVal = prev - packQty;
+        // If stepping down goes below stock, snap to stock (if stock > 0)
+        // If stock is 0, minimum is packQty.
+        if (stock > 0 && nextVal < stock) return stock;
+        if (stock <= 0 && nextVal < packQty) return packQty;
+        // Check if we land exactly on stock (handled by above stock > 0 && nextval < stock check? No.)
+        // Example: Stock=5, Pack=10. Current=15. Next=5.
+        // Example: Stock=0, Pack=10. Current=20. Next=10.
+        return Math.max(stock > 0 ? stock : packQty, nextVal);
+      }
+
+      // If we are at or below stock, valid step is 1
+      return Math.max(1, prev - 1);
+    });
+  };
+
+  // Safe input handler for typing manually
+  const handleInputChange = (e) => {
+    const val = parseInt(e.target.value);
+    if (isNaN(val)) return;
+
+    // We update local state to allow typing, but we might valid on blur or just let it be.
+    // For strictness, let's just let them type and maybe correct on blur if we wanted to be invasive.
+    // But requirement implies "que lo hagan por embalaje". Validation on change is safer.
+    // However, typing "15" key by key: "1" (valid) -> "5". 
+    // If unrestricted, any number.
+    // If restricted:
+    //  If val <= stock: valid.
+    //  If val > stock: should be stock + N * pack.
+    // Implementing strict typing is annoying for user. Let's rely on buttons or loose check.
+    setQuantity(val);
+  };
+
+  // Validate on blur to enforce rules
+  const handleBlur = () => {
+    if (!isRestricted) {
+      if (quantity < 1) setQuantity(1);
+      return;
+    }
+
+    let validQty = quantity;
+    if (validQty < 1) validQty = 1;
+
+    // If restricted:
+    if (stock <= 0) {
+      // Must be multiple of packQty, min packQty
+      if (validQty < packQty) validQty = packQty;
+      else {
+        // Round to nearest package
+        const remainder = validQty % packQty;
+        if (remainder !== 0) {
+          // Round up or nearest? "que lo hagan por embalaje". Usually implies rounding up or strict steps.
+          // Let's assume user expects nearest valid step.
+          // Simplest: stock + ceil((val - stock)/pack)*pack
+          // But here stock=0. So ceil(val/pack)*pack.
+          validQty = Math.ceil(validQty / packQty) * packQty;
+        }
+      }
+    } else {
+      // Stock > 0
+      if (validQty <= stock) {
+        // Valid (unit steps)
+      } else {
+        // Must be stock + N * pack
+        // diff = validQty - stock
+        const diff = validQty - stock;
+        const packs = Math.ceil(diff / packQty);
+        validQty = stock + (packs * packQty);
+      }
+    }
+    setQuantity(validQty);
   };
 
   return (
@@ -67,11 +173,11 @@ const ProductRow = ({ product, onAddToCart }) => {
       </td>
       <td className="py-3 px-4 text-sm text-gray-500">{product.brand}</td>
       <td className="py-3 px-4 text-sm text-center">
-        {product.stock_disponible <= 0 ? (
+        {stock <= 0 ? (
           <span className="text-red-600 font-medium">Sin Stock</span>
         ) : (
           <span className="text-gray-600 font-medium">
-            {product.stock_disponible > 100 ? '+100' : product.stock_disponible}
+            {stock > 100 ? '+100' : stock}
           </span>
         )}
         {product.stock_de_seguridad > 0 && (
@@ -88,8 +194,8 @@ const ProductRow = ({ product, onAddToCart }) => {
         <div className="flex items-center justify-end space-x-2">
           <div className="flex items-center border border-gray-300 rounded-md bg-white">
             <button
-              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              className="px-2 py-1 text-gray-600 hover:bg-gray-100 rounded-l-md"
+              onClick={decrement}
+              className="px-2 py-1 text-gray-600 hover:bg-gray-100 rounded-l-md cursor-pointer"
             >
               <Minus className="w-3 h-3" />
             </button>
@@ -97,12 +203,13 @@ const ProductRow = ({ product, onAddToCart }) => {
               type="number"
               min="1"
               value={quantity}
-              onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-              className="w-10 text-center text-xs border-none focus:ring-0 p-1"
+              onChange={handleInputChange}
+              onBlur={handleBlur}
+              className="w-16 text-center text-xs border-none focus:ring-0 p-1" // Width increased slightly to handle larger packaged numbers
             />
             <button
-              onClick={() => setQuantity((q) => q + 1)}
-              className="px-2 py-1 text-gray-600 hover:bg-gray-100 rounded-r-md"
+              onClick={increment}
+              className="px-2 py-1 text-gray-600 hover:bg-gray-100 rounded-r-md cursor-pointer"
             >
               <Plus className="w-3 h-3" />
             </button>
@@ -112,7 +219,7 @@ const ProductRow = ({ product, onAddToCart }) => {
             disabled={isAdded}
             className={`p-1.5 rounded-md transition-colors ${isAdded
               ? 'bg-green-100 text-green-600'
-              : 'bg-espint-blue text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
+              : 'bg-espint-blue text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
               }`}
             title={isAdded ? 'Agregado' : 'Agregar al carrito'}
           >
