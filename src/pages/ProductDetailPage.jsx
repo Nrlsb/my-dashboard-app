@@ -80,31 +80,7 @@ export default function ProductDetailPage() {
     setTimeout(() => setIsAdded(false), 2000);
   };
 
-  const renderStockStatus = (product) => {
-    const stock = product.stock_disponible !== undefined ? product.stock_disponible : product.stock;
-    const securityStock = product.stock_de_seguridad || 0;
 
-    if (stock <= 0) {
-      return (
-        <span className="inline-flex items-center p-1.5 rounded-full bg-red-100 bg-opacity-50 text-red-800" title="Sin Stock">
-          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-        </span>
-      );
-    } else if (stock <= securityStock) {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 bg-opacity-50 text-yellow-800">
-          <div className="w-2 h-2 bg-yellow-500 rounded-full mr-1"></div>
-          Stock Bajo
-        </span>
-      );
-    } else {
-      return (
-        <span className="inline-flex items-center p-1.5 rounded-full bg-green-100 bg-opacity-50 text-green-800" title="Disponible">
-          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-        </span>
-      );
-    }
-  };
 
   const renderContent = () => {
     if (isLoading) {
@@ -208,7 +184,31 @@ export default function ProductDetailPage() {
                 <span>Cód: {product.code}</span>
               </div>
               <div className="flex items-center font-medium">
-                {renderStockStatus(product)}
+                <div className="flex items-center mt-1">
+                  {product.stock_disponible <= 0 ? (
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium text-red-600">
+                        Sin Stock
+                      </span>
+                      {product.stock_de_seguridad > 0 && (
+                        <span className="ml-2 text-xs text-blue-600 font-medium">
+                          | Previsto de ingreso
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium text-gray-600">
+                        Stock: {product.stock_disponible > 100 ? '+100' : product.stock_disponible}
+                      </span>
+                      {product.stock_de_seguridad > 0 && (
+                        <span className="ml-2 text-xs text-blue-600 font-medium">
+                          | Previsto de ingreso
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

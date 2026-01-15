@@ -935,6 +935,7 @@ const getCustomCollectionProducts = async (collectionId, userId = null) => {
 
     return {
       ...prod,
+      name: prod.description,
       price: finalPrice
     };
   });
@@ -1094,7 +1095,7 @@ const fetchNewReleases = async (userId = null) => {
 const toggleProductNewRelease = async (productId) => {
   try {
     const productResult = await pool.query(
-      'SELECT id, description, code, price FROM products WHERE id = $1',
+      'SELECT id, b1_desc AS description, b1_cod AS code, da1_prcven AS price FROM products WHERE id = $1',
       [productId]
     );
     if (productResult.rows.length === 0) {

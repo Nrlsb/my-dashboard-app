@@ -5,10 +5,8 @@ const fs = require('fs');
 // Configuración de Multer
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    // 'uploads/' será relativo al directorio desde donde se ejecuta `node server.js`
-    // que es `backend/api/`.
-    // Creamos 'backend/api/uploads/' si no existe.
-    const uploadDir = 'uploads/';
+    // 'uploads/' será relativo al directorio backend/api/uploads
+    const uploadDir = path.join(__dirname, '../uploads');
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir);
     }

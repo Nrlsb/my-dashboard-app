@@ -446,7 +446,7 @@ const removeAdmin = async (userId) => {
 const getProductGroupsForAdmin = async () => {
   try {
     const result = await pool.query(
-      `SELECT DISTINCT product_group, brand FROM products WHERE product_group IS NOT NULL AND product_group != '' ORDER BY product_group ASC;`
+      `SELECT DISTINCT b1_grupo AS product_group, sbm_desc AS brand FROM products WHERE b1_grupo IS NOT NULL AND b1_grupo != '' ORDER BY b1_grupo ASC;`
     );
     return result.rows;
   } catch (error) {

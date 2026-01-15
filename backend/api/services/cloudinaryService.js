@@ -74,8 +74,36 @@ const getImageUrl = (publicId, folder = 'products', width = 500) => {
     });
 };
 
+/**
+ * Sube un archivo genérico (PDF, doc, etc.) a Cloudinary.
+ * @param {string} filePath - Ruta absoluta del archivo local.
+ * @param {string} publicId - ID público deseado.
+ * @param {string} folder - Carpeta en Cloudinary (default: 'invoices').
+ * @returns {Promise<object>} - Resultado de la subida.
+ */
+const uploadFile = async (filePath, publicId, folder = 'invoices') => {
+    try {
+        if (!fs.existsSync(filePath)) {
+            throw new Error(`File not found: ${filePath}`);
+        }
+
+        const result = await cloudinary.uploader.upload(filePath, {
+            public_id: publicId,
+            folder: folder,
+            resource_type: "auto", // Permite detectar PDFs y otros tipos
+            overwrite: true
+        });
+
+        return result;
+    } catch (error) {
+        console.error(`Error uploading file to Cloudinary (${publicId}):`, error);
+        throw error;
+    }
+};
+
 module.exports = {
     uploadImage,
+    uploadFile,
     deleteImage,
     getImageUrl,
     cloudinary // Exportar instancia por si se necesita acceso directo

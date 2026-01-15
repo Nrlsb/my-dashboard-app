@@ -337,7 +337,7 @@ const findProductById = async (productId, deniedGroups = []) => {
   try {
     let query = `
 SELECT
-id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, b1_grupo AS brand,
+id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, sbm_desc AS brand,
   z02_descri AS capacity_description, b1_grupo AS product_group,
   stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, da1_moeda AS moneda,
   sbz_desc AS indicator_description, b1_qe AS pack_quantity
@@ -381,7 +381,7 @@ const findProductByCode = async (productCode, deniedGroups = []) => {
   try {
     let query = `
 SELECT
-id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, b1_grupo AS brand,
+id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, sbm_desc AS brand,
   z02_descri AS capacity_description, b1_grupo AS product_group,
   stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, da1_moeda AS moneda,
   sbz_desc AS indicator_description, b1_qe AS pack_quantity
@@ -433,7 +433,7 @@ const findOffers = async (offerData, deniedGroups = []) => {
 
     let query = `
 SELECT
-id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, b1_grupo AS brand,
+id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, sbm_desc AS brand,
   z02_descri AS capacity_description, da1_moeda AS moneda, cotizacion, b1_grupo AS product_group,
   stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad,
   sbz_desc AS indicator_description, b1_qe AS pack_quantity
@@ -741,7 +741,7 @@ const findCustomCollectionProducts = async (collectionId) => {
     if (productCodes.length === 0) return [];
 
     const productsQuery = `
-      SELECT id, b1_cod as code, b1_desc as description, da1_prcven as price, b1_grupo as brand, z02_descri as capacity_description, b1_grupo as product_group, stock_disp as stock_disponible, stock_prev as stock_de_seguridad
+      SELECT id, b1_cod as code, b1_desc as description, da1_prcven as price, sbm_desc as brand, z02_descri as capacity_description, b1_grupo as product_group, stock_disp as stock_disponible, stock_prev as stock_de_seguridad
       FROM products
       WHERE b1_cod = ANY($1:: varchar[])
   `;
