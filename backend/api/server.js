@@ -45,7 +45,7 @@ app.use(compression());
 
 // DEBUG LOGGER - Verify requests reach the server
 app.use((req, res, next) => {
-  console.log(`[SERVER-HIT] ${req.method} ${req.originalUrl} at ${new Date().toISOString()}`);
+  // console.log(`[SERVER-HIT] ${req.method} ${req.originalUrl} at ${new Date().toISOString()}`);
   next();
 });
 

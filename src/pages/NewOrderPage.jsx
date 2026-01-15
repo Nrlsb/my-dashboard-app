@@ -28,13 +28,27 @@ const formatCurrency = (amount) => {
   }).format(amount || 0);
 };
 
+import { useProductQuantity } from '../hooks/useProductQuantity';
+
 const ProductModal = ({ product, onClose, onAddToCart }) => {
-  const [quantity, setQuantity] = useState(1);
+  const {
+    quantity,
+    setQuantity,
+    increment,
+    decrement,
+    handleInputChange,
+    handleBlur,
+    stock,
+    isRestricted,
+    packQty
+  } = useProductQuantity(product);
+
   const [isAdded, setIsAdded] = useState(false);
   const navigate = useNavigate();
 
+  // Reset local state when product changes, handled by hook mostly, 
+  // but if we want to ensure clean slate for isAdded.
   useEffect(() => {
-    setQuantity(1);
     setIsAdded(false);
   }, [product]);
 
@@ -99,7 +113,7 @@ const ProductModal = ({ product, onClose, onAddToCart }) => {
             <span className="font-medium text-gray-700">Cantidad:</span>
             <div className="flex items-center border border-gray-300 rounded-lg">
               <button
-                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                onClick={decrement}
                 className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-l-lg"
               >
                 <Minus className="w-4 h-4" />
@@ -107,17 +121,18 @@ const ProductModal = ({ product, onClose, onAddToCart }) => {
               <input
                 type="number"
                 value={quantity}
-                readOnly
+                onChange={handleInputChange}
+                onBlur={handleBlur}
                 className="w-16 text-center border-y-0 border-x focus:ring-0"
               />
               <button
-                onClick={() => setQuantity((q) => q + 1)}
+                onClick={increment}
                 className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-r-lg"
               >
                 <Plus className="w-4 h-4" />
               </button>
             </div>
-            {product.stock_disponible <= 0 ? (
+            {stock <= 0 ? (
               <div className="flex items-center ml-2">
                 <span className="text-sm font-medium text-red-600">
                   Sin Stock
@@ -131,7 +146,7 @@ const ProductModal = ({ product, onClose, onAddToCart }) => {
             ) : (
               <div className="flex items-center ml-2">
                 <span className="text-sm font-medium text-gray-600">
-                  Stock: {product.stock_disponible > 100 ? '+100' : product.stock_disponible}
+                  Stock: {stock > 100 ? '+100' : stock}
                 </span>
                 {product.stock_de_seguridad > 0 && (
                   <span className="ml-2 text-xs text-blue-600 font-medium">

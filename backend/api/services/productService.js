@@ -77,7 +77,7 @@ const fetchProducts = async ({
   isExport = false,
 }) => {
   try {
-    console.log('[DEBUG] productService.fetchProducts called with:', { page, limit, search, brand, userId, isExport });
+    // console.log('[DEBUG] productService.fetchProducts called with:', { page, limit, search, brand, userId, isExport });
 
     // 1. Obtener cotizaciones
     let exchangeRates;
@@ -203,7 +203,7 @@ const fetchProducts = async ({
       const moneda = Number(prod.moneda);
 
       // DEBUG LOG (Unconditional for now)
-      console.log(`[DEBUG] Product ${prod.code}: Moneda=${prod.moneda} (Type: ${typeof prod.moneda}) -> Parsed=${moneda}. Rates: Billete=${ventaBillete}, Divisa=${ventaDivisa}`);
+      // console.log(`[DEBUG] Product ${prod.code}: Moneda=${prod.moneda} (Type: ${typeof prod.moneda}) -> Parsed=${moneda}. Rates: Billete=${ventaBillete}, Divisa=${ventaDivisa}`);
 
       if (moneda === 2) {
         // Dólar Billete

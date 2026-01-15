@@ -2,7 +2,7 @@ const productService = require('../services/productService');
 const catchAsync = require('../utils/catchAsync');
 
 exports.getProductsController = catchAsync(async (req, res) => {
-    console.log('GET /api/products -> Consultando productos en DB (paginado)...');
+    // console.log('GET /api/products -> Consultando productos en DB (paginado)...');
     const {
         page = 1,
         limit = 20,
@@ -13,7 +13,7 @@ exports.getProductsController = catchAsync(async (req, res) => {
         hasImage = '',
         isExport = 'false',
     } = req.query;
-    console.log(`[DEBUG] getProductsController - bypassCache: ${bypassCache}, isExport: ${isExport}`);
+    // console.log(`[DEBUG] getProductsController - bypassCache: ${bypassCache}, isExport: ${isExport}`);
 
     const shouldBypass = String(bypassCache).toLowerCase() === 'true';
     const shouldExport = String(isExport).toLowerCase() === 'true';
@@ -49,7 +49,7 @@ exports.getProductsByGroupController = catchAsync(async (req, res) => {
 });
 
 exports.getBrandsController = catchAsync(async (req, res) => {
-    console.log('GET /api/brands -> Consultando lista de marcas...');
+    // console.log('GET /api/brands -> Consultando lista de marcas...');
     const brands = await productService.fetchProtheusBrands(req.userId);
     res.json(brands);
 });
@@ -172,7 +172,7 @@ exports.getBatchGenerationProgress = catchAsync(async (req, res) => {
 // --- New Releases Controllers ---
 
 exports.getNewReleasesController = catchAsync(async (req, res) => {
-    console.log('GET /api/new-releases -> Consultando nuevos lanzamientos...');
+    // console.log('GET /api/new-releases -> Consultando nuevos lanzamientos...');
     const releases = await productService.fetchNewReleases(req.userId);
     res.set('Cache-Control', 'no-store');
     res.json(releases);

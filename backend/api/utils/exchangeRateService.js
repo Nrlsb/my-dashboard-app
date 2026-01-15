@@ -50,7 +50,7 @@ const getExchangeRates = async () => {
 
   // 1. Revisar si hay datos en caché y si aún son válidos
   if (cache.data && now - cache.timestamp < CACHE_DURATION_MS) {
-    console.log('Sirviendo cotizaciones desde el caché...');
+    // console.log('Sirviendo cotizaciones desde el caché...');
     return cache.data;
   }
 

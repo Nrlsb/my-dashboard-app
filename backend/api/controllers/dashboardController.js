@@ -2,7 +2,7 @@ const dashboardService = require('../services/dashboardService');
 const catchAsync = require('../utils/catchAsync');
 
 exports.getDashboardPanelsController = catchAsync(async (req, res) => {
-    console.log('GET /api/dashboard-panels -> Consultando paneles visibles...');
+    // console.log('GET /api/dashboard-panels -> Consultando paneles visibles...');
     const panels = await dashboardService.getDashboardPanels(req.user);
     res.json(panels);
 });
