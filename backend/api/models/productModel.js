@@ -686,6 +686,19 @@ RETURNING * `,
 // --- Carousel Content Methods ---
 
 const findCarouselAccessories = async () => {
+  const cacheKey = 'carousel:accessories';
+
+  if (isRedisReady()) {
+    try {
+      const cachedData = await redisClient.get(cacheKey);
+      if (cachedData) {
+        return JSON.parse(cachedData);
+      }
+    } catch (err) {
+      console.error('Redis error in findCarouselAccessories:', err);
+    }
+  }
+
   try {
     const idsResult = await pool2.query('SELECT product_code FROM carousel_accessories');
     const productCodes = idsResult.rows.map(row => row.product_code);
@@ -698,7 +711,17 @@ const findCarouselAccessories = async () => {
       WHERE b1_cod = ANY($1:: varchar[])
   `;
     const productsResult = await pool2.query(productsQuery, [productCodes]);
-    return productsResult.rows;
+    const result = productsResult.rows;
+
+    if (isRedisReady()) {
+      try {
+        await redisClient.set(cacheKey, JSON.stringify(result), { EX: 3600 }); // 1 hour TTL
+      } catch (err) {
+        console.error('Redis error setting cache in findCarouselAccessories:', err);
+      }
+    }
+
+    return result;
   } catch (error) {
     console.error('Error in findCarouselAccessories:', error);
     throw error;
@@ -734,9 +757,32 @@ const removeCarouselAccessory = async (productId) => {
 };
 
 const findCarouselGroups = async () => {
+  const cacheKey = 'carousel:groups';
+
+  if (isRedisReady()) {
+    try {
+      const cachedData = await redisClient.get(cacheKey);
+      if (cachedData) {
+        return JSON.parse(cachedData);
+      }
+    } catch (err) {
+      console.error('Redis error in findCarouselGroups:', err);
+    }
+  }
+
   try {
     const result = await pool2.query('SELECT * FROM carousel_product_groups WHERE is_active = true ORDER BY display_order ASC');
-    return result.rows;
+    const rows = result.rows;
+
+    if (isRedisReady()) {
+      try {
+        await redisClient.set(cacheKey, JSON.stringify(rows), { EX: 3600 }); // 1 hour TTL
+      } catch (err) {
+        console.error('Redis error setting cache in findCarouselGroups:', err);
+      }
+    }
+
+    return rows;
   } catch (error) {
     console.error('Error in findCarouselGroups:', error);
     throw error;

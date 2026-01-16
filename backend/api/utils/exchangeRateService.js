@@ -1,16 +1,12 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
+const { redisClient, isRedisReady } = require('../redisClient');
 
 // URL ÚNICA de BNA
 const URL_BNA = 'https://www.bna.com.ar/Personas';
 
-// --- CONFIGURACIÓN DEL CACHÉ ---
-let cache = {
-  data: null,
-  timestamp: null,
-};
-// Duración del caché: 30 minutos en milisegundos
-const CACHE_DURATION_MS = 30 * 60 * 1000;
+// Duración del caché: 30 minutos en segundos (Redis usa segundos)
+const CACHE_DURATION_SECONDS = 30 * 60;
 
 // --- Funciones Auxiliares ---
 
@@ -42,16 +38,23 @@ const parsearFormatoDivisa = (valor) => {
 
 /**
  * Obtiene las cotizaciones del dólar (billete y divisa) del BNA.
- * Utiliza caché para evitar peticiones excesivas.
+ * Utiliza caché Redis para evitar peticiones excesivas.
  * @returns {Promise<Object>} Objeto con las cotizaciones de venta del dólar.
  */
 const getExchangeRates = async () => {
-  const now = Date.now();
+  const cacheKey = 'exchange_rates';
 
-  // 1. Revisar si hay datos en caché y si aún son válidos
-  if (cache.data && now - cache.timestamp < CACHE_DURATION_MS) {
-    // console.log('Sirviendo cotizaciones desde el caché...');
-    return cache.data;
+  // 1. Intentar obtener del caché Redis
+  if (isRedisReady()) {
+    try {
+      const cachedData = await redisClient.get(cacheKey);
+      if (cachedData) {
+        // console.log('Sirviendo cotizaciones desde el caché Redis...');
+        return JSON.parse(cachedData);
+      }
+    } catch (err) {
+      console.error('Redis error in getExchangeRates (get):', err);
+    }
   }
 
   console.log(
@@ -59,16 +62,16 @@ const getExchangeRates = async () => {
   );
 
   try {
-    // 2. Si el caché no es válido, buscar los datos
+    // 2. Si el caché no es válido o falló Redis, buscar los datos
     const { data: html } = await axios.get(URL_BNA, {
-      timeout: 5000, // (NUEVO) Timeout de 5 segundos para evitar que se cuelgue
+      timeout: 5000,
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       },
     });
 
-    console.log('[DEBUG-BNA] HTML recibido, longitud:', html.length);
+    // console.log('[DEBUG-BNA] HTML recibido, longitud:', html.length);
 
     const $ = cheerio.load(html);
 
@@ -82,27 +85,35 @@ const getExchangeRates = async () => {
     const filaDolarDivisa = tablaDivisas.find('tbody tr').first();
     const divisaVenta = limpiarTexto(filaDolarDivisa.find('td').eq(2).text());
 
-    console.log(`[DEBUG-BNA] Extracted RAW: Billete=${billeteVenta}, Divisa=${divisaVenta}`);
+    // console.log(`[DEBUG-BNA] Extracted RAW: Billete=${billeteVenta}, Divisa=${divisaVenta}`);
 
     // 3. Crear la nueva respuesta simplificada
     const nuevaRespuesta = {
       status: 'ok',
-      fecha_actualizacion: new Date(now).toISOString(),
+      fecha_actualizacion: new Date().toISOString(),
       banco: 'Banco de la Nación Argentina',
       // Aplicamos el parser correcto a cada valor
       venta_billete: parsearFormatoBillete(billeteVenta),
       venta_divisa: parsearFormatoDivisa(divisaVenta),
     };
 
-    console.log(`[DEBUG-BNA] Parsed: Billete=${nuevaRespuesta.venta_billete}, Divisa=${nuevaRespuesta.venta_divisa}`);
+    // console.log(`[DEBUG-BNA] Parsed: Billete=${nuevaRespuesta.venta_billete}, Divisa=${nuevaRespuesta.venta_divisa}`);
 
-    // 4. Guardar la nueva respuesta en el caché
-    cache.data = nuevaRespuesta;
-    cache.timestamp = now;
+    // 4. Guardar la nueva respuesta en el caché Redis
+    if (isRedisReady()) {
+      try {
+        await redisClient.set(cacheKey, JSON.stringify(nuevaRespuesta), { EX: CACHE_DURATION_SECONDS });
+      } catch (err) {
+        console.error('Redis error in getExchangeRates (set):', err);
+      }
+    }
 
     return nuevaRespuesta;
   } catch (error) {
     console.error('Error al obtener cotizaciones:', error.message);
+
+    // Intentar servir del caché VENCIDO si existe en variable local (fallback extremo)
+    // O simplemente lanzar error. En este caso lanzamos error para que el consumidor maneje el fallback.
     throw new Error('No se pudo obtener la cotización del BNA');
   }
 };
