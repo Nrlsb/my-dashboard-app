@@ -606,7 +606,7 @@ const getRecentlyChangedProducts = async (productIds) => {
       SELECT product_code 
       FROM product_price_snapshots 
       WHERE product_code = ANY($1:: varchar[]) 
-        AND last_change_timestamp >= NOW() - INTERVAL '2 minutes'
+        AND last_change_timestamp >= NOW() - INTERVAL '7 days'
     `;
     const result = await pool2.query(query, [codes]);
 
