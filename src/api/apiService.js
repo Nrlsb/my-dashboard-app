@@ -607,6 +607,10 @@ const apiService = {
   getExchangeRates() {
     return this.request('/exchange-rates');
   },
+
+  triggerManualSync() {
+    return this.request('/admin/sync-products', { method: 'POST' });
+  },
 };
 
 export default apiService;

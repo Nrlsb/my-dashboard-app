@@ -163,17 +163,54 @@ const syncPrices = async () => {
         try {
             await client.query('BEGIN');
 
+            // 1. Fetch current snapshots to compare
+            // We use product_code as the key because that matches our API data
+            const snapshotRes = await client.query('SELECT product_code, price FROM product_price_snapshots');
+            const snapshotMap = new Map();
+            snapshotRes.rows.forEach(r => {
+                if (r.product_code) snapshotMap.set(r.product_code.trim(), Number(r.price));
+            });
+
+            let updates = 0;
+            let inserts = 0;
+
             for (const p of prices) {
+                const code = p.da1_codpro.trim();
+                const newPrice = Number(p.da1_prcven);
+                const oldPrice = snapshotMap.get(code);
+
+                // 2. Update History if changed or new
+                if (oldPrice === undefined) {
+                    // New snapshot
+                    // We try to resolve product_id from the products table
+                    await client.query(
+                        `INSERT INTO product_price_snapshots (product_code, price, last_change_timestamp, product_id)
+                         VALUES ($1, $2, NOW(), (SELECT id FROM products WHERE b1_cod = $1 LIMIT 1))`,
+                        [code, newPrice]
+                    );
+                    inserts++;
+                } else if (Math.abs(newPrice - oldPrice) > 0.01) {
+                    // Price changed
+                    await client.query(
+                        `UPDATE product_price_snapshots
+                         SET price = $1, last_change_timestamp = NOW()
+                         WHERE product_code = $2`,
+                        [newPrice, code]
+                    );
+                    updates++;
+                }
+
+                // 3. Update Product Table (Current Price)
                 await client.query(
                     `UPDATE products 
                      SET da1_prcven = $1, da1_moeda = $2, last_synced_at = NOW()
                      WHERE b1_cod = $3`,
-                    [p.da1_prcven, p.da1_moeda, p.da1_codpro.trim()]
+                    [p.da1_prcven, p.da1_moeda, code]
                 );
             }
 
             await client.query('COMMIT');
-            logger.info(`Synced prices for ${prices.length} products.`);
+            logger.info(`Synced prices for ${prices.length} products. Snapshots: ${inserts} new, ${updates} updated.`);
         } catch (e) {
             await client.query('ROLLBACK');
             throw e;

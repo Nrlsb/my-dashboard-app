@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import apiService from '../api/apiService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import CustomSelect from '../components/CustomSelect';
-import { Trash2, Plus, Edit, Search, X, Upload, Check, AlertCircle, FileImage, FileSpreadsheet, Tag, Star, LayoutDashboard } from 'lucide-react';
+import { Trash2, Plus, Edit, Search, X, Upload, Check, AlertCircle, FileImage, FileSpreadsheet, Tag, Star, LayoutDashboard, RefreshCw } from 'lucide-react';
 
 const ManageContentPage = () => {
     const [activeTab, setActiveTab] = useState('general');
@@ -252,6 +252,13 @@ const ManageContentPage = () => {
                     <span className="md:hidden">Reportes</span>
                     <span className="hidden md:inline">Reportes y Análisis</span>
                 </button>
+                <button
+                    className={`py-2 px-4 font-semibold ${activeTab === 'connections' ? 'text-espint-blue border-b-2 border-espint-blue' : 'text-gray-500'}`}
+                    onClick={() => setActiveTab('connections')}
+                >
+                    <span className="md:hidden">Conexiones</span>
+                    <span className="hidden md:inline">Conexiones</span>
+                </button>
             </div>
 
             {loading ? (
@@ -388,6 +395,40 @@ const ManageContentPage = () => {
                                     className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700 transition w-full"
                                 >
                                     Descargar Excel
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'connections' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div className="bg-white p-6 rounded shadow border border-gray-200 flex flex-col items-center text-center">
+                                <div className="bg-green-100 p-4 rounded-full mb-4">
+                                    <RefreshCw size={40} className="text-green-600" />
+                                </div>
+                                <h3 className="font-bold text-lg mb-2">Sincronización Manual</h3>
+                                <p className="text-gray-600 text-sm mb-6">
+                                    Ejecuta manualmente el proceso de sincronización de productos y precios desde Protheus.
+                                </p>
+                                <button
+                                    onClick={async () => {
+                                        if (window.confirm('¿Deseas iniciar la sincronización manual? Este proceso puede tomar varios minutos.')) {
+                                            try {
+                                                const promise = apiService.triggerManualSync();
+                                                toast.promise(promise, {
+                                                    loading: 'Iniciando sincronización...',
+                                                    success: 'Sincronización completada',
+                                                    error: 'Error al sincronizar'
+                                                });
+                                                await promise;
+                                            } catch (error) {
+                                                console.error(error);
+                                            }
+                                        }
+                                    }}
+                                    className="bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700 transition w-full"
+                                >
+                                    Sincronizar Ahora
                                 </button>
                             </div>
                         </div>

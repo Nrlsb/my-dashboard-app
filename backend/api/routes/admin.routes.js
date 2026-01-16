@@ -104,4 +104,7 @@ router.delete('/accessories/:productId', requireMarketingOrAdmin, removeAccessor
 router.post('/custom-collection/:groupId/items', requireMarketingOrAdmin, addCustomGroupItem);
 router.delete('/custom-collection/:groupId/items/:productId', requireMarketingOrAdmin, removeCustomGroupItem);
 
+const { triggerProductSync } = require('../controllers/adminController');
+router.post('/sync-products', requireAdmin, triggerProductSync);
+
 module.exports = router;

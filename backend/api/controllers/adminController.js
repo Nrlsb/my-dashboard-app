@@ -105,13 +105,14 @@ exports.resetUserPassword = catchAsync(async (req, res) => {
     res.json(result);
 });
 
-exports.assignClientPassword = catchAsync(async (req, res) => {
-    const { a1_cod, password, email } = req.body;
 
-    if (!a1_cod || !password) {
-        return res.status(400).json({ message: 'Código de cliente y contraseña son requeridos.' });
-    }
-
-    const result = await adminService.assignClientPassword(a1_cod, password, email);
-    res.json(result);
+exports.triggerProductSync = catchAsync(async (req, res) => {
+    // We don't await this because it takes too long, 
+    // BUT the user wants to know it started.
+    // Actually, user might want to wait. 4000 products is fast (seconds).
+    // Let's await it.
+    console.log(`Manual Sync triggered by Admin ${req.userId}`);
+    await require('../services/syncService').syncProducts();
+    res.json({ message: 'Sincronización de productos completada exitosamente.' });
 });
+
