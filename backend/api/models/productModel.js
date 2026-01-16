@@ -345,6 +345,19 @@ const findProductGroupsDetails = async (groupCodes) => {
 };
 
 const findProductById = async (productId, deniedGroups = []) => {
+  const cacheKey = `product:id:${productId}:denied:${JSON.stringify(deniedGroups.sort())}`;
+
+  if (isRedisReady()) {
+    try {
+      const cachedData = await redisClient.get(cacheKey);
+      if (cachedData) {
+        return JSON.parse(cachedData);
+      }
+    } catch (err) {
+      console.error('Redis error in findProductById:', err);
+    }
+  }
+
   try {
     let query = `
 SELECT
@@ -381,6 +394,15 @@ id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, sbm_desc AS bra
       }
     }
 
+    if (isRedisReady() && product) {
+      try {
+        // Cache for 5 minutes
+        await redisClient.set(cacheKey, JSON.stringify(product), { EX: 300 });
+      } catch (err) {
+        console.error('Redis error setting cache in findProductById:', err);
+      }
+    }
+
     return product;
   } catch (error) {
     console.error(`Error in findProductById for ID ${productId}: `, error);
@@ -389,6 +411,19 @@ id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, sbm_desc AS bra
 };
 
 const findProductByCode = async (productCode, deniedGroups = []) => {
+  const cacheKey = `product:code:${productCode}:denied:${JSON.stringify(deniedGroups.sort())}`;
+
+  if (isRedisReady()) {
+    try {
+      const cachedData = await redisClient.get(cacheKey);
+      if (cachedData) {
+        return JSON.parse(cachedData);
+      }
+    } catch (err) {
+      console.error('Redis error in findProductByCode:', err);
+    }
+  }
+
   try {
     let query = `
 SELECT
@@ -422,6 +457,15 @@ id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, sbm_desc AS bra
         }
       } catch (err) {
         console.error('Error fetching AI description:', err);
+      }
+    }
+
+    if (isRedisReady() && product) {
+      try {
+        // Cache for 5 minutes
+        await redisClient.set(cacheKey, JSON.stringify(product), { EX: 300 });
+      } catch (err) {
+        console.error('Redis error setting cache in findProductByCode:', err);
       }
     }
 
