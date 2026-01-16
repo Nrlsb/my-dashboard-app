@@ -2,6 +2,7 @@ const { pool2 } = require('../db');
 const protheusService = require('./protheusService');
 const logger = require('../utils/logger');
 
+// Optimized Sync Service
 // Helper to fetch and build map
 const fetchDictionaryMap = async (fetchFunction, codeField, filters = []) => {
     try {
