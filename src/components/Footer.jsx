@@ -1,6 +1,7 @@
 import React from 'react';
 import { Mail, Phone, MapPin, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { brands } from '../data/brands';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -11,44 +12,9 @@ const Footer = () => {
         {/* Brand Logos Section */}
         <div className="mb-12 border-b border-slate-800 pb-8">
           <h4 className="text-white font-semibold mb-6 text-center">Nuestras Marcas</h4>
+
           <div className="flex flex-wrap justify-center gap-6">
-            {[
-              {
-                name: 'Alba',
-                value: 'ALBA HOGAR,ALBA INDUSTRIA,ALBA PLUS PROTECTION,ALBA TINTING,ALBAMIX',
-                img: 'https://res.cloudinary.com/dstuwukxl/image/upload/v1766496083/Alba_hd7poq.png'
-              },
-              {
-                name: 'Tersuave',
-                value: 'TERSUAVE,TERSUAVE DILUYENTES,TERSUAVE INDUSTRIA,TERSUAVE SISTEMA',
-                img: 'https://res.cloudinary.com/dstuwukxl/image/upload/v1766495828/LogoTersuave_q6v1gw.png'
-              },
-              { name: 'Rosarpin', value: 'ROSARPIN', img: 'https://res.cloudinary.com/dstuwukxl/image/upload/v1766495868/rosarpin_2_fxcejt.webp' },
-              { name: 'Doble A', value: 'ABRASIVOS ARGENTINOS', img: 'https://res.cloudinary.com/dstuwukxl/image/upload/v1766495908/Recurso_1_myl2oj.png' },
-              { name: 'Megaflex', value: 'MEGAFLEX', img: 'https://res.cloudinary.com/dstuwukxl/image/upload/v1766495768/megaflex_adns8d.png' },
-              {
-                name: 'Weber',
-                value: 'WEBER CONSTRUCCIONES,WEBER PINTURA Y AFINES',
-                img: 'https://res.cloudinary.com/dstuwukxl/image/upload/v1766496186/weber2_wccjyw.png'
-              },
-              { name: 'Cetol', value: 'AKZO NOBEL - CETOL', img: 'https://res.cloudinary.com/dstuwukxl/image/upload/v1766495632/Cetol_bt7kvk.png' },
-              { name: 'Lumar', value: 'LUMAR', img: 'https://res.cloudinary.com/dstuwukxl/image/upload/v1766495729/fSj32K3OOShrXD1ooaDT8sjiaRuR5x4aJf2lvu3c_nactdj.png' },
-              {
-                name: 'Sinteplast',
-                value: 'SINTEPLAST,SINTEPLAST INDUSTRIA,SINTEPLAST SISTEMA',
-                img: 'https://lh3.googleusercontent.com/d/1Mwn-r8JxeSKTHOXjIcE_R3bgd1nOkeVE'
-              },
-              {
-                name: 'Plavicon',
-                value: 'PLAVICON,PLAVICON INDUSTRIA,PLAVICON SISTEMA',
-                img: 'https://lh3.googleusercontent.com/d/1AIp5DCbXc7SoHEh58ORv7Go1g9c-fhTn'
-              },
-              {
-                name: 'Petrilac',
-                value: 'PETRILAC,PETRILAC FERRO BET',
-                img: 'https://lh3.googleusercontent.com/d/1HdC40nPvYgbaMYQTTgmjf5uHGVZu1ksD'
-              },
-            ].map((brand) => (
+            {brands.map((brand) => (
               <Link
                 key={brand.name}
                 to={`/products?brand=${encodeURIComponent(brand.value)}`}

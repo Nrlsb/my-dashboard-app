@@ -4,7 +4,6 @@ const { enrichProductsWithImages } = require('../utils/productHelpers');
 const { getExchangeRates } = require('../utils/exchangeRateService');
 const { formatCurrency } = require('../utils/helpers');
 const { pool, pool2 } = require('../db'); // Solo para verificar si el usuario es admin
-const { getImageUrl } = require('./cloudinaryService');
 const userModel = require('../models/userModel'); // Import userModel
 const geminiService = require('./geminiService');
 const protheusService = require('./protheusService');
@@ -190,8 +189,8 @@ const fetchProducts = async ({
         formattedPrice: formatCurrency(finalPrice),
         brand: prod.brand,
         // En exportación a veces no se necesita imageUrl, pero es ligero
-        imageUrl: getImageUrl(prod.code, 'products', 800),
-        thumbnailUrl: getImageUrl(prod.code, 'products', 300),
+        imageUrl: null, // Removed Cloudinary generation
+        thumbnailUrl: null, // Removed Cloudinary generation
         capacityDesc: prod.capacity_description,
         capacityValue: null,
         moneda: prod.moneda,
@@ -262,8 +261,8 @@ const getAccessories = async (userId) => {
         name: prod.description,
         price: prod.price,
         formattedPrice: formatCurrency(prod.price),
-        imageUrl: getImageUrl(prod.code, 'products', 800) || `https://placehold.co/150/2D3748/FFFFFF?text=${encodeURIComponent(prod.description.split(' ')[0])}`,
-        thumbnailUrl: getImageUrl(prod.code, 'products', 300) || `https://placehold.co/150/2D3748/FFFFFF?text=${encodeURIComponent(prod.description.split(' ')[0])}`,
+        imageUrl: null,
+        thumbnailUrl: null,
         group_code: prod.product_group,
       }));
 
@@ -404,8 +403,8 @@ const fetchProductDetails = async (productId, userId = null) => {
       formattedPrice: formatCurrency(finalPrice),
       brand: prod.brand,
       brand: prod.brand,
-      imageUrl: getImageUrl(prod.code, 'products', 800),
-      thumbnailUrl: getImageUrl(prod.code, 'products', 300),
+      imageUrl: null,
+      thumbnailUrl: null,
       capacityDesc: prod.capacity_description,
       capacityValue: null,
       additionalInfo: {},
@@ -485,8 +484,8 @@ const fetchProductDetailsByCode = async (productCode, userId = null) => {
       formattedPrice: formatCurrency(finalPrice),
       brand: prod.brand,
       brand: prod.brand,
-      imageUrl: getImageUrl(prod.code, 'products', 800),
-      thumbnailUrl: getImageUrl(prod.code, 'products', 300),
+      imageUrl: null,
+      thumbnailUrl: null,
       capacityDesc: prod.capacity_description,
       capacityValue: null,
       additionalInfo: {},
@@ -585,8 +584,8 @@ const fetchProtheusOffers = async (userId = null) => {
         formattedPrice: formatCurrency(finalPrice),
         brand: prod.brand,
         brand: prod.brand,
-        imageUrl: getImageUrl(prod.code, 'products', 800),
-        thumbnailUrl: getImageUrl(prod.code, 'products', 300),
+        imageUrl: null, // Removed Cloudinary generation
+        thumbnailUrl: null, // Removed Cloudinary generation
         capacityDesc: prod.capacity_description,
         moneda: prod.moneda,
         cotizacion:
@@ -697,8 +696,8 @@ const fetchProductsByGroup = async (
         formattedPrice: formatCurrency(finalPrice),
         brand: prod.brand,
         brand: prod.brand,
-        imageUrl: getImageUrl(prod.code, 'products', 800),
-        thumbnailUrl: getImageUrl(prod.code, 'products', 300),
+        imageUrl: null, // Removed Cloudinary generation
+        thumbnailUrl: null, // Removed Cloudinary generation
         capacityDesc: prod.capacity_description,
       };
     });
@@ -1036,7 +1035,7 @@ const fetchNewReleases = async (userId = null) => {
         price: finalPrice,
         formattedPrice: formatCurrency(finalPrice),
         brand: prod.brand,
-        imageUrl: getImageUrl(prod.code),
+        imageUrl: null,
         capacityDesc: prod.capacity_description,
         moneda: prod.moneda,
         cotizacion:

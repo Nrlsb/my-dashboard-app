@@ -185,7 +185,11 @@ const syncPrices = async () => {
                     // We try to resolve product_id from the products table
                     await client.query(
                         `INSERT INTO product_price_snapshots (product_code, price, last_change_timestamp, product_id)
-                         VALUES ($1, $2, NOW(), (SELECT id FROM products WHERE b1_cod = $1 LIMIT 1))`,
+                         VALUES ($1::text, $2, NOW(), (SELECT id FROM products WHERE b1_cod = $1::text LIMIT 1))
+                         ON CONFLICT (product_id) DO UPDATE SET
+                            price = EXCLUDED.price,
+                            last_change_timestamp = NOW(),
+                            product_code = EXCLUDED.product_code`,
                         [code, newPrice]
                     );
                     inserts++;
