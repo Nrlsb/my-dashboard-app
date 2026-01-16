@@ -8,7 +8,6 @@ const fetchDictionaryMap = async (fetchFunction, codeField, filters = []) => {
         const items = await fetchFunction();
         const map = new Map();
         for (const item of items) {
-            // If we need to filter or map more complex objects
             map.set(item[codeField].trim(), item);
         }
         return map;
@@ -148,7 +147,162 @@ const syncProducts = async () => {
     }
 };
 
-// Sync Prices (DA1)
+// --- Sequenced Price Sync Logic ---
+
+// Phase 1: Update Products Table
+const updateProductsTable = async (prices) => {
+    logger.info('Phase 1: Updating Products Table with new prices...');
+    const client = await pool2.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Fetch current products state
+        const productRes = await client.query('SELECT b1_cod, da1_prcven, da1_moeda FROM products');
+        const productMap = new Map();
+        productRes.rows.forEach(r => {
+            const code = r.b1_cod.trim();
+            productMap.set(code, {
+                price: Number(r.da1_prcven || 0),
+                moeda: Number(r.da1_moeda || 1)
+            });
+        });
+
+        let productUpdates = 0;
+        let unchangedCount = 0;
+        const unchangedCodes = [];
+        const BATCH_SIZE = 500;
+        let processedCount = 0;
+
+        for (const p of prices) {
+            const code = p.da1_codpro.trim();
+            const newPrice = Number(p.da1_prcven);
+            const newMoeda = Number(p.da1_moeda);
+
+            const currentProduct = productMap.get(code);
+            let needsUpdate = false;
+
+            if (!currentProduct) {
+                // Product exists in DA1 but not in Products table. 
+                // Force update/try to update if it exists but wasn't in map (unlikely)
+                needsUpdate = true;
+            } else {
+                const priceDiff = Math.abs(newPrice - currentProduct.price);
+                const moedaDiff = newMoeda !== currentProduct.moeda;
+                if (priceDiff > 0.01 || moedaDiff) {
+                    needsUpdate = true;
+                }
+            }
+
+            if (needsUpdate) {
+                await client.query(
+                    `UPDATE products 
+                        SET da1_prcven = $1, da1_moeda = $2, last_synced_at = NOW()
+                        WHERE b1_cod = $3`,
+                    [newPrice, newMoeda, code]
+                );
+                productUpdates++;
+            } else {
+                unchangedCodes.push(code);
+                unchangedCount++;
+            }
+
+            processedCount++;
+            if (processedCount % BATCH_SIZE === 0) {
+                await client.query('COMMIT');
+                await client.query('BEGIN');
+            }
+        }
+
+        // Bulk Touch Unchanged
+        if (unchangedCodes.length > 0) {
+            logger.info(`Touching ${unchangedCodes.length} unchanged products...`);
+            const CHUNK_SIZE = 1000;
+            for (let i = 0; i < unchangedCodes.length; i += CHUNK_SIZE) {
+                const chunk = unchangedCodes.slice(i, i + CHUNK_SIZE);
+                await client.query(
+                    'UPDATE products SET last_synced_at = NOW() WHERE b1_cod = ANY($1)',
+                    [chunk]
+                );
+            }
+        }
+
+        await client.query('COMMIT');
+        logger.info(`Phase 1 Complete: ${productUpdates} updates, ${unchangedCount} unchanged.`);
+
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
+};
+
+// Phase 2: Update Price History
+const updatePriceHistory = async (prices) => {
+    logger.info('Phase 2: Updating Price History (Smart Comparison)...');
+    const client = await pool2.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Fetch current snapshots
+        const snapshotRes = await client.query('SELECT product_code, price FROM product_price_snapshots');
+        const snapshotMap = new Map();
+        snapshotRes.rows.forEach(r => {
+            if (r.product_code) snapshotMap.set(r.product_code.trim(), Number(r.price));
+        });
+
+        let historyUpdates = 0;
+        let historyInserts = 0;
+        const BATCH_SIZE = 500;
+        let processedCount = 0;
+
+        for (const p of prices) {
+            const code = p.da1_codpro.trim();
+            const newPrice = Number(p.da1_prcven);
+            const oldPriceSnapshot = snapshotMap.get(code);
+
+            if (oldPriceSnapshot === undefined) {
+                // New snapshot
+                await client.query(
+                    `INSERT INTO product_price_snapshots (product_code, price, last_change_timestamp, product_id)
+                        VALUES ($1::text, $2, NOW(), (SELECT id FROM products WHERE b1_cod = $1::text LIMIT 1))
+                        ON CONFLICT (product_id) DO UPDATE SET
+                        price = EXCLUDED.price,
+                        last_change_timestamp = NOW(),
+                        product_code = EXCLUDED.product_code`,
+                    [code, newPrice]
+                );
+                historyInserts++;
+            } else if (Math.abs(newPrice - oldPriceSnapshot) > 0.01) {
+                // Price changed
+                await client.query(
+                    `UPDATE product_price_snapshots
+                        SET price = $1, last_change_timestamp = NOW()
+                        WHERE product_code = $2`,
+                    [newPrice, code]
+                );
+                historyUpdates++;
+            }
+
+            processedCount++;
+            if (processedCount % BATCH_SIZE === 0) {
+                await client.query('COMMIT');
+                await client.query('BEGIN');
+            }
+        }
+
+        await client.query('COMMIT');
+        logger.info(`Phase 2 Complete: ${historyInserts} new snapshots, ${historyUpdates} snapshot updates.`);
+
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
+};
+
+// Sync Prices (DA1) - Coordinator
 const syncPrices = async () => {
     try {
         logger.info('Starting Price Sync...');
@@ -159,144 +313,14 @@ const syncPrices = async () => {
             return;
         }
 
-        const client = await pool2.connect();
-        try {
-            await client.query('BEGIN');
+        // 1. Update Products Table first (The "Real Time" data)
+        await updateProductsTable(prices);
 
-            // 1. Fetch current snapshots + current products state (price & currency)
-            // We need to know:
-            // a) Old price for history (product_price_snapshots)
-            // b) Current product price/currency to see if we need to UPDATE table products
-            logger.info('Fetching current database state for comparison...');
+        // 2. Then, perform Smart Comparison for History (The "Historical" data)
+        await updatePriceHistory(prices);
 
-            const snapshotRes = await client.query('SELECT product_code, price FROM product_price_snapshots');
-            const snapshotMap = new Map();
-            snapshotRes.rows.forEach(r => {
-                if (r.product_code) snapshotMap.set(r.product_code.trim(), Number(r.price));
-            });
+        logger.info(`Synced prices for ${prices.length} products successfully.`);
 
-            const productRes = await client.query('SELECT b1_cod, da1_prcven, da1_moeda FROM products');
-            const productMap = new Map();
-            productRes.rows.forEach(r => {
-                const code = r.b1_cod.trim();
-                productMap.set(code, {
-                    price: Number(r.da1_prcven || 0),
-                    moeda: Number(r.da1_moeda || 1)
-                });
-            });
-
-            logger.info('State fetched. Processing updates in batches...');
-
-            let historyUpdates = 0;
-            let historyInserts = 0;
-            let productUpdates = 0;
-            let unchangedCount = 0;
-
-            const unchangedCodes = [];
-            const BATCH_SIZE = 500;
-            let processedCount = 0;
-
-            for (const p of prices) {
-                const code = p.da1_codpro.trim();
-                const newPrice = Number(p.da1_prcven);
-                const newMoeda = Number(p.da1_moeda); // Ensure number
-                const oldPriceSnapshot = snapshotMap.get(code);
-
-                // --- 2. History / Snapshots Logic ---
-                if (oldPriceSnapshot === undefined) {
-                    // New snapshot
-                    await client.query(
-                        `INSERT INTO product_price_snapshots (product_code, price, last_change_timestamp, product_id)
-                         VALUES ($1::text, $2, NOW(), (SELECT id FROM products WHERE b1_cod = $1::text LIMIT 1))
-                         ON CONFLICT (product_id) DO UPDATE SET
-                            price = EXCLUDED.price,
-                            last_change_timestamp = NOW(),
-                            product_code = EXCLUDED.product_code`,
-                        [code, newPrice]
-                    );
-                    historyInserts++;
-                } else if (Math.abs(newPrice - oldPriceSnapshot) > 0.01) {
-                    // Price changed vs snapshot
-                    await client.query(
-                        `UPDATE product_price_snapshots
-                         SET price = $1, last_change_timestamp = NOW()
-                         WHERE product_code = $2`,
-                        [newPrice, code]
-                    );
-                    historyUpdates++;
-                }
-
-                // --- 3. Products Table Logic (Optimization) ---
-                const currentProduct = productMap.get(code);
-
-                // Determine if we need to update the main products table
-                let needsUpdate = false;
-
-                if (!currentProduct) {
-                    // Product exists in DA1 but not in Products table? 
-                    // We can't update a product that doesn't exist. 
-                    // Ideally syncProducts should have run first.
-                    // We skip or log warning.
-                    // logger.warn(`Price for unknown product ${code}`);
-                    // But if it DOES exist but wasn't in our SELECT (unlikely), we try update.
-                    // Let's assume syncProducts ran and created it.
-                    needsUpdate = true; // Force update just in case
-                } else {
-                    const priceDiff = Math.abs(newPrice - currentProduct.price);
-                    const moedaDiff = newMoeda !== currentProduct.moeda;
-
-                    if (priceDiff > 0.01 || moedaDiff) {
-                        needsUpdate = true;
-                    }
-                }
-
-                if (needsUpdate) {
-                    await client.query(
-                        `UPDATE products 
-                         SET da1_prcven = $1, da1_moeda = $2, last_synced_at = NOW()
-                         WHERE b1_cod = $3`,
-                        [newPrice, newMoeda, code]
-                    );
-                    productUpdates++;
-                } else {
-                    unchangedCodes.push(code);
-                    unchangedCount++;
-                }
-
-                // --- 4. Batch Commit ---
-                processedCount++;
-                if (processedCount % BATCH_SIZE === 0) {
-                    await client.query('COMMIT');
-                    await client.query('BEGIN');
-                    logger.info(`[SyncPrices] Processed ${processedCount}/${prices.length}...`);
-                }
-            }
-
-            // --- 5. Bulk Touch Unchanged Products ---
-            if (unchangedCodes.length > 0) {
-                logger.info(`Touching ${unchangedCodes.length} unchanged products (updating last_synced_at)...`);
-                // Process in chunks to avoid query param limit
-                const CHUNK_SIZE = 1000;
-                for (let i = 0; i < unchangedCodes.length; i += CHUNK_SIZE) {
-                    const chunk = unchangedCodes.slice(i, i + CHUNK_SIZE);
-                    await client.query(
-                        'UPDATE products SET last_synced_at = NOW() WHERE b1_cod = ANY($1)',
-                        [chunk]
-                    );
-                }
-            }
-
-            await client.query('COMMIT');
-            logger.info(`Synced prices for ${prices.length} products.`);
-            logger.info(`Stats: ${productUpdates} DB updates, ${unchangedCount} unchanged.`);
-            logger.info(`History: ${historyInserts} new snapshots, ${historyUpdates} snapshot updates.`);
-
-        } catch (e) {
-            await client.query('ROLLBACK');
-            throw e;
-        } finally {
-            client.release();
-        }
     } catch (error) {
         logger.error('Error syncing prices:', error);
     }
