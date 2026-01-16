@@ -87,10 +87,16 @@ const getNewReleasesProductCodes = async () => {
  */
 const getDeniedProductGroups = async (userId) => {
   try {
-    // 1. Get user_code first
-    const userQuery = 'SELECT a1_cod FROM users WHERE id = $1';
-    const userResult = await pool2.query(userQuery, [userId]);
-    const userCode = userResult.rows.length > 0 ? userResult.rows[0].a1_cod : null;
+    // 1. Get user_code first from users OR user_credentials
+    let userQuery = 'SELECT a1_cod FROM users WHERE id = $1';
+    let userResult = await pool2.query(userQuery, [userId]);
+    let userCode = userResult.rows.length > 0 ? userResult.rows[0].a1_cod : null;
+
+    if (!userCode) {
+      // Fallback for decoupled users
+      const credResult = await pool2.query('SELECT a1_cod FROM user_credentials WHERE user_id = $1', [userId]);
+      userCode = credResult.rows.length > 0 ? credResult.rows[0].a1_cod : null;
+    }
 
     if (!userCode) return [];
 
@@ -136,9 +142,14 @@ const invalidatePermissionsCache = async (userId) => {
   if (!isRedisReady()) return;
 
   try {
-    const userQuery = 'SELECT a1_cod FROM users WHERE id = $1';
-    const userResult = await pool2.query(userQuery, [userId]);
-    const userCode = userResult.rows.length > 0 ? userResult.rows[0].a1_cod : null;
+    let userQuery = 'SELECT a1_cod FROM users WHERE id = $1';
+    let userResult = await pool2.query(userQuery, [userId]);
+    let userCode = userResult.rows.length > 0 ? userResult.rows[0].a1_cod : null;
+
+    if (!userCode) {
+      const credResult = await pool2.query('SELECT a1_cod FROM user_credentials WHERE user_id = $1', [userId]);
+      userCode = credResult.rows.length > 0 ? credResult.rows[0].a1_cod : null;
+    }
 
     if (userCode) {
       const cacheKey = `user:denied_groups:code:${userCode}`;

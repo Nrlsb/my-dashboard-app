@@ -238,10 +238,17 @@ const updateUserGroupPermissions = async (userId, groups) => {
   try {
     await client.query('BEGIN');
 
-    // 1. Fetch user_code (a1_cod) from DB1
-    const userQuery = 'SELECT a1_cod FROM users WHERE id = $1';
-    const userResult = await pool.query(userQuery, [userId]);
-    const userCode = userResult.rows.length > 0 ? userResult.rows[0].a1_cod : null;
+    // 1. Fetch user_code (a1_cod) from users OR user_credentials
+    let userQuery = 'SELECT a1_cod FROM users WHERE id = $1';
+    let userResult = await pool.query(userQuery, [userId]);
+    let userCode = userResult.rows.length > 0 ? userResult.rows[0].a1_cod : null;
+
+    if (!userCode) {
+      // Fallback: Check user_credentials (for decoupled users)
+      const credQuery = 'SELECT a1_cod FROM user_credentials WHERE user_id = $1';
+      const credResult = await pool.query(credQuery, [userId]);
+      userCode = credResult.rows.length > 0 ? credResult.rows[0].a1_cod : null;
+    }
 
     if (!userCode) {
       throw new Error(`El usuario ${userId} no tiene un código A1 asignado.`);
@@ -345,7 +352,7 @@ const updateGlobalProductPermissions = async (productCodes) => {
 const getAdmins = async () => {
   try {
     // 1. Fetch all users with roles from DB2 (users table joined with user_roles)
-    constquery = `
+    const query = `
       SELECT u.id, u.full_name, u.email, u.created_at, ur.assigned_at, r.name as role_name, r.permissions
       FROM user_roles ur
       JOIN roles r ON ur.role_id = r.id
