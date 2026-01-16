@@ -1,5 +1,6 @@
 const productService = require('../services/productService');
 const catchAsync = require('../utils/catchAsync');
+const logger = require('../utils/logger'); // (NUEVO) Importar logger
 
 exports.getProductsController = catchAsync(async (req, res) => {
     // console.log('GET /api/products -> Consultando productos en DB (paginado)...');
@@ -13,7 +14,9 @@ exports.getProductsController = catchAsync(async (req, res) => {
         hasImage = '',
         isExport = 'false',
     } = req.query;
-    // console.log(`[DEBUG] getProductsController - bypassCache: ${bypassCache}, isExport: ${isExport}`);
+    if (bypassCache === 'true' || isExport === 'true') {
+        logger.debug(`getProductsController - bypassCache: ${bypassCache}, isExport: ${isExport}`);
+    }
 
     const shouldBypass = String(bypassCache).toLowerCase() === 'true';
     const shouldExport = String(isExport).toLowerCase() === 'true';
@@ -34,7 +37,7 @@ exports.getProductsController = catchAsync(async (req, res) => {
 });
 
 exports.getProductsByGroupController = catchAsync(async (req, res) => {
-    console.log(
+    logger.info(
         `GET /api/products/group/${req.params.groupCode} -> Consultando productos por grupo...`
     );
     const { groupCode } = req.params;
@@ -55,7 +58,7 @@ exports.getBrandsController = catchAsync(async (req, res) => {
 });
 
 exports.getOffersController = catchAsync(async (req, res) => {
-    console.log('GET /api/offers -> Consultando ofertas en DB...');
+    logger.info('GET /api/offers -> Consultando ofertas en DB...');
     const offers = await productService.fetchProtheusOffers(req.userId);
     res.set('Cache-Control', 'no-store');
     res.json(offers);
@@ -63,7 +66,7 @@ exports.getOffersController = catchAsync(async (req, res) => {
 
 exports.getProductsByIdController = catchAsync(async (req, res) => {
     const productId = req.params.id;
-    console.log(
+    logger.debug(
         `GET /api/products/${productId} -> Consultando producto individual...`
     );
     const product = await productService.fetchProductDetails(
@@ -79,7 +82,7 @@ exports.getProductsByIdController = catchAsync(async (req, res) => {
 
 exports.getProductsByCodeController = catchAsync(async (req, res) => {
     const productCode = req.params.code;
-    console.log(
+    logger.debug(
         `GET /api/products/code/${productCode} -> Consultando producto por código...`
     );
     const product = await productService.fetchProductDetailsByCode(
@@ -94,7 +97,7 @@ exports.getProductsByCodeController = catchAsync(async (req, res) => {
 });
 
 exports.getProductsOrdersController = catchAsync(async (req, res) => {
-    console.log('GET /api/products/orders -> Endpoint para /api/products/orders alcanzado.');
+    logger.warn('GET /api/products/orders -> Endpoint para /api/products/orders alcanzado. No implementado.');
     res.status(404).json({ message: 'Endpoint /api/products/orders no implementado o no válido para productos.' });
 });
 

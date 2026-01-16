@@ -22,6 +22,10 @@ const dotenv = require('dotenv');
 const envFile = process.env.NODE_ENV === 'development' ? '.env.development' : '.env';
 dotenv.config({ path: path.resolve(__dirname, envFile), override: true }); // FORCE OVERRIDE
 
+// (SEGURIDAD) Validar Variables de Entorno
+const validateEnv = require('./config/envValidator');
+validateEnv();
+
 // Validar conexión DB2 al inicio
 console.log(`[SERVER-INIT] DB_HOST: ${process.env.DB_HOST} | DB2_HOST: ${process.env.DB2_HOST}`);
 console.log(`[SERVER-INIT] DB_DATABASE: ${process.env.DB_DATABASE} | DB2_DATABASE: ${process.env.DB2_DATABASE}`);
@@ -31,6 +35,7 @@ const cors = require('cors');
 const mainRoutes = require('./routes/index'); // (NUEVO) Importar el enrutador principal
 const helmet = require('helmet');
 const compression = require('compression'); // (OPTIMIZACIÓN) Importar compresión
+const rateLimit = require('express-rate-limit'); // (SEGURIDAD) Importar Rate Limit
 const AppError = require('./utils/appError');
 const globalErrorHandler = require('./controllers/errorController');
 
@@ -40,8 +45,37 @@ const app = express();
 app.use(helmet());
 
 // (OPTIMIZACIÓN) Habilitar compresión Gzip para todas las respuestas HTTP
-// (OPTIMIZACIÓN) Habilitar compresión Gzip para todas las respuestas HTTP
 app.use(compression());
+
+// (SEGURIDAD) Configurar Rate Limiter Global
+// Limita a cada IP a 100 peticiones por ventana de 15 minutos
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100, // Límite de 100 peticiones
+  standardHeaders: true, // Devuelve info del límite en los headers `RateLimit-*`
+  legacyHeaders: false, // Deshabilita headers `X-RateLimit-*`
+  message: 'Demasiadas peticiones desde esta IP, por favor intente de nuevo en 15 minutos.',
+  // Skip preflight requests (OPTIONS)
+  skip: (req) => req.method === 'OPTIONS',
+});
+
+// Aplicar limiter global
+app.use(limiter);
+
+// (SEGURIDAD) Limiter específico más estricto para Login/Register
+const authLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 10, // Max 20 intentos de logueo por hora (ajustado a 10 para ser más estricto como pedido)
+  message: 'Demasiados intentos de inicio de sesión, intente de nuevo en una hora.'
+});
+
+// Aplicar authLimiter solo a rutas de autenticación si existen aquí o en el router.
+// Nota: Como usamos un mainRoutes, podemos aplicar el middleware condicionalmente o en routes/index.js
+// Aquí lo aplicamos a las rutas conocidas de auth si pasaran por aquí, pero mejor lo pasamos
+// para que se use en routes/authRoutes.js si fuera posible.
+// Como no vamos a editar routes/authRoutes.js ahora, lo aplicamos globalmente a rutas que empiecen con /api/auth
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
 
 // DEBUG LOGGER - Verify requests reach the server
 app.use((req, res, next) => {
