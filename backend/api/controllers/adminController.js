@@ -106,6 +106,18 @@ exports.resetUserPassword = catchAsync(async (req, res) => {
 });
 
 
+
+exports.assignClientPassword = catchAsync(async (req, res) => {
+    const { a1_cod, password, email } = req.body;
+
+    if (!a1_cod || !password) {
+        return res.status(400).json({ message: 'Código de cliente y contraseña son requeridos.' });
+    }
+
+    const result = await adminService.assignClientPassword(a1_cod, password, email);
+    res.json(result);
+});
+
 exports.triggerProductSync = catchAsync(async (req, res) => {
     // We don't await this because it takes too long, 
     // BUT the user wants to know it started.
