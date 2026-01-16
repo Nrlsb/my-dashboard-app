@@ -101,7 +101,7 @@ const syncProducts = async () => {
                     for (let i = 0; i < 11; i++) {
                         productPlaceholders.push(`$${paramIndex++}`);
                     }
-                    placeholders.push(`(${productPlaceholders.join(', ')})`);
+                    placeholders.push(`(${productPlaceholders.join(', ')}, NOW())`);
                 }
 
                 const query = `
@@ -172,6 +172,7 @@ const syncProducts = async () => {
 
     } catch (error) {
         logger.error('Error syncing products:', error);
+        console.error('CRITICAL ERROR during syncProducts:', error); // Ensuring visibility
     }
 };
 
@@ -299,7 +300,7 @@ const updatePriceHistory = async (prices) => {
                     [code, newPrice]
                 );
                 historyInserts++;
-            } /* else if (Math.abs(newPrice - oldPriceSnapshot) > 0.01) {
+            } else if (Math.abs(newPrice - oldPriceSnapshot) > 0.01) {
                 // Price changed
                 await client.query(
                     `UPDATE product_price_snapshots
@@ -308,7 +309,7 @@ const updatePriceHistory = async (prices) => {
                     [newPrice, code]
                 );
                 historyUpdates++;
-            } */
+            }
 
             processedCount++;
             if (processedCount % BATCH_SIZE === 0) {
