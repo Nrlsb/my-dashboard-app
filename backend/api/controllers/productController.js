@@ -197,3 +197,14 @@ exports.updateProductNewReleaseDetails = catchAsync(async (req, res) => {
     });
     res.json(result);
 });
+
+exports.triggerSyncPrices = catchAsync(async (req, res) => {
+    logger.info('POST /api/products/sync-prices -> Triggering manual price sync...');
+    const syncService = require('../services/syncService');
+
+    const start = Date.now();
+    await syncService.syncPrices();
+    const end = Date.now();
+
+    res.json({ message: 'Sync completed', duration: ((end - start) / 1000) + 's' });
+});

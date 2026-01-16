@@ -41,6 +41,9 @@ const globalErrorHandler = require('./controllers/errorController');
 
 const app = express();
 
+// (SEGURIDAD) Confiar en el proxy de Render/Cloudflare para obtener la IP real
+app.set('trust proxy', 1);
+
 // Usar Helmet para securizar la app
 app.use(helmet());
 

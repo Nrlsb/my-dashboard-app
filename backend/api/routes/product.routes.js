@@ -115,4 +115,12 @@ router.get(
   require('../controllers/productController').getBatchGenerationProgress
 );
 
+// Manual Sync Route (Admin Only)
+router.post(
+  '/sync-prices',
+  authenticateToken,
+  requireAdmin,
+  require('../controllers/productController').triggerSyncPrices
+);
+
 module.exports = router;
