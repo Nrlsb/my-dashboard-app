@@ -56,47 +56,32 @@ const syncProducts = async () => {
         try {
             await client.query('BEGIN');
 
-            let missCount = 0;
-            let batchCount = 0;
-            const BATCH_SIZE = 50;
+            const BATCH_SIZE = 500;
+            let processedCount = 0;
+            const totalProducts = products.length;
 
-            for (const p of products) {
-                // Prepare descriptions
-                let groupObj = groupMap.get((p.b1_grupo || '').trim());
-                let capObj = capacityMap.get((p.b1_xcapa || '').trim());
+            // Helper to process a batch
+            const processBatch = async (batch) => {
+                if (batch.length === 0) return;
 
-                // Fallback: If description not found, use the code itself so we don't have empty fields
-                const groupDesc = groupObj ? groupObj.sbm_desc : (p.b1_grupo || '').trim();
-                const capacityDesc = capObj ? capObj.z02_descri : (p.b1_xcapa || '').trim();
+                const values = [];
+                const placeholders = [];
+                let paramIndex = 1;
 
-                // Indicators: bz_cod maps to b1_cod
-                const indicatorObj = indicatorMap.get((p.b1_cod || '').trim());
-                const indicatorDesc = indicatorObj ? indicatorObj.bz_estseg : null;
+                for (const p of batch) {
+                    // Prepare descriptions
+                    let groupObj = groupMap.get((p.b1_grupo || '').trim());
+                    let capObj = capacityMap.get((p.b1_xcapa || '').trim());
 
-                // Debug logging for misses (only first 5 to avoid spam)
-                if (!groupObj && p.b1_grupo && missCount < 5) {
-                    logger.warn(`Group Map Miss: Code '${p.b1_grupo}' not found in map.`);
-                    missCount++;
-                }
+                    // Fallback
+                    const groupDesc = groupObj ? groupObj.sbm_desc : (p.b1_grupo || '').trim();
+                    const capacityDesc = capObj ? capObj.z02_descri : (p.b1_xcapa || '').trim();
 
-                await client.query(
-                    `INSERT INTO products (
-            b1_cod, b1_desc, z02_descri, b1_grupo, sbm_desc,
-            b1_ts, stock_disp, stock_prev, sbz_desc, b1_um, b1_qe, last_synced_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
-          ON CONFLICT (b1_cod) DO UPDATE SET
-            b1_desc = EXCLUDED.b1_desc,
-            z02_descri = EXCLUDED.z02_descri,
-            b1_grupo = EXCLUDED.b1_grupo,
-            sbm_desc = EXCLUDED.sbm_desc,
-            b1_ts = EXCLUDED.b1_ts,
-            stock_disp = EXCLUDED.stock_disp,
-            stock_prev = EXCLUDED.stock_prev,
-            sbz_desc = EXCLUDED.sbz_desc,
-            b1_um = EXCLUDED.b1_um,
-            b1_qe = EXCLUDED.b1_qe,
-            last_synced_at = NOW();`,
-                    [
+                    // Indicators
+                    const indicatorObj = indicatorMap.get((p.b1_cod || '').trim());
+                    const indicatorDesc = indicatorObj ? indicatorObj.bz_estseg : null;
+
+                    values.push(
                         p.b1_cod.trim(),
                         (p.b1_desc || '').trim(),
                         capacityDesc,
@@ -108,19 +93,50 @@ const syncProducts = async () => {
                         indicatorDesc,
                         p.b1_um ? p.b1_um.trim() : null,
                         p.b1_qe
-                    ]
-                );
+                    );
 
-                batchCount++;
-                if (batchCount % BATCH_SIZE === 0) {
-                    await client.query('COMMIT');
-                    await client.query('BEGIN');
+                    // $1, $2, ... $11
+                    const productPlaceholders = [];
+                    for (let i = 0; i < 11; i++) {
+                        productPlaceholders.push(`$${paramIndex++}`);
+                    }
+                    placeholders.push(`(${productPlaceholders.join(', ')})`);
                 }
+
+                const query = `
+                    INSERT INTO products (
+                        b1_cod, b1_desc, z02_descri, b1_grupo, sbm_desc,
+                        b1_ts, stock_disp, stock_prev, sbz_desc, b1_um, b1_qe, last_synced_at
+                    ) VALUES ${placeholders.join(', ')}
+                    ON CONFLICT (b1_cod) DO UPDATE SET
+                        b1_desc = EXCLUDED.b1_desc,
+                        z02_descri = EXCLUDED.z02_descri,
+                        b1_grupo = EXCLUDED.b1_grupo,
+                        sbm_desc = EXCLUDED.sbm_desc,
+                        b1_ts = EXCLUDED.b1_ts,
+                        stock_disp = EXCLUDED.stock_disp,
+                        stock_prev = EXCLUDED.stock_prev,
+                        sbz_desc = EXCLUDED.sbz_desc,
+                        b1_um = EXCLUDED.b1_um,
+                        b1_qe = EXCLUDED.b1_qe,
+                        last_synced_at = NOW()
+                `;
+
+                await client.query(query, values);
+            };
+
+            // Chunk loop
+            for (let i = 0; i < totalProducts; i += BATCH_SIZE) {
+                const batch = products.slice(i, i + BATCH_SIZE);
+                await processBatch(batch);
+                processedCount += batch.length;
+                logger.info(`[SyncProducts] Upserted ${processedCount}/${totalProducts} products...`);
             }
 
             // 3. Delete products that are not in the fetched list (Cleanup)
             const syncedCodes = products.map(p => p.b1_cod.trim());
             if (syncedCodes.length > 0) {
+                // Optimization: Passing a huge array to ANY($1) is efficient.
                 const deleteRes = await client.query(
                     'DELETE FROM products WHERE NOT (b1_cod = ANY($1))',
                     [syncedCodes]
@@ -182,8 +198,6 @@ const updateProductsTable = async (prices) => {
             let needsUpdate = false;
 
             if (!currentProduct) {
-                // Product exists in DA1 but not in Products table. 
-                // Force update/try to update if it exists but wasn't in map (unlikely)
                 needsUpdate = true;
             } else {
                 const priceDiff = Math.abs(newPrice - currentProduct.price);
@@ -316,7 +330,7 @@ const syncPrices = async () => {
         // 1. Update Products Table first (The "Real Time" data)
         await updateProductsTable(prices);
 
-        // 2. Then, perform Smart Comparison for History (The "Historical" data)
+        // 2. Then, perform History Update
         await updatePriceHistory(prices);
 
         logger.info(`Synced prices for ${prices.length} products successfully.`);
