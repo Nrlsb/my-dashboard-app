@@ -120,6 +120,17 @@ const syncProducts = async () => {
                         b1_um = EXCLUDED.b1_um,
                         b1_qe = EXCLUDED.b1_qe,
                         last_synced_at = NOW()
+                    WHERE
+                        products.b1_desc IS DISTINCT FROM EXCLUDED.b1_desc OR
+                        products.z02_descri IS DISTINCT FROM EXCLUDED.z02_descri OR
+                        products.b1_grupo IS DISTINCT FROM EXCLUDED.b1_grupo OR
+                        products.sbm_desc IS DISTINCT FROM EXCLUDED.sbm_desc OR
+                        products.b1_ts IS DISTINCT FROM EXCLUDED.b1_ts OR
+                        products.stock_disp IS DISTINCT FROM EXCLUDED.stock_disp OR
+                        products.stock_prev IS DISTINCT FROM EXCLUDED.stock_prev OR
+                        products.sbz_desc IS DISTINCT FROM EXCLUDED.sbz_desc OR
+                        products.b1_um IS DISTINCT FROM EXCLUDED.b1_um OR
+                        products.b1_qe IS DISTINCT FROM EXCLUDED.b1_qe
                 `;
 
                 await client.query(query, values);
