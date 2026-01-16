@@ -299,7 +299,7 @@ const updatePriceHistory = async (prices) => {
                     [code, newPrice]
                 );
                 historyInserts++;
-            } else if (Math.abs(newPrice - oldPriceSnapshot) > 0.01) {
+            } /* else if (Math.abs(newPrice - oldPriceSnapshot) > 0.01) {
                 // Price changed
                 await client.query(
                     `UPDATE product_price_snapshots
@@ -308,7 +308,7 @@ const updatePriceHistory = async (prices) => {
                     [newPrice, code]
                 );
                 historyUpdates++;
-            }
+            } */
 
             processedCount++;
             if (processedCount % BATCH_SIZE === 0) {
@@ -436,8 +436,8 @@ const syncSellers = async () => {
 const runFullSync = async () => {
     logger.info('=== Starting Full Sync with Unified Product Data ===');
     await syncProducts();
-    // await syncClients();
-    // await syncSellers();
+    await syncClients();
+    await syncSellers();
     logger.info('=== Full Sync Completed ===');
 };
 
