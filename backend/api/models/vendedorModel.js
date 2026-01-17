@@ -4,9 +4,7 @@ const { pool2 } = require('../db');
 const protheusService = require('../services/protheusService');
 
 /**
- * Busca un vendedor por su email.
- * Ahora consulta la API de Protheus para los datos del perfil y 
- * la tabla user_credentials en DB2 para la contraseña.
+ * Busca un vendedor por su email en la base de datos local.
  * @param {string} email - El email del vendedor.
  * @returns {Promise<object|null>}
  */
@@ -14,20 +12,20 @@ const findVendedorByEmail = async (email) => {
   try {
     const cleanEmail = String(email).trim().toLowerCase();
 
-    // 1. Obtener la lista de vendedores de la API
-    const sellers = await protheusService.getSellers();
-
-    // 2. Buscar el vendedor correspondiente en la lista
-    // La API devuelve: a3_cod, a3_nome, a3_email, a3_cel
-    const seller = sellers.find(s =>
-      s && s.a3_email && s.a3_email.trim().toLowerCase() === cleanEmail
-    );
+    // 1. Buscar en la tabla local de vendedores
+    const query = `
+      SELECT codigo, nombre, email, telefono
+      FROM vendedores
+      WHERE LOWER(email) = $1
+    `;
+    const result = await pool2.query(query, [cleanEmail]);
+    const seller = result.rows[0];
 
     if (!seller) {
       return null;
     }
 
-    // 3. Buscar credenciales en DB2 (user_credentials) usando el email
+    // 2. Buscar credenciales en DB2 (user_credentials)
     const credsResult = await pool2.query(
       'SELECT user_id, password_hash, temp_password_hash FROM user_credentials WHERE email = $1',
       [cleanEmail]
@@ -35,19 +33,17 @@ const findVendedorByEmail = async (email) => {
 
     const credentials = credsResult.rows[0] || {};
 
-    // 4. Construir y retornar el objeto combinado
+    // 3. Construir objeto combinado
     return {
-      codigo: seller.a3_cod.trim(),
-      nombre: seller.a3_nome.trim(),
-      email: seller.a3_email.trim(),
-      telefono: seller.a3_cel ? seller.a3_cel.trim() : null,
+      codigo: seller.codigo.trim(),
+      nombre: seller.nombre.trim(),
+      email: seller.email.trim(),
+      telefono: seller.telefono ? seller.telefono.trim() : null,
       password_hash: credentials.password_hash || null,
       temp_password_hash: credentials.temp_password_hash || null,
-      // Mapear password_hash a password para compatibilidad si userService lo usa así
       password: credentials.password_hash || null,
       user_id: credentials.user_id || null,
-      // Internal fields for auth logic
-      a1_cod: seller.a3_cod.trim(),
+      a1_cod: seller.codigo.trim(),
       role: 'vendedor'
     };
 
@@ -58,7 +54,7 @@ const findVendedorByEmail = async (email) => {
 };
 
 /**
- * Busca un vendedor por su código.
+ * Busca un vendedor por su código en la base de datos local.
  * @param {string} codigo - El código del vendedor.
  * @returns {Promise<object|null>}
  */
@@ -66,23 +62,23 @@ const findVendedorByCodigo = async (codigo) => {
   try {
     const cleanCode = String(codigo).trim();
 
-    // 1. Obtener la lista de vendedores de la API
-    const sellers = await protheusService.getSellers();
-
-    // 2. Buscar por código
-    const seller = sellers.find(s =>
-      s && s.a3_cod && s.a3_cod.trim() === cleanCode
-    );
+    const query = `
+      SELECT codigo, nombre, email, telefono
+      FROM vendedores
+      WHERE codigo = $1
+    `;
+    const result = await pool2.query(query, [cleanCode]);
+    const seller = result.rows[0];
 
     if (!seller) {
       return null;
     }
 
     return {
-      codigo: seller.a3_cod.trim(),
-      nombre: seller.a3_nome.trim(),
-      email: seller.a3_email.trim(),
-      telefono: seller.a3_cel ? seller.a3_cel.trim() : null
+      codigo: seller.codigo.trim(),
+      nombre: seller.nombre.trim(),
+      email: seller.email.trim(),
+      telefono: seller.telefono ? seller.telefono.trim() : null
     };
 
   } catch (error) {

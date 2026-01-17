@@ -123,8 +123,29 @@ exports.triggerProductSync = catchAsync(async (req, res) => {
     // BUT the user wants to know it started.
     // Actually, user might want to wait. 4000 products is fast (seconds).
     // Let's await it.
-    console.log(`Manual Sync triggered by Admin ${req.userId}`);
+    console.log(`Manual Product Sync triggered by Admin ${req.userId}`);
     await require('../services/syncService').syncProducts();
     res.json({ message: 'Sincronización de productos completada exitosamente.' });
+});
+
+exports.triggerFullSync = catchAsync(async (req, res) => {
+    console.log(`Manual FULL Sync triggered by Admin ${req.userId}`);
+    await require('../services/syncService').runFullSync();
+    res.json({ message: 'Sincronización TOTAL completada exitosamente (Productos, Clientes, Vendedores).' });
+});
+
+exports.getAllSellers = catchAsync(async (req, res) => {
+    const sellers = await adminService.getAllSellers();
+    res.json(sellers);
+});
+
+exports.updateVendorClientsGroupPermissions = catchAsync(async (req, res) => {
+    const { vendedorCode } = req.params;
+    const { groups } = req.body; // Array of denied groups
+    const result = await adminService.updateVendorClientsGroupPermissions(
+        vendedorCode,
+        groups
+    );
+    res.json(result);
 });
 

@@ -86,99 +86,61 @@ const fetchAdminOrderDetails = async (orderId) => {
 const getUsersForAdmin = async (search = '') => {
   try {
     const term = search ? search.toLowerCase().trim() : '';
+    let queryParams = [];
+    let whereClause = '';
 
-    // 1. Fetch Local Users (Admins, Vendors, synced Clients)
-    const dbQuery = `
-      SELECT id, full_name, email, a1_cod, is_admin 
-      FROM users 
-      ORDER BY full_name ASC;
+    if (term) {
+      whereClause = `
+        WHERE (
+          LOWER(u.full_name) LIKE $1 OR
+          LOWER(u.email) LIKE $1 OR
+          LOWER(u.a1_cod) LIKE $1
+        )
+      `;
+      queryParams.push(`%${term}%`);
+    }
+
+    // Consultamos usuarios y verificamos si tienen credenciales (contraseña)
+    // Usamos LEFT JOIN con user_credentials para determinar has_password
+    // También consideramos user_roles para refinar el rol si es necesario
+    const query = `
+      SELECT 
+        u.id, 
+        u.full_name, 
+        u.email, 
+        u.a1_cod, 
+        u.is_admin,
+        u.vendedor_codigo,
+        CASE 
+            WHEN u.is_admin THEN 'admin'
+            WHEN u.a1_cod IS NOT NULL THEN 'cliente'
+            ELSE 'usuario'
+        END as role,
+        (uc.password_hash IS NOT NULL) as has_password
+      FROM users u
+      LEFT JOIN user_credentials uc ON (u.id = uc.user_id OR (u.a1_cod IS NOT NULL AND u.a1_cod = uc.a1_cod))
+      ${whereClause}
+      ORDER BY u.full_name ASC;
     `;
-    const dbUsersResult = await pool.query(dbQuery);
-    const dbUsers = dbUsersResult.rows;
 
-    // 2. Fetch All Credentials (to check who has password)
-    // We fetch just the necessary fields to map
-    const credsQuery = `SELECT user_id, a1_cod, email FROM user_credentials`;
-    const credsResult = await pool2.query(credsQuery);
-    const credsMapByCode = new Map();
-    const credsMapById = new Map();
+    const result = await pool.query(query, queryParams);
 
-    credsResult.rows.forEach(c => {
-      if (c.a1_cod) credsMapByCode.set(c.a1_cod.trim(), c);
-      credsMapById.set(c.user_id, c);
-    });
-
-    // 3. Fetch API Clients
-    // Note: getClients fetches ALL pages. Might be heavy if thousands of clients.
-    // Optimization: If we had an API search endpoint, we'd use it.
-    const apiClients = await protheusService.getClients();
-
-    // 4. Merge & Filter
-    const mergedUsers = [];
-    const processedCodes = new Set();
-
-    // Process DB Users first
-    for (const user of dbUsers) {
-      // Filter by search term
-      const matches = !term ||
-        (user.full_name && user.full_name.toLowerCase().includes(term)) ||
-        (user.email && user.email.toLowerCase().includes(term)) ||
-        (user.a1_cod && user.a1_cod.toLowerCase().includes(term));
-
-      if (!matches) continue;
-
-      const credential = credsMapById.get(user.id) || (user.a1_cod ? credsMapByCode.get(user.a1_cod.trim()) : null);
-
-      mergedUsers.push({
-        id: user.id,
-        full_name: user.full_name,
-        email: user.email,
-        a1_cod: user.a1_cod,
-        is_admin: user.is_admin,
-        role: user.is_admin ? 'admin' : (user.a1_cod ? 'cliente/vendedor' : 'admin'), // Basic inference
-        has_password: !!credential,
-        source: 'db'
-      });
-
-      if (user.a1_cod) processedCodes.add(user.a1_cod.trim());
-    }
-
-    // Process API Clients (that are NOT in DB Users)
-    for (const client of apiClients) {
-      const code = client.a1_cod ? client.a1_cod.trim() : null;
-      if (!code) continue; // Skip invalid
-
-      // If already processed via DB user, skip
-      if (processedCodes.has(code)) continue;
-
-      // Check if it's a Decoupled Client (Has credential but no User record)
-      const credential = credsMapByCode.get(code);
-
-      // Filter by search term
-      const matches = !term ||
-        (client.a1_nome && client.a1_nome.toLowerCase().includes(term)) ||
-        (client.a1_email && client.a1_email.toLowerCase().includes(term)) ||
-        (code.toLowerCase().includes(term));
-
-      if (!matches) continue;
-
-      mergedUsers.push({
-        id: credential ? credential.user_id : `virtual_${code}`, // Virtual ID for UI if no credential
-        full_name: client.a1_nome.trim(),
-        email: client.a1_email ? client.a1_email.trim() : null,
-        a1_cod: code,
-        is_admin: false,
-        role: 'cliente',
-        has_password: !!credential,
-        source: credential ? 'decoupled_db' : 'api_only'
-      });
-    }
-
-    // Sort by name
-    return mergedUsers.sort((a, b) => a.full_name.localeCompare(b.full_name));
+    // Mapeo final para asegurar consistencia
+    return result.rows.map(row => ({
+      id: row.id,
+      full_name: row.full_name,
+      email: row.email,
+      a1_cod: row.a1_cod,
+      is_admin: row.is_admin,
+      is_admin: row.is_admin,
+      role: row.role,
+      has_password: row.has_password,
+      source: 'db',
+      vendedor_codigo: row.vendedor_codigo // Include vendor code for filtering
+    }));
 
   } catch (error) {
-    console.error('Error in getUsersForAdmin:', error);
+    console.error('Error en getUsersForAdmin:', error);
     throw error;
   }
 };
@@ -491,5 +453,41 @@ module.exports = {
       throw error;
     }
   },
-};
 
+  getAllSellers: async () => {
+    try {
+      const result = await pool2.query(
+        'SELECT codigo, nombre FROM vendedores ORDER BY nombre ASC'
+      );
+      return result.rows;
+    } catch (error) {
+      console.error('Error in getAllSellers:', error);
+      throw error;
+    }
+  },
+
+  updateVendorClientsGroupPermissions: async (vendedorCodigo, groups) => {
+    try {
+      // 1. Get all clients for this vendor
+      // Note: We only care about users in our local DB as restrictions apply to them
+      const result = await pool.query(
+        'SELECT id FROM users WHERE vendedor_codigo = $1',
+        [vendedorCodigo]
+      );
+
+      const users = result.rows;
+      console.log(`Updating permissions for ${users.length} clients of vendor ${vendedorCodigo}`);
+
+      // 2. Iterate and update permissions for each
+      // Using a loop for now. Could be optimized with a single transaction if needed.
+      for (const user of users) {
+        await module.exports.updateUserGroupPermissions(user.id, groups);
+      }
+
+      return { success: true, count: users.length };
+    } catch (error) {
+      console.error('Error in updateVendorClientsGroupPermissions:', error);
+      throw error;
+    }
+  },
+};

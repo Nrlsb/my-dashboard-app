@@ -160,45 +160,42 @@ const updateUser = async (userId, profileData) => {
 
 const findUsersByVendedorCodigo = async (vendedorCodigo) => {
   try {
-    // 1. Fetch all clients from Protheus API
-    const clients = await protheusService.getClients();
+    console.log(
+      `[userService] getVendedorClients -> Buscando clientes para vendedorCodigo: ${vendedorCodigo} en DB Local`
+    );
 
-    // 2. Filter by vendor code (a1_vend)
     const normalizedVendorCode = String(vendedorCodigo).trim();
 
-    const filteredClients = clients.filter(client => {
-      return client.a1_vend && client.a1_vend.trim() === normalizedVendorCode;
-    });
+    // Query local users table
+    // Note: We select fields to match the previous structure as closely as possible
+    const query = `
+      SELECT id, full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, a1_endereco, vendedor_codigo
+      FROM users
+      WHERE vendedor_codigo = $1
+      ORDER BY full_name ASC
+    `;
 
-    // 3. Map to expected format
-    // Note: We need to see if these clients have passwords/credentials in our DB for completeness?
-    // For the list view, usually just basic info is enough.
-    // If we want to show if they have a password, we would need to batch query credentials.
-    // For now, let's return the basic info.
+    const result = await pool2.query(query, [normalizedVendorCode]);
+    const clients = result.rows;
 
-    return filteredClients.map(c => ({
-      id: parseInt(c.a1_cod) + 100000, // Virtual ID gen logic (same as findUserById if we used it) or just use code
-      // Better to use code as ID if possible but frontend might expect number.
-      // Let's stick to the virtual ID convention we saw in sync scripts just in case: starting 100000
-      // Actually, let's look at how we generate IDs for virtual users. 
-      // In findUserByCode we generate it dynamically? No, we simply fetch credentials by code.
-      // We don't really have a stable numeric ID for them unless we hash the code or something.
-      // Let's use the numeric part if possible, or just a placeholder.
-      // But wait, the frontend uses `client.id` for keys.
-      // Let's try to parse a1_cod to int + offset.
+    console.log(
+      `[userService] getVendedorClients -> Encontrados ${clients.length} clientes para vendedorCodigo: ${vendedorCodigo}`
+    );
 
-      full_name: c.a1_nome.trim(),
-      email: c.a1_email ? c.a1_email.trim() : null,
-      a1_cod: c.a1_cod.trim(),
+    return clients.map(c => ({
+      id: c.id,
+      full_name: c.full_name,
+      email: c.email,
+      a1_cod: c.a1_cod,
       a1_loja: c.a1_loja,
-      a1_cgc: c.a1_cgc ? c.a1_cgc.trim() : null,
-      a1_tel: c.a1_xtel1 ? c.a1_xtel1.trim() : null,
-      a1_endereco: c.a1_end ? c.a1_end.trim() : null,
-      vendedor_codigo: c.a1_vend ? c.a1_vend.trim() : null
+      a1_cgc: c.a1_cgc,
+      a1_tel: c.a1_tel,
+      a1_endereco: c.a1_endereco,
+      vendedor_codigo: c.vendedor_codigo
     }));
 
   } catch (error) {
-    console.error('[userModel] Error fetching clients for vendor:', error);
+    console.error('[userModel] Error fetching clients for vendor from DB:', error);
     return [];
   }
 };

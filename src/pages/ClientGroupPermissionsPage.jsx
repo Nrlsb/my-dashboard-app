@@ -18,6 +18,11 @@ const ClientGroupPermissionsPage = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState('');
 
+  // New State for Tabs
+  const [activeTab, setActiveTab] = useState('search'); // 'search' | 'seller'
+  const [sellers, setSellers] = useState([]);
+  const [selectedSeller, setSelectedSeller] = useState(null);
+
   useEffect(() => {
     const fetchData = async () => {
       if (!currentUser || !currentUser.is_admin) {
@@ -28,12 +33,14 @@ const ClientGroupPermissionsPage = () => {
 
       try {
         setIsLoading(true);
-        const [clientsData, groupsData] = await Promise.all([
+        const [clientsData, groupsData, sellersData] = await Promise.all([
           apiService.getAdminUsers(),
           apiService.getAdminProductGroups(),
+          apiService.getAdminSellers(),
         ]);
         setClients(clientsData);
         setProductGroups(groupsData);
+        setSellers(sellersData);
         setError(null);
       } catch (err) {
         setError(
@@ -52,6 +59,14 @@ const ClientGroupPermissionsPage = () => {
       setClientDeniedGroups([]);
       return;
     }
+
+    // If "ALL_CLIENTS" is selected, we start with empty selection (or could fetch common ones, but empty is safer so user builds from scratch)
+    // Alternatively, we could default to NONE denied, effectively resetting everyone if they save empty.
+    if (selectedClient === 'ALL_CLIENTS') {
+      setClientDeniedGroups([]);
+      return;
+    }
+
     const fetchPermissions = async () => {
       try {
         setIsLoading(true);
@@ -90,11 +105,23 @@ const ClientGroupPermissionsPage = () => {
       setIsLoading(true);
       setError(null);
       setSuccess('');
-      await apiService.updateUserGroupPermissions(
-        selectedClient,
-        clientDeniedGroups
-      );
-      setSuccess('Permisos guardados con éxito.');
+
+      if (selectedClient === 'ALL_CLIENTS' && selectedSeller) {
+        // Bulk Update
+        await apiService.updateVendorGroupPermissions(
+          selectedSeller.codigo,
+          clientDeniedGroups
+        );
+        setSuccess(`Permisos actualizados para TODOS los clientes de ${selectedSeller.nombre} exitosamente.`);
+      } else {
+        // Single Client Update
+        await apiService.updateUserGroupPermissions(
+          selectedClient,
+          clientDeniedGroups
+        );
+        setSuccess('Permisos guardados con éxito.');
+      }
+
     } catch (err) {
       setError('Error al guardar los permisos.');
       console.error(err);
@@ -103,15 +130,24 @@ const ClientGroupPermissionsPage = () => {
     }
   };
 
-  const filteredClients = clients.filter(
-    (client) =>
+  const filteredClients = clients.filter((client) => {
+    if (activeTab === 'seller') {
+      if (!selectedSeller) return false;
+      // Filter by selected seller code
+      // We expect client.vendedor_codigo to be populated from the backend
+      return client.vendedor_codigo && String(client.vendedor_codigo).trim() === String(selectedSeller.codigo).trim();
+    }
+
+    // Default Search Logic
+    return (
       (client.full_name &&
         client.full_name.toLowerCase().includes(userSearch.toLowerCase())) ||
       (client.email &&
         client.email.toLowerCase().includes(userSearch.toLowerCase())) ||
       (client.a1_cod &&
         client.a1_cod.toLowerCase().includes(userSearch.toLowerCase()))
-  );
+    );
+  });
 
   const filteredProductGroups = productGroups.filter(
     (item) =>
@@ -175,31 +211,105 @@ const ClientGroupPermissionsPage = () => {
       <h2 className="text-center mb-8 text-gray-800">Gestionar Permisos por Grupo de Producto</h2>
       {success && <p className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">{success}</p>}
 
+      {/* TABS */}
+      <div className="flex border-b border-gray-200 mb-6">
+        <button
+          className={`px-6 py-3 font-medium text-sm focus:outline-none ${activeTab === 'search'
+            ? 'border-b-2 border-blue-500 text-blue-600'
+            : 'text-gray-500 hover:text-gray-700'
+            }`}
+          onClick={() => setActiveTab('search')}
+        >
+          Buscar Cliente
+        </button>
+        <button
+          className={`px-6 py-3 font-medium text-sm focus:outline-none ${activeTab === 'seller'
+            ? 'border-b-2 border-blue-500 text-blue-600'
+            : 'text-gray-500 hover:text-gray-700'
+            }`}
+          onClick={() => setActiveTab('seller')}
+        >
+          Por Vendedor
+        </button>
+      </div>
+
       <div className="mb-8 flex flex-col items-stretch gap-3">
-        <label htmlFor="user-search" className="font-bold">Buscar Cliente:</label>
-        <input
-          type="text"
-          id="user-search"
-          value={userSearch}
-          onChange={(e) => setUserSearch(e.target.value)}
-          placeholder="Filtrar por nombre, email o código..."
-          className="p-2 rounded border border-gray-300 w-full"
-        />
+        {activeTab === 'search' && (
+          <>
+            <label htmlFor="user-search" className="font-bold">Buscar Cliente:</label>
+            <input
+              type="text"
+              id="user-search"
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              placeholder="Filtrar por nombre, email o código..."
+              className="p-2 rounded border border-gray-300 w-full"
+            />
+          </>
+        )}
+
+        {activeTab === 'seller' && (
+          <>
+            <label htmlFor="seller-select" className="font-bold">Seleccionar Vendedor:</label>
+            <CustomSelect
+              options={sellers.map((s) => ({
+                label: `${s.nombre} (Cod: ${s.codigo})`,
+                value: s.codigo,
+              }))}
+              value={selectedSeller ? selectedSeller.codigo : ''}
+              onChange={(val) => {
+                const seller = sellers.find(s => s.codigo === val);
+                setSelectedSeller(seller);
+                setSelectedClient(''); // Reset client when vendor changes
+              }}
+              placeholder="-- Seleccione un vendedor --"
+            />
+          </>
+        )}
+
         <label htmlFor="client-select" className="font-bold">Seleccionar Cliente:</label>
 
         <CustomSelect
-          options={filteredClients.map((client) => ({
-            label: `${client.full_name} (${client.email})`,
-            value: client.id,
-          }))}
+          options={[
+            // Conditionally add "TODOS" option if in seller tab and a seller is selected
+            ...(activeTab === 'seller' && selectedSeller
+              ? [{ label: '-- TODOS LOS CLIENTES DEL VENDEDOR --', value: 'ALL_CLIENTS' }]
+              : []),
+            ...filteredClients.map((client) => ({
+              label: `${client.full_name} (${client.email || 'Sin Email'})`,
+              value: client.id,
+            }))
+          ]}
           value={selectedClient}
           onChange={(val) => setSelectedClient(val)}
-          placeholder="-- Seleccione un cliente --"
+          placeholder={activeTab === 'seller' && !selectedSeller ? "-- Primero seleccione un vendedor --" : "-- Seleccione un cliente --"}
+          disabled={activeTab === 'seller' && !selectedSeller}
         />
       </div>
 
       {selectedClient && (
         <div className="mt-4 p-6 border border-gray-200 rounded-lg bg-white">
+          {/* Show warning banner if ALL_CLIENTS is selected */}
+          {selectedClient === 'ALL_CLIENTS' && selectedSeller && (
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  {/* Heroicon name: solid/exclamation */}
+                  <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-yellow-700">
+                    Estás editando los permisos para <strong>TODOS</strong> los clientes de <strong>{selectedSeller.nombre}</strong>.
+                    <br />
+                    Las restricciones que selecciones abajo se aplicarán a todos sus clientes, sobrescribiendo sus configuraciones actuales.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="mb-6 flex items-center gap-4">
             <label htmlFor="product-group-filter" className="font-bold">Filtrar Grupos:</label>
             <input

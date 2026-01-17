@@ -13,7 +13,7 @@ const Footer = () => {
         <div className="mb-12 border-b border-slate-800 pb-8">
           <h4 className="text-white font-semibold mb-6 text-center">Nuestras Marcas</h4>
 
-          <div className="flex flex-wrap justify-center gap-6">
+          <div className="flex flex-wrap justify-center gap-4">
             {brands.map((brand) => (
               <Link
                 key={brand.name}

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import apiService from '../api/apiService';
 import { Search, Lock, Edit, AlertCircle, CheckCircle } from 'lucide-react';
+import TestUserAnalyticsModal from '../components/TestUserAnalyticsModal';
 
 const ManageUsersPage = () => {
     const [clients, setClients] = useState([]);
@@ -13,7 +14,9 @@ const ManageUsersPage = () => {
 
     // Modal state
     const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+    const [isAnalyticsModalOpen, setIsAnalyticsModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
+    const [selectedUserForAnalytics, setSelectedUserForAnalytics] = useState(null);
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -59,6 +62,16 @@ const ManageUsersPage = () => {
     const closeResetModal = () => {
         setIsResetModalOpen(false);
         setSelectedUser(null);
+    };
+
+    const openAnalyticsModal = (user) => {
+        setSelectedUserForAnalytics(user);
+        setIsAnalyticsModalOpen(true);
+    };
+
+    const closeAnalyticsModal = () => {
+        setIsAnalyticsModalOpen(false);
+        setSelectedUserForAnalytics(null);
     };
 
     const handleResetPassword = async () => {
@@ -186,16 +199,26 @@ const ManageUsersPage = () => {
                                             {client.email}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button
-                                                onClick={() => openResetModal(client)}
-                                                className={`text-white font-medium rounded-lg text-xs px-4 py-2 transition-all shadow-sm focus:outline-none flex items-center justify-center ml-auto gap-2 ${client.has_password
-                                                    ? "bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-300"
-                                                    : "bg-green-600 hover:bg-green-700 focus:ring-4 focus:ring-green-300"
-                                                    }`}
-                                            >
-                                                {client.has_password ? <Lock className="w-3.5 h-3.5" /> : <Edit className="w-3.5 h-3.5" />}
-                                                {client.has_password ? "Reset Pwd" : "Asignar Pwd"}
-                                            </button>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => openAnalyticsModal(client)}
+                                                    className="text-white bg-blue-500 hover:bg-blue-600 font-medium rounded-lg text-xs px-3 py-2 transition-all shadow-sm focus:outline-none flex items-center gap-1"
+                                                    title="Ver Análisis"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-bar-chart-2"><line x1="18" x2="18" y1="20" y2="10" /><line x1="12" x2="12" y1="20" y2="4" /><line x1="6" x2="6" y1="20" y2="14" /></svg>
+                                                    Análisis
+                                                </button>
+                                                <button
+                                                    onClick={() => openResetModal(client)}
+                                                    className={`text-white font-medium rounded-lg text-xs px-4 py-2 transition-all shadow-sm focus:outline-none flex items-center justify-center gap-2 ${client.has_password
+                                                        ? "bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-300"
+                                                        : "bg-green-600 hover:bg-green-700 focus:ring-4 focus:ring-green-300"
+                                                        }`}
+                                                >
+                                                    {client.has_password ? <Lock className="w-3.5 h-3.5" /> : <Edit className="w-3.5 h-3.5" />}
+                                                    {client.has_password ? "Reset Pwd" : "Asignar Pwd"}
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -302,6 +325,15 @@ const ManageUsersPage = () => {
                     </div>
                 </div>
             )}
+
+            {/* Modal de Análisis */}
+            <TestUserAnalyticsModal
+                isOpen={isAnalyticsModalOpen}
+                onClose={closeAnalyticsModal}
+                userId={selectedUserForAnalytics?.id}
+                userName={selectedUserForAnalytics?.full_name}
+                isRegularUser={true}
+            />
         </div>
     );
 };

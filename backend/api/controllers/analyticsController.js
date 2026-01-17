@@ -21,6 +21,15 @@ exports.getTestUserAnalytics = catchAsync(async (req, res) => {
     });
 });
 
+exports.getUserAnalytics = catchAsync(async (req, res) => {
+    const { userId } = req.params;
+    const stats = await analyticsModel.getUserStats(userId);
+    res.json({
+        status: 'success',
+        data: stats
+    });
+});
+
 exports.getAnalytics = catchAsync(async (req, res) => {
     const { startDate, endDate } = req.query;
 

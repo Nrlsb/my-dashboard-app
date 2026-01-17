@@ -291,10 +291,32 @@ const apiService = {
     return this.request(`/test-users/${userId}/analytics`);
   },
 
+  // (NUEVO) Método para obtener análisis de usuarios normales (admin)
+  getUserAnalytics(userId) {
+    return this.request(`/admin/users/${userId}/analytics`);
+  },
+
   // (NUEVO) Método para obtener todos los clientes (para administradores)
   getAllClients(search = '') {
     const params = search ? { search } : null;
     return this.request('/admin/clients', { params });
+  },
+
+  getAdminSellers: async () => {
+    try {
+      const response = await apiService.request('/admin/sellers');
+      return response;
+    } catch (error) {
+      console.error('Error fetching admin sellers:', error);
+      throw error;
+    }
+  },
+
+  updateVendorGroupPermissions: (vendedorCode, deniedGroups) => {
+    return apiService.request(`/admin/sellers/${vendedorCode}/product-groups`, {
+      method: 'PUT',
+      body: { groups: deniedGroups },
+    });
   },
 
   // (NUEVO) Método para resetear contraseña de usuario por admin

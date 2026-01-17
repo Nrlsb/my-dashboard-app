@@ -5,15 +5,15 @@ const testUserModel = require('../models/testUserModel');
 const initScheduler = () => {
     console.log('Initializing Scheduler...');
 
-    // 1. 30-Minute Sync: Products (Stock) & Prices
-    // '*/30 * * * *' = Every 30 minutes
-    cron.schedule('*/30 * * * *', async () => {
-        console.log('[Scheduler] Running scheduled 30-Minute Sync (Products & Prices)...');
+    // 1. Hourly Sync: Products (Stock) & Prices
+    // '0 * * * *' = Every hour
+    cron.schedule('0 * * * *', async () => {
+        console.log('[Scheduler] Running scheduled Hourly Sync (Products & Prices)...');
         try {
             await syncProducts();
-            console.log('[Scheduler] 30-Minute Sync completed successfully.');
+            console.log('[Scheduler] Hourly Sync completed successfully.');
         } catch (error) {
-            console.error('[Scheduler] Error during 30-Minute Sync:', error);
+            console.error('[Scheduler] Error during Hourly Sync:', error);
         }
     });
 
@@ -41,7 +41,7 @@ const initScheduler = () => {
         }
     });
 
-    console.log('Scheduler initialized. Price sync set to run every 30 minutes.');
+    console.log('Scheduler initialized. Price sync set to run every hour.');
 };
 
 module.exports = {

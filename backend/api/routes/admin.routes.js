@@ -15,6 +15,7 @@ const {
   removeAdmin,
   getAllClientsController,
   assignClientPassword,
+  getAllSellers,
 
   getGlobalDeniedProductsController,
   updateGlobalProductPermissionsController,
@@ -73,6 +74,15 @@ router.delete('/roles/:id', requirePermission('manage_admins'), roleController.d
 // (NUEVO) Ruta para obtener todos los clientes
 router.get('/clients', requireAdmin, getAllClientsController); // Add the new route
 
+// (NUEVO) Ruta para obtener todos los vendedores
+router.get('/sellers', requireAdmin, getAllSellers);
+
+const { updateVendorClientsGroupPermissions } = require('../controllers/adminController');
+router.put('/sellers/:vendedorCode/product-groups', requireAdmin, updateVendorClientsGroupPermissions);
+
+const analyticsController = require('../controllers/analyticsController');
+router.get('/users/:userId/analytics', requireAdmin, analyticsController.getUserAnalytics);
+
 // (NUEVO) Ruta para resetear contraseña de usuario
 const { resetUserPassword } = require('../controllers/adminController');
 router.put('/users/:userId/password', requireAdmin, resetUserPassword);
@@ -104,7 +114,8 @@ router.delete('/accessories/:productId', requireMarketingOrAdmin, removeAccessor
 router.post('/custom-collection/:groupId/items', requireMarketingOrAdmin, addCustomGroupItem);
 router.delete('/custom-collection/:groupId/items/:productId', requireMarketingOrAdmin, removeCustomGroupItem);
 
-const { triggerProductSync } = require('../controllers/adminController');
+const { triggerProductSync, triggerFullSync } = require('../controllers/adminController');
 router.post('/sync-products', requireAdmin, triggerProductSync);
+router.post('/sync-full', requireAdmin, triggerFullSync);
 
 module.exports = router;

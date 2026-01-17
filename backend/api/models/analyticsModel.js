@@ -348,11 +348,56 @@ const getTestUserStats = async (userId) => {
     }
 };
 
+const getUserStats = async (userId) => {
+    try {
+        // 1. Total Visits
+        const countQuery = `
+            SELECT COUNT(*) 
+            FROM page_visits 
+            WHERE user_id = $1
+        `;
+        const countResult = await pool2.query(countQuery, [userId]);
+        const totalVisits = parseInt(countResult.rows[0].count, 10);
+
+        // 2. Last Visit
+        const lastVisitQuery = `
+            SELECT created_at 
+            FROM page_visits 
+            WHERE user_id = $1
+            ORDER BY created_at DESC 
+            LIMIT 1
+        `;
+        const lastVisitResult = await pool2.query(lastVisitQuery, [userId]);
+        const lastVisit = lastVisitResult.rows.length > 0 ? lastVisitResult.rows[0].created_at : null;
+
+        // 3. Top Pages
+        const topPagesQuery = `
+            SELECT path, COUNT(*) as count
+            FROM page_visits
+            WHERE user_id = $1
+            GROUP BY path
+            ORDER BY count DESC
+            LIMIT 5
+        `;
+        const topPagesResult = await pool2.query(topPagesQuery, [userId]);
+
+        return {
+            totalVisits,
+            lastVisit,
+            topPages: topPagesResult.rows
+        };
+    } catch (error) {
+        console.error('Error getting user stats:', error);
+        return { totalVisits: 0, lastVisit: null, topPages: [] };
+    }
+};
+
 module.exports = {
     recordVisit,
     getVisitStats,
     getOrderStats,
     getClientStats,
     getSellerStats,
-    getTestUserStats
+    getTestUserStats,
+    getUserStats
 };
