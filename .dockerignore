@@ -1,0 +1,10 @@
+node_modules
+dist
+.git
+.env
+.env.local
+.env.development
+.env.production
+backend
+coverage
+test-results

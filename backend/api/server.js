@@ -20,7 +20,7 @@ const dotenv = require('dotenv');
 
 // Cargar configuración según el entorno
 const envFile = process.env.NODE_ENV === 'development' ? '.env.development' : '.env';
-dotenv.config({ path: path.resolve(__dirname, envFile), override: true }); // FORCE OVERRIDE
+dotenv.config({ path: path.resolve(__dirname, envFile) }); // Do not force override so Docker envs work
 
 // (SEGURIDAD) Validar Variables de Entorno
 const validateEnv = require('./config/envValidator');

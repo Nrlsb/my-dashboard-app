@@ -1,0 +1,87 @@
+services:
+  # Database Service (PostgreSQL)
+  postgres:
+    image: postgres:15-alpine
+    container_name: dashboard-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dashboard_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Service (Cache)
+  redis:
+    image: redis:alpine
+    container_name: dashboard-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Backend Service
+  backend:
+    build:
+      context: ./backend/api
+      dockerfile: Dockerfile
+    container_name: dashboard-backend
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DB_HOST=postgres
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_DATABASE=dashboard_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # JWT Secrets and others should ideally be passed via .env file or secrets
+      # For now assuming defaults or loaded from .env if not overridden
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend/api:/app
+      - /app/node_modules
+    command: nodemon server.js
+
+  # Frontend Service
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dashboard-frontend
+    restart: always
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3001/api
+    depends_on:
+      - backend
+    volumes:
+      - .:/app
+      - /app/node_modules
+      # Exclude backend from frontend container to prevent confusion
+      - /app/backend
+
+volumes:
+  postgres_data:
+  redis_data:
