@@ -928,6 +928,8 @@ const getAllProductImageCodes = async () => {
     const result = await pool2.query(query);
     const codes = result.rows.map(row => row.product_code);
 
+    console.log(`[DEBUG] getAllProductImageCodes found ${codes.length} images in DB.`);
+
     if (isRedisReady()) {
       // Cache for 1 hour (3600 seconds) - List of images changes infrequently
       await redisClient.set(cacheKey, JSON.stringify(codes), { EX: 3600 });

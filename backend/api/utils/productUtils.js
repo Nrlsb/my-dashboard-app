@@ -43,6 +43,7 @@ const getUserFilters = async (userId) => {
                 isRestrictedUser = true;
                 // Obtener códigos de productos con imágenes para filtrar
                 allowedProductCodes = await productModel.getAllProductImageCodes();
+                console.log(`[DEBUG] userId: ${userId}, role: ${role}. Found ${allowedProductCodes.length} allowed product codes with images.`);
             }
         }
     } else {
@@ -51,6 +52,8 @@ const getUserFilters = async (userId) => {
         role = 'guest';
         allowedProductCodes = await productModel.getAllProductImageCodes();
     }
+
+    console.log(`[DEBUG] getUserFilters -> User: ${userId}, Role: ${role}, Restricted: ${isRestrictedUser}, AllowedCodes: ${allowedProductCodes.length}`);
 
     return {
         isUserAdmin,
