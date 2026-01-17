@@ -34,6 +34,8 @@ const getBatchProgress = () => {
  * @param {number|null} [options.userId=null] - ID del usuario para verificar permisos.
  * @returns {Promise<{products: object[], totalProducts: number}>} - Productos procesados y el conteo total.
  */
+const { getUserFilters, calculateFinalPrice } = require('../utils/productUtils');
+
 const fetchProducts = async ({
   page = 1,
   limit = 20,
@@ -45,8 +47,6 @@ const fetchProducts = async ({
   isExport = false,
 }) => {
   try {
-    // console.log('[DEBUG] productService.fetchProducts called with:', { page, limit, search, brand, userId, isExport });
-
     // 1. Obtener cotizaciones
     let exchangeRates;
     try {
@@ -56,34 +56,14 @@ const fetchProducts = async ({
         '[WARNING] Failed to fetch exchange rates. Using default values.',
         error
       );
-      exchangeRates = { venta_billete: 1, venta_divisa: 1 }; // Fallback
+      exchangeRates = { venta_billete: 1, venta_divisa: 1 };
     }
-    const ventaBillete = exchangeRates.venta_billete || 1; // Ensure not null
-    const ventaDivisa = exchangeRates.venta_divisa || 1; // Ensure not null
 
-    // 2. Determinar permisos
-    let deniedGroups = [];
-    if (userId) {
-      // Verificar si el usuario es admin
-      const userResult = await pool.query(
-        'SELECT is_admin FROM users WHERE id = $1',
-        [userId]
-      );
-      const isUserAdmin =
-        userResult.rows.length > 0 && userResult.rows[0].is_admin;
-
-      if (!isUserAdmin) {
-        deniedGroups = await productModel.getDeniedProductGroups(userId);
-      }
-    }
+    // 2. Determinar permisos usando utilidad
+    const { deniedGroups, allowedProductCodes, isRestrictedUser } = await getUserFilters(userId);
 
     // 3. Preparar filtros para el modelo
     let finalLimit = limit;
-    if (isExport) {
-      // En exportación, permitimos límites más altos o ignoramos paginación estricta si se requiere
-      // Pero el frontend envía limit=9999, así que respetamos eso.
-    }
-
     const offset = (page - 1) * limit;
     const brands = brand ? brand.split(',') : [];
 
@@ -96,114 +76,54 @@ const fetchProducts = async ({
       bypassCache,
     };
 
-    // Filtro por imagen (cross-database)
-    // Check if user is restricted (not admin and not marketing)
-    let isRestrictedUser = false;
-    if (userId) {
-      const userResult = await pool.query('SELECT is_admin FROM users WHERE id = $1', [userId]);
-      const isUserAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin;
-
-      if (!isUserAdmin) {
-        const roleData = await userModel.getUserRoleFromDB2(userId);
-        const userRole = roleData ? roleData.role : 'cliente';
-        if (userRole !== 'marketing') {
-          isRestrictedUser = true;
-        }
-      }
-    } else {
-      // No user logged in, treat as restricted
-      isRestrictedUser = true;
-    }
-
+    // Filtro por imagen
     if (isRestrictedUser) {
-      // Enforce image filtering
-      const imageCodes = await productModel.getAllProductImageCodes();
-      if (imageCodes.length === 0) {
+      if (allowedProductCodes.length === 0 || hasImage === 'false') {
         return { products: [], totalProducts: 0 };
       }
-
-      // If user requested NO images (hasImage='false'), but they are restricted, they get nothing.
-      if (hasImage === 'false') {
-        return { products: [], totalProducts: 0 };
-      }
-
-      // If user requested images (hasImage='true'), we use imageCodes.
-      // If user didn't specify (hasImage=''), we ALSO use imageCodes to hide non-image products.
-      filters.allowedIds = imageCodes;
+      filters.allowedIds = allowedProductCodes;
     } else {
-      // Standard logic for non-restricted users
       if (hasImage === 'true') {
-        const imageCodes = await productModel.getAllProductImageCodes();
-        if (imageCodes.length === 0) {
+        if (allowedProductCodes.length === 0) {
           return { products: [], totalProducts: 0 };
         }
-        filters.allowedIds = imageCodes;
-      } else if (hasImage === 'false') {
-        const imageCodes = await productModel.getAllProductImageCodes();
-        if (imageCodes.length > 0) {
-          filters.excludedIds = imageCodes;
-        }
+        filters.allowedIds = allowedProductCodes;
+      } else if (hasImage === 'false' && allowedProductCodes.length > 0) {
+        filters.excludedIds = allowedProductCodes;
       }
     }
 
     // 4. Obtener datos crudos del modelo
-    const { products: rawProducts, totalProducts } =
-      await productModel.findProducts(filters);
+    const { products: rawProducts, totalProducts } = await productModel.findProducts(filters);
 
-    // 5. Aplicar lógica de negocio (cálculo de precios, formato)
-    // Obtener IDs de productos que cambiaron de precio recientemente
-
-    // OPTIMIZACIÓN: Si es exportación, saltamos la verificación de cambios recientes
+    // 5. Aplicar lógica de negocio
     let recentlyChangedSet = new Set();
     if (!isExport) {
       const productIds = rawProducts.map(p => p.id);
-      // console.log('[DEBUG] Checking changes for product IDs:', productIds);
       const recentlyChangedIds = await productModel.getRecentlyChangedProducts(productIds);
-      // console.log('[DEBUG] Recently changed IDs found:', recentlyChangedIds);
       recentlyChangedSet = new Set(recentlyChangedIds);
     }
 
     const products = rawProducts.map((prod) => {
-      let originalPrice = prod.price;
-      let finalPrice = prod.price;
-
-      // Ensure proper type conversion for comparison
-      const moneda = Number(prod.moneda);
-
-      // DEBUG LOG (Unconditional for now)
-      // console.log(`[DEBUG] Product ${prod.code}: Moneda=${prod.moneda} (Type: ${typeof prod.moneda}) -> Parsed=${moneda}. Rates: Billete=${ventaBillete}, Divisa=${ventaDivisa}`);
-
-      if (moneda === 2) {
-        // Dólar Billete
-        finalPrice = originalPrice * ventaBillete;
-      } else if (moneda === 3) {
-        // Dólar Divisa
-        finalPrice = originalPrice * ventaDivisa;
-      }
+      const { finalPrice, cotizacionUsed, formattedPrice } = calculateFinalPrice(prod, exchangeRates);
 
       return {
         id: prod.id,
         code: prod.code,
         name: prod.description,
         price: finalPrice,
-        formattedPrice: formatCurrency(finalPrice),
+        formattedPrice: formattedPrice,
         brand: prod.brand,
-        // En exportación a veces no se necesita imageUrl, pero es ligero
-        imageUrl: null, // Removed Cloudinary generation
-        thumbnailUrl: null, // Removed Cloudinary generation
+        imageUrl: null,
+        thumbnailUrl: null,
         capacityDesc: prod.capacity_description,
         capacityValue: null,
         moneda: prod.moneda,
-        cotizacion:
-          moneda === 2
-            ? ventaBillete
-            : moneda === 3
-              ? ventaDivisa
-              : 1,
-        originalPrice: originalPrice,
+        cotizacion: cotizacionUsed,
+        originalPrice: prod.price,
         product_group: prod.product_group,
-        oferta: prod.oferta, // El estado de la oferta ya viene del modelo
-        recentlyChanged: recentlyChangedSet.has(prod.id), // Nueva bandera
+        oferta: prod.oferta,
+        recentlyChanged: recentlyChangedSet.has(prod.id),
         stock_disponible: prod.stock_disponible,
         stock_de_seguridad: prod.stock_de_seguridad,
         indicator_description: prod.indicator_description,
@@ -211,20 +131,12 @@ const fetchProducts = async ({
       };
     });
 
-    // OPTIMIZACIÓN: Si es exportación, saltamos el enriquecimiento de imágenes DB2
     if (isExport) {
-      return {
-        products: products,
-        totalProducts,
-      };
+      return { products: products, totalProducts };
     }
 
     const productsWithImages = await enrichProductsWithImages(products);
-
-    return {
-      products: productsWithImages,
-      totalProducts,
-    };
+    return { products: productsWithImages, totalProducts };
   } catch (error) {
     console.error('[DEBUG] Error in productService.fetchProducts:', error);
     throw error;
@@ -233,26 +145,14 @@ const fetchProducts = async ({
 
 const getAccessories = async (userId) => {
   try {
-    // 1. Fetch from DB configuration
     const dbAccessories = await productModel.findCarouselAccessories();
 
     if (dbAccessories.length > 0) {
-      // Filter by denied groups and products if user is restricted
-      let filteredAccessories = dbAccessories;
-      if (userId) {
-        const userResult = await pool.query(
-          'SELECT is_admin FROM users WHERE id = $1',
-          [userId]
-        );
-        const isUserAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin;
+      const { deniedGroups } = await getUserFilters(userId);
 
-        if (!isUserAdmin) {
-          const deniedGroups = await productModel.getDeniedProductGroups(userId);
-          filteredAccessories = dbAccessories.filter(acc => {
-            const isGroupDenied = deniedGroups.includes(acc.product_group);
-            return !isGroupDenied;
-          });
-        }
+      let filteredAccessories = dbAccessories;
+      if (deniedGroups.length > 0) {
+        filteredAccessories = dbAccessories.filter(acc => !deniedGroups.includes(acc.product_group));
       }
 
       const mappedAccessories = filteredAccessories.map((prod) => ({
@@ -268,7 +168,6 @@ const getAccessories = async (userId) => {
 
       return await enrichProductsWithImages(mappedAccessories);
     }
-
     return [];
   } catch (error) {
     console.error('Error en getAccessories (service):', error);
@@ -278,7 +177,6 @@ const getAccessories = async (userId) => {
 
 const getProductGroupsDetails = async (userId) => {
   try {
-    // 1. Fetch from DB configuration
     const dbGroups = await productModel.findCarouselGroups();
 
     if (dbGroups.length > 0) {
@@ -322,21 +220,18 @@ const getProductGroupsDetails = async (userId) => {
       });
 
       // Filter denied groups for static groups
-      if (userId) {
-        const deniedGroups = await productModel.getDeniedProductGroups(userId);
-        if (deniedGroups.length > 0) {
-          finalGroups = finalGroups.filter(g => {
-            if (g.type === 'static_group') {
-              return !deniedGroups.includes(g.group_code);
-            }
-            return true; // Custom collections might need their own permission logic, but for now allow them
-          });
-        }
+      const { deniedGroups } = await getUserFilters(userId);
+      if (deniedGroups.length > 0) {
+        finalGroups = finalGroups.filter(g => {
+          if (g.type === 'static_group') {
+            return !deniedGroups.includes(g.group_code);
+          }
+          return true;
+        });
       }
 
       return finalGroups;
     }
-
     return [];
   } catch (error) {
     console.error('Error en getProductGroupsDetails (service):', error);
@@ -346,19 +241,7 @@ const getProductGroupsDetails = async (userId) => {
 
 const fetchProductDetails = async (productId, userId = null) => {
   try {
-    let deniedGroups = [];
-    if (userId) {
-      const userResult = await pool.query(
-        'SELECT is_admin FROM users WHERE id = $1',
-        [userId]
-      );
-      const isUserAdmin =
-        userResult.rows.length > 0 && userResult.rows[0].is_admin;
-      if (!isUserAdmin) {
-        deniedGroups = await productModel.getDeniedProductGroups(userId);
-      }
-    }
-
+    const { deniedGroups } = await getUserFilters(userId);
     const prod = await productModel.findProductById(productId, deniedGroups);
 
     if (!prod) {
@@ -388,20 +271,15 @@ const fetchProductDetails = async (productId, userId = null) => {
     // Currency Conversion
     let exchangeRates = { venta_billete: 1, venta_divisa: 1 };
     try { exchangeRates = await getExchangeRates(); } catch (e) { console.error('Error fetching rates', e); }
-    const ventaBillete = exchangeRates.venta_billete || 1;
-    const ventaDivisa = exchangeRates.venta_divisa || 1;
 
-    let finalPrice = prod.price;
-    if (prod.moneda === 2) finalPrice = prod.price * ventaBillete;
-    if (prod.moneda === 3) finalPrice = prod.price * ventaDivisa;
+    const { finalPrice, formattedPrice } = calculateFinalPrice(prod, exchangeRates);
 
     const productDetails = {
       id: prod.id,
       code: prod.code,
       name: prod.description,
       price: finalPrice,
-      formattedPrice: formatCurrency(finalPrice),
-      brand: prod.brand,
+      formattedPrice: formattedPrice,
       brand: prod.brand,
       imageUrl: null,
       thumbnailUrl: null,
@@ -427,19 +305,7 @@ const fetchProductDetails = async (productId, userId = null) => {
 
 const fetchProductDetailsByCode = async (productCode, userId = null) => {
   try {
-    let deniedGroups = [];
-    if (userId) {
-      const userResult = await pool.query(
-        'SELECT is_admin FROM users WHERE id = $1',
-        [userId]
-      );
-      const isUserAdmin =
-        userResult.rows.length > 0 && userResult.rows[0].is_admin;
-      if (!isUserAdmin) {
-        deniedGroups = await productModel.getDeniedProductGroups(userId);
-      }
-    }
-
+    const { deniedGroups } = await getUserFilters(userId);
     const prod = await productModel.findProductByCode(productCode, deniedGroups);
 
     if (!prod) {
@@ -469,20 +335,15 @@ const fetchProductDetailsByCode = async (productCode, userId = null) => {
     // Currency Conversion
     let exchangeRates = { venta_billete: 1, venta_divisa: 1 };
     try { exchangeRates = await getExchangeRates(); } catch (e) { console.error('Error fetching rates', e); }
-    const ventaBillete = exchangeRates.venta_billete || 1;
-    const ventaDivisa = exchangeRates.venta_divisa || 1;
 
-    let finalPrice = prod.price;
-    if (prod.moneda === 2) finalPrice = prod.price * ventaBillete;
-    if (prod.moneda === 3) finalPrice = prod.price * ventaDivisa;
+    const { finalPrice, formattedPrice } = calculateFinalPrice(prod, exchangeRates);
 
     const productDetails = {
       id: prod.id,
       code: prod.code,
       name: prod.description,
       price: finalPrice,
-      formattedPrice: formatCurrency(finalPrice),
-      brand: prod.brand,
+      formattedPrice: formattedPrice,
       brand: prod.brand,
       imageUrl: null,
       thumbnailUrl: null,
@@ -508,19 +369,7 @@ const fetchProductDetailsByCode = async (productCode, userId = null) => {
 
 const fetchProtheusBrands = async (userId = null) => {
   try {
-    let deniedGroups = [];
-    if (userId) {
-      const userResult = await pool.query(
-        'SELECT is_admin FROM users WHERE id = $1',
-        [userId]
-      );
-      const isUserAdmin =
-        userResult.rows.length > 0 && userResult.rows[0].is_admin;
-      if (!isUserAdmin) {
-        deniedGroups = await productModel.getDeniedProductGroups(userId);
-      }
-    }
-
+    const { deniedGroups } = await getUserFilters(userId);
     const brands = await productModel.findUniqueBrands(deniedGroups);
     return brands;
   } catch (error) {
@@ -531,19 +380,7 @@ const fetchProtheusBrands = async (userId = null) => {
 
 const fetchProtheusOffers = async (userId = null) => {
   try {
-    let deniedGroups = [];
-    if (userId) {
-      const userResult = await pool.query(
-        'SELECT is_admin FROM users WHERE id = $1',
-        [userId]
-      );
-      const isUserAdmin =
-        userResult.rows.length > 0 && userResult.rows[0].is_admin;
-      if (!isUserAdmin) {
-        deniedGroups = await productModel.getDeniedProductGroups(userId);
-      }
-    }
-
+    const { deniedGroups } = await getUserFilters(userId);
     const offerData = await productModel.getOnOfferData();
     const rawOffers = await productModel.findOffers(offerData, deniedGroups);
 
@@ -559,42 +396,25 @@ const fetchProtheusOffers = async (userId = null) => {
         '[WARNING] Failed to fetch exchange rates for offers. Using default values.',
         error
       );
-      exchangeRates = { venta_billete: 1, venta_divisa: 1 }; // Fallback
+      exchangeRates = { venta_billete: 1, venta_divisa: 1 };
     }
-    const ventaBillete = exchangeRates.venta_billete || 1; // Ensure not null
-    const ventaDivisa = exchangeRates.venta_divisa || 1; // Ensure not null
 
     const offers = rawOffers.map((prod) => {
-      let originalPrice = prod.price;
-      let finalPrice = prod.price;
-
-      if (prod.moneda === 2) {
-        // Dólar Billete
-        finalPrice = originalPrice * ventaBillete;
-      } else if (prod.moneda === 3) {
-        // Dólar Divisa
-        finalPrice = originalPrice * ventaDivisa;
-      }
+      const { finalPrice, cotizacionUsed, formattedPrice } = calculateFinalPrice(prod, exchangeRates);
 
       return {
         id: prod.id,
         code: prod.code,
         name: prod.description,
         price: finalPrice,
-        formattedPrice: formatCurrency(finalPrice),
+        formattedPrice: formattedPrice,
         brand: prod.brand,
-        brand: prod.brand,
-        imageUrl: null, // Removed Cloudinary generation
-        thumbnailUrl: null, // Removed Cloudinary generation
+        imageUrl: null,
+        thumbnailUrl: null,
         capacityDesc: prod.capacity_description,
         moneda: prod.moneda,
-        cotizacion:
-          prod.moneda === 2
-            ? ventaBillete
-            : prod.moneda === 3
-              ? ventaDivisa
-              : 1,
-        originalPrice: originalPrice,
+        cotizacion: cotizacionUsed,
+        originalPrice: prod.price,
         product_group: prod.product_group,
         oferta: true,
         custom_title: prod.custom_title,
@@ -625,42 +445,20 @@ const fetchProductsByGroup = async (
         '[WARNING] Failed to fetch exchange rates for group. Using default values.',
         error
       );
-      exchangeRates = { venta_billete: 1, venta_divisa: 1 }; // Fallback
+      exchangeRates = { venta_billete: 1, venta_divisa: 1 };
     }
-    const ventaBillete = exchangeRates.venta_billete || 1;
-    const ventaDivisa = exchangeRates.venta_divisa || 1;
 
     const offset = (page - 1) * limit;
-    let deniedGroups = [];
-    let allowedProductCodes = [];
-    if (userId) {
-      const userResult = await pool.query(
-        'SELECT is_admin FROM users WHERE id = $1',
-        [userId]
-      );
-      const isUserAdmin =
-        userResult.rows.length > 0 && userResult.rows[0].is_admin;
-      if (!isUserAdmin) {
-        deniedGroups = await productModel.getDeniedProductGroups(userId);
 
-        // Check for marketing role
-        const roleData = await userModel.getUserRoleFromDB2(userId);
-        const userRole = roleData ? roleData.role : 'cliente';
+    // Use helper to get permissions and restricted products
+    const { deniedGroups, allowedProductCodes, isRestrictedUser } = await getUserFilters(userId);
 
-        if (userRole !== 'marketing') {
-          // Restrict to products with images
-          allowedProductCodes = await productModel.getAllProductImageCodes();
-          if (allowedProductCodes.length === 0) {
-            return { products: [], totalProducts: 0, groupName: '' };
-          }
-        }
-      }
-    } else {
-      // No user, restrict
-      allowedProductCodes = await productModel.getAllProductImageCodes();
+    let effectiveAllowedCodes = [];
+    if (isRestrictedUser) {
       if (allowedProductCodes.length === 0) {
         return { products: [], totalProducts: 0, groupName: '' };
       }
+      effectiveAllowedCodes = allowedProductCodes;
     }
 
     const {
@@ -672,32 +470,22 @@ const fetchProductsByGroup = async (
       limit,
       offset,
       deniedGroups,
-      [], // deniedProductCodes (empty here as we handle it via deniedGroups usually, but could be passed)
-      allowedProductCodes // New parameter
+      [],
+      effectiveAllowedCodes
     );
 
     const products = rawProducts.map((prod) => {
-      let originalPrice = prod.price;
-      let finalPrice = prod.price;
-
-      if (prod.moneda === 2) {
-        // Dólar Billete
-        finalPrice = originalPrice * ventaBillete;
-      } else if (prod.moneda === 3) {
-        // Dólar Divisa
-        finalPrice = originalPrice * ventaDivisa;
-      }
+      const { finalPrice, formattedPrice } = calculateFinalPrice(prod, exchangeRates);
 
       return {
         id: prod.id,
         code: prod.code,
         name: prod.description,
         price: finalPrice,
-        formattedPrice: formatCurrency(finalPrice),
+        formattedPrice: formattedPrice,
         brand: prod.brand,
-        brand: prod.brand,
-        imageUrl: null, // Removed Cloudinary generation
-        thumbnailUrl: null, // Removed Cloudinary generation
+        imageUrl: null,
+        thumbnailUrl: null,
         capacityDesc: prod.capacity_description,
       };
     });
