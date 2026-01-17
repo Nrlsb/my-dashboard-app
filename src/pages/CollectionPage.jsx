@@ -30,13 +30,7 @@ const CollectionPage = () => {
 
                 // Try to find name from groups list (inefficient but works for now)
                 try {
-                    const groups = await apiService.getCarouselGroups(); // This is admin endpoint, might fail for user?
-                    // Wait, getCarouselGroups is admin only.
-                    // Users can't see the name? That's bad.
-                    // I should update getCustomCollectionProducts to return the name.
-                    // But I can't change backend right now easily without context switch.
-                    // Let's assume for now we just show "Colección".
-                    // Or I can use getProductGroupsDetails which is public.
+                    // We use getProductGroupsDetails which is public.
                     const publicGroups = await apiService.getProductGroupsDetails();
                     const group = publicGroups.find(g => String(g.id) === String(collectionId) && g.type === 'custom_collection');
                     if (group) {
