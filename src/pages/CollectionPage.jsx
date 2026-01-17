@@ -43,7 +43,7 @@ const CollectionPage = () => {
                         setCollectionName(group.name);
                     }
                 } catch (e) {
-                    console.warn("Could not fetch collection name");
+                    // console.warn("Could not fetch collection name");
                 }
 
                 setError(null);

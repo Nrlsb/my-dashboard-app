@@ -22,7 +22,7 @@ export const lazyImport = (factory) => {
 
                 // Reload if we haven't reloaded recently (e.g., within 10 seconds)
                 if (!lastReload || now - parseInt(lastReload) > 10000) {
-                    console.warn('Chunk load error detected, reloading page...');
+                    // console.warn('Chunk load error detected, reloading page...');
                     sessionStorage.setItem(storageKey, now.toString());
                     window.location.reload();
                     // Return a dummy component to prevent further errors while reloading

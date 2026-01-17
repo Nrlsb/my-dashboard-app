@@ -13,7 +13,7 @@ const VendedorClientsPage = () => {
 
   useEffect(() => {
     const fetchClients = async () => {
-      console.log("[VendedorClientsPage] authUser:", authUser);
+      // console.log("[VendedorClientsPage] authUser:", authUser);
       if (!authUser) {
         setError('Acceso denegado. Se requiere autenticación.');
         setLoading(false);
@@ -25,10 +25,10 @@ const VendedorClientsPage = () => {
         let response;
         if (authUser.is_admin) {
           response = await apiService.getAllClients();
-          console.log("[VendedorClientsPage] Fetched all clients for admin:", response);
+          // console.log("[VendedorClientsPage] Fetched all clients for admin:", response);
         } else if (authUser.role === 'vendedor') {
           response = await apiService.getVendedorClients();
-          console.log("[VendedorClientsPage] Fetched seller-specific clients:", response);
+          // console.log("[VendedorClientsPage] Fetched seller-specific clients:", response);
         } else {
           setError('Acceso denegado. No tiene permisos para ver esta sección.');
           setLoading(false);
@@ -38,7 +38,7 @@ const VendedorClientsPage = () => {
       } catch (err) {
         console.error('Error al obtener clientes:', err);
         setError('Error al cargar los clientes. Intente de nuevo más tarde.');
-        console.log("[VendedorClientsPage] Error fetching clients:", err);
+        // console.log("[VendedorClientsPage] Error fetching clients:", err);
       } finally {
         setLoading(false);
       }

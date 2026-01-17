@@ -1,14 +1,42 @@
 // Este archivo centraliza todas las llamadas a la API.
 // Utiliza un interceptor para adjuntar el token  JWT a las peticiones.
 
+import toast from 'react-hot-toast';
+
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
+const getFriendlyErrorMessage = (status) => {
+  switch (status) {
+    case 400:
+      return "Datos inválidos. Por favor verifique la información.";
+    case 401:
+      return "Sesión no válida. Por favor ingrese nuevamente.";
+    case 403:
+      return "Acceso denegado. No tiene permisos para realizar esta acción.";
+    case 404:
+      return "Recurso no encontrado.";
+    case 409:
+      return "Conflicto en la solicitud. Intente nuevamente.";
+    case 500:
+    case 502:
+    case 503:
+    case 504:
+      return "Error en el servidor. Intente más tarde.";
+    default:
+      return "Ocurrió un error inesperado. Intente nuevamente.";
+  }
+};
 
 const handleResponse = async (response) => {
   const data = await response.json().catch(() => ({
     message: response.statusText,
   }));
   if (!response.ok) {
+    // Show friendly notification
+    const friendlyMessage = getFriendlyErrorMessage(response.status);
+    toast.error(friendlyMessage);
+
     const error = new Error(data.message || 'Error en la solicitud a la red');
     error.data = data;
     throw error;
