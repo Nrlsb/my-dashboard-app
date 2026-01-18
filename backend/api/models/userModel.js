@@ -27,6 +27,16 @@ const findUserByEmail = async (email) => {
       }
 
       user.permissions = roleData ? roleData.permissions : [];
+
+      // [FIX] Fetch detailed Vendor info if available
+      if (user.vendedor_codigo) {
+        const vendorQuery = 'SELECT codigo, nombre, email, telefono FROM vendedores WHERE codigo = $1';
+        const vendorResult = await pool2.query(vendorQuery, [user.vendedor_codigo.trim()]);
+        if (vendorResult.rows.length > 0) {
+          user.vendedor = vendorResult.rows[0];
+        }
+      }
+
       return user;
     }
   } catch (err) {
@@ -320,22 +330,32 @@ const findUserByCode = async (code) => {
     }
 
     // 5. Fetch Vendor Details (Client only)
-    // If it's a vendor (isVendor=true), "vendedor" field doesn't make sense (they ARE the vendor).
     let vendorDetails = null;
     let vendorCode = null;
 
     if (!isVendor) {
+      // Logic to get vendor code from apiClient
       vendorCode = apiClient.a1_vend ? apiClient.a1_vend.trim() : null;
+
       if (vendorCode) {
-        const sellers = await protheusService.getSellers();
-        const seller = sellers.find(s => s.a3_cod && s.a3_cod.trim() === vendorCode);
-        if (seller) {
-          vendorDetails = {
-            codigo: seller.a3_cod.trim(),
-            nombre: seller.a3_nome.trim(),
-            email: seller.a3_email ? seller.a3_email.trim() : null,
-            telefono: seller.a3_cel ? seller.a3_cel.trim() : null
-          };
+        // Try local DB first (faster/reliable)
+        const vendorQuery = 'SELECT codigo, nombre, email, telefono FROM vendedores WHERE codigo = $1';
+        const vendorResult = await pool.query(vendorQuery, [vendorCode]);
+
+        if (vendorResult.rows.length > 0) {
+          vendorDetails = vendorResult.rows[0];
+        } else {
+          // Fallback to API if not in local DB (optional, or just leave null)
+          const sellers = await protheusService.getSellers();
+          const seller = sellers.find(s => s.a3_cod && s.a3_cod.trim() === vendorCode);
+          if (seller) {
+            vendorDetails = {
+              codigo: seller.a3_cod.trim(),
+              nombre: seller.a3_nome.trim(),
+              email: seller.a3_email ? seller.a3_email.trim() : null,
+              telefono: seller.a3_cel ? seller.a3_cel.trim() : null
+            };
+          }
         }
       }
     }
@@ -357,7 +377,7 @@ const findUserByCode = async (code) => {
 
       // Roles
       is_admin: false,
-      role: roleData ? roleData.role : (isVendor ? 'vendedor' : 'cliente'), // Use detected type as fallback
+      role: roleData ? roleData.role : (isVendor ? 'vendedor' : 'cliente'),
       permissions: roleData ? roleData.permissions : [],
 
       // Metadata extra
@@ -365,33 +385,6 @@ const findUserByCode = async (code) => {
       a1_est: apiClient.a1_est,
       vendedor_codigo: vendorCode,
       vendedor: vendorDetails
-    };
-
-    // 4. Combinar datos
-    return {
-      id: userId,
-      full_name: apiClient.a1_nome.trim(),
-      email: apiClient.a1_email ? apiClient.a1_email.trim() : (credentials.email || null),
-      a1_cod: apiClient.a1_cod.trim(),
-      a1_loja: apiClient.a1_loja,
-      a1_cgc: apiClient.a1_cgc ? apiClient.a1_cgc.trim() : null,
-      a1_tel: apiClient.a1_xtel1 ? apiClient.a1_xtel1.trim() : null,
-      a1_endereco: apiClient.a1_end ? apiClient.a1_end.trim() : null,
-
-      // Credenciales
-      password_hash: credentials.password_hash,
-      temp_password_hash: credentials.temp_password_hash,
-
-      // Roles
-      is_admin: false,
-      role: roleData ? roleData.role : 'cliente',
-      permissions: roleData ? roleData.permissions : [],
-
-      // Metadata extra
-      a1_mun: apiClient.a1_mun ? apiClient.a1_mun.trim() : null,
-      a1_est: apiClient.a1_est,
-      vendedor_codigo: vendorCode, // Keep for backward compat
-      vendedor: vendorDetails // New detailed object
     };
 
   } catch (err) {

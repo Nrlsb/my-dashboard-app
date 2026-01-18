@@ -87,56 +87,79 @@ const getUsersForAdmin = async (search = '') => {
   try {
     const term = search ? search.toLowerCase().trim() : '';
     let queryParams = [];
-    let whereClause = '';
+    let whereClauseUsers = '';
+    let whereClauseVendors = '';
 
     if (term) {
-      whereClause = `
-        WHERE (
-          LOWER(u.full_name) LIKE $1 OR
-          LOWER(u.email) LIKE $1 OR
-          LOWER(u.a1_cod) LIKE $1
-        )
-      `;
+      whereClauseUsers = `WHERE (
+            LOWER(u.full_name) LIKE $1 OR
+            LOWER(u.email) LIKE $1 OR
+            LOWER(u.a1_cod) LIKE $1
+        )`;
+
+      whereClauseVendors = `WHERE (
+            LOWER(v.nombre) LIKE $1 OR
+            LOWER(v.email) LIKE $1 OR
+            LOWER(v.codigo) LIKE $1
+        )`;
+
       queryParams.push(`%${term}%`);
     }
 
-    // Consultamos usuarios y verificamos si tienen credenciales (contraseña)
-    // Usamos LEFT JOIN con user_credentials para determinar has_password
-    // También consideramos user_roles para refinar el rol si es necesario
     const query = `
       SELECT 
-        u.id, 
+        u.id::text, 
         u.full_name, 
         u.email, 
         u.a1_cod, 
         u.is_admin,
-        u.vendedor_codigo,
         CASE 
             WHEN u.is_admin THEN 'admin'
             WHEN u.a1_cod IS NOT NULL THEN 'cliente'
             ELSE 'usuario'
         END as role,
-        (uc.password_hash IS NOT NULL) as has_password
+        (uc.password_hash IS NOT NULL) as has_password,
+        'db' as source,
+        u.vendedor_codigo as vendedor_codigo,
+        v_linked.nombre as vendedor_nombre
       FROM users u
       LEFT JOIN user_credentials uc ON (u.id = uc.user_id OR (u.a1_cod IS NOT NULL AND u.a1_cod = uc.a1_cod))
-      ${whereClause}
-      ORDER BY u.full_name ASC;
+      LEFT JOIN vendedores v_linked ON u.vendedor_codigo = v_linked.codigo
+      ${whereClauseUsers}
+      
+      UNION ALL
+      
+      SELECT
+        COALESCE(uc.user_id::text, 'v-' || v.codigo) as id,
+        v.nombre as full_name,
+        v.email,
+        v.codigo as a1_cod,
+        false as is_admin,
+        'vendedor' as role,
+        (uc.password_hash IS NOT NULL) as has_password,
+        'vendor' as source,
+        v.codigo as vendedor_codigo,
+        v.nombre as vendedor_nombre
+      FROM vendedores v
+      LEFT JOIN user_credentials uc ON (v.codigo = uc.a1_cod)
+      ${whereClauseVendors}
+      
+      ORDER BY full_name ASC;
     `;
 
     const result = await pool.query(query, queryParams);
 
-    // Mapeo final para asegurar consistencia
     return result.rows.map(row => ({
       id: row.id,
       full_name: row.full_name,
       email: row.email,
       a1_cod: row.a1_cod,
       is_admin: row.is_admin,
-      is_admin: row.is_admin,
       role: row.role,
       has_password: row.has_password,
-      source: 'db',
-      vendedor_codigo: row.vendedor_codigo // Include vendor code for filtering
+      source: row.source,
+      vendedor_codigo: row.vendedor_codigo,
+      vendedor_nombre: row.vendedor_nombre
     }));
 
   } catch (error) {

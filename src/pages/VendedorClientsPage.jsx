@@ -72,6 +72,7 @@ const VendedorClientsPage = () => {
               <thead className="hidden md:table-header-group bg-white text-[var(--color-espint-blue)] border-b-2 border-[var(--color-espint-blue)]">
                 <tr>
                   <th className="px-4 py-3 text-left font-semibold text-base">Nombre Completo</th>
+                  {authUser.is_admin && <th className="px-4 py-3 text-left font-semibold text-base">Vendedor</th>}
                   <th className="px-4 py-3 text-left font-semibold text-base">Email</th>
                   <th className="px-4 py-3 text-left font-semibold text-base">Código</th>
                   <th className="px-4 py-3 text-left font-semibold text-base">Cuit/Cuil</th>
@@ -103,6 +104,15 @@ const VendedorClientsPage = () => {
                           </button>
                         </div>
                       </td>
+
+                      {/* Vendedor - Visible for Admin */}
+                      {authUser.is_admin && (
+                        <td className={`px-4 py-2 md:py-3 text-sm text-gray-700 ${isExpanded ? 'block' : 'hidden'} md:table-cell`}>
+                          <span className="font-bold text-gray-500 md:hidden block">Vendedor: </span>
+                          {client.vendedor_nombre || 'N/A'}
+                        </td>
+                      )}
+
 
                       {/* Email - Visible on Mobile (Secondary) */}
                       <td className="px-4 py-2 md:py-3 text-sm text-gray-700 block md:table-cell">

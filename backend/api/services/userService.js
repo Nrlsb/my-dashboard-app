@@ -301,8 +301,8 @@ const getVendedorClients = async (vendedorCodigo) => {
 const changePassword = async (userId, newPassword, userRole) => {
   try {
     // Validar la nueva contraseña (ej. longitud mínima)
-    if (!newPassword || newPassword.length < 8) {
-      throw new Error('La contraseña debe tener al menos 8 caracteres.');
+    if (!newPassword || newPassword.length < 6) {
+      throw new Error('La contraseña debe tener al menos 6 caracteres.');
     }
 
     const salt = await bcrypt.genSalt(10);

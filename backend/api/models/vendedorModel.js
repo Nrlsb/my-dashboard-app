@@ -26,9 +26,10 @@ const findVendedorByEmail = async (email) => {
     }
 
     // 2. Buscar credenciales en DB2 (user_credentials)
+    // Usamos el código (a1_cod) para mayor robustez, o el email como fallback
     const credsResult = await pool2.query(
-      'SELECT user_id, password_hash, temp_password_hash FROM user_credentials WHERE email = $1',
-      [cleanEmail]
+      'SELECT user_id, password_hash, temp_password_hash FROM user_credentials WHERE a1_cod = $1 OR email = $2',
+      [seller.codigo, cleanEmail]
     );
 
     const credentials = credsResult.rows[0] || {};
