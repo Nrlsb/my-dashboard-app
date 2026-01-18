@@ -466,10 +466,24 @@ module.exports = {
    */
   resetUserPassword: async (userId, newPassword) => {
     try {
-      // Por defecto asumimos que es un 'cliente' si estamos gestionando desde la tabla de usuarios
-      // Si necesitamos soportar vendedores aquí, podríamos verificar primero el tipo de usuario.
-      // Para esta implementación, usaremos 'cliente' ya que la tabla de admins suele gestionar la tabla 'users'.
-      // userService.changePassword maneja el hashing.
+      // [FIX] Detect if we are resetting a Vendor who might not have credentials yet (ID format: 'v-CODE')
+      if (typeof userId === 'string' && userId.startsWith('v-')) {
+        const vendorCode = userId.substring(2); // Remove 'v-'
+        console.log(`[adminService] resetUserPassword -> Handling Vendor Code: ${vendorCode}`);
+
+        // Fetch vendor email required for creating credentials
+        const vendorRes = await pool2.query('SELECT email FROM vendedores WHERE codigo = $1', [vendorCode]);
+        if (vendorRes.rows.length === 0) {
+          throw new Error('Vendedor no encontrado.');
+        }
+        const email = vendorRes.rows[0].email;
+
+        // Use assignClientPassword to Create or Update credentials using the Code
+        return await assignClientPassword(vendorCode, newPassword, email);
+      }
+
+      // Default: Existing User with Numeric ID (Client or Vendor with credentials)
+      // userService.changePassword handles hashing and update by user_id
       return await userService.changePassword(userId, newPassword, 'cliente');
     } catch (error) {
       console.error(`Error resetUserPassword for user ${userId}:`, error);
