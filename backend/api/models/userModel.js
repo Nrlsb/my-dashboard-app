@@ -12,7 +12,7 @@ const findUserByEmail = async (email) => {
       `SELECT u.*, uc.password_hash, uc.temp_password_hash 
        FROM users u
        LEFT JOIN user_credentials uc ON u.id = uc.user_id
-       WHERE u.email = $1`,
+       WHERE LOWER(TRIM(u.email)) = LOWER(TRIM($1))`,
       [email]
     );
 
@@ -269,6 +269,22 @@ const findUserByCode = async (code) => {
 
       user.role = roleData ? roleData.role : (user.is_admin ? 'admin' : 'vendedor'); // Defaulting to vendedor/admin if in DB
       user.permissions = roleData ? roleData.permissions : [];
+
+      // [FIX] Fetch detailed Vendor info if available (Local DB)
+      if (user.vendedor_codigo) {
+        const vendorQuery = `
+          SELECT codigo, nombre, email, telefono 
+          FROM vendedores 
+          WHERE 
+            (codigo ~ '^[0-9]+$' AND $1 ~ '^[0-9]+$' AND CAST(codigo AS BIGINT) = CAST($1 AS BIGINT))
+            OR TRIM(codigo) = TRIM($1)
+        `;
+        const vendorResult = await pool2.query(vendorQuery, [user.vendedor_codigo.trim()]);
+        if (vendorResult.rows.length > 0) {
+          user.vendedor = vendorResult.rows[0];
+        }
+      }
+
       console.log(`[userModel] User ${cleanCode} found in LOCAL DB (Role: ${user.role}).`);
       return user;
     }
@@ -352,7 +368,7 @@ const findUserByCode = async (code) => {
             (codigo ~ '^[0-9]+$' AND $1 ~ '^[0-9]+$' AND CAST(codigo AS BIGINT) = CAST($1 AS BIGINT))
             OR TRIM(codigo) = TRIM($1)
         `;
-        const vendorResult = await pool.query(vendorQuery, [vendorCode]);
+        const vendorResult = await pool2.query(vendorQuery, [vendorCode]);
 
         if (vendorResult.rows.length > 0) {
           vendorDetails = vendorResult.rows[0];
