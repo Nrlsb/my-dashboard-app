@@ -16,7 +16,7 @@ const findVendedorByEmail = async (email) => {
     const query = `
       SELECT codigo, nombre, email, telefono
       FROM vendedores
-      WHERE LOWER(email) = $1
+      WHERE LOWER(TRIM(email)) = $1
     `;
     const result = await pool2.query(query, [cleanEmail]);
     const seller = result.rows[0];
@@ -66,7 +66,9 @@ const findVendedorByCodigo = async (codigo) => {
     const query = `
       SELECT codigo, nombre, email, telefono
       FROM vendedores
-      WHERE codigo = $1
+      WHERE 
+        (codigo ~ '^[0-9]+$' AND $1 ~ '^[0-9]+$' AND CAST(codigo AS BIGINT) = CAST($1 AS BIGINT))
+        OR TRIM(codigo) = TRIM($1)
     `;
     const result = await pool2.query(query, [cleanCode]);
     const seller = result.rows[0];

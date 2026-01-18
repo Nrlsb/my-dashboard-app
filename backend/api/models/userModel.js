@@ -30,7 +30,13 @@ const findUserByEmail = async (email) => {
 
       // [FIX] Fetch detailed Vendor info if available
       if (user.vendedor_codigo) {
-        const vendorQuery = 'SELECT codigo, nombre, email, telefono FROM vendedores WHERE codigo = $1';
+        const vendorQuery = `
+          SELECT codigo, nombre, email, telefono 
+          FROM vendedores 
+          WHERE 
+            (codigo ~ '^[0-9]+$' AND $1 ~ '^[0-9]+$' AND CAST(codigo AS BIGINT) = CAST($1 AS BIGINT))
+            OR TRIM(codigo) = TRIM($1)
+        `;
         const vendorResult = await pool2.query(vendorQuery, [user.vendedor_codigo.trim()]);
         if (vendorResult.rows.length > 0) {
           user.vendedor = vendorResult.rows[0];
@@ -339,7 +345,13 @@ const findUserByCode = async (code) => {
 
       if (vendorCode) {
         // Try local DB first (faster/reliable)
-        const vendorQuery = 'SELECT codigo, nombre, email, telefono FROM vendedores WHERE codigo = $1';
+        const vendorQuery = `
+          SELECT codigo, nombre, email, telefono 
+          FROM vendedores 
+          WHERE 
+            (codigo ~ '^[0-9]+$' AND $1 ~ '^[0-9]+$' AND CAST(codigo AS BIGINT) = CAST($1 AS BIGINT))
+            OR TRIM(codigo) = TRIM($1)
+        `;
         const vendorResult = await pool.query(vendorQuery, [vendorCode]);
 
         if (vendorResult.rows.length > 0) {
