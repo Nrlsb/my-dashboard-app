@@ -120,8 +120,23 @@ const updateDashboardPanel = async (panelId, isVisible) => {
   }
 };
 
+const checkPanelVisibility = async (navigationPath) => {
+  try {
+    const query = 'SELECT is_visible FROM dashboard_panels WHERE navigation_path = $1';
+    const result = await pool2.query(query, [navigationPath]);
+    if (result.rows.length > 0) {
+      return result.rows[0].is_visible;
+    }
+    return false;
+  } catch (error) {
+    console.error(`Error checking visibility for panel ${navigationPath}:`, error);
+    return false; // Fail safe
+  }
+};
+
 module.exports = {
   getDashboardPanels,
   getAdminDashboardPanels,
   updateDashboardPanel,
+  checkPanelVisibility,
 };

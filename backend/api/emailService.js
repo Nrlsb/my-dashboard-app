@@ -232,8 +232,46 @@ const sendOrderConfirmedByVendorEmail = async (
   }
 };
 
+const sendInvoiceAvailableEmail = async (
+  toEmail,
+  customerName,
+  orderId,
+  invoiceUrl
+) => {
+  const subject = `Factura disponible para tu pedido #${orderId}`;
+
+  const htmlBody = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+      <h1 style="color: #333;">Factura Disponible</h1>
+      <p>Hola ${customerName},</p>
+      <p>Te informamos que la factura correspondiente a tu pedido <strong>#${orderId}</strong> ya está disponible.</p>
+      
+      <p>Puedes verla y descargarla ingresando a tu cuenta en nuestra web, desde la sección de <strong>Historial de Pedidos</strong>.</p>
+      
+      <p style="margin-top: 20px;">
+        Gracias por tu compra.
+      </p>
+    </div>
+  `;
+
+  try {
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: toEmail,
+      subject: subject,
+      html: htmlBody,
+    });
+    console.log(`Email de factura enviado a ${toEmail}. ID: ${info.messageId}`);
+    return info;
+  } catch (error) {
+    console.error('Error en sendInvoiceAvailableEmail:', error);
+    // No lanzamos error para no fallar el request original, solo logueamos
+  }
+};
+
 module.exports = {
   sendOrderConfirmationEmail,
   sendNewOrderNotificationEmail,
   sendOrderConfirmedByVendorEmail,
+  sendInvoiceAvailableEmail,
 };

@@ -107,6 +107,40 @@ exports.uploadOrderInvoiceController = catchAsync(async (req, res) => {
         const invoiceUrl = result.webViewLink;
         await orderModel.updateOrderInvoice(orderId, invoiceUrl);
 
+        // --- NOTIFICAR CLIENTE ---
+        // Obtener detalles del pedido para saber de quién es
+        // Como 'user' es el quien SUBE (vendedor/admin), necesitamos el user_id del DUEÑO del pedido
+        const orderDetails = await orderService.fetchOrderDetails(orderId, user);
+
+        if (orderDetails && orderDetails.user_id) {
+            try {
+                // Importar dinámicamente o usar userModel si ya está importado (lo añadiremos arriba)
+                const usedUserModel = require('../models/userModel');
+                const clientUser = await usedUserModel.findUserById(orderDetails.user_id);
+
+                if (clientUser && clientUser.email) {
+                    // Verificamos si el panel de Histórico de Pedidos está activo
+                    const dashboardService = require('../services/dashboardService');
+                    const isHistoryVisible = await dashboardService.checkPanelVisibility('order-history');
+
+                    if (isHistoryVisible) {
+                        const emailService = require('../emailService');
+                        await emailService.sendInvoiceAvailableEmail(
+                            clientUser.email,
+                            clientUser.full_name,
+                            orderId,
+                            invoiceUrl
+                        );
+                    } else {
+                        console.log(`[Order #${orderId}] Email de factura NO enviado porque el panel 'Historico' está oculto.`);
+                    }
+                }
+            } catch (emailErr) {
+                console.error("Error al enviar email de factura:", emailErr);
+                // No fallamos la request si el email falla
+            }
+        }
+
         res.json({ message: 'Factura subida exitosamente a Google Drive.', path: invoiceUrl });
 
     } catch (error) {
@@ -118,6 +152,8 @@ exports.uploadOrderInvoiceController = catchAsync(async (req, res) => {
         return res.status(500).json({ message: 'Error interno al subir la factura.' });
     }
 });
+
+
 
 exports.downloadOrderInvoiceController = catchAsync(async (req, res) => {
     console.log(`GET /api/orders/${req.params.id}/invoice -> Descargando factura...`);
