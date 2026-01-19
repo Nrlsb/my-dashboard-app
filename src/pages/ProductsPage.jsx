@@ -180,7 +180,7 @@ export default function ProductsPage() {
     } = useInfiniteQuery({
         queryKey: ['products-grid', debounceSearchTerm, selectedBrands, user?.id],
         queryFn: ({ pageParam = 1 }) => {
-            return apiService.fetchProducts(pageParam, debounceSearchTerm, selectedBrands, false, 20, 'true'); // 'true' forces images if restricted, or prioritizes images
+            return apiService.fetchProducts(pageParam, debounceSearchTerm, selectedBrands, false, 20, ''); // 'true' forces images if restricted, or prioritizes images
         },
         getNextPageParam: (lastPage, allPages) => {
             const productsLoaded = allPages.reduce((acc, page) => acc + page.products.length, 0);
