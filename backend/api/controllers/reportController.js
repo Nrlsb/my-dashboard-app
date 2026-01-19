@@ -7,24 +7,25 @@ const getMissingImagesReport = async (req, res) => {
 
         // 1. Obtener productos activos
         const productsResult = await pool.query(
-            'SELECT id, code, description, product_group, brand FROM products WHERE price > 0 AND description IS NOT NULL'
+            'SELECT id, b1_cod AS code, b1_desc AS description, b1_grupo AS product_group, sbm_desc AS brand FROM products WHERE da1_prcven > 0 AND b1_desc IS NOT NULL'
         );
         const activeProducts = productsResult.rows;
 
-        // 2. Obtener productos con imágenes
+        // 2. Obtener productos con imágenes (usando product_code)
         const imagesResult = await pool2.query(
-            'SELECT DISTINCT product_id FROM product_images'
+            "SELECT DISTINCT product_code FROM product_images WHERE product_code IS NOT NULL"
         );
-        const productIdsWithImages = new Set(imagesResult.rows.map(row => row.product_id));
+        const productCodesWithImages = new Set(imagesResult.rows.map(row => row.product_code));
 
-        // 2.5. Obtener productos restringidos globalmente
+        // 2.5. Obtener productos restringidos globalmente (usando product_code)
         const restrictedResult = await pool2.query(
-            'SELECT product_id FROM global_product_permissions'
+            "SELECT product_code FROM global_product_permissions WHERE product_code IS NOT NULL"
         );
-        const restrictedProductIds = new Set(restrictedResult.rows.map(row => row.product_id));
+        const restrictedProductCodes = new Set(restrictedResult.rows.map(row => row.product_code));
 
         // 3. Filtrar los que NO tienen imágenes Y NO están restringidos
-        const missingProducts = activeProducts.filter(p => !productIdsWithImages.has(p.id) && !restrictedProductIds.has(p.id));
+        // Comparamos usando el CODE del producto
+        const missingProducts = activeProducts.filter(p => !productCodesWithImages.has(p.code) && !restrictedProductCodes.has(p.code));
 
         // 4. Generar Excel
         const workbook = new ExcelJS.Workbook();

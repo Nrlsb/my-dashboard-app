@@ -78,13 +78,10 @@ const fetchProducts = async ({
 
     // Filtro por imagen
     if (isRestrictedUser) {
-      if (hasImage === 'true') {
-        if (allowedProductCodes.length === 0) {
-          return { products: [], totalProducts: 0 };
-        }
-        filters.allowedIds = allowedProductCodes;
+      if (allowedProductCodes.length === 0 || hasImage === 'false') {
+        return { products: [], totalProducts: 0 };
       }
-      // If hasImage is NOT 'true', we do NOT restrict by allowedIds, allowing all products.
+      filters.allowedIds = allowedProductCodes;
     } else {
       if (hasImage === 'true') {
         if (allowedProductCodes.length === 0) {
