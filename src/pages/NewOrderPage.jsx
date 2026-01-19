@@ -148,8 +148,16 @@ const NewOrderPage = () => {
     const packQty = Number(product?.pack_quantity) > 0 ? Number(product.pack_quantity) : 1;
 
     let qtyToAdd = 1;
-    if (stock <= 0 && isRestricted) {
-      qtyToAdd = packQty;
+
+    if (isRestricted) {
+      // Verificar cantidad actual en el carrito
+      const cartItem = cart.find((item) => item.id === product.id);
+      const currentInCart = cartItem ? cartItem.quantity : 0;
+
+      // Si ya tenemos todo el stock disponible (o más), sumamos por bulto
+      if (currentInCart >= stock) {
+        qtyToAdd = packQty;
+      }
     }
 
     addToCart(product, qtyToAdd);
