@@ -482,10 +482,36 @@ module.exports = {
         return await assignClientPassword(vendorCode, newPassword, email);
       }
 
-      // Default: Existing User with Numeric ID (Client or Vendor with credentials)
-      // userService.changePassword handles hashing and update by user_id
-      // Pass 'true' to force must_change_password
-      return await userService.changePassword(userId, newPassword, 'cliente', true);
+      // Default: Existing User with Numeric ID
+      // Check if user has credentials first
+      const credRes = await pool2.query('SELECT user_id FROM user_credentials WHERE user_id = $1', [userId]);
+
+      if (credRes.rows.length === 0) {
+        console.log(`[adminService] User ${userId} has NO credentials. Creating new credentials record (Upsert)...`);
+
+        // Fetch user data needed for creation
+        const userRes = await pool.query('SELECT email, a1_cod FROM users WHERE id = $1', [userId]);
+        if (userRes.rows.length === 0) {
+          throw new Error('Usuario no encontrado en la tabla users.');
+        }
+        const { email, a1_cod } = userRes.rows[0];
+
+        // Create credentials using assignClientPassword logic (reusing it or duplicating safe insert)
+        // Since we have the ID, we can force the ID.
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(newPassword, salt);
+
+        await pool2.query(
+          'INSERT INTO user_credentials (user_id, email, a1_cod, password_hash, must_change_password) VALUES ($1, $2, $3, $4, TRUE)',
+          [userId, email, a1_cod, hash]
+        );
+
+        return { success: true, message: 'Credenciales creadas y contraseña asignada correctamente.' };
+
+      } else {
+        // Normal update
+        return await userService.changePassword(userId, newPassword, 'cliente', true);
+      }
     } catch (error) {
       console.error(`Error resetUserPassword for user ${userId}:`, error);
       throw error;
