@@ -72,6 +72,11 @@ export const PublicRoute = ({ children }) => {
     if (loading) return <LoadingFallback />;
 
     if (isAuthenticated) {
+        // [FIX] Priorizar cambio de contraseña si es requerido
+        if (user?.must_change_password) {
+            return <Navigate to="/change-password" replace />;
+        }
+
         if (user?.role === 'vendedor') {
             return <Navigate to="/vendedor-dashboard" replace />;
         }
