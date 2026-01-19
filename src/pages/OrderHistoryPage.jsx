@@ -75,6 +75,17 @@ function OrderHistoryPage() {
       vendorSalesOrderNumber: vendorSalesOrderNumbers[order.id],
       status: orderStatus[order.id], // Usar el nuevo estado
     }));
+
+    // Validación: Verificar que si el estado es Confirmado, tenga Nº de Pedido Venta
+    const invalidOrder = updatedOrdersData.find(
+      (order) => order.status === 'Confirmado' && !order.vendorSalesOrderNumber?.trim()
+    );
+
+    if (invalidOrder) {
+      alert(`Para confirmar el pedido #${invalidOrder.id}, debes ingresar el Nº de Pedido Venta.`);
+      return;
+    }
+
     updateOrderDetailsMutation.mutate(updatedOrdersData);
   };
 
