@@ -268,6 +268,7 @@ const apiService = {
       const errorData = await response.json().catch(() => ({ message: 'Error al descargar la factura.' }));
       throw new Error(errorData.message || 'Error en la solicitud de descarga.');
     }
+
     return response.blob();
   },
 

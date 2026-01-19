@@ -114,6 +114,7 @@ function OrderDetailPage() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+
     } catch (err) {
       console.error('Error al descargar factura:', err);
       alert(`Error al descargar factura: ${err.message}`);

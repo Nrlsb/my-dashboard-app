@@ -115,6 +115,30 @@ const uploadFile = async (file, folderId = null) => {
     }
 };
 
+
+
+/**
+ * Get a file stream from Google Drive.
+ * @param {string} fileId - The ID of the file to download.
+ * @returns {Promise<stream.Readable>} - The file stream.
+ */
+const getFileStream = async (fileId) => {
+    const auth = await authorize();
+    const drive = google.drive({ version: 'v3', auth });
+
+    try {
+        const response = await drive.files.get(
+            { fileId: fileId, alt: 'media' },
+            { responseType: 'stream' }
+        );
+        return response.data;
+    } catch (error) {
+        console.error('Error getting file stream from Drive:', error);
+        throw error;
+    }
+};
+
 module.exports = {
     uploadFile,
+    getFileStream,
 };

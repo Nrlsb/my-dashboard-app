@@ -168,9 +168,47 @@ exports.downloadOrderInvoiceController = catchAsync(async (req, res) => {
 
     const invoiceUrl = order.invoice_url;
 
-    // Check if it is a URL (Cloudinary or Google Drive)
+    // Check if it is a Google Drive URL
+    // Format: https://lh3.googleusercontent.com/d/FILE_ID
+    // or https://drive.google.com/file/d/FILE_ID/view...
     if (invoiceUrl.startsWith('http://') || invoiceUrl.startsWith('https://')) {
-        return res.redirect(invoiceUrl);
+        try {
+            let fileId = null;
+
+            if (invoiceUrl.includes('/d/')) {
+                // Try to extract ID between /d/ and next / or end of string
+                const parts = invoiceUrl.split('/d/');
+                if (parts.length > 1) {
+                    const afterD = parts[1];
+                    fileId = afterD.split('/')[0];
+                }
+            } else if (invoiceUrl.includes('id=')) {
+                // legacy format ? id=FILE_ID
+                const urlParams = new URL(invoiceUrl).searchParams;
+                fileId = urlParams.get('id');
+            }
+
+            if (fileId) {
+                console.log(`Streaming Google Drive file: ${fileId}`);
+                const stream = await googleDriveService.getFileStream(fileId);
+
+                // Try to get filename if possible, otherwise generic
+                res.setHeader('Content-Type', 'application/pdf'); // Assumed PDF
+                res.setHeader('Content-Disposition', `attachment; filename=Factura_Pedido_${orderId}.pdf`);
+
+                stream.pipe(res);
+                return;
+            } else {
+                console.warn(`Could not extract file ID from URL: ${invoiceUrl}. Fallback to redirect.`);
+                return res.redirect(invoiceUrl);
+            }
+
+        } catch (error) {
+            console.error("Error streaming file:", error);
+            // Verify if error is 404 or 403, maybe fallback to redirect if stream fails?
+            // But if stream fails, likely redirect fails too if permissions issue.
+            return res.redirect(invoiceUrl);
+        }
     }
 
     // FALLBACK for legacy local files
