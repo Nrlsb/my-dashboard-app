@@ -298,7 +298,7 @@ const getVendedorClients = async (vendedorCodigo) => {
  * @param {string} newPassword - La nueva contraseña.
  * @returns {Promise<object>}
  */
-const changePassword = async (userId, newPassword, userRole) => {
+const changePassword = async (userId, newPassword, userRole, mustChangePassword = false) => {
   try {
     // Validar la nueva contraseña (ej. longitud mínima)
     if (!newPassword || newPassword.length < 6) {
@@ -310,9 +310,9 @@ const changePassword = async (userId, newPassword, userRole) => {
 
     let success = false;
     if (userRole === 'vendedor') {
-      success = await vendedorModel.updatePassword(userId, passwordHash);
+      success = await vendedorModel.updatePassword(userId, passwordHash, mustChangePassword);
     } else {
-      success = await userModel.updatePassword(userId, passwordHash);
+      success = await userModel.updatePassword(userId, passwordHash, mustChangePassword);
     }
 
     if (!success) {

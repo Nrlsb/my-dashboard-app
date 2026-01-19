@@ -43,7 +43,7 @@ export const AuthProvider = ({ children }) => {
         apiService.setAuthToken(data.token); // Configurar token en el servicio
         setIsAuthenticated(true);
         setUser(data.user);
-        if (data.first_login) {
+        if (data.first_login || data.user.must_change_password) {
           setFirstLogin(true);
         }
         setLoading(false);

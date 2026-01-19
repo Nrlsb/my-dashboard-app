@@ -28,7 +28,7 @@ const findVendedorByEmail = async (email) => {
     // 2. Buscar credenciales en DB2 (user_credentials)
     // Usamos el código (a1_cod) para mayor robustez, o el email como fallback
     const credsResult = await pool2.query(
-      'SELECT user_id, password_hash, temp_password_hash FROM user_credentials WHERE a1_cod = $1 OR email = $2',
+      'SELECT user_id, password_hash, temp_password_hash, must_change_password FROM user_credentials WHERE a1_cod = $1 OR email = $2',
       [seller.codigo, cleanEmail]
     );
 
@@ -45,7 +45,8 @@ const findVendedorByEmail = async (email) => {
       password: credentials.password_hash || null,
       user_id: credentials.user_id || null,
       a1_cod: seller.codigo.trim(),
-      role: 'vendedor'
+      role: 'vendedor',
+      must_change_password: credentials.must_change_password || false
     };
 
   } catch (error) {
@@ -127,7 +128,7 @@ const clearTempPasswordHash = async (vendedorCodigo) => {
  * @param {string} passwordHash - El nuevo hash de la contraseña.
  * @returns {Promise<boolean>}
  */
-const updatePassword = async (vendedorCodigo, passwordHash) => {
+const updatePassword = async (vendedorCodigo, passwordHash, mustChangePassword = false) => {
   try {
     // Buscar email primero
     const seller = await findVendedorByCodigo(vendedorCodigo);
@@ -141,12 +142,13 @@ const updatePassword = async (vendedorCodigo, passwordHash) => {
        UPDATE user_credentials
        SET 
          password_hash = $1, 
-         temp_password_hash = NULL
+         temp_password_hash = NULL,
+         must_change_password = $3
        WHERE email = $2
      `;
     // Nota: Si el registro no existe en user_credentials, esto no insertará nada.
     // Se asume que el registro existe. Si no, debería crearse.
-    const result = await pool2.query(query, [passwordHash, cleanEmail]);
+    const result = await pool2.query(query, [passwordHash, cleanEmail, mustChangePassword]);
 
     return result.rowCount > 0;
   } catch (error) {

@@ -188,7 +188,7 @@ const assignClientPassword = async (a1_cod, password, email) => {
       // Update existing
       userId = checkRes.rows[0].user_id;
       await client.query(
-        'UPDATE user_credentials SET password_hash = $1, temp_password_hash = NULL, email = COALESCE($2, email) WHERE user_id = $3',
+        'UPDATE user_credentials SET password_hash = $1, temp_password_hash = NULL, email = COALESCE($2, email), must_change_password = TRUE WHERE user_id = $3',
         [hash, email, userId]
       );
     } else {
@@ -199,7 +199,7 @@ const assignClientPassword = async (a1_cod, password, email) => {
       userId = (parseInt(maxRes.rows[0].max_id) || MIN_CLIENT_ID) + 1;
 
       await client.query(
-        'INSERT INTO user_credentials (user_id, email, a1_cod, password_hash) VALUES ($1, $2, $3, $4)',
+        'INSERT INTO user_credentials (user_id, email, a1_cod, password_hash, must_change_password) VALUES ($1, $2, $3, $4, TRUE)',
         [userId, email, cleanCode, hash]
       );
     }
@@ -484,7 +484,8 @@ module.exports = {
 
       // Default: Existing User with Numeric ID (Client or Vendor with credentials)
       // userService.changePassword handles hashing and update by user_id
-      return await userService.changePassword(userId, newPassword, 'cliente');
+      // Pass 'true' to force must_change_password
+      return await userService.changePassword(userId, newPassword, 'cliente', true);
     } catch (error) {
       console.error(`Error resetUserPassword for user ${userId}:`, error);
       throw error;

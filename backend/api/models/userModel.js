@@ -9,7 +9,7 @@ const protheusService = require('../services/protheusService');
 const findUserByEmail = async (email) => {
   try {
     const db2Result = await pool2.query(
-      `SELECT u.*, uc.password_hash, uc.temp_password_hash 
+      `SELECT u.*, uc.password_hash, uc.temp_password_hash, uc.must_change_password
        FROM users u
        LEFT JOIN user_credentials uc ON u.id = uc.user_id
        WHERE LOWER(TRIM(u.email)) = LOWER(TRIM($1))`,
@@ -57,7 +57,7 @@ const findUserById = async (userId) => {
 
   try {
     const db2Result = await pool2.query(
-      `SELECT u.*, uc.password_hash, uc.temp_password_hash 
+      `SELECT u.*, uc.password_hash, uc.temp_password_hash, uc.must_change_password
        FROM users u
        LEFT JOIN user_credentials uc ON u.id = uc.user_id
        WHERE u.id = $1`,
@@ -240,15 +240,16 @@ const clearTempPasswordHash = async (userId) => {
   return result.rowCount > 0;
 };
 
-const updatePassword = async (userId, passwordHash) => {
+const updatePassword = async (userId, passwordHash, mustChangePassword = false) => {
   const query = `
     UPDATE user_credentials 
     SET 
       password_hash = $1, 
-      temp_password_hash = NULL
+      temp_password_hash = NULL,
+      must_change_password = $3
     WHERE user_id = $2
   `;
-  const result = await pool2.query(query, [passwordHash, userId]);
+  const result = await pool2.query(query, [passwordHash, userId, mustChangePassword]);
   return result.rowCount > 0;
 };
 
@@ -272,7 +273,7 @@ const findUserByCode = async (code) => {
     // 1. PRIMERO: Buscar en base de datos local (users)
     // Esto cubre Vendedores y Admins que tienen a1_cod asignado en la BD
     const dbResult = await pool2.query(
-      `SELECT u.*, uc.password_hash, uc.temp_password_hash 
+      `SELECT u.*, uc.password_hash, uc.temp_password_hash, uc.must_change_password
          FROM users u
          LEFT JOIN user_credentials uc ON (u.id = uc.user_id OR u.a1_cod = uc.a1_cod)
          WHERE u.a1_cod = $1`,
@@ -341,7 +342,7 @@ const findUserByCode = async (code) => {
     // 3. Buscar Credenciales DIRECTAMENTE en user_credentials
     // Usamos a1_cod como llave de enlace
     const credsResult = await pool2.query(
-      `SELECT user_id, password_hash, temp_password_hash, email 
+      `SELECT user_id, password_hash, temp_password_hash, email, must_change_password
        FROM user_credentials 
        WHERE a1_cod = $1`,
       [cleanCode]
@@ -418,6 +419,7 @@ const findUserByCode = async (code) => {
       // Credenciales
       password_hash: credentials.password_hash,
       temp_password_hash: credentials.temp_password_hash,
+      must_change_password: credentials.must_change_password,
 
       // Roles
       is_admin: false,

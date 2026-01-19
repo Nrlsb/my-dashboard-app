@@ -8,11 +8,25 @@ export const LoadingFallback = () => (
     <LoadingSpinner text="Cargando..." />
 );
 
-// --- Componente para Rutas Protegidas ---
-export const ProtectedRoute = ({ children }) => {
+// --- Componente para Rutas que solo requieren Autenticación (sin check de password forzado) ---
+export const AuthenticatedRoute = ({ children }) => {
     const { isAuthenticated, loading } = useAuth();
     if (loading) return <LoadingFallback />;
     return isAuthenticated ? children : <Navigate to="/login" replace />;
+};
+
+// --- Componente para Rutas Protegidas (Estándar) ---
+export const ProtectedRoute = ({ children }) => {
+    const { isAuthenticated, loading, user } = useAuth();
+    if (loading) return <LoadingFallback />;
+
+    if (isAuthenticated) {
+        if (user?.must_change_password) {
+            return <Navigate to="/change-password" replace />;
+        }
+        return children;
+    }
+    return <Navigate to="/login" replace />;
 };
 
 // --- Componente para Rutas de Administrador ---

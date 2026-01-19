@@ -61,8 +61,8 @@ const ChangePasswordPage = () => {
           Establecer Nueva Contraseña
         </h2>
         <p className="text-sm text-center text-gray-600">
-          Este es tu primer inicio de sesión. Por favor, establece una
-          contraseña permanente.
+          Se ha solicitado una actualización de contraseña. Por favor, establece una
+          nueva contraseña para continuar.
         </p>
 
         <form className="space-y-6" onSubmit={handleSubmit}>

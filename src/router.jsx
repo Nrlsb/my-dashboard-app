@@ -2,7 +2,7 @@ import React, { Suspense } from 'react';
 import { createBrowserRouter, createRoutesFromElements, Route, Navigate } from 'react-router-dom';
 import App from './App';
 import { lazyImport } from './utils/lazyImport';
-import { ProtectedRoute, AdminRoute, MarketingRoute, LoadingFallback, PublicRoute, ClientRoute, PermissionRoute, VisibilityRoute } from './components/RouteGuards';
+import { ProtectedRoute, AdminRoute, MarketingRoute, LoadingFallback, PublicRoute, ClientRoute, PermissionRoute, VisibilityRoute, AuthenticatedRoute } from './components/RouteGuards';
 
 
 // --- Carga diferida (Lazy Loading) de Páginas ---
@@ -89,9 +89,11 @@ const router = createBrowserRouter(
                 </PublicRoute>
             } />
             <Route path="change-password" element={
-                <Suspense fallback={<LoadingFallback />}>
-                    <ChangePasswordPage />
-                </Suspense>
+                <AuthenticatedRoute>
+                    <Suspense fallback={<LoadingFallback />}>
+                        <ChangePasswordPage />
+                    </Suspense>
+                </AuthenticatedRoute>
             } />
 
             <Route path="about" element={
