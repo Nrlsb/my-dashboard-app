@@ -199,15 +199,16 @@ exports.downloadOrderInvoiceController = catchAsync(async (req, res) => {
                 stream.pipe(res);
                 return;
             } else {
-                console.warn(`Could not extract file ID from URL: ${invoiceUrl}. Fallback to redirect.`);
-                return res.redirect(invoiceUrl);
+                console.warn(`Could not extract file ID from URL: ${invoiceUrl}. Fallback to direct link.`);
+                // Fallback: Return JSON to open in new tab
+                return res.json({ url: invoiceUrl, isExternal: true });
             }
 
         } catch (error) {
             console.error("Error streaming file:", error);
-            // Verify if error is 404 or 403, maybe fallback to redirect if stream fails?
-            // But if stream fails, likely redirect fails too if permissions issue.
-            return res.redirect(invoiceUrl);
+            // Verify if error is 404 or 403.
+            // Fallback: return JSON so frontend opens it in new tab
+            return res.json({ url: invoiceUrl, isExternal: true });
         }
     }
 

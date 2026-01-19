@@ -269,6 +269,12 @@ const apiService = {
       throw new Error(errorData.message || 'Error en la solicitud de descarga.');
     }
 
+    // Verificar el tipo de contenido para saber si es un archivo (Blob) o JSON (URL externa)
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
+    }
+
     return response.blob();
   },
 
