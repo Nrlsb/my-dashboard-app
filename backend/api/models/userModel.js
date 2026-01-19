@@ -73,6 +73,22 @@ const findUserById = async (userId) => {
         user.role = roleData ? roleData.role : 'cliente';
       }
       user.permissions = roleData ? roleData.permissions : [];
+
+      // [FIX] Fetch detailed Vendor info if available
+      if (user.vendedor_codigo) {
+        const vendorQuery = `
+          SELECT codigo, nombre, email, telefono 
+          FROM vendedores 
+          WHERE 
+            (codigo ~ '^[0-9]+$' AND $1 ~ '^[0-9]+$' AND CAST(codigo AS BIGINT) = CAST($1 AS BIGINT))
+            OR TRIM(codigo) = TRIM($1)
+        `;
+        const vendorResult = await pool2.query(vendorQuery, [user.vendedor_codigo.trim()]);
+        if (vendorResult.rows.length > 0) {
+          user.vendedor = vendorResult.rows[0];
+        }
+      }
+
       return user;
     }
 

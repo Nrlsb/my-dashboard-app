@@ -124,7 +124,15 @@ const createOrder = async (orderData, userId) => {
       name: productMap.get(item.id) || 'Descripción no encontrada',
     }));
 
-    const sellerEmail = process.env.SELLER_EMAIL;
+    let sellerEmail = process.env.SELLER_EMAIL;
+
+    // [FIX] Usar email del vendedor asignado si existe
+    if (user.vendedor && user.vendedor.email) {
+      sellerEmail = user.vendedor.email.trim();
+      console.log(`[Pedido #${newOrderId}] Usando email del vendedor asignado: ${sellerEmail}`);
+    } else {
+      console.log(`[Pedido #${newOrderId}] Usando email global (SELLER_EMAIL): ${sellerEmail}`);
+    }
     const fromEmail = process.env.EMAIL_FROM;
 
     if (!sellerEmail || !fromEmail || !process.env.RESEND_API_KEY) {
