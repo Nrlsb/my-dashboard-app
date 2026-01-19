@@ -26,7 +26,7 @@ function App() {
 
   const handleLogout = () => {
     logout();
-    clearCart();
+    // clearCart(); // Removed to persist cart on logout
     navigate('/login');
   };
 

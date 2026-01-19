@@ -8,16 +8,29 @@ const formatCurrency = (amount) => {
     }).format(amount || 0);
 };
 
+import { useCart } from '../../context/CartContext';
+
 const CartSidebar = ({ cart, productMap, updateQuantity, removeFromCart, totalPrice, handleReviewOrder, handleQuantityChange }) => {
+    const { clearCart } = useCart();
     return (
         <div className="lg-col-span-1 hidden lg:block">
             <div className="sticky top-8 bg-white rounded-lg shadow-md flex flex-col max-h-[calc(100vh-4rem)] border-t-4 border-espint-magenta">
                 <div className="flex-shrink-0 p-6">
-                    <div className="flex items-center mb-4">
-                        <ShoppingCart className="w-6 h-6 text-gray-800 mr-3" />
-                        <h2 className="text-xl font-bold text-gray-800">
-                            Resumen del Pedido
-                        </h2>
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center">
+                            <ShoppingCart className="w-6 h-6 text-gray-800 mr-3" />
+                            <h2 className="text-xl font-bold text-gray-800">
+                                Resumen del Pedido
+                            </h2>
+                        </div>
+                        {cart.length > 0 && (
+                            <button
+                                onClick={clearCart}
+                                className="text-xs text-red-500 hover:text-red-700 underline"
+                            >
+                                Vaciar Carrito
+                            </button>
+                        )}
                     </div>
                 </div>
 

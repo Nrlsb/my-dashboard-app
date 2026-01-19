@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mail, Phone, MapPin, Heart } from 'lucide-react';
+import { Mail, Phone, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { brands } from '../data/brands';
 
@@ -76,9 +76,7 @@ const Footer = () => {
         <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-slate-500">
           <p>&copy; {currentYear} Distribuidora Espint. Todos los derechos reservados.</p>
           <div className="flex items-center mt-4 md:mt-0">
-            <span>Hecho con</span>
-            <Heart size={12} className="mx-1 text-red-500 fill-current" />
-            <span>por el equipo de desarrollo</span>
+            <span>Desarrollado por el área de sistemas de Pinturería Mercurio</span>
           </div>
         </div>
       </div>

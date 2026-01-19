@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 
 // 1. Crear el Contexto
 const CartContext = createContext();
@@ -10,7 +11,41 @@ export const useCart = () => {
 
 // 3. Crear el Proveedor del Contexto
 export const CartProvider = ({ children }) => {
+  const { user } = useAuth();
   const [cart, setCart] = useState([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Load cart when user changes
+  useEffect(() => {
+    if (user && user.id) {
+      try {
+        const storedCart = localStorage.getItem(`shopping-cart-${user.id}`);
+        if (storedCart) {
+          setCart(JSON.parse(storedCart));
+        } else {
+          setCart([]);
+        }
+      } catch (error) {
+        console.error('Error reading cart from localStorage:', error);
+        setCart([]);
+      }
+      setIsLoaded(true);
+    } else {
+      setCart([]); // Clear cart view on logout
+      setIsLoaded(false);
+    }
+  }, [user]);
+
+  // Persist cart changes to localStorage (user-scoped)
+  useEffect(() => {
+    if (user && user.id && isLoaded) {
+      try {
+        localStorage.setItem(`shopping-cart-${user.id}`, JSON.stringify(cart));
+      } catch (error) {
+        console.error('Error saving cart to localStorage:', error);
+      }
+    }
+  }, [cart, user, isLoaded]);
 
   // Lógica centralizada para manejar el carrito
   const addToCart = (product, quantity) => {

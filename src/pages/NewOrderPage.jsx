@@ -9,6 +9,7 @@ import ProductModal from '../components/NewOrder/ProductModal';
 import ProductFilters from '../components/NewOrder/ProductFilters';
 import ProductCard from '../components/NewOrder/ProductCard';
 import CartSidebar from '../components/NewOrder/CartSidebar';
+import MobileCartModal from '../components/NewOrder/MobileCartModal';
 
 const PRODUCTS_PER_PAGE = 20;
 
@@ -35,8 +36,9 @@ const NewOrderPage = () => {
   const [selectedBrand, setSelectedBrand] = useState('');
 
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
 
-  const { cart, addToCart, updateQuantity, removeFromCart, setCart } = useCart();
+  const { cart, addToCart, updateQuantity, removeFromCart, setCart, clearCart } = useCart();
 
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
@@ -188,6 +190,10 @@ const NewOrderPage = () => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
   }, [cart]);
 
+  const totalItems = useMemo(() => {
+    return cart.reduce((total, item) => total + item.quantity, 0);
+  }, [cart]);
+
   const renderProductList = () => {
     if (loadingProducts) {
       return <LoadingSpinner text="Cargando productos..." />;
@@ -223,6 +229,18 @@ const NewOrderPage = () => {
         product={selectedProduct}
         onClose={() => setSelectedProduct(null)}
         onAddToCart={addToCart}
+      />
+
+      <MobileCartModal
+        cart={cart}
+        isOpen={isMobileCartOpen}
+        onClose={() => setIsMobileCartOpen(false)}
+        productMap={productMap}
+        updateQuantity={handleQuantityChange}
+        removeFromCart={removeFromCart}
+        totalPrice={totalPrice}
+        handleQuantityChange={handleQuantityChange}
+        clearCart={clearCart}
       />
 
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
@@ -297,14 +315,20 @@ const NewOrderPage = () => {
 
       {/* Sticky Bottom Cart for Mobile */}
       {cart.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] p-4 lg:hidden z-50 flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-xs text-gray-500 font-medium">Total Estimado</span>
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] px-4 py-3 lg:hidden z-50 flex items-center justify-between gap-3">
+          <div
+            className="flex flex-col flex-1 cursor-pointer active:opacity-70 transition-opacity"
+            onClick={() => setIsMobileCartOpen(true)}
+          >
+            <span className="text-xs text-gray-500 font-medium flex items-center">
+              Total ({totalItems} {totalItems === 1 ? 'ítem' : 'ítems'})
+              <span className="ml-1 text-[10px] text-blue-500 font-bold bg-blue-50 px-1.5 py-0.5 rounded-full">VER</span>
+            </span>
             <span className="text-xl font-bold text-espint-blue">{formatCurrency(totalPrice)}</span>
           </div>
           <button
             onClick={handleReviewOrder}
-            className="flex items-center justify-center px-6 py-3 bg-[#8CB818] text-white font-bold rounded-lg shadow-md hover:bg-[#7aa315] transition-colors"
+            className="flex items-center justify-center px-4 py-3 bg-[#8CB818] text-white font-bold rounded-lg shadow-md hover:bg-[#7aa315] transition-colors"
           >
             Ver Pedido
             <ChevronRightIcon className="w-5 h-5 ml-1" />
