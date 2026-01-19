@@ -70,6 +70,20 @@ const formatItemsToHTML = (items) => {
 };
 
 /**
+ * Normaliza los destinatarios de correo.
+ * Reemplaza ';' por ',' y elimina espacios extra.
+ * @param {string} emailStr - String con emails separados por coma o punto y coma.
+ * @returns {string} - String con emails separados por coma.
+ */
+const normalizeRecipients = (emailStr) => {
+  if (!emailStr) return '';
+  // Reemplaza todos los puntos y coma por comas
+  // Luego divide por comas, limpia espacios y filtra vacíos
+  // Finalmente une de nuevo con comas
+  return emailStr.replace(/;/g, ',').split(',').map(e => e.trim()).filter(e => e).join(', ');
+};
+
+/**
  * Envía un correo de confirmación al COMPRADOR
  */
 const sendOrderConfirmationEmail = async (
@@ -104,7 +118,7 @@ const sendOrderConfirmationEmail = async (
   try {
     const info = await transporter.sendMail({
       from: process.env.EMAIL_FROM,
-      to: toEmail,
+      to: normalizeRecipients(toEmail),
       subject: subject,
       html: htmlBody,
       attachments: attachments,
@@ -157,7 +171,7 @@ const sendNewOrderNotificationEmail = async (
   try {
     const info = await transporter.sendMail({
       from: process.env.EMAIL_FROM,
-      to: toEmail, // Email del vendedor
+      to: normalizeRecipients(toEmail), // Email del vendedor
       subject: subject,
       html: htmlBody,
       attachments: attachments,
@@ -217,7 +231,7 @@ const sendOrderConfirmedByVendorEmail = async (
   try {
     const info = await transporter.sendMail({
       from: process.env.EMAIL_FROM,
-      to: toEmail,
+      to: normalizeRecipients(toEmail),
       subject: subject,
       html: htmlBody,
     });
@@ -257,7 +271,7 @@ const sendInvoiceAvailableEmail = async (
   try {
     const info = await transporter.sendMail({
       from: process.env.EMAIL_FROM,
-      to: toEmail,
+      to: normalizeRecipients(toEmail),
       subject: subject,
       html: htmlBody,
     });
@@ -274,4 +288,6 @@ module.exports = {
   sendNewOrderNotificationEmail,
   sendOrderConfirmedByVendorEmail,
   sendInvoiceAvailableEmail,
+  // Exportar helper para testing si fuera necesario, aunque es interno
+  // normalizeRecipients 
 };

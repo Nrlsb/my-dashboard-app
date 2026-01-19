@@ -372,7 +372,15 @@ const syncClients = async () => {
                     full_name = $1, email = $2, vendedor_codigo = $3, 
                     a1_cgc = $4, a1_tel = $5, a1_endereco = $6, last_synced_at = NOW()
                  WHERE a1_cod = $7`,
-                        [c.a1_nome, c.a1_email, c.a1_vend ? c.a1_vend.trim() : null, c.a1_cgc, c.a1_xtel1, `${c.a1_end}, ${c.a1_mun}, ${c.a1_est}`, c.a1_cod.trim()]
+                        [
+                            (c.a1_nome || '').trim(),
+                            (c.a1_email || '').trim(),
+                            c.a1_vend ? c.a1_vend.trim() : null,
+                            (c.a1_cgc || '').trim(),
+                            (c.a1_xtel1 || '').trim(),
+                            `${(c.a1_end || '').trim()}, ${(c.a1_mun || '').trim()}, ${(c.a1_est || '').trim()}`,
+                            c.a1_cod.trim()
+                        ]
                     );
                 } else {
                     await client.query(
@@ -380,7 +388,16 @@ const syncClients = async () => {
                     a1_cod, a1_loja, full_name, email, 
                     vendedor_codigo, a1_cgc, a1_tel, a1_endereco, last_synced_at, is_admin
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), false)`,
-                        [c.a1_cod.trim(), c.a1_loja, c.a1_nome, c.a1_email, c.a1_vend ? c.a1_vend.trim() : null, c.a1_cgc, c.a1_xtel1, `${c.a1_end}, ${c.a1_mun}, ${c.a1_est}`]
+                        [
+                            c.a1_cod.trim(),
+                            c.a1_loja,
+                            (c.a1_nome || '').trim(),
+                            (c.a1_email || '').trim(),
+                            c.a1_vend ? c.a1_vend.trim() : null,
+                            (c.a1_cgc || '').trim(),
+                            (c.a1_xtel1 || '').trim(),
+                            `${(c.a1_end || '').trim()}, ${(c.a1_mun || '').trim()}, ${(c.a1_est || '').trim()}`
+                        ]
                     );
                 }
             }
@@ -418,7 +435,12 @@ const syncSellers = async () => {
             email = EXCLUDED.email,
             telefono = EXCLUDED.telefono,
             last_synced_at = NOW();`,
-                    [s.a3_cod.trim(), s.a3_nome, s.a3_email, s.a3_cel]
+                    [
+                        s.a3_cod.trim(),
+                        (s.a3_nome || '').trim(),
+                        (s.a3_email || '').trim(),
+                        (s.a3_cel || '').trim()
+                    ]
                 );
             }
             await client.query('COMMIT');
