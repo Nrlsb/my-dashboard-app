@@ -248,25 +248,7 @@ const fetchProductDetails = async (productId, userId = null) => {
       return null;
     }
 
-    // --- REAL TIME SYNC START ---
-    try {
-      const [liveProduct, livePrice] = await Promise.all([
-        protheusService.getProductByCode(prod.code),
-        protheusService.getPriceByCode(prod.code)
-      ]);
-
-      if (liveProduct && liveProduct.stock_disp !== undefined) {
-        prod.stock_disponible = parseFloat(liveProduct.stock_disp || 0);
-        prod.stock_de_seguridad = parseFloat(liveProduct.stock_prev || 0);
-      }
-      if (livePrice && livePrice.da1_prcven !== undefined) {
-        prod.price = parseFloat(livePrice.da1_prcven || 0);
-        prod.moneda = parseInt(livePrice.da1_moeda || 1);
-      }
-    } catch (err) {
-      console.error(`[RealTime] Failed to fetch live data for ${prod.code}`, err);
-    }
-    // --- REAL TIME SYNC END ---
+    // --- REAL TIME SYNC REMOVED (Relies on background scheduler) ---
 
     // Currency Conversion
     let exchangeRates = { venta_billete: 1, venta_divisa: 1 };
@@ -312,25 +294,7 @@ const fetchProductDetailsByCode = async (productCode, userId = null) => {
       return null;
     }
 
-    // --- REAL TIME SYNC START ---
-    try {
-      const [liveProduct, livePrice] = await Promise.all([
-        protheusService.getProductByCode(prod.code),
-        protheusService.getPriceByCode(prod.code)
-      ]);
-
-      if (liveProduct && liveProduct.stock_disp !== undefined) {
-        prod.stock_disponible = parseFloat(liveProduct.stock_disp || 0);
-        prod.stock_de_seguridad = parseFloat(liveProduct.stock_prev || 0);
-      }
-      if (livePrice && livePrice.da1_prcven !== undefined) {
-        prod.price = parseFloat(livePrice.da1_prcven || 0);
-        prod.moneda = parseInt(livePrice.da1_moeda || 1);
-      }
-    } catch (err) {
-      console.error(`[RealTime] Failed to fetch live data for ${prod.code}`, err);
-    }
-    // --- REAL TIME SYNC END ---
+    // --- REAL TIME SYNC REMOVED (Relies on background scheduler) ---
 
     // Currency Conversion
     let exchangeRates = { venta_billete: 1, venta_divisa: 1 };
