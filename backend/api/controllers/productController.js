@@ -13,6 +13,7 @@ exports.getProductsController = catchAsync(async (req, res) => {
         bypassCache = 'false',
         hasImage = '',
         isExport = 'false',
+        onlyNewReleasesCandidates = 'false',
     } = req.query;
     if (bypassCache === 'true' || isExport === 'true') {
         logger.debug(`getProductsController - bypassCache: ${bypassCache}, isExport: ${isExport}`);
@@ -31,6 +32,7 @@ exports.getProductsController = catchAsync(async (req, res) => {
         bypassCache: shouldBypass,
         hasImage,
         isExport: shouldExport,
+        onlyNewReleasesCandidates: String(onlyNewReleasesCandidates).toLowerCase() === 'true',
     });
     res.set('Cache-Control', 'no-store');
     res.json(data);
