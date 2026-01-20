@@ -48,7 +48,16 @@ app.set('trust proxy', 1);
 app.use(helmet());
 
 // (OPTIMIZACIÓN) Habilitar compresión Gzip para todas las respuestas HTTP
-app.use(compression());
+// Excluir endpoints de SSE para evitar buffering
+app.use(compression({
+  filter: (req, res) => {
+    if (req.path.includes('/api/admin/sync-events')) {
+      return false;
+    }
+    // fallback to standard filter function
+    return compression.filter(req, res);
+  }
+}));
 
 // (SEGURIDAD) Configurar Rate Limiter Global
 // Limita a cada IP a 100 peticiones por ventana de 15 minutos

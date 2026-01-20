@@ -195,12 +195,16 @@ const assignClientPassword = async (a1_cod, password, email) => {
       targetUserId = realUserId;
       // We have a real user. Ensure credentials point to THIS id.
 
-      if (existingCredentialUserId && existingCredentialUserId !== realUserId) {
-        // DETACHED CREDENTIAL FOUND (e.g. 100001 vs 5).
-        // Delete the old detached one to execute a clean Upsert on the real ID.
-        console.log(`[adminService] Removing detached credential ${existingCredentialUserId} in favor of real user ${realUserId}`);
-        await client.query('DELETE FROM user_credentials WHERE user_id = $1', [existingCredentialUserId]);
-      }
+      // AGGRESSIVE CLEANUP:
+      // Delete ANY credential with this a1_cod that is NOT the realUserId.
+      // This handles cases where multiple credentials exist (one correct, one detached), causing UI duplicates and login loops.
+      await client.query(
+        'DELETE FROM user_credentials WHERE a1_cod = $1 AND user_id != $2',
+        [cleanCode, realUserId]
+      );
+
+      console.log(`[adminService] Enforced credential cleanup for user ${realUserId} (Code: ${cleanCode})`);
+
     } else {
       // No real user. 
       // If we have an existing credential, keep using its ID.
