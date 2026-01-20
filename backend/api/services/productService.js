@@ -45,6 +45,7 @@ const fetchProducts = async ({
   bypassCache = false,
   hasImage = '',
   isExport = false,
+  onlyNewReleasesCandidates = false,
 }) => {
   try {
     // 1. Obtener cotizaciones
@@ -74,6 +75,7 @@ const fetchProducts = async ({
       brands,
       deniedGroups,
       bypassCache,
+      onlyNewReleasesCandidates,
     };
 
     // Filtro por imagen

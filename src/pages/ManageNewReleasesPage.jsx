@@ -265,8 +265,8 @@ export default function ManageNewReleasesPage() {
     } = useInfiniteQuery({
         queryKey: ['products', debounceSearchTerm, ['new_releases']], // Key original
         queryFn: async ({ pageParam = 1 }) => {
-            // Fetch standard products
-            const productsData = await apiService.fetchProducts(pageParam, debounceSearchTerm, [], true);
+            // Fetch standard products (candidates for new releases)
+            const productsData = await apiService.fetchProducts(pageParam, debounceSearchTerm, [], true, 20, '', true);
 
             // Fetch active new releases to merge info
             const newReleases = await apiService.fetchNewReleases();

@@ -83,6 +83,17 @@ const syncProducts = async (emitCompletion = true) => {
                 const placeholders = [];
                 let paramIndex = 1;
 
+                // Parse Protheus date format "dd/mm/yyyy" or "  /  /  " to ISO or null
+                const parseProtheusDate = (dateStr) => {
+                    if (!dateStr || dateStr.trim() === '' || dateStr.includes('/  /')) return null;
+                    const parts = dateStr.trim().split('/');
+                    if (parts.length === 3) {
+                        // dd/mm/yyyy -> yyyy-mm-dd
+                        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                    }
+                    return null;
+                };
+
                 for (const p of batch) {
                     // Prepare descriptions
                     let groupObj = groupMap.get((p.b1_grupo || '').trim());
@@ -96,6 +107,9 @@ const syncProducts = async (emitCompletion = true) => {
                     const indicatorObj = indicatorMap.get((p.b1_cod || '').trim());
                     const indicatorDesc = indicatorObj ? indicatorObj.bz_estseg : null;
 
+                    const inclusionDate = parseProtheusDate(p.b1_xdtincl);
+                    const modificationDate = parseProtheusDate(p.b1_xdtmodi);
+
                     values.push(
                         p.b1_cod.trim(),
                         (p.b1_desc || '').trim(),
@@ -107,21 +121,25 @@ const syncProducts = async (emitCompletion = true) => {
                         parseFloat(p.stock_prev || 0),
                         indicatorDesc,
                         p.b1_um ? p.b1_um.trim() : null,
-                        p.b1_qe
+                        p.b1_qe,
+                        inclusionDate,
+                        modificationDate
                     );
 
-                    // $1, $2, ... $11
+                    // $1, ... $13
                     const productPlaceholders = [];
-                    for (let i = 0; i < 11; i++) {
+                    for (let i = 0; i < 13; i++) {
                         productPlaceholders.push(`$${paramIndex++}`);
                     }
                     placeholders.push(`(${productPlaceholders.join(', ')}, NOW())`);
                 }
+            }
 
-                const query = `
+            const query = `
                     INSERT INTO products (
                         b1_cod, b1_desc, z02_descri, b1_grupo, sbm_desc,
-                        b1_ts, stock_disp, stock_prev, sbz_desc, b1_um, b1_qe, last_synced_at
+                        b1_ts, stock_disp, stock_prev, sbz_desc, b1_um, b1_qe,
+                        inclusion_date, modification_date, last_synced_at
                     ) VALUES ${placeholders.join(', ')}
                     ON CONFLICT (b1_cod) DO UPDATE SET
                         b1_desc = EXCLUDED.b1_desc,
@@ -134,6 +152,8 @@ const syncProducts = async (emitCompletion = true) => {
                         sbz_desc = EXCLUDED.sbz_desc,
                         b1_um = EXCLUDED.b1_um,
                         b1_qe = EXCLUDED.b1_qe,
+                        inclusion_date = EXCLUDED.inclusion_date,
+                        modification_date = EXCLUDED.modification_date,
                         last_synced_at = NOW()
                     WHERE
                         products.b1_desc IS DISTINCT FROM EXCLUDED.b1_desc OR
@@ -145,57 +165,59 @@ const syncProducts = async (emitCompletion = true) => {
                         products.stock_prev IS DISTINCT FROM EXCLUDED.stock_prev OR
                         products.sbz_desc IS DISTINCT FROM EXCLUDED.sbz_desc OR
                         products.b1_um IS DISTINCT FROM EXCLUDED.b1_um OR
-                        products.b1_qe IS DISTINCT FROM EXCLUDED.b1_qe
+                        products.b1_qe IS DISTINCT FROM EXCLUDED.b1_qe OR
+                        products.inclusion_date IS DISTINCT FROM EXCLUDED.inclusion_date OR
+                        products.modification_date IS DISTINCT FROM EXCLUDED.modification_date
                 `;
 
-                await client.query(query, values);
-            };
+            await client.query(query, values);
+        };
 
-            // Chunk loop
-            emitProgress('Guardando productos en base de datos...', 20);
-            for (let i = 0; i < totalProducts; i += BATCH_SIZE) {
-                const batch = products.slice(i, i + BATCH_SIZE);
-                await processBatch(batch);
-                processedCount += batch.length;
+        // Chunk loop
+        emitProgress('Guardando productos en base de datos...', 20);
+        for (let i = 0; i < totalProducts; i += BATCH_SIZE) {
+            const batch = products.slice(i, i + BATCH_SIZE);
+            await processBatch(batch);
+            processedCount += batch.length;
 
-                // Calculate detailed progress 20-50%
-                const progress = 20 + Math.round((processedCount / totalProducts) * 30);
-                emitProgress(`Procesando productos... ${processedCount}/${totalProducts}`, progress);
+            // Calculate detailed progress 20-50%
+            const progress = 20 + Math.round((processedCount / totalProducts) * 30);
+            emitProgress(`Procesando productos... ${processedCount}/${totalProducts}`, progress);
 
-                logger.info(`[SyncProducts] Upserted ${processedCount}/${totalProducts} products...`);
-            }
-
-            // 3. Delete products that are not in the fetched list (Cleanup)
-            const syncedCodes = products.map(p => p.b1_cod.trim());
-            if (syncedCodes.length > 0) {
-                emitProgress('Limpiando productos obsoletos...', 50);
-                // Optimization: Passing a huge array to ANY($1) is efficient.
-                const deleteRes = await client.query(
-                    'DELETE FROM products WHERE NOT (b1_cod = ANY($1))',
-                    [syncedCodes]
-                );
-                if (deleteRes.rowCount > 0) {
-                    logger.info(`Deleted ${deleteRes.rowCount} obsolete products from DB2.`);
-                }
-            }
-
-            await client.query('COMMIT');
-            logger.info(`Synced ${products.length} products (Basic Data + Descriptions).`);
-        } catch (e) {
-            await client.query('ROLLBACK');
-            throw e;
-        } finally {
-            client.release();
+            logger.info(`[SyncProducts] Upserted ${processedCount}/${totalProducts} products...`);
         }
 
-        // NOW FETCH PRICES (DA1)
-        await syncPrices(emitCompletion);
+        // 3. Delete products that are not in the fetched list (Cleanup)
+        const syncedCodes = products.map(p => p.b1_cod.trim());
+        if (syncedCodes.length > 0) {
+            emitProgress('Limpiando productos obsoletos...', 50);
+            // Optimization: Passing a huge array to ANY($1) is efficient.
+            const deleteRes = await client.query(
+                'DELETE FROM products WHERE NOT (b1_cod = ANY($1))',
+                [syncedCodes]
+            );
+            if (deleteRes.rowCount > 0) {
+                logger.info(`Deleted ${deleteRes.rowCount} obsolete products from DB2.`);
+            }
+        }
 
-    } catch (error) {
-        logger.error('Error syncing products:', error);
-        console.error('CRITICAL ERROR during syncProducts:', error); // Ensuring visibility
-        emitProgress('Error en la sincronización de productos.', null, 'error');
+        await client.query('COMMIT');
+        logger.info(`Synced ${products.length} products (Basic Data + Descriptions).`);
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
     }
+
+    // NOW FETCH PRICES (DA1)
+    await syncPrices(emitCompletion);
+
+} catch (error) {
+    logger.error('Error syncing products:', error);
+    console.error('CRITICAL ERROR during syncProducts:', error); // Ensuring visibility
+    emitProgress('Error en la sincronización de productos.', null, 'error');
+}
 };
 
 // --- Sequenced Price Sync Logic ---

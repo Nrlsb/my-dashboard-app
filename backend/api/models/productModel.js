@@ -180,6 +180,7 @@ const findProducts = async ({
   allowedIds = [],
   excludedIds = [],
   bypassCache = false,
+  onlyNewReleasesCandidates = false,
 }) => {
   const cacheKey = `products:search:v3:${JSON.stringify({
     limit,
@@ -188,7 +189,8 @@ const findProducts = async ({
     brands: brands ? brands.sort() : [],
     deniedGroups: deniedGroups ? deniedGroups.filter(g => g != null && g !== '').sort() : [],
     allowedIds: allowedIds ? allowedIds.sort() : [],
-    excludedIds: excludedIds ? excludedIds.sort() : []
+    excludedIds: excludedIds ? excludedIds.sort() : [],
+    onlyNewReleasesCandidates
   })}`;
 
   if (!bypassCache && isRedisReady()) {
@@ -216,10 +218,17 @@ const findProducts = async ({
     WHERE da1_prcven > 0 AND b1_desc IS NOT NULL
   `;
 
+  // New Release Candidate Filter (30 days logic)
+  if (onlyNewReleasesCandidates) {
+    const dateFilter = ` AND (inclusion_date >= NOW() - INTERVAL '30 days' OR modification_date >= NOW() - INTERVAL '30 days') `;
+    countQuery += dateFilter;
+    dataQuery += dateFilter;
+  }
+
   if (deniedGroups && deniedGroups.length > 0) {
-    const groupQuery = ` b1_grupo NOT IN (SELECT unnest($${paramIndex}::varchar[])) `;
-    countQuery += ` AND ${groupQuery} `;
-    dataQuery += ` AND ${groupQuery} `;
+    const groupQuery = ` AND b1_grupo NOT IN (SELECT unnest($${paramIndex}::varchar[])) `;
+    countQuery += groupQuery;
+    dataQuery += groupQuery;
     queryParams.push(deniedGroups);
     paramIndex++;
   }
@@ -233,10 +242,10 @@ const findProducts = async ({
       return `(b1_desc ILIKE $${currentParamIndex} OR b1_cod ILIKE $${currentParamIndex})`;
     });
 
-    const finalSearchQuery = ` (${termConditions.join(' AND ')}) `;
+    const finalSearchQuery = ` AND (${termConditions.join(' AND ')}) `;
 
-    countQuery += ` AND ${finalSearchQuery} `;
-    dataQuery += ` AND ${finalSearchQuery} `;
+    countQuery += finalSearchQuery;
+    dataQuery += finalSearchQuery;
 
     searchTerms.forEach(term => {
       queryParams.push(`%${term}%`);
@@ -245,25 +254,25 @@ const findProducts = async ({
 
 
   if (brands && brands.length > 0) {
-    const brandQuery = ` TRIM(sbm_desc) = ANY($${paramIndex}::varchar[])`;
-    countQuery += ` AND ${brandQuery} `;
-    dataQuery += ` AND ${brandQuery} `;
+    const brandQuery = ` AND TRIM(sbm_desc) = ANY($${paramIndex}::varchar[])`;
+    countQuery += brandQuery;
+    dataQuery += brandQuery;
     queryParams.push(brands);
     paramIndex++;
   }
 
   if (allowedIds && allowedIds.length > 0) {
-    const allowedQuery = ` b1_cod = ANY($${paramIndex}::varchar[])`;
-    countQuery += ` AND ${allowedQuery} `;
-    dataQuery += ` AND ${allowedQuery} `;
+    const allowedQuery = ` AND b1_cod = ANY($${paramIndex}::varchar[])`;
+    countQuery += allowedQuery;
+    dataQuery += allowedQuery;
     queryParams.push(allowedIds);
     paramIndex++;
   }
 
   if (excludedIds && excludedIds.length > 0) {
-    const excludedQuery = ` b1_cod != ALL($${paramIndex}::varchar[])`;
-    countQuery += ` AND ${excludedQuery} `;
-    dataQuery += ` AND ${excludedQuery} `;
+    const excludedQuery = ` AND b1_cod != ALL($${paramIndex}::varchar[])`;
+    countQuery += excludedQuery;
+    dataQuery += excludedQuery;
     queryParams.push(excludedIds);
     paramIndex++;
   }
