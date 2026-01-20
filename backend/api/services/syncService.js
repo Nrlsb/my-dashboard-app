@@ -133,9 +133,8 @@ const syncProducts = async (emitCompletion = true) => {
                     }
                     placeholders.push(`(${productPlaceholders.join(', ')}, NOW())`);
                 }
-            }
 
-            const query = `
+                const query = `
                     INSERT INTO products (
                         b1_cod, b1_desc, z02_descri, b1_grupo, sbm_desc,
                         b1_ts, stock_disp, stock_prev, sbz_desc, b1_um, b1_qe,
@@ -170,54 +169,54 @@ const syncProducts = async (emitCompletion = true) => {
                         products.modification_date IS DISTINCT FROM EXCLUDED.modification_date
                 `;
 
-            await client.query(query, values);
-        };
+                await client.query(query, values);
+            };
 
-        // Chunk loop
-        emitProgress('Guardando productos en base de datos...', 20);
-        for (let i = 0; i < totalProducts; i += BATCH_SIZE) {
-            const batch = products.slice(i, i + BATCH_SIZE);
-            await processBatch(batch);
-            processedCount += batch.length;
+            // Chunk loop
+            emitProgress('Guardando productos en base de datos...', 20);
+            for (let i = 0; i < totalProducts; i += BATCH_SIZE) {
+                const batch = products.slice(i, i + BATCH_SIZE);
+                await processBatch(batch);
+                processedCount += batch.length;
 
-            // Calculate detailed progress 20-50%
-            const progress = 20 + Math.round((processedCount / totalProducts) * 30);
-            emitProgress(`Procesando productos... ${processedCount}/${totalProducts}`, progress);
+                // Calculate detailed progress 20-50%
+                const progress = 20 + Math.round((processedCount / totalProducts) * 30);
+                emitProgress(`Procesando productos... ${processedCount}/${totalProducts}`, progress);
 
-            logger.info(`[SyncProducts] Upserted ${processedCount}/${totalProducts} products...`);
-        }
-
-        // 3. Delete products that are not in the fetched list (Cleanup)
-        const syncedCodes = products.map(p => p.b1_cod.trim());
-        if (syncedCodes.length > 0) {
-            emitProgress('Limpiando productos obsoletos...', 50);
-            // Optimization: Passing a huge array to ANY($1) is efficient.
-            const deleteRes = await client.query(
-                'DELETE FROM products WHERE NOT (b1_cod = ANY($1))',
-                [syncedCodes]
-            );
-            if (deleteRes.rowCount > 0) {
-                logger.info(`Deleted ${deleteRes.rowCount} obsolete products from DB2.`);
+                logger.info(`[SyncProducts] Upserted ${processedCount}/${totalProducts} products...`);
             }
+
+            // 3. Delete products that are not in the fetched list (Cleanup)
+            const syncedCodes = products.map(p => p.b1_cod.trim());
+            if (syncedCodes.length > 0) {
+                emitProgress('Limpiando productos obsoletos...', 50);
+                // Optimization: Passing a huge array to ANY($1) is efficient.
+                const deleteRes = await client.query(
+                    'DELETE FROM products WHERE NOT (b1_cod = ANY($1))',
+                    [syncedCodes]
+                );
+                if (deleteRes.rowCount > 0) {
+                    logger.info(`Deleted ${deleteRes.rowCount} obsolete products from DB2.`);
+                }
+            }
+
+            await client.query('COMMIT');
+            logger.info(`Synced ${products.length} products (Basic Data + Descriptions).`);
+        } catch (e) {
+            await client.query('ROLLBACK');
+            throw e;
+        } finally {
+            client.release();
         }
 
-        await client.query('COMMIT');
-        logger.info(`Synced ${products.length} products (Basic Data + Descriptions).`);
-    } catch (e) {
-        await client.query('ROLLBACK');
-        throw e;
-    } finally {
-        client.release();
+        // NOW FETCH PRICES (DA1)
+        await syncPrices(emitCompletion);
+
+    } catch (error) {
+        logger.error('Error syncing products:', error);
+        console.error('CRITICAL ERROR during syncProducts:', error); // Ensuring visibility
+        emitProgress('Error en la sincronización de productos.', null, 'error');
     }
-
-    // NOW FETCH PRICES (DA1)
-    await syncPrices(emitCompletion);
-
-} catch (error) {
-    logger.error('Error syncing products:', error);
-    console.error('CRITICAL ERROR during syncProducts:', error); // Ensuring visibility
-    emitProgress('Error en la sincronización de productos.', null, 'error');
-}
 };
 
 // --- Sequenced Price Sync Logic ---
