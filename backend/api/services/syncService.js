@@ -1,6 +1,15 @@
 const { pool2 } = require('../db');
 const protheusService = require('./protheusService');
 const logger = require('../utils/logger');
+const EventEmitter = require('events');
+
+class SyncEmitter extends EventEmitter { }
+const syncEvents = new SyncEmitter();
+
+// Helper to emit progress
+const emitProgress = (message, percent = null, status = 'processing') => {
+    syncEvents.emit('progress', { message, percent, status });
+};
 
 // Optimized Sync Service
 // Helper to fetch and build map
@@ -22,9 +31,12 @@ const fetchDictionaryMap = async (fetchFunction, codeField, filters = []) => {
 const syncProducts = async () => {
     try {
         logger.info('Starting Product Sync...');
+        emitProgress('Iniciando sincronización de productos...', 0);
 
         // 1. Fetch Dictionaries first
         logger.info('Fetching auxiliary data (Groups, Indicators, Capacities)...');
+        emitProgress('Obteniendo datos auxiliares (Grupos, Indicadores)...', 5);
+
         // Groups: sbm_grupo -> sbm_desc
         const groupMap = await fetchDictionaryMap(protheusService.getProductGroups, 'sbm_grupo');
         // Capacities: z02_cod -> z02_descri
@@ -46,10 +58,12 @@ const syncProducts = async () => {
         logger.info(`Fetched Dictionaries: Groups=${groupMap.size}, Capacities=${capacityMap.size}, Indicators=${indicatorMap.size}`);
 
         // 2. Fetch Products
+        emitProgress('Obteniendo productos desde Protheus...', 10);
         const products = await protheusService.getProducts();
 
         if (products.length === 0) {
             logger.warn('No products fetched from API.');
+            emitProgress('No se encontraron productos.', 100, 'completed');
             return;
         }
 
@@ -138,16 +152,23 @@ const syncProducts = async () => {
             };
 
             // Chunk loop
+            emitProgress('Guardando productos en base de datos...', 20);
             for (let i = 0; i < totalProducts; i += BATCH_SIZE) {
                 const batch = products.slice(i, i + BATCH_SIZE);
                 await processBatch(batch);
                 processedCount += batch.length;
+
+                // Calculate detailed progress 20-50%
+                const progress = 20 + Math.round((processedCount / totalProducts) * 30);
+                emitProgress(`Procesando productos... ${processedCount}/${totalProducts}`, progress);
+
                 logger.info(`[SyncProducts] Upserted ${processedCount}/${totalProducts} products...`);
             }
 
             // 3. Delete products that are not in the fetched list (Cleanup)
             const syncedCodes = products.map(p => p.b1_cod.trim());
             if (syncedCodes.length > 0) {
+                emitProgress('Limpiando productos obsoletos...', 50);
                 // Optimization: Passing a huge array to ANY($1) is efficient.
                 const deleteRes = await client.query(
                     'DELETE FROM products WHERE NOT (b1_cod = ANY($1))',
@@ -173,6 +194,7 @@ const syncProducts = async () => {
     } catch (error) {
         logger.error('Error syncing products:', error);
         console.error('CRITICAL ERROR during syncProducts:', error); // Ensuring visibility
+        emitProgress('Error en la sincronización de productos.', null, 'error');
     }
 };
 
@@ -181,6 +203,7 @@ const syncProducts = async () => {
 // Phase 1: Update Products Table
 const updateProductsTable = async (prices) => {
     logger.info('Phase 1: Updating Products Table with new prices...');
+    emitProgress('Actualizando precios en productos...', 60);
     const client = await pool2.connect();
     try {
         await client.query('BEGIN');
@@ -201,6 +224,7 @@ const updateProductsTable = async (prices) => {
         const unchangedCodes = [];
         const BATCH_SIZE = 500;
         let processedCount = 0;
+        const totalPrices = prices.length;
 
         for (const p of prices) {
             const code = p.da1_codpro.trim();
@@ -237,6 +261,10 @@ const updateProductsTable = async (prices) => {
             if (processedCount % BATCH_SIZE === 0) {
                 await client.query('COMMIT');
                 await client.query('BEGIN');
+
+                // Progress 60-80%
+                const progress = 60 + Math.round((processedCount / totalPrices) * 20);
+                emitProgress(`Actualizando precios... ${processedCount}/${totalPrices}`, progress);
             }
         }
 
@@ -267,6 +295,7 @@ const updateProductsTable = async (prices) => {
 // Phase 2: Update Price History
 const updatePriceHistory = async (prices) => {
     logger.info('Phase 2: Updating Price History (Smart Comparison)...');
+    emitProgress('Guardando historial de precios...', 80);
     const client = await pool2.connect();
     try {
         await client.query('BEGIN');
@@ -282,6 +311,7 @@ const updatePriceHistory = async (prices) => {
         let historyInserts = 0;
         const BATCH_SIZE = 500;
         let processedCount = 0;
+        const totalPrices = prices.length;
 
         for (const p of prices) {
             const code = p.da1_codpro.trim();
@@ -315,6 +345,10 @@ const updatePriceHistory = async (prices) => {
             if (processedCount % BATCH_SIZE === 0) {
                 await client.query('COMMIT');
                 await client.query('BEGIN');
+
+                // Progress 80-95%
+                const progress = 80 + Math.round((processedCount / totalPrices) * 15);
+                emitProgress(`Historial de precios... ${processedCount}/${totalPrices}`, progress);
             }
         }
 
@@ -333,6 +367,7 @@ const updatePriceHistory = async (prices) => {
 const syncPrices = async () => {
     try {
         logger.info('Starting Price Sync...');
+        emitProgress('Iniciando sincronización de precios...', 55);
         const prices = await protheusService.getPrices();
 
         if (prices.length === 0) {
@@ -347,9 +382,11 @@ const syncPrices = async () => {
         await updatePriceHistory(prices);
 
         logger.info(`Synced prices for ${prices.length} products successfully.`);
+        emitProgress('Sincronización de productos y precios completada.', 100, 'completed');
 
     } catch (error) {
         logger.error('Error syncing prices:', error);
+        emitProgress('Error en sincronización de precios.', null, 'error');
     }
 };
 
@@ -357,6 +394,7 @@ const syncPrices = async () => {
 const syncClients = async () => {
     try {
         logger.info('Starting Client Sync...');
+        emitProgress('Obteniendo clientes...', 10);
         const clients = await protheusService.getClients();
 
         if (clients.length === 0) return;
@@ -364,6 +402,10 @@ const syncClients = async () => {
         const client = await pool2.connect();
         try {
             await client.query('BEGIN');
+
+            let processedCount = 0;
+            const total = clients.length;
+
             for (const c of clients) {
                 const existingRes = await client.query('SELECT id FROM users WHERE a1_cod = $1', [c.a1_cod]);
                 if (existingRes.rows.length > 0) {
@@ -400,7 +442,26 @@ const syncClients = async () => {
                         ]
                     );
                 }
+
+                processedCount++;
+                if (processedCount % 50 === 0) {
+                    emitProgress(`Sincronizando clientes... ${processedCount}/${total}`, null);
+                }
             }
+
+            // 3. Delete clients that are NOT in the fetched list (Cleanup)
+            const syncedClientCodes = clients.map(c => c.a1_cod.trim());
+            if (syncedClientCodes.length > 0) {
+                emitProgress('Limpiando clientes obsoletos...', 80);
+                const deleteRes = await client.query(
+                    'DELETE FROM users WHERE a1_cod IS NOT NULL AND is_admin = false AND NOT (a1_cod = ANY($1))',
+                    [syncedClientCodes]
+                );
+                if (deleteRes.rowCount > 0) {
+                    logger.info(`Deleted ${deleteRes.rowCount} obsolete clients from DB.`);
+                }
+            }
+
             await client.query('COMMIT');
             logger.info(`Synced ${clients.length} clients.`);
         } catch (e) {
@@ -411,6 +472,7 @@ const syncClients = async () => {
         }
     } catch (error) {
         logger.error('Error syncing clients:', error);
+        emitProgress('Error sincronizando clientes', null, 'error');
     }
 };
 
@@ -418,6 +480,7 @@ const syncClients = async () => {
 const syncSellers = async () => {
     try {
         logger.info('Starting Seller Sync...');
+        emitProgress('Obteniendo vendedores...', 85);
         const sellers = await protheusService.getSellers();
 
         if (sellers.length === 0) return;
@@ -443,6 +506,20 @@ const syncSellers = async () => {
                     ]
                 );
             }
+
+            // 3. Delete sellers that are NOT in the fetched list (Cleanup)
+            const syncedSellerCodes = sellers.map(s => s.a3_cod.trim());
+            if (syncedSellerCodes.length > 0) {
+                emitProgress('Limpiando vendedores obsoletos...', 95);
+                const deleteRes = await client.query(
+                    'DELETE FROM vendedores WHERE NOT (codigo = ANY($1))',
+                    [syncedSellerCodes]
+                );
+                if (deleteRes.rowCount > 0) {
+                    logger.info(`Deleted ${deleteRes.rowCount} obsolete sellers from DB.`);
+                }
+            }
+
             await client.query('COMMIT');
             logger.info(`Synced ${sellers.length} sellers.`);
         } catch (e) {
@@ -453,15 +530,41 @@ const syncSellers = async () => {
         }
     } catch (error) {
         logger.error('Error syncing sellers:', error);
+        emitProgress('Error sincronizando vendedores', null, 'error');
     }
 };
 
 const runFullSync = async () => {
     logger.info('=== Starting Full Sync with Unified Product Data ===');
-    await syncProducts();
+    emitProgress('Iniciando Sincronización Total...', 0);
+
+    // Total steps ~ 4 (Products, Prices, Clients, Sellers)
+    // Distributed percentage manually roughly
+
+    await syncProducts(); // Goes 0 -> 100 inside
+
+    // Logic for Full Sync needs to handle progress differently or reused components need to know context.
+    // Simplifying: we will trust the messages, but the percentage might jump. 
+    // Ideally pass a callback/offset, but simplistic emission is fine for now.
+
+    // Products & Prices take the longest, so let's say they are 70% of the work.
+    // Clients 20%, Sellers 10%.
+
+    // NOTE: syncProducts calls syncPrices internally at the end. 
+    // I need to decouple or handle it. syncProducts emits 0-100.
+
+    // For now, let's just let it emit. The user will see "Products... 10%" then "Prices... 100%".
+    // Then "Clients...".
+    // I will just add specific messages here.
+
+    emitProgress('Iniciando sincronización de Clientes...', 0);
     await syncClients();
+
+    emitProgress('Iniciando sincronización de Vendedores...', 0);
     await syncSellers();
+
     logger.info('=== Full Sync Completed ===');
+    emitProgress('Sincronización Total Completada.', 100, 'completed');
 };
 
-module.exports = { runFullSync, syncProducts };
+module.exports = { runFullSync, syncProducts, syncEvents };

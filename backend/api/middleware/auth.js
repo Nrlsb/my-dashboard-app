@@ -2,7 +2,12 @@ const jwt = require('jsonwebtoken');
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Formato "Bearer TOKEN"
+  let token = authHeader && authHeader.split(' ')[1]; // Formato "Bearer TOKEN"
+
+  // Allow token in query param for SSE or other direct links
+  if (!token && req.query && req.query.token) {
+    token = req.query.token;
+  }
 
   if (token == null) {
     return res

@@ -118,20 +118,47 @@ exports.assignClientPassword = catchAsync(async (req, res) => {
     res.json(result);
 });
 
+const { syncEvents } = require('../services/syncService');
+
+exports.getSyncEvents = (req, res) => {
+    // Set headers for SSE
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const sendEvent = (data) => {
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
+    // Initial connection event
+    sendEvent({ type: 'connected', message: 'Conexión establecida para eventos de sincronización.' });
+
+    // Listener
+    const onProgress = (data) => {
+        sendEvent({ type: 'progress', ...data });
+    };
+
+    syncEvents.on('progress', onProgress);
+
+    // Clean up when client disconnects
+    req.on('close', () => {
+        syncEvents.off('progress', onProgress);
+        res.end();
+    });
+};
+
 exports.triggerProductSync = catchAsync(async (req, res) => {
-    // We don't await this because it takes too long, 
-    // BUT the user wants to know it started.
-    // Actually, user might want to wait. 4000 products is fast (seconds).
-    // Let's await it.
+    // Fire and forget, frontend will listen to events
     console.log(`Manual Product Sync triggered by Admin ${req.userId}`);
-    await require('../services/syncService').syncProducts();
-    res.json({ message: 'Sincronización de productos completada exitosamente.' });
+    require('../services/syncService').syncProducts().catch(err => console.error(err));
+    res.json({ message: 'Sincronización de productos iniciada.' });
 });
 
 exports.triggerFullSync = catchAsync(async (req, res) => {
     console.log(`Manual FULL Sync triggered by Admin ${req.userId}`);
-    await require('../services/syncService').runFullSync();
-    res.json({ message: 'Sincronización TOTAL completada exitosamente (Productos, Clientes, Vendedores).' });
+    require('../services/syncService').runFullSync().catch(err => console.error(err));
+    res.json({ message: 'Sincronización TOTAL iniciada.' });
 });
 
 exports.getAllSellers = catchAsync(async (req, res) => {

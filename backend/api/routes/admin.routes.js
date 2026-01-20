@@ -114,7 +114,8 @@ router.delete('/accessories/:productId', requireMarketingOrAdmin, removeAccessor
 router.post('/custom-collection/:groupId/items', requireMarketingOrAdmin, addCustomGroupItem);
 router.delete('/custom-collection/:groupId/items/:productId', requireMarketingOrAdmin, removeCustomGroupItem);
 
-const { triggerProductSync, triggerFullSync } = require('../controllers/adminController');
+const { triggerProductSync, triggerFullSync, getSyncEvents } = require('../controllers/adminController');
+router.get('/sync-events', requireAdmin, getSyncEvents);
 router.post('/sync-products', requireAdmin, triggerProductSync);
 router.post('/sync-full', requireAdmin, triggerFullSync);
 
