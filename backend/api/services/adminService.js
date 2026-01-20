@@ -177,35 +177,60 @@ const assignClientPassword = async (a1_cod, password, email) => {
     const cleanCode = a1_cod.trim();
     await client.query('BEGIN');
 
-    // 1. Check if credential already exists
-    const checkRes = await client.query('SELECT user_id FROM user_credentials WHERE a1_cod = $1', [cleanCode]);
-
-    let userId;
+    // 0. GENERATE HASH
     const salt = await bcrypt.genSalt(10);
     const hash = await bcrypt.hash(password, salt);
 
-    if (checkRes.rows.length > 0) {
-      // Update existing
-      userId = checkRes.rows[0].user_id;
-      await client.query(
-        'UPDATE user_credentials SET password_hash = $1, temp_password_hash = NULL, email = COALESCE($2, email), must_change_password = TRUE WHERE user_id = $3',
-        [hash, email, userId]
-      );
-    } else {
-      // Create New Virtual ID
-      // Safe range start
-      const MIN_CLIENT_ID = 100000;
-      const maxRes = await client.query('SELECT GREATEST(MAX(user_id), $1) as max_id FROM user_credentials', [MIN_CLIENT_ID]);
-      userId = (parseInt(maxRes.rows[0].max_id) || MIN_CLIENT_ID) + 1;
+    // 1. Check if a Real User exists in 'users' table
+    const userRes = await client.query('SELECT id FROM users WHERE a1_cod = $1', [cleanCode]);
+    const realUserId = userRes.rows.length > 0 ? userRes.rows[0].id : null;
 
+    // 2. Check if a Credential exists for this a1_cod
+    const credRes = await client.query('SELECT user_id FROM user_credentials WHERE a1_cod = $1', [cleanCode]);
+    const existingCredentialUserId = credRes.rows.length > 0 ? credRes.rows[0].user_id : null;
+
+    let targetUserId = null;
+
+    if (realUserId) {
+      targetUserId = realUserId;
+      // We have a real user. Ensure credentials point to THIS id.
+
+      if (existingCredentialUserId && existingCredentialUserId !== realUserId) {
+        // DETACHED CREDENTIAL FOUND (e.g. 100001 vs 5).
+        // Delete the old detached one to execute a clean Upsert on the real ID.
+        console.log(`[adminService] Removing detached credential ${existingCredentialUserId} in favor of real user ${realUserId}`);
+        await client.query('DELETE FROM user_credentials WHERE user_id = $1', [existingCredentialUserId]);
+      }
+    } else {
+      // No real user. 
+      // If we have an existing credential, keep using its ID.
+      // If not, generate a new Virtual ID.
+      if (existingCredentialUserId) {
+        targetUserId = existingCredentialUserId;
+      } else {
+        const MIN_CLIENT_ID = 100000;
+        const maxRes = await client.query('SELECT GREATEST(MAX(user_id), $1) as max_id FROM user_credentials', [MIN_CLIENT_ID]);
+        targetUserId = (parseInt(maxRes.rows[0].max_id) || MIN_CLIENT_ID) + 1;
+      }
+    }
+
+    // 3. UPSERT the credential
+    // We try UPDATE first, then INSERT.
+    const updateRes = await client.query(
+      'UPDATE user_credentials SET password_hash = $1, temp_password_hash = NULL, email = COALESCE($2, email), must_change_password = TRUE WHERE user_id = $3',
+      [hash, email, targetUserId]
+    );
+
+    if (updateRes.rowCount === 0) {
+      // Insert
       await client.query(
         'INSERT INTO user_credentials (user_id, email, a1_cod, password_hash, must_change_password) VALUES ($1, $2, $3, $4, TRUE)',
-        [userId, email, cleanCode, hash]
+        [targetUserId, email, cleanCode, hash]
       );
     }
 
     await client.query('COMMIT');
-    return { success: true, userId };
+    return { success: true, userId: targetUserId };
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Error in assignClientPassword:', err);
