@@ -2,6 +2,8 @@ const winston = require('winston');
 require('winston-daily-rotate-file');
 const path = require('path');
 
+const util = require('util');
+
 // Define log directory
 const logDir = path.join(__dirname, '../logs');
 
@@ -9,8 +11,8 @@ const logDir = path.join(__dirname, '../logs');
 const logFormat = winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     winston.format.printf(({ timestamp, level, message, ...meta }) => {
-        return `${timestamp} [${level.toUpperCase()}]: ${message} ${Object.keys(meta).length ? JSON.stringify(meta) : ''
-            }`;
+        const metaString = Object.keys(meta).length ? util.inspect(meta, { depth: null, colors: false }) : '';
+        return `${timestamp} [${level.toUpperCase()}]: ${message} ${metaString}`;
     })
 );
 
