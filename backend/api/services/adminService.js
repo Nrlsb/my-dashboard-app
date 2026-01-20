@@ -554,4 +554,67 @@ module.exports = {
       throw error;
     }
   },
+
+  /**
+   * (Admin) Elimina un usuario y sus credenciales, evitando eliminar administradores.
+   * @param {string|number} userId - ID del usuario a eliminar.
+   */
+  deleteUser: async (userId) => {
+    const client = await pool2.connect();
+    try {
+      await client.query('BEGIN');
+
+      // 1. Check if user exists and if they are an admin
+      // Check is_admin flag in users table
+      const userRes = await client.query('SELECT id, is_admin FROM users WHERE id = $1', [userId]);
+
+      if (userRes.rows.length === 0) {
+        // Might be a detached credential user check? Assuming strict user table check first.
+        throw new Error('Usuario no encontrado.');
+      }
+      const user = userRes.rows[0];
+
+      if (user.is_admin) {
+        throw new Error('No se puede eliminar a un usuario marcado como Administrador (is_admin).');
+      }
+
+      // 2. Check user_roles table as requested
+      const rolesRes = await client.query(
+        `SELECT r.name 
+         FROM user_roles ur 
+         JOIN roles r ON ur.role_id = r.id 
+         WHERE ur.user_id = $1 AND r.name = 'admin'`,
+        [userId]
+      );
+
+      if (rolesRes.rows.length > 0) {
+        throw new Error('No se puede eliminar a un usuario con rol de Administrador.');
+      }
+
+      // 3. Proceed with deletion
+      console.log(`[adminService] Deleting user ${userId} and associated data...`);
+
+      // Delete credentials
+      await client.query('DELETE FROM user_credentials WHERE user_id = $1', [userId]);
+
+      // Delete permissions
+      await client.query('DELETE FROM user_product_group_permissions WHERE user_id = $1', [userId]);
+
+      // Delete roles (just in case they had non-admin roles)
+      await client.query('DELETE FROM user_roles WHERE user_id = $1', [userId]);
+
+      // Delete user record
+      await client.query('DELETE FROM users WHERE id = $1', [userId]);
+
+      await client.query('COMMIT');
+      return { success: true, message: 'Usuario y credenciales eliminados correctamente.' };
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error(`Error deleting user ${userId}:`, error);
+      throw error;
+    } finally {
+      client.release();
+    }
+  },
 };

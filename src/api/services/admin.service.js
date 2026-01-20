@@ -140,4 +140,9 @@ export const adminService = {
     triggerFullSync() {
         return apiClient.post('/admin/sync-full');
     },
+
+    deleteUser(userId) {
+        if (!userId) throw new Error('ID de usuario requerido');
+        return apiClient.delete(`/admin/users/${userId}`);
+    },
 };

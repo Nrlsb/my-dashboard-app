@@ -176,3 +176,9 @@ exports.updateVendorClientsGroupPermissions = catchAsync(async (req, res) => {
     res.json(result);
 });
 
+exports.deleteUserController = catchAsync(async (req, res) => {
+    const { userId } = req.params;
+    const result = await adminService.deleteUser(userId);
+    res.json(result);
+});
+

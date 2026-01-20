@@ -42,7 +42,7 @@ const ConnectionsTab = () => {
         setStatusMessage('Iniciando conexión...');
 
         // 1. Setup SSE Listener
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('authToken');
         // Construct SSE URL.
         const eventSourceUrl = `${API_BASE_URL}/admin/sync-events?token=${token}`;
 

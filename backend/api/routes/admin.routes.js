@@ -19,6 +19,7 @@ const {
 
   getGlobalDeniedProductsController,
   updateGlobalProductPermissionsController,
+  deleteUserController,
 } = require('../controllers/adminController');
 const {
   getAdminDashboardPanelsController,
@@ -89,6 +90,9 @@ router.put('/users/:userId/password', requireAdmin, resetUserPassword);
 
 // (NUEVO) Ruta para asignar contraseña a clientes (incluso sin usuario en BD)
 router.post('/users/assign-password', requireAdmin, assignClientPassword);
+
+// (NUEVO) Ruta para eliminar usuario
+router.delete('/users/:userId', requirePermission('manage_admins'), deleteUserController);
 
 const {
   getCarouselGroups,

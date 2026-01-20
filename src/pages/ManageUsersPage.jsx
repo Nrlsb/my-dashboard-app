@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import apiService from '../api/apiService';
-import { Search, Lock, Edit, AlertCircle, CheckCircle } from 'lucide-react';
+import { Search, Lock, Edit, AlertCircle, CheckCircle, Trash } from 'lucide-react';
 import TestUserAnalyticsModal from '../components/TestUserAnalyticsModal';
 
 const ManageUsersPage = () => {
@@ -113,6 +113,26 @@ const ManageUsersPage = () => {
         }
     };
 
+    const handleDeleteUser = async (user) => {
+        if (!window.confirm(`¿Estás seguro de que deseas eliminar al usuario ${user.full_name}? esta acción borrará sus credenciales y datos del sistema.`)) {
+            return;
+        }
+
+        try {
+            setActionError(null);
+            setActionSuccess(null);
+            await apiService.deleteUser(user.id);
+            setActionSuccess(`Usuario ${user.full_name} eliminado correctamente.`);
+            fetchClients(searchTerm);
+            setTimeout(() => setActionSuccess(null), 3000);
+        } catch (err) {
+            console.error(err);
+            // Display error toast or set error state
+            setActionError(err.message || 'Error al eliminar el usuario.');
+            // Also invoke toast for better visibility if available in this context (it is not imported but error state works)
+        }
+    };
+
     if (loading) return <LoadingSpinner text="Cargando usuarios..." />;
 
     if (error) {
@@ -218,6 +238,15 @@ const ManageUsersPage = () => {
                                                     {client.has_password ? <Lock className="w-3.5 h-3.5" /> : <Edit className="w-3.5 h-3.5" />}
                                                     {client.has_password ? "Reset Pwd" : "Asignar Pwd"}
                                                 </button>
+                                                {!client.is_admin && (
+                                                    <button
+                                                        onClick={() => handleDeleteUser(client)}
+                                                        className="text-white bg-red-500 hover:bg-red-600 font-medium rounded-lg text-xs px-3 py-2 transition-all shadow-sm focus:outline-none flex items-center gap-1"
+                                                        title="Eliminar Usuario"
+                                                    >
+                                                        <Trash className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
