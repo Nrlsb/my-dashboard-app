@@ -126,6 +126,7 @@ const apiService = {
   addCustomGroupItem: adminService.addCustomGroupItem,
   removeCustomGroupItem: adminService.removeCustomGroupItem,
   triggerManualSync: adminService.triggerManualSync,
+  triggerFullSync: adminService.triggerFullSync,
 
   // Users (Testing & Vendor)
   getVendedorClients: userService.getVendedorClients,

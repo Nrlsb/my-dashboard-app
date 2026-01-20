@@ -136,4 +136,8 @@ export const adminService = {
     triggerManualSync() {
         return apiClient.post('/admin/sync-products');
     },
+
+    triggerFullSync() {
+        return apiClient.post('/admin/sync-full');
+    },
 };
