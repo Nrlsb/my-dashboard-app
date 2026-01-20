@@ -310,7 +310,19 @@ const changePassword = async (userId, newPassword, userRole, mustChangePassword 
 
     let success = false;
     if (userRole === 'vendedor') {
-      success = await vendedorModel.updatePassword(userId, passwordHash, mustChangePassword);
+      // Intentar primero por ID (user_id en user_credentials)
+      // Esto cubre el caso donde "userId" es el ID numérico real.
+      try {
+        success = await userModel.updatePassword(userId, passwordHash, mustChangePassword);
+      } catch (e) {
+        console.warn(`[userService] Falló updatePassword por ID para vendedor (posiblemente userId es un Código): ${e.message}`);
+      }
+
+      // Si no tuvo éxito (0 filas o error de tipo), intentar como Código de Vendedor
+      if (!success) {
+        console.log(`[userService] Intentando actualizar password de vendedor usando userId como Código: ${userId}`);
+        success = await vendedorModel.updatePassword(userId, passwordHash, mustChangePassword);
+      }
     } else {
       success = await userModel.updatePassword(userId, passwordHash, mustChangePassword);
     }
