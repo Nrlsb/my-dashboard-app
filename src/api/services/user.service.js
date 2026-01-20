@@ -1,0 +1,33 @@
+import apiClient from '../core/client';
+
+export const userService = {
+    getVendedorClients() {
+        return apiClient.get('/vendedor/clientes');
+    },
+
+    // Test Users
+    getTestUsers() {
+        return apiClient.get('/test-users');
+    },
+
+    createTestUser(userData) {
+        return apiClient.post('/test-users', userData);
+    },
+
+    deleteTestUser(userId) {
+        return apiClient.delete(`/test-users/${userId}`);
+    },
+
+    getTestUserAnalytics(userId) {
+        return apiClient.get(`/test-users/${userId}/analytics`);
+    },
+
+    getUserAnalytics(userId) {
+        return apiClient.get(`/admin/users/${userId}/analytics`);
+    },
+
+    getAllClients(search = '') {
+        const params = search ? { search } : null;
+        return apiClient.get('/admin/clients', { params });
+    },
+};
