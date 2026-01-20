@@ -4,22 +4,41 @@ import { Trash2, BarChart2 } from 'lucide-react';
 import apiService from '../api/apiService';
 import { toast } from 'react-hot-toast';
 import TestUserAnalyticsModal from './TestUserAnalyticsModal';
+import ConfirmationModal from './ConfirmationModal';
 
 const TestUsersTable = ({ users = [] }) => {
     const [selectedUser, setSelectedUser] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('¿Estás seguro de que deseas dar de baja este usuario?')) return;
+    // Delete Confirmation State
+    const [userToDelete, setUserToDelete] = useState(null);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
+    const initiateDelete = (user) => {
+        setUserToDelete(user);
+        setIsDeleteConfirmOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!userToDelete) return;
+        setIsDeleteConfirmOpen(false);
+
         try {
-            await apiService.deleteTestUser(id);
+            await apiService.deleteTestUser(userToDelete.id);
             toast.success('Usuario dado de baja exitosamente');
             // Idealmente recargar la lista o actualizar estado local
             window.location.reload();
         } catch (error) {
             console.error(error);
             toast.error('Error al dar de baja usuario');
+        } finally {
+            setUserToDelete(null);
         }
+    };
+
+    const cancelDelete = () => {
+        setIsDeleteConfirmOpen(false);
+        setUserToDelete(null);
     };
 
     const openAnalytics = (user) => {
@@ -142,6 +161,16 @@ const TestUsersTable = ({ users = [] }) => {
                 onClose={() => setIsModalOpen(false)}
                 userId={selectedUser?.id}
                 userName={selectedUser?.name}
+            />
+
+            <ConfirmationModal
+                isOpen={isDeleteConfirmOpen}
+                onClose={cancelDelete}
+                onConfirm={confirmDelete}
+                title="Dar de Baja Usuario"
+                message={`¿Estás seguro de que deseas dar de baja al usuario ${userToDelete?.name}?`}
+                confirmText="Dar de Baja"
+                variant="danger"
             />
         </div>
     );

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import apiService from '../api/apiService';
 import CustomSelect from '../components/CustomSelect';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 
 const AVAILABLE_PERMISSIONS = [
@@ -26,6 +27,10 @@ const ManageAdminsPage = () => {
   const [editingRoleId, setEditingRoleId] = useState(null);
   const [roleName, setRoleName] = useState('');
   const [rolePermissions, setRolePermissions] = useState([]);
+
+  // Delete Role Modal State
+  const [isDeleteRoleModalOpen, setIsDeleteRoleModalOpen] = useState(false);
+  const [roleToDelete, setRoleToDelete] = useState(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -104,15 +109,29 @@ const ManageAdminsPage = () => {
     }
   };
 
-  const handleDeleteRole = async (roleId) => {
-    if (!window.confirm('¿Estás seguro de eliminar este rol?')) return;
+  const initiateDeleteRole = (roleId) => {
+    setRoleToDelete(roleId);
+    setIsDeleteRoleModalOpen(true);
+  };
+
+  const confirmDeleteRole = async () => {
+    if (!roleToDelete) return;
+    setIsDeleteRoleModalOpen(false);
+
     try {
       setActionError(null);
-      await apiService.deleteRole(roleId);
+      await apiService.deleteRole(roleToDelete);
       await fetchData();
     } catch (err) {
       setActionError(err.message || 'Error al eliminar el rol.');
+    } finally {
+      setRoleToDelete(null);
     }
+  };
+
+  const cancelDeleteRole = () => {
+    setIsDeleteRoleModalOpen(false);
+    setRoleToDelete(null);
   };
 
   const startEditRole = (role) => {
@@ -210,7 +229,7 @@ const ManageAdminsPage = () => {
                   </button>
                   {role.name !== 'admin' && (
                     <button
-                      onClick={() => handleDeleteRole(role.id)}
+                      onClick={() => initiateDeleteRole(role.id)}
                       className="text-red-600 hover:underline"
                     >
                       Eliminar
@@ -290,6 +309,16 @@ const ManageAdminsPage = () => {
       {actionError && (
         <div className="text-red-700 bg-red-100 border border-red-400 p-4 rounded-md text-center mt-4">{actionError}</div>
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteRoleModalOpen}
+        onClose={cancelDeleteRole}
+        onConfirm={confirmDeleteRole}
+        title="Eliminar Rol"
+        message="¿Estás seguro de eliminar este rol?"
+        confirmText="Eliminar"
+        variant="danger"
+      />
     </div>
   );
 };

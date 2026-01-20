@@ -3,6 +3,7 @@ import { toast } from 'react-hot-toast';
 import { Plus, Trash2, X, Search } from 'lucide-react';
 import apiService from '../../api/apiService';
 import LoadingSpinner from '../LoadingSpinner';
+import ConfirmationModal from '../ConfirmationModal';
 
 const AccessoriesTab = () => {
     const [accessories, setAccessories] = useState([]);
@@ -13,6 +14,10 @@ const AccessoriesTab = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [searching, setSearching] = useState(false);
+
+    // Delete Modal State
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [accessoryToDelete, setAccessoryToDelete] = useState(null);
 
     useEffect(() => {
         fetchAccessories();
@@ -56,15 +61,29 @@ const AccessoriesTab = () => {
         }
     };
 
-    const handleRemoveAccessory = async (productId) => {
-        if (!window.confirm('¿Estás seguro de eliminar este accesorio?')) return;
+    const initiateDeleteAccessory = (accessoryId) => {
+        setAccessoryToDelete(accessoryId);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDeleteAccessory = async () => {
+        if (!accessoryToDelete) return;
+        setIsDeleteModalOpen(false);
+
         try {
-            await apiService.removeAccessory(productId);
+            await apiService.removeAccessory(accessoryToDelete);
             toast.success('Accesorio eliminado');
             fetchAccessories();
         } catch (error) {
             toast.error('Error al eliminar accesorio');
+        } finally {
+            setAccessoryToDelete(null);
         }
+    };
+
+    const cancelDeleteAccessory = () => {
+        setIsDeleteModalOpen(false);
+        setAccessoryToDelete(null);
     };
 
     if (loading && accessories.length === 0) return <LoadingSpinner />;
@@ -91,7 +110,7 @@ const AccessoriesTab = () => {
                             <p className="text-gray-200 text-xs mt-1 drop-shadow-md">{acc.code}</p>
                         </div>
                         <button
-                            onClick={() => handleRemoveAccessory(acc.id)}
+                            onClick={() => initiateDeleteAccessory(acc.id)}
                             className="absolute bottom-2 right-2 bg-red-500 text-white p-1.5 rounded opacity-100 md:opacity-0 group-hover:opacity-100 transition shadow-lg z-10"
                             title="Eliminar"
                         >
@@ -149,6 +168,16 @@ const AccessoriesTab = () => {
                     </div>
                 </div>
             )}
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={cancelDeleteAccessory}
+                onConfirm={confirmDeleteAccessory}
+                title="Eliminar Accesorio"
+                message="¿Estás seguro de eliminar este accesorio?"
+                confirmText="Eliminar"
+                variant="danger"
+            />
         </div>
     );
 };

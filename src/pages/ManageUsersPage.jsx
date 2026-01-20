@@ -3,6 +3,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import apiService from '../api/apiService';
 import { Search, Lock, Edit, AlertCircle, CheckCircle, Trash } from 'lucide-react';
 import TestUserAnalyticsModal from '../components/TestUserAnalyticsModal';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 const ManageUsersPage = () => {
     const [clients, setClients] = useState([]);
@@ -19,6 +20,10 @@ const ManageUsersPage = () => {
     const [selectedUserForAnalytics, setSelectedUserForAnalytics] = useState(null);
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+
+    // Delete Modal State
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [userToDelete, setUserToDelete] = useState(null);
 
     const fetchClients = useCallback(async (term) => {
         try {
@@ -113,16 +118,20 @@ const ManageUsersPage = () => {
         }
     };
 
-    const handleDeleteUser = async (user) => {
-        if (!window.confirm(`¿Estás seguro de que deseas eliminar al usuario ${user.full_name}? esta acción borrará sus credenciales y datos del sistema.`)) {
-            return;
-        }
+    const initiateDeleteUser = (user) => {
+        setUserToDelete(user);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDeleteUser = async () => {
+        if (!userToDelete) return;
+        setIsDeleteModalOpen(false);
 
         try {
             setActionError(null);
             setActionSuccess(null);
-            await apiService.deleteUser(user.id);
-            setActionSuccess(`Usuario ${user.full_name} eliminado correctamente.`);
+            await apiService.deleteUser(userToDelete.id);
+            setActionSuccess(`Usuario ${userToDelete.full_name} eliminado correctamente.`);
             fetchClients(searchTerm);
             setTimeout(() => setActionSuccess(null), 3000);
         } catch (err) {
@@ -130,7 +139,14 @@ const ManageUsersPage = () => {
             // Display error toast or set error state
             setActionError(err.message || 'Error al eliminar el usuario.');
             // Also invoke toast for better visibility if available in this context (it is not imported but error state works)
+        } finally {
+            setUserToDelete(null);
         }
+    };
+
+    const cancelDeleteUser = () => {
+        setIsDeleteModalOpen(false);
+        setUserToDelete(null);
     };
 
     if (loading) return <LoadingSpinner text="Cargando usuarios..." />;
@@ -240,7 +256,7 @@ const ManageUsersPage = () => {
                                                 </button>
                                                 {!client.is_admin && (
                                                     <button
-                                                        onClick={() => handleDeleteUser(client)}
+                                                        onClick={() => initiateDeleteUser(client)}
                                                         className="text-white bg-red-500 hover:bg-red-600 font-medium rounded-lg text-xs px-3 py-2 transition-all shadow-sm focus:outline-none flex items-center gap-1"
                                                         title="Eliminar Usuario"
                                                     >
@@ -362,6 +378,16 @@ const ManageUsersPage = () => {
                 userId={selectedUserForAnalytics?.id}
                 userName={selectedUserForAnalytics?.full_name}
                 isRegularUser={true}
+            />
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={cancelDeleteUser}
+                onConfirm={confirmDeleteUser}
+                title="Eliminar Usuario"
+                message={`¿Estás seguro de que deseas eliminar al usuario ${userToDelete?.full_name}? esta acción borrará sus credenciales y datos del sistema.`}
+                confirmText="Eliminar"
+                variant="danger"
             />
         </div>
     );

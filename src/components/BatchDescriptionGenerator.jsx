@@ -2,17 +2,21 @@ import React, { useState } from 'react';
 import { Sparkles, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import apiService from '../api/apiService';
 import { toast } from 'react-hot-toast';
+import ConfirmationModal from './ConfirmationModal';
 
 const BatchDescriptionGenerator = () => {
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState(null);
     const [progress, setProgress] = useState(null);
 
-    const handleGenerate = async () => {
-        if (!window.confirm('¿Estás seguro de que deseas generar descripciones para un lote de hasta 50 productos que tienen imagen pero no descripción? Esto puede tardar unos minutos.')) {
-            return;
-        }
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
+    const initiateBatchGeneration = () => {
+        setIsConfirmModalOpen(true);
+    };
+
+    const confirmBatchGeneration = async () => {
+        setIsConfirmModalOpen(false);
         setLoading(true);
         setResults(null);
         setProgress({ current: 0, total: 0 });
@@ -43,6 +47,10 @@ const BatchDescriptionGenerator = () => {
         }
     };
 
+    const cancelBatchGeneration = () => {
+        setIsConfirmModalOpen(false);
+    };
+
     return (
         <div className="bg-white p-6 rounded-lg shadow-md">
             <div className="text-center mb-8">
@@ -58,7 +66,7 @@ const BatchDescriptionGenerator = () => {
 
             <div className="flex flex-col items-center justify-center mb-8">
                 <button
-                    onClick={handleGenerate}
+                    onClick={initiateBatchGeneration}
                     disabled={loading}
                     className="flex items-center px-8 py-4 bg-purple-600 text-white text-lg font-semibold rounded-xl hover:bg-purple-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-1"
                 >
@@ -133,6 +141,16 @@ const BatchDescriptionGenerator = () => {
                     )}
                 </div>
             )}
+
+            <ConfirmationModal
+                isOpen={isConfirmModalOpen}
+                onClose={cancelBatchGeneration}
+                onConfirm={confirmBatchGeneration}
+                title="Confirmar Generación Masiva"
+                message="¿Estás seguro de que deseas generar descripciones para un lote de hasta 50 productos que tienen imagen pero no descripción? Esto puede tardar unos minutos."
+                confirmText="Comenzar"
+                variant="info"
+            />
         </div>
     );
 };

@@ -4,6 +4,7 @@ import apiService from '../api/apiService';
 import { FaTrash, FaUserPlus, FaWhatsapp } from 'react-icons/fa';
 import { BarChart2 } from 'lucide-react';
 import TestUserAnalyticsModal from './TestUserAnalyticsModal';
+import ConfirmationModal from './ConfirmationModal';
 
 const TestUserManager = () => {
     const queryClient = useQueryClient();
@@ -15,6 +16,10 @@ const TestUserManager = () => {
     const [error, setError] = useState(null);
     const [selectedUser, setSelectedUser] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // Delete Confirmation State
+    const [userToDelete, setUserToDelete] = useState(null);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
     const MAX_TEST_USERS = 5;
 
@@ -64,10 +69,23 @@ const TestUserManager = () => {
         createMutation.mutate(formData);
     };
 
-    const handleDelete = (id) => {
-        if (window.confirm('¿Estás seguro de eliminar este usuario de prueba?')) {
-            deleteMutation.mutate(id);
+    const initiateDelete = (id) => {
+        const user = users.find(u => u.id === id); // Optional: find user name if needed for message
+        setUserToDelete(user || { id }); // store minimal info
+        setIsDeleteConfirmOpen(true);
+    };
+
+    const confirmDelete = () => {
+        if (userToDelete) {
+            deleteMutation.mutate(userToDelete.id);
         }
+        setIsDeleteConfirmOpen(false);
+        setUserToDelete(null);
+    };
+
+    const cancelDelete = () => {
+        setIsDeleteConfirmOpen(false);
+        setUserToDelete(null);
     };
 
     const openAnalytics = (user) => {
@@ -131,8 +149,8 @@ const TestUserManager = () => {
                         type="submit"
                         disabled={createMutation.isPending || isLimitReached}
                         className={`px-4 py-2 rounded-md transition-colors flex items-center justify-center gap-2 h-[42px] ${isLimitReached || createMutation.isPending
-                                ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
                             }`}
                     >
                         {createMutation.isPending ? 'Creando...' : 'Crear Usuario'}
@@ -185,7 +203,7 @@ const TestUserManager = () => {
                                                 <BarChart2 className="w-5 h-5" />
                                             </button>
                                             <button
-                                                onClick={() => handleDelete(user.id)}
+                                                onClick={() => initiateDelete(user.id)}
                                                 className="text-red-600 hover:text-red-900 bg-red-50 p-2 rounded-full transition-colors focus:outline-none"
                                                 title="Eliminar usuario"
                                                 disabled={deleteMutation.isPending}
@@ -206,6 +224,16 @@ const TestUserManager = () => {
                 onClose={() => setIsModalOpen(false)}
                 userId={selectedUser?.id}
                 userName={selectedUser?.name}
+            />
+
+            <ConfirmationModal
+                isOpen={isDeleteConfirmOpen}
+                onClose={cancelDelete}
+                onConfirm={confirmDelete}
+                title="Eliminar Usuario de Prueba"
+                message={`¿Estás seguro de eliminar este usuario de prueba${userToDelete?.name ? ` ${userToDelete.name}` : ''}?`}
+                confirmText="Eliminar"
+                variant="danger"
             />
         </div>
     );

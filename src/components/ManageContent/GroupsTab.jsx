@@ -4,6 +4,7 @@ import { Plus, Edit, Trash2, X, Upload, Search } from 'lucide-react';
 import apiService from '../../api/apiService';
 import LoadingSpinner from '../LoadingSpinner';
 import CustomSelect from '../CustomSelect';
+import ConfirmationModal from '../ConfirmationModal';
 
 const GroupsTab = () => {
     const [groups, setGroups] = useState([]);
@@ -30,6 +31,10 @@ const GroupsTab = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [searching, setSearching] = useState(false);
+
+    // Delete Modal State
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [groupToDelete, setGroupToDelete] = useState(null);
 
     useEffect(() => {
         fetchGroups();
@@ -84,15 +89,29 @@ const GroupsTab = () => {
         setSelectedReferenceId('');
     };
 
-    const handleDeleteGroup = async (id) => {
-        if (!window.confirm('¿Estás seguro de eliminar este grupo?')) return;
+    const initiateDeleteGroup = (group) => {
+        setGroupToDelete(group);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDeleteGroup = async () => {
+        if (!groupToDelete) return;
+        setIsDeleteModalOpen(false);
+
         try {
-            await apiService.deleteCarouselGroup(id);
+            await apiService.deleteCarouselGroup(groupToDelete.id);
             toast.success('Grupo eliminado');
             fetchGroups();
         } catch (error) {
             toast.error('Error al eliminar grupo');
+        } finally {
+            setGroupToDelete(null);
         }
+    };
+
+    const cancelDeleteGroup = () => {
+        setIsDeleteModalOpen(false);
+        setGroupToDelete(null);
     };
 
     const handleEditCollection = async (group) => {
@@ -197,7 +216,7 @@ const GroupsTab = () => {
                                 </button>
                             )}
                             <button
-                                onClick={() => handleDeleteGroup(group.id)}
+                                onClick={() => initiateDeleteGroup(group)}
                                 className="text-red-500 hover:text-red-700 p-2"
                                 title="Eliminar Grupo"
                             >
@@ -491,6 +510,16 @@ const GroupsTab = () => {
                     </div>
                 </div>
             )}
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={cancelDeleteGroup}
+                onConfirm={confirmDeleteGroup}
+                title="Eliminar Grupo"
+                message={`¿Estás seguro de eliminar el grupo "${groupToDelete?.name}"?`}
+                confirmText="Eliminar"
+                variant="danger"
+            />
         </div>
     );
 };

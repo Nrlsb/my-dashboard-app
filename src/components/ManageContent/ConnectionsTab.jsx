@@ -3,6 +3,7 @@ import { toast } from 'react-hot-toast';
 import { RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import apiService from '../../api/apiService';
 import { API_BASE_URL } from '../../api/core/client';
+import ConfirmationModal from '../ConfirmationModal';
 
 // Simple Progress Bar Component
 const ProgressBar = ({ progress, message }) => (
@@ -26,15 +27,27 @@ const ConnectionsTab = () => {
     const [statusMessage, setStatusMessage] = useState('');
     const [syncType, setSyncType] = useState(null); // 'manual' or 'full'
 
-    // Function to handle SSE connection and sync trigger
-    const handleSync = async (type) => {
+    // Modal State
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [pendingSyncType, setPendingSyncType] = useState(null);
+
+    const initiateSync = (type) => {
         if (isSyncing) return;
+        setPendingSyncType(type);
+        setIsConfirmOpen(true);
+    };
 
-        const confirmMsg = type === 'manual'
-            ? '¿Deseas iniciar la sincronización manual? Este proceso puede tomar varios minutos.'
-            : '¿Deseas iniciar la sincronización TOTAL? Este proceso abarca TODA la base de datos y puede demorar varios minutos.';
+    const handleCloseModal = () => {
+        setIsConfirmOpen(false);
+        setPendingSyncType(null);
+    };
 
-        if (!window.confirm(confirmMsg)) return;
+    // Function to handle SSE connection and sync trigger
+    const executeSync = async () => {
+        const type = pendingSyncType;
+        handleCloseModal(); // Close modal immediately
+
+        if (!type) return;
 
         setIsSyncing(true);
         setSyncType(type);
@@ -122,7 +135,7 @@ const ConnectionsTab = () => {
                     <ProgressBar progress={progress} message={statusMessage} />
                 ) : (
                     <button
-                        onClick={() => handleSync('manual')}
+                        onClick={() => initiateSync('manual')}
                         disabled={isSyncing}
                         className={`bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700 transition w-full ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
@@ -144,7 +157,7 @@ const ConnectionsTab = () => {
                     <ProgressBar progress={progress} message={statusMessage} />
                 ) : (
                     <button
-                        onClick={() => handleSync('full')}
+                        onClick={() => initiateSync('full')}
                         disabled={isSyncing}
                         className={`bg-purple-600 text-white px-4 py-2 rounded font-bold hover:bg-purple-700 transition w-full ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
@@ -152,6 +165,19 @@ const ConnectionsTab = () => {
                     </button>
                 )}
             </div>
+
+            <ConfirmationModal
+                isOpen={isConfirmOpen}
+                onClose={handleCloseModal}
+                onConfirm={executeSync}
+                title={pendingSyncType === 'manual' ? 'Sincronización Manual' : 'Sincronización Total'}
+                message={pendingSyncType === 'manual'
+                    ? '¿Deseas iniciar la sincronización manual? Este proceso puede tomar varios minutos.'
+                    : '¿Deseas iniciar la sincronización TOTAL? Este proceso abarca TODA la base de datos y puede demorar varios minutos.'
+                }
+                confirmText={pendingSyncType === 'manual' ? 'Sincronizar' : 'Sincronizar Todo'}
+                variant={pendingSyncType === 'manual' ? 'info' : 'warning'}
+            />
         </div>
     );
 };
