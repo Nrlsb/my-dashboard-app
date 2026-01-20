@@ -28,7 +28,7 @@ const fetchDictionaryMap = async (fetchFunction, codeField, filters = []) => {
 };
 
 // Sync Products (SB1)
-const syncProducts = async () => {
+const syncProducts = async (emitCompletion = true) => {
     try {
         logger.info('Starting Product Sync...');
         emitProgress('Iniciando sincronización de productos...', 0);
@@ -189,7 +189,7 @@ const syncProducts = async () => {
         }
 
         // NOW FETCH PRICES (DA1)
-        await syncPrices();
+        await syncPrices(emitCompletion);
 
     } catch (error) {
         logger.error('Error syncing products:', error);
@@ -364,7 +364,7 @@ const updatePriceHistory = async (prices) => {
 };
 
 // Sync Prices (DA1) - Coordinator
-const syncPrices = async () => {
+const syncPrices = async (emitCompletion = true) => {
     try {
         logger.info('Starting Price Sync...');
         emitProgress('Iniciando sincronización de precios...', 55);
@@ -372,6 +372,9 @@ const syncPrices = async () => {
 
         if (prices.length === 0) {
             logger.warn('No prices fetched from API.');
+            if (emitCompletion) {
+                emitProgress('No se encontraron precios para actualizar.', 100, 'completed');
+            }
             return;
         }
 
@@ -382,7 +385,9 @@ const syncPrices = async () => {
         await updatePriceHistory(prices);
 
         logger.info(`Synced prices for ${prices.length} products successfully.`);
-        emitProgress('Sincronización de productos y precios completada.', 100, 'completed');
+        if (emitCompletion) {
+            emitProgress('Sincronización de productos y precios completada.', 100, 'completed');
+        }
 
     } catch (error) {
         logger.error('Error syncing prices:', error);
@@ -541,7 +546,7 @@ const runFullSync = async () => {
     // Total steps ~ 4 (Products, Prices, Clients, Sellers)
     // Distributed percentage manually roughly
 
-    await syncProducts(); // Goes 0 -> 100 inside
+    await syncProducts(false); // Goes 0 -> 100 inside, but we suppress completion
 
     // Logic for Full Sync needs to handle progress differently or reused components need to know context.
     // Simplifying: we will trust the messages, but the percentage might jump. 
