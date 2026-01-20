@@ -250,6 +250,18 @@ const updatePassword = async (userId, passwordHash, mustChangePassword = false) 
     WHERE user_id = $2
   `;
   const result = await pool2.query(query, [passwordHash, userId, mustChangePassword]);
+
+  if (result.rowCount === 0) {
+    // Fallback: If no credentials exist, create them (Upsert behavior)
+    console.log(`[userModel] updatePassword: No credentials found for user ${userId}. Creating new record.`);
+    const insertQuery = `
+        INSERT INTO user_credentials (user_id, password_hash, must_change_password, temp_password_hash)
+        VALUES ($1, $2, $3, NULL)
+    `;
+    const insertResult = await pool2.query(insertQuery, [userId, passwordHash, mustChangePassword]);
+    return insertResult.rowCount > 0;
+  }
+
   return result.rowCount > 0;
 };
 
