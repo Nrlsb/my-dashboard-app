@@ -43,53 +43,57 @@ const ConnectionsTab = () => {
 
         // 1. Setup SSE Listener
         const token = localStorage.getItem('authToken');
-        // Construct SSE URL.
         const eventSourceUrl = `${API_BASE_URL}/admin/sync-events?token=${token}`;
 
-        const eventSource = new EventSource(eventSourceUrl);
+        const connectSSE = () => {
+            return new Promise((resolve, reject) => {
+                const eventSource = new EventSource(eventSourceUrl);
 
-        eventSource.onopen = () => {
-            console.log("SSE Connection Opened");
-        };
+                eventSource.onopen = () => {
+                    console.log("SSE Connection Opened");
+                    resolve(eventSource);
+                };
 
-        eventSource.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                if (data.type === 'progress') {
-                    if (data.percent !== null) setProgress(data.percent);
-                    if (data.message) setStatusMessage(data.message);
+                eventSource.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'progress') {
+                            if (data.percent !== null) setProgress(data.percent);
+                            if (data.message) setStatusMessage(data.message);
 
-                    if (data.status === 'completed') {
-                        toast.success(data.message || 'Sincronización completada');
-                        closeConnection();
-                    } else if (data.status === 'error') {
-                        toast.error(data.message || 'Error en la sincronización');
-                        closeConnection();
+                            if (data.status === 'completed') {
+                                toast.success(data.message || 'Sincronización completada');
+                                eventSource.close();
+                                setIsSyncing(false);
+                                setSyncType(null);
+                            } else if (data.status === 'error') {
+                                toast.error(data.message || 'Error en la sincronización');
+                                eventSource.close();
+                                setIsSyncing(false);
+                                setSyncType(null);
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Error parsing SSE data", err);
                     }
-                }
-            } catch (err) {
-                console.error("Error parsing SSE data", err);
-            }
+                };
+
+                eventSource.onerror = (err) => {
+                    console.error("SSE Error", err);
+                    if (eventSource.readyState === 2) {
+                        eventSource.close();
+                        setIsSyncing(false);
+                        setSyncType(null);
+                        reject(new Error('Connection failed'));
+                    }
+                };
+            });
         };
 
-        eventSource.onerror = (err) => {
-            console.error("SSE Error", err);
-            // Don't close immediately on minor network glitches, but if persistent...
-            // For now, let's close if state is 'completed' logic failed or connection dropped hard.
-            // Check readyState: 0=CONNECTING, 1=OPEN, 2=CLOSED
-            if (eventSource.readyState === 2) {
-                closeConnection();
-            }
-        };
-
-        const closeConnection = () => {
-            eventSource.close();
-            setIsSyncing(false);
-            setSyncType(null);
-        };
-
-        // 2. Trigger the Sync Process via API
         try {
+            const es = await connectSSE();
+
+            // 2. Trigger the Sync Process via API
             if (type === 'manual') {
                 await apiService.triggerManualSync();
             } else {
@@ -97,8 +101,9 @@ const ConnectionsTab = () => {
             }
         } catch (error) {
             console.error(error);
-            toast.error('No se pudo iniciar la sincronización.');
-            closeConnection();
+            toast.error('No se pudo establecer conexión para la sincronización.');
+            setIsSyncing(false);
+            setSyncType(null);
         }
     };
 

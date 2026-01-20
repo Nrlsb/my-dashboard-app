@@ -84,12 +84,17 @@ const syncProducts = async (emitCompletion = true) => {
                 let paramIndex = 1;
 
                 // Parse Protheus date format "dd/mm/yyyy" or "  /  /  " to ISO or null
+                // Parse Protheus date format "dd/mm/yyyy" or "dd/mm/yy" or "  /  /  " to ISO or null
                 const parseProtheusDate = (dateStr) => {
                     if (!dateStr || dateStr.trim() === '' || dateStr.includes('/  /')) return null;
                     const parts = dateStr.trim().split('/');
                     if (parts.length === 3) {
+                        let year = parts[2];
+                        if (year.length === 2) {
+                            year = '20' + year;
+                        }
                         // dd/mm/yyyy -> yyyy-mm-dd
-                        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                        return `${year}-${parts[1]}-${parts[0]}`;
                     }
                     return null;
                 };
