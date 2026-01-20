@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 // Configuration based on PDF
-const BASE_URL = 'http://119.8.78.68:8081/rest/MERWS03B';
+const BASE_URL = 'https://qrmp.pintureriasmercurio.com.ar/rest/MERWS03B';
 
 // Create axios instance with default config
 const api = axios.create({
