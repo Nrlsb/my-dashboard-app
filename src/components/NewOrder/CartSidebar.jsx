@@ -74,7 +74,27 @@ const CartSidebar = ({ cart, productMap, updateQuantity, removeFromCart, totalPr
                                             key={`qty-${item.id}`}
                                             type="number"
                                             value={item.quantity}
-                                            onChange={(e) => updateQuantity(item.id, e.target.value)}
+                                            onChange={(e) => {
+                                                const newVal = parseInt(e.target.value, 10);
+                                                const currentQty = Number(item.quantity);
+                                                const stock = Number(product?.stock_disponible) || 0;
+                                                const packQty = Number(product?.pack_quantity) > 0 ? Number(product.pack_quantity) : 1;
+
+                                                if (!isNaN(newVal) && isRestricted) {
+                                                    // Detectar incremento por flecha (delta +1) en zona restringida
+                                                    if (newVal === currentQty + 1 && currentQty >= stock) {
+                                                        updateQuantity(item.id, currentQty + packQty);
+                                                        return;
+                                                    }
+                                                    // Detectar decremento por flecha (delta -1) en zona restringida
+                                                    if (newVal === currentQty - 1 && currentQty > stock) {
+                                                        const nextVal = currentQty - packQty;
+                                                        updateQuantity(item.id, Math.max(stock, nextVal));
+                                                        return;
+                                                    }
+                                                }
+                                                updateQuantity(item.id, e.target.value);
+                                            }}
                                             onBlur={(e) => handleQuantityChange(item.id, e.target.value, productMap.get(item.id) || item)}
                                             className="w-16 border-gray-300 rounded-md shadow-sm focus:ring-espint-blue focus:border-espint-blue text-center"
                                             min="0"

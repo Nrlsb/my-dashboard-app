@@ -87,8 +87,34 @@ export const useProductQuantity = (product, initialValue = 1) => {
     };
 
     const handleInputChange = (e) => {
-        const val = parseInt(e.target.value);
+        const val = parseInt(e.target.value, 10);
         if (isNaN(val)) return;
+
+        if (isRestricted) {
+            const diff = val - quantity;
+            // Detect arrow keys (delta +/- 1)
+            if (Math.abs(diff) === 1) {
+                if (diff > 0) {
+                    // Increment
+                    if (quantity >= stock) {
+                        setQuantity(quantity + packQty);
+                        return;
+                    }
+                } else {
+                    // Decrement
+                    if (quantity > stock) {
+                        const nextVal = quantity - packQty;
+                        if (stock > 0) {
+                            setQuantity(Math.max(stock, nextVal));
+                        } else {
+                            setQuantity(Math.max(packQty, nextVal));
+                        }
+                        return;
+                    }
+                }
+            }
+        }
+
         setQuantity(val);
     };
 
