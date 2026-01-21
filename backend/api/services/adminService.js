@@ -673,7 +673,45 @@ module.exports = {
       console.error(`Error deleting user ${userId}:`, error);
       throw error;
     } finally {
+
       client.release();
     }
   },
+
+  getGlobalSetting: async (key) => {
+    try {
+      const result = await pool2.query('SELECT value FROM global_settings WHERE key = $1', [key]);
+      if (result.rows.length > 0) {
+        return result.rows[0].value;
+      }
+      return null;
+    } catch (error) {
+      console.error(`Error getGlobalSetting(${key}):`, error);
+      return null;
+    }
+  },
+
+  setGlobalSetting: async (key, value) => {
+    try {
+      const query = `
+            INSERT INTO global_settings (key, value, updated_at) 
+            VALUES ($1, $2, CURRENT_TIMESTAMP)
+            ON CONFLICT (key) DO UPDATE 
+            SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP
+            RETURNING *;
+        `;
+      const result = await pool2.query(query, [key, value]);
+
+      // Invalidate Redis if used in productUtils
+      const { redisClient, isRedisReady } = require('../redisClient');
+      if (isRedisReady()) {
+        await redisClient.del(`global_setting:${key}`);
+      }
+
+      return result.rows[0];
+    } catch (error) {
+      console.error(`Error setGlobalSetting(${key}, ${value}):`, error);
+      throw error;
+    }
+  }
 };

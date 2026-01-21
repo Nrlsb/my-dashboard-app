@@ -47,3 +47,16 @@ exports.removeCustomGroupItem = catchAsync(async (req, res) => {
     await productService.removeCustomGroupItem(req.params.groupId, req.params.productId);
     res.json({ success: true });
 });
+
+exports.getGlobalSetting = catchAsync(async (req, res) => {
+    const adminService = require('../services/adminService'); // Lazy require to avoid circular dependency
+    const value = await adminService.getGlobalSetting(req.params.key);
+    res.json({ value });
+});
+
+exports.updateGlobalSetting = catchAsync(async (req, res) => {
+    const adminService = require('../services/adminService');
+    const { key, value } = req.body;
+    const result = await adminService.setGlobalSetting(key, value);
+    res.json(result);
+});

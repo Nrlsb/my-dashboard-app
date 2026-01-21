@@ -129,6 +129,8 @@ const apiService = {
   triggerManualSync: adminService.triggerManualSync,
   triggerFullSync: adminService.triggerFullSync,
   deleteUser: adminService.deleteUser,
+  getGlobalSetting: adminService.getGlobalSetting,
+  updateGlobalSetting: adminService.updateGlobalSetting,
 
   // Users (Testing & Vendor)
   getVendedorClients: userService.getVendedorClients,

@@ -138,6 +138,22 @@ const getDeniedProductGroups = async (userId) => {
   }
 };
 
+
+
+const getGlobalSetting = async (key) => {
+  // Basic caching could be added here if needed
+  try {
+    const result = await pool2.query('SELECT value FROM global_settings WHERE key = $1', [key]);
+    if (result.rows.length > 0) {
+      return result.rows[0].value;
+    }
+    return null;
+  } catch (error) {
+    console.error(`Error getGlobalSetting(${key}) in productModel:`, error);
+    return null;
+  }
+};
+
 const getVendorDeniedProductGroups = async (vendedorCode) => {
   try {
     const query = `
@@ -1270,4 +1286,5 @@ module.exports = {
   toggleProductNewReleaseStatus,
   updateProductNewReleaseDetails,
   getVendorDeniedProductGroups, // [NEW]
+  getGlobalSetting,
 };

@@ -56,6 +56,11 @@ router.put('/users/:userId/product-groups', requireAdmin, updateUserGroupPermiss
 router.get('/global-restrictions', requireAdmin, getGlobalDeniedProductsController);
 router.put('/global-restrictions', requireAdmin, updateGlobalProductPermissionsController);
 
+// Global Settings (Visibility)
+const { getGlobalSetting, updateGlobalSetting } = require('../controllers/adminContentController');
+router.get('/settings/:key', requireAdmin, getGlobalSetting);
+router.post('/settings', requireAdmin, updateGlobalSetting);
+
 router.get('/dashboard-panels', requireAdmin, getAdminDashboardPanelsController);
 
 router.put('/dashboard-panels/:id', requireAdmin, updateDashboardPanelController);

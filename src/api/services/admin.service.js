@@ -149,4 +149,12 @@ export const adminService = {
         if (!userId) throw new Error('ID de usuario requerido');
         return apiClient.delete(`/admin/users/${userId}`);
     },
+
+    getGlobalSetting(key) {
+        return apiClient.get(`/admin/settings/${key}`);
+    },
+
+    updateGlobalSetting(key, value) {
+        return apiClient.post('/admin/settings', { key, value });
+    },
 };

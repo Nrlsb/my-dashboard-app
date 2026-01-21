@@ -70,10 +70,21 @@ const getUserFilters = async (userOrId) => {
                 const roleData = await userModel.getUserRoleFromDB2(userId);
                 role = roleData ? roleData.role : 'cliente';
 
-                // [MODIFIED] Regular users are no longer restricted by default.
-                // We still fetch image codes to allow optional "Image Only" filtering if requested.
+                // [MODIFIED] Check Global Setting for visibility
+                // Default to 'true' (Show All) if not set.
+                // If 'false', regular users are restricted to images only.
+                const showNoImageSetting = await productModel.getGlobalSetting('show_no_image_products');
+                const showAll = showNoImageSetting !== 'false'; // Default true
+
+                if (showAll) {
+                    isRestrictedUser = false;
+                } else {
+                    isRestrictedUser = true;
+                }
+
+                // Always populate allowedProductCodes so users can optionally filter if they want, 
+                // and for restricted mode to work.
                 allowedProductCodes = await productModel.getAllProductImageCodes();
-                isRestrictedUser = false;
             }
         }
     } else {

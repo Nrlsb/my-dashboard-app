@@ -138,8 +138,7 @@ export default function ProductsPage() {
     const brandDropdownRef = useRef(null);
     const debounceTimeout = useRef(null);
 
-    // Admin Image Toggle State
-    const [showImageOnly, setShowImageOnly] = useState(false);
+
 
     // Initialize filters from URL
     useEffect(() => {
@@ -181,10 +180,9 @@ export default function ProductsPage() {
         isError,
         error
     } = useInfiniteQuery({
-        queryKey: ['products-grid', debounceSearchTerm, selectedBrands, showImageOnly, user?.id],
+        queryKey: ['products-grid', debounceSearchTerm, selectedBrands, user?.id],
         queryFn: ({ pageParam = 1 }) => {
-            // Pass showImageOnly ? 'true' : '' for optional filtering
-            return apiService.fetchProducts(pageParam, debounceSearchTerm, selectedBrands, false, 20, showImageOnly ? 'true' : '');
+            return apiService.fetchProducts(pageParam, debounceSearchTerm, selectedBrands, false, 20, '');
         },
         getNextPageParam: (lastPage, allPages) => {
             const productsLoaded = allPages.reduce((acc, page) => acc + page.products.length, 0);
@@ -308,20 +306,7 @@ export default function ProductsPage() {
                             </div>
                         </div>
 
-                        {/* Admin Toggle: Show Image Only */}
-                        {user?.is_admin && (
-                            <div className="mt-4 flex items-center gap-2">
-                                <label className="flex items-center gap-2 cursor-pointer select-none text-sm font-medium text-gray-700">
-                                    <input
-                                        type="checkbox"
-                                        checked={showImageOnly}
-                                        onChange={(e) => setShowImageOnly(e.target.checked)}
-                                        className="w-4 h-4 text-espint-blue border-gray-300 rounded focus:ring-espint-blue"
-                                    />
-                                    Solo productos con imagen (Admin)
-                                </label>
-                            </div>
-                        )}
+
 
                         {hasFilters && (
                             <div className="mt-4 pt-3 border-t border-gray-100 flex justify-end">
