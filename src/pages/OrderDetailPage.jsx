@@ -261,7 +261,7 @@ function OrderDetailPage() {
           <div className="text-sm text-gray-600 space-y-1">
             <p><strong className="text-gray-900">Fecha:</strong> {orderDetails.formatted_date}</p>
             {orderDetails.client_name && (
-              <p><strong className="text-gray-900">Cliente:</strong> {orderDetails.a1_cod} - {orderDetails.client_name}</p>
+              <p><strong className="text-gray-900">Cliente:</strong> {orderDetails.client_code} - {orderDetails.client_name}</p>
             )}
             {orderDetails.status === 'Confirmado' && orderDetails.vendor_sales_order_number && (
               <p><strong className="text-gray-900">N° Pedido Venta:</strong> #{orderDetails.vendor_sales_order_number}</p>

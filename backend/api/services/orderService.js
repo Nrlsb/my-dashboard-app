@@ -267,10 +267,15 @@ const fetchOrders = async (user) => {
     const clients = await userModel.findUsersByVendedorCodigo(user.codigo);
     const clientMap = new Map(clients.map(c => [c.a1_cod, c.full_name]));
 
-    const enrichedOrders = orders.map((order) => ({
-      ...order,
-      client_name: clientMap.get(order.a1_cod) || 'Cliente Desconocido',
-    }));
+    const enrichedOrders = orders.map((order) => {
+      const code = order.a1_cod || 'S/C';
+      const name = clientMap.get(order.a1_cod) || 'Cliente Desconocido';
+      return {
+        ...order,
+        client_name: name,
+        client_code: code,
+      };
+    });
 
     return enrichedOrders.map((order) => ({
       ...order,
@@ -332,6 +337,7 @@ const fetchOrderDetails = async (orderId, user) => {
   return {
     ...orderDetails,
     client_name: clientName,
+    client_code: orderDetails.a1_cod || 'S/C',
     items: orderDetails.items.map((item) => ({
       ...item,
       product_name: item.product_name,

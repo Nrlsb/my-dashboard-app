@@ -192,7 +192,7 @@ function OrderHistoryPage() {
                 {isVendor && (
                   <div className="mb-3 text-sm font-medium text-gray-700">
                     <span className="text-gray-500 mr-1">Cliente:</span>
-                    {order.a1_cod} - {order.client_name}
+                    {order.client_code} - {order.client_name}
                   </div>
                 )}
 
@@ -288,7 +288,7 @@ function OrderHistoryPage() {
                   <tr key={order.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-mono">#{order.id}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{order.formatted_date}</td>
-                    {isVendor && <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-medium">{order.a1_cod} - {order.client_name}</td>}
+                    {isVendor && <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-medium">{order.client_code} - {order.client_name}</td>}
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-mono">{order.formattedTotal}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{order.status}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 text-center">{order.item_count}</td>

@@ -143,19 +143,21 @@ const Header = ({ onLogout, currentUser }) => {
             {/* Right Actions */}
             <div className="flex items-center gap-4">
 
-              {/* Cart */}
-              <button
-                onClick={() => handleNavigation('/order-preview')}
-                className="relative group p-2.5 rounded-full hover:bg-white/10 transition-all duration-300"
-                aria-label="Ver carrito"
-              >
-                <ShoppingCart className="w-6 h-6 text-white group-hover:text-espint-green transition-colors" />
-                {totalItems > 0 && (
-                  <span className="absolute top-0 right-0 flex items-center justify-center w-5 h-5 text-[10px] font-bold text-espint-blue bg-espint-green rounded-full shadow-sm border-2 border-espint-blue">
-                    {totalItems}
-                  </span>
-                )}
-              </button>
+              {/* Cart - Hidden for Vendors */}
+              {currentUser?.role !== 'vendedor' && (
+                <button
+                  onClick={() => handleNavigation('/order-preview')}
+                  className="relative group p-2.5 rounded-full hover:bg-white/10 transition-all duration-300"
+                  aria-label="Ver carrito"
+                >
+                  <ShoppingCart className="w-6 h-6 text-white group-hover:text-espint-green transition-colors" />
+                  {totalItems > 0 && (
+                    <span className="absolute top-0 right-0 flex items-center justify-center w-5 h-5 text-[10px] font-bold text-espint-blue bg-espint-green rounded-full shadow-sm border-2 border-espint-blue">
+                      {totalItems}
+                    </span>
+                  )}
+                </button>
+              )}
 
               {/* User Menu Trigger */}
               <div className="relative">
