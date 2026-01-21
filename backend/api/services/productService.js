@@ -46,6 +46,7 @@ const fetchProducts = async ({
   hasImage = '',
   isExport = false,
   onlyNewReleasesCandidates = false,
+  onlyModifiedPrices = false,
 }) => {
   try {
     // 1. Obtener cotizaciones
@@ -76,6 +77,7 @@ const fetchProducts = async ({
       deniedGroups,
       bypassCache,
       onlyNewReleasesCandidates,
+      onlyModifiedPrices,
     };
 
     // Filtro por imagen
@@ -130,6 +132,7 @@ const fetchProducts = async ({
         stock_de_seguridad: prod.stock_de_seguridad,
         indicator_description: prod.indicator_description,
         pack_quantity: prod.pack_quantity,
+        isPriceModified: prod.is_price_modified,
       };
     });
 

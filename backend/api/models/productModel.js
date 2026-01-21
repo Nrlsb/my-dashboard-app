@@ -181,6 +181,7 @@ const findProducts = async ({
   excludedIds = [],
   bypassCache = false,
   onlyNewReleasesCandidates = false,
+  onlyModifiedPrices = false,
 }) => {
   const cacheKey = `products:search:v3:${JSON.stringify({
     limit,
@@ -190,7 +191,8 @@ const findProducts = async ({
     deniedGroups: deniedGroups ? deniedGroups.filter(g => g != null && g !== '').sort() : [],
     allowedIds: allowedIds ? allowedIds.sort() : [],
     excludedIds: excludedIds ? excludedIds.sort() : [],
-    onlyNewReleasesCandidates
+    onlyNewReleasesCandidates,
+    onlyModifiedPrices,
   })}`;
 
   if (!bypassCache && isRedisReady()) {
@@ -216,6 +218,10 @@ const findProducts = async ({
             WHEN b1_ts = '501' THEN da1_prcven * 1.105
             ELSE da1_prcven
         END AS price,
+        CASE
+            WHEN b1_ts IN ('503', '501') THEN true
+            ELSE false
+        END AS is_price_modified,
         sbm_desc AS brand, b1_grupo AS product_group, sbm_desc AS group_description,
         z02_descri AS capacity_description, da1_moeda AS moneda, cotizacion,
         stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, sbz_desc AS indicator_description, 
@@ -226,9 +232,19 @@ const findProducts = async ({
 
   // New Release Candidate Filter (30 days logic)
   if (onlyNewReleasesCandidates) {
-    const dateFilter = ` AND (inclusion_date >= NOW() - INTERVAL '30 days' OR modification_date >= NOW() - INTERVAL '30 days') `;
+    const dateFilter = ` AND (inclusion_date >= NOW() - INTERVAL '60 days' OR modification_date >= NOW() - INTERVAL '60 days') `;
     countQuery += dateFilter;
     dataQuery += dateFilter;
+  }
+
+
+
+
+  // Modified Price Filter
+  if (onlyModifiedPrices) {
+    const modifiedPriceFilter = ` AND b1_ts IN ('503', '501') `;
+    countQuery += modifiedPriceFilter;
+    dataQuery += modifiedPriceFilter;
   }
 
   if (deniedGroups && deniedGroups.length > 0) {
@@ -522,8 +538,7 @@ const findOffers = async (offerData, deniedGroups = []) => {
     const offerDetailsMap = new Map(offerData.map(o => [o.product_code, o]));
 
     let query = `
-SELECT
-SELECT
+      SELECT
 id, b1_cod AS code, b1_desc AS description, 
 CASE
   WHEN b1_ts = '503' THEN da1_prcven * 1.21

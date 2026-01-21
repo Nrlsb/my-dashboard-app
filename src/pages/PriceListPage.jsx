@@ -74,9 +74,9 @@ const ProductRow = ({ product, onAddToCart }) => {
       </td>
       <td className="py-3 px-4 text-sm text-gray-900 font-medium">
         {product.name}
-        {product.recentlyChanged && (
+        {(product.recentlyChanged || product.isPriceModified) && (
           <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-            Precio modificado
+            {product.isPriceModified ? 'Precio modificado' : 'Reciente'}
           </span>
         )}
       </td>
@@ -199,6 +199,7 @@ export default function PriceListPage() {
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
   const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
+  const [onlyModifiedPrices, setOnlyModifiedPrices] = useState(false); // New State
 
   useEffect(() => {
     const brandParam = searchParams.get('brand');
@@ -301,9 +302,9 @@ export default function PriceListPage() {
     error,
     isLoading,
   } = useInfiniteQuery({
-    queryKey: ['products', debounceSearchTerm, selectedBrands, user?.id],
+    queryKey: ['products', debounceSearchTerm, selectedBrands, onlyModifiedPrices, user?.id],
     queryFn: ({ pageParam = 1 }) => {
-      return apiService.fetchProducts(pageParam, debounceSearchTerm, selectedBrands, false, 20);
+      return apiService.fetchProducts(pageParam, debounceSearchTerm, selectedBrands, false, 20, '', false, onlyModifiedPrices);
     },
     getNextPageParam: (lastPage, allPages) => {
       const productsLoaded = allPages.reduce(
@@ -359,11 +360,12 @@ export default function PriceListPage() {
   const handleClearFilters = () => {
     setSearchTerm('');
     setSelectedBrands([]);
+    setOnlyModifiedPrices(false);
   };
 
   const handleGenerateExcel = () => excelMutation.mutate();
   const allProducts = data?.pages.flatMap((page) => page.products) || [];
-  const hasFilters = searchTerm.length > 0 || selectedBrands.length > 0;
+  const hasFilters = searchTerm.length > 0 || selectedBrands.length > 0 || onlyModifiedPrices;
 
   const getBrandButtonLabel = () => {
     if (isBrandsLoading) return 'Cargando marcas...';
@@ -452,6 +454,19 @@ export default function PriceListPage() {
           )}
         </div>
 
+        <div className="flex items-center space-x-2">
+          <input
+            id="modified-prices"
+            type="checkbox"
+            checked={onlyModifiedPrices}
+            onChange={(e) => setOnlyModifiedPrices(e.target.checked)}
+            className="h-5 w-5 rounded border-gray-300 text-espint-blue focus:ring-espint-blue cursor-pointer"
+          />
+          <label htmlFor="modified-prices" className="text-gray-700 font-medium cursor-pointer">
+            Precios Modificados
+          </label>
+        </div>
+
 
       </div>
 
@@ -492,9 +507,9 @@ export default function PriceListPage() {
               <div className="mb-2">
                 <h3 className="text-sm font-bold text-gray-900 leading-snug">
                   {product.name}
-                  {product.recentlyChanged && (
+                  {(product.recentlyChanged || product.isPriceModified) && (
                     <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-100 text-yellow-800">
-                      Modificado
+                      {product.isPriceModified ? 'Precio modificado' : 'Reciente'}
                     </span>
                   )}
                 </h3>

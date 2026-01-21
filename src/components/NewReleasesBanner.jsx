@@ -7,6 +7,7 @@ import apiService from '../api/apiService';
 const NewReleasesBanner = ({ products: propProducts }) => {
     const navigate = useNavigate();
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [isHovered, setIsHovered] = useState(false);
 
     const { data: fetchedProducts = [], isLoading } = useQuery({
         queryKey: ['new-releases-banner'],
@@ -18,14 +19,14 @@ const NewReleasesBanner = ({ products: propProducts }) => {
     const products = propProducts || fetchedProducts;
 
     useEffect(() => {
-        if (products.length <= 1) return;
+        if (products.length <= 1 || isHovered) return;
 
         const interval = setInterval(() => {
             setCurrentIndex((prevIndex) => (prevIndex + 1) % products.length);
         }, 5000); // Change every 5 seconds
 
         return () => clearInterval(interval);
-    }, [products.length]);
+    }, [products.length, isHovered]);
 
     const handleNext = (e) => {
         e.stopPropagation();
@@ -90,6 +91,8 @@ const NewReleasesBanner = ({ products: propProducts }) => {
             h-[400px] md:h-auto md:flex-grow min-h-[500px]
             relative overflow-hidden
         "
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
         >
             {/* Background Decor */}
             <div className="absolute top-0 left-0 w-full h-full bg-white opacity-5 pointer-events-none"></div>
@@ -159,6 +162,26 @@ const NewReleasesBanner = ({ products: propProducts }) => {
                         />
                     ))}
                 </div>
+            )}
+
+            {/* Navigation Arrows */}
+            {products.length > 1 && (
+                <>
+                    <button
+                        onClick={handlePrev}
+                        className={`absolute left-2 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 p-2 rounded-full backdrop-blur-sm z-30 transition-all duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
+                        aria-label="Previous"
+                    >
+                        <ChevronLeft className="w-5 h-5 text-white" />
+                    </button>
+                    <button
+                        onClick={handleNext}
+                        className={`absolute right-2 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 p-2 rounded-full backdrop-blur-sm z-30 transition-all duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
+                        aria-label="Next"
+                    >
+                        <ChevronRight className="w-5 h-5 text-white" />
+                    </button>
+                </>
             )}
         </div>
     );
