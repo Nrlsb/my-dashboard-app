@@ -71,7 +71,9 @@ const deleteTestUser = async (id, vendedorCode) => {
 const getTestUserByName = async (name) => {
   const query = `
     SELECT * FROM test_users 
-    WHERE name = $1 AND deleted_at IS NULL;
+    WHERE name = $1
+    ORDER BY created_at DESC
+    LIMIT 1;
   `;
   const result = await pool2.query(query, [name]);
   return result.rows[0];

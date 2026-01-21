@@ -6,6 +6,7 @@ const TestUserExpiredPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const vendor = location.state?.vendor;
+    const message = location.state?.message; // [NUEVO]
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -16,11 +17,11 @@ const TestUserExpiredPage = () => {
                     </div>
 
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                        Acceso Expirado
+                        Acceso Revocado
                     </h2>
 
                     <p className="text-gray-600 mb-6">
-                        Su cuenta de prueba ha expirado. Para obtener acceso total, por favor contacte a su vendedor.
+                        {message || "Su cuenta de prueba ha expirado. Para obtener acceso total, por favor contacte a su vendedor."}
                     </p>
 
                     {vendor ? (

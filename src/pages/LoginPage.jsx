@@ -18,9 +18,15 @@ const LoginPage = () => {
 
     try {
       const result = await login(email, password);
+
       if (!result.success) {
-        if (result.isExpired) {
-          navigate('/test-user-expired', { state: { vendor: result.vendor } });
+        if (result.isExpired === true || result.isExpired === 'true') {
+          navigate('/test-user-expired', {
+            state: {
+              vendor: result.vendor,
+              message: result.message // [NUEVO] Pasar mensaje personalizado
+            }
+          });
           return;
         }
         setError(

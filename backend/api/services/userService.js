@@ -41,13 +41,57 @@ const authenticateUser = async (email, password) => {
       const testUserRecord = await testUserModel.getTestUserByName(identifier);
 
       if (testUserRecord) {
-        // Calcular si el usuario ha expirado (1 semana = 7 días)
+        // [NUEVO] Verificación de usuario eliminado (soft-delete)
+        if (testUserRecord.deleted_at) {
+          if (testUserRecord.deletion_reason === 'EXPIRED') {
+            console.log('[AUTH] Test User encontrado pero marcado como EXPIRADO (Soft Delete).');
+            let vendorInfo = null;
+            if (testUserRecord.vendedor_code) {
+              const vendor = await vendedorModel.findVendedorByCodigo(testUserRecord.vendedor_code);
+              if (vendor) {
+                vendorInfo = {
+                  name: vendor.nombre,
+                  email: vendor.email,
+                  phone: vendor.telefono
+                };
+              }
+            }
+            return {
+              success: false,
+              isExpired: true,
+              message: 'El acceso ha expirado. Su cuenta de prueba ha caducado.',
+              vendor: vendorInfo
+            };
+          } else {
+            // Eliminado manualmente ("Baja por Vendedor")
+            console.log('[AUTH] Test User eliminado manualmente. Devolviendo error específico.');
+            let vendorInfo = null;
+            if (testUserRecord.vendedor_code) {
+              const vendor = await vendedorModel.findVendedorByCodigo(testUserRecord.vendedor_code);
+              if (vendor) {
+                vendorInfo = {
+                  name: vendor.nombre,
+                  email: vendor.email,
+                  phone: vendor.telefono
+                };
+              }
+            }
+            return {
+              success: false,
+              isExpired: true, // Reutilizamos isExpired para redirigir a la pantalla de bloqueo
+              message: 'Su acceso ha sido revocado por el vendedor.',
+              vendor: vendorInfo
+            };
+          }
+        }
+
+        // Calcular si el usuario ha expirado (1 semana = 7 días) - Lógica de respaldo si no se corrió el cron
         const ONE_WEEK_IN_MS = 7 * 24 * 60 * 60 * 1000;
         const createdAt = new Date(testUserRecord.created_at).getTime();
         const now = new Date().getTime();
 
         if (now - createdAt > ONE_WEEK_IN_MS) {
-          console.log('[AUTH] Test User expirado due to > 1 week.');
+          console.log('[AUTH] Test User expirado due to > 1 week (Check dinámico).');
 
           let vendorInfo = null;
           if (testUserRecord.vendedor_code) {
