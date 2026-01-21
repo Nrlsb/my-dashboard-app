@@ -272,20 +272,7 @@ export default function ProfilePage() {
             </div>
           )}
 
-          <div className="flex justify-end pt-4 border-t border-gray-200">
-            <button
-              type="submit"
-              className="inline-flex items-center justify-center px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
-              disabled={mutation.isPending}
-            >
-              {mutation.isPending ? (
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              ) : (
-                <Save className="w-5 h-5 mr-2" />
-              )}
-              {mutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
-            </button>
-          </div>
+
         </form>
       </div>
     </div>

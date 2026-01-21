@@ -37,6 +37,24 @@ async function generateOrderPDF(orderData) {
     try {
         const { user, newOrder, items } = orderData;
 
+        // Lógica de parseo de dirección para separar Domicilio, Localidad y Provincia
+        let rawAddress = user.a1_endereco || user.a1_dom || '';
+        let address = rawAddress;
+        let city = user.a1_mun || user.a1_loc || '';
+        let province = user.a1_est || user.a1_prov || '';
+
+        // Si faltan localidad o provincia y la dirección tiene comas, intentamos parsear
+        // Formato esperado: "Calle Número, LOCALIDAD, PROVINCIA" (ej: "Belgrano 2868, ESPERANZA, SF")
+        if ((!city || !province) && rawAddress.includes(',')) {
+            const parts = rawAddress.split(',').map(p => p.trim());
+            // Asumimos que si hay al menos 3 partes, las últimas 2 son Localidad y Provincia
+            if (parts.length >= 3) {
+                province = parts.pop(); // La última parte es la Provincia (ej: SF)
+                city = parts.pop();     // La penúltima es la Localidad (ej: ESPERANZA)
+                address = parts.join(', '); // El resto es el Domicilio
+            }
+        }
+
         // Adapt orderData to the invoiceData structure
         // CORRECCIÓN: Mapeo de campos basado en userModel.js (DB Postgres)
         const invoiceData = {
@@ -46,9 +64,9 @@ async function generateOrderPDF(orderData) {
             cliente: {
                 nombre: user.full_name,
                 // Soporte para nombres de campos de DB (a1_endereco) y legacy (a1_dom)
-                domicilio: user.a1_endereco || user.a1_dom || '',
-                localidad: user.a1_mun || user.a1_loc || '',
-                provincia: user.a1_est || user.a1_prov || '',
+                domicilio: address,
+                localidad: city,
+                provincia: province,
                 cuenta: user.a1_cod,
                 // Soporte para nombres de campos de DB (a1_cgc) y legacy (a1_cuit)
                 cuit: user.a1_cgc || user.a1_cuit || '',

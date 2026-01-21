@@ -116,16 +116,7 @@ const LoginPage = () => {
           </button>
         </form>
 
-        <div className="text-sm text-center text-gray-600">
-          ¿No tienes una cuenta?{' '}
-          <button
-            onClick={() => navigate('/register')}
-            className="font-medium text-[#D10074] hover:text-[#a0005a]"
-            disabled={isLoading}
-          >
-            Regístrate aquí
-          </button>
-        </div>
+
       </div>
     </div>
   );
