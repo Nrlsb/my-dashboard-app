@@ -398,7 +398,6 @@ const findProductById = async (productId, deniedGroups = []) => {
   try {
     let query = `
 SELECT
-SELECT
 id, b1_cod AS code, b1_desc AS description, 
 CASE
   WHEN b1_ts = '503' THEN da1_prcven * 1.21
@@ -470,7 +469,6 @@ const findProductByCode = async (productCode, deniedGroups = []) => {
 
   try {
     let query = `
-SELECT
 SELECT
 id, b1_cod AS code, b1_desc AS description, 
 CASE
@@ -596,7 +594,6 @@ const findProductsByGroup = async (
   let countQuery =
     'SELECT COUNT(*) FROM products WHERE b1_grupo = $1 AND da1_prcven > 0 AND b1_desc IS NOT NULL';
   let dataQuery = `
-SELECT
 SELECT
 id, b1_cod AS code, b1_desc AS description, 
 CASE

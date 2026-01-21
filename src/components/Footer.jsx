@@ -19,6 +19,7 @@ const Footer = () => {
                 key={brand.name}
                 to={`/products?brand=${encodeURIComponent(brand.value)}`}
                 className="bg-white w-20 h-20 rounded-full hover:bg-gray-200 transition-all duration-300 flex items-center justify-center group shadow-lg hover:shadow-xl hover:scale-105"
+                onClick={() => window.scrollTo(0, 0)}
               >
                 <img
                   src={brand.img}
