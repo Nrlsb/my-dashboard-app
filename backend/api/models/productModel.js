@@ -210,7 +210,13 @@ const findProducts = async ({
     'SELECT COUNT(*) FROM products WHERE da1_prcven > 0 AND b1_desc IS NOT NULL';
   let dataQuery = `
       SELECT
-        id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, sbm_desc AS brand, b1_grupo AS product_group, sbm_desc AS group_description,
+        id, b1_cod AS code, b1_desc AS description, 
+        CASE
+            WHEN b1_ts = '503' THEN da1_prcven * 1.21
+            WHEN b1_ts = '501' THEN da1_prcven * 1.105
+            ELSE da1_prcven
+        END AS price,
+        sbm_desc AS brand, b1_grupo AS product_group, sbm_desc AS group_description,
         z02_descri AS capacity_description, da1_moeda AS moneda, cotizacion,
         stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, sbz_desc AS indicator_description, 
         b1_um AS unit_type, b1_qe AS pack_quantity
@@ -315,7 +321,13 @@ const findAccessories = async (accessoryGroups) => {
   try {
     const query = `
       WITH RandomSample AS (
-          SELECT id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, b1_grupo AS product_group
+          SELECT id, b1_cod AS code, b1_desc AS description, 
+          CASE
+            WHEN b1_ts = '503' THEN da1_prcven * 1.21
+            WHEN b1_ts = '501' THEN da1_prcven * 1.105
+            ELSE da1_prcven
+          END AS price,
+          b1_grupo AS product_group
         FROM products
         WHERE b1_grupo = ANY($1) 
           AND da1_prcven > 0 
@@ -370,7 +382,14 @@ const findProductById = async (productId, deniedGroups = []) => {
   try {
     let query = `
 SELECT
-id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, sbm_desc AS brand,
+SELECT
+id, b1_cod AS code, b1_desc AS description, 
+CASE
+  WHEN b1_ts = '503' THEN da1_prcven * 1.21
+  WHEN b1_ts = '501' THEN da1_prcven * 1.105
+  ELSE da1_prcven
+END AS price,
+sbm_desc AS brand,
   z02_descri AS capacity_description, b1_grupo AS product_group,
   stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, da1_moeda AS moneda,
   sbz_desc AS indicator_description, b1_qe AS pack_quantity
@@ -436,7 +455,14 @@ const findProductByCode = async (productCode, deniedGroups = []) => {
   try {
     let query = `
 SELECT
-id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, sbm_desc AS brand,
+SELECT
+id, b1_cod AS code, b1_desc AS description, 
+CASE
+  WHEN b1_ts = '503' THEN da1_prcven * 1.21
+  WHEN b1_ts = '501' THEN da1_prcven * 1.105
+  ELSE da1_prcven
+END AS price,
+sbm_desc AS brand,
   z02_descri AS capacity_description, b1_grupo AS product_group,
   stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, da1_moeda AS moneda,
   sbz_desc AS indicator_description, b1_qe AS pack_quantity
@@ -497,7 +523,14 @@ const findOffers = async (offerData, deniedGroups = []) => {
 
     let query = `
 SELECT
-id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, sbm_desc AS brand,
+SELECT
+id, b1_cod AS code, b1_desc AS description, 
+CASE
+  WHEN b1_ts = '503' THEN da1_prcven * 1.21
+  WHEN b1_ts = '501' THEN da1_prcven * 1.105
+  ELSE da1_prcven
+END AS price,
+sbm_desc AS brand,
   z02_descri AS capacity_description, da1_moeda AS moneda, cotizacion, b1_grupo AS product_group,
   stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad,
   sbz_desc AS indicator_description, b1_qe AS pack_quantity
@@ -549,7 +582,14 @@ const findProductsByGroup = async (
     'SELECT COUNT(*) FROM products WHERE b1_grupo = $1 AND da1_prcven > 0 AND b1_desc IS NOT NULL';
   let dataQuery = `
 SELECT
-id, b1_cod AS code, b1_desc AS description, da1_prcven AS price, b1_grupo AS brand,
+SELECT
+id, b1_cod AS code, b1_desc AS description, 
+CASE
+  WHEN b1_ts = '503' THEN da1_prcven * 1.21
+  WHEN b1_ts = '501' THEN da1_prcven * 1.105
+  ELSE da1_prcven
+END AS price,
+b1_grupo AS brand,
   z02_descri AS capacity_description, da1_moeda AS moneda, cotizacion, b1_grupo AS product_group,
   stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad,
   sbz_desc AS indicator_description, b1_qe AS pack_quantity
@@ -715,7 +755,13 @@ const findCarouselAccessories = async () => {
     if (productCodes.length === 0) return [];
 
     const productsQuery = `
-      SELECT id, b1_cod as code, b1_desc as description, da1_prcven as price, b1_grupo as brand, z02_descri as capacity_description, b1_grupo as product_group, stock_disp as stock_disponible, stock_prev as stock_de_seguridad
+      SELECT id, b1_cod as code, b1_desc as description, 
+      CASE
+        WHEN b1_ts = '503' THEN da1_prcven * 1.21
+        WHEN b1_ts = '501' THEN da1_prcven * 1.105
+        ELSE da1_prcven
+      END as price,
+      b1_grupo as brand, z02_descri as capacity_description, b1_grupo as product_group, stock_disp as stock_disponible, stock_prev as stock_de_seguridad
       FROM products
       WHERE b1_cod = ANY($1:: varchar[])
   `;
@@ -851,7 +897,13 @@ const findCustomCollectionProducts = async (collectionId) => {
     if (productCodes.length === 0) return [];
 
     const productsQuery = `
-      SELECT id, b1_cod as code, b1_desc as description, da1_prcven as price, sbm_desc as brand, z02_descri as capacity_description, b1_grupo as product_group, stock_disp as stock_disponible, stock_prev as stock_de_seguridad
+      SELECT id, b1_cod as code, b1_desc as description, 
+      CASE
+        WHEN b1_ts = '503' THEN da1_prcven * 1.21
+        WHEN b1_ts = '501' THEN da1_prcven * 1.105
+        ELSE da1_prcven
+      END as price,
+      sbm_desc as brand, z02_descri as capacity_description, b1_grupo as product_group, stock_disp as stock_disponible, stock_prev as stock_de_seguridad
       FROM products
       WHERE b1_cod = ANY($1:: varchar[])
   `;
@@ -1001,9 +1053,14 @@ const getGlobalDeniedProductsWithDetails = async () => {
 
     // 2. Get details from DB1
     const productsQuery = `
-      SELECT id, code, description, price 
+      SELECT id, b1_cod AS code, b1_desc AS description, 
+      CASE
+        WHEN b1_ts = '503' THEN da1_prcven * 1.21
+        WHEN b1_ts = '501' THEN da1_prcven * 1.105
+        ELSE da1_prcven
+      END AS price
       FROM products 
-      WHERE code = ANY($1:: varchar[])
+      WHERE b1_cod = ANY($1:: varchar[])
   `;
     const productsResult = await pool.query(productsQuery, [codes]);
 
