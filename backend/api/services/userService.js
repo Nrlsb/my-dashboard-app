@@ -138,6 +138,15 @@ const authenticateUser = async (email, password) => {
       JSON.stringify(user, null, 2)
     );
 
+    // [NUEVO] Verificar si el usuario está activo (solo para usuarios que tienen este flag, principalmente clientes)
+    if (user.is_active === false) {
+      console.log(`[AUTH] Usuario ${user.email || identifier} está desactivado por inactividad.`);
+      return {
+        success: false,
+        message: 'Su cuenta ha sido desactivada por inactividad (más de un mes sin realizar pedidos). Contacte a soporte.'
+      };
+    }
+
     // Verificación de credenciales (Hash) para Clientes y Vendedores
     // 1. Intentar con la contraseña temporal
     if (user.temp_password_hash) {

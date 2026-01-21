@@ -465,6 +465,54 @@ const getVendedoresByCodes = async (codes) => {
   return result.rows;
 };
 
+/**
+ * Desactiva (is_active = FALSE) a los clientes que no hayan realizado pedidos en el último mes.
+ * O que se hayan registrado hace más de un mes y nunca hayan hecho un pedido.
+ */
+const deactivateInactiveClients = async () => {
+  try {
+    console.log('[userModel] deactivateInactiveClients -> Iniciando verificación de inactividad...');
+
+    // Consulta para identificar y actualizar usuarios inactivos
+    const query = `
+      UPDATE users
+      SET is_active = FALSE
+      WHERE id IN (
+        SELECT u.id
+        FROM users u
+        LEFT JOIN orders o ON u.id = o.user_id
+        WHERE u.is_active = TRUE
+        AND u.is_admin = FALSE
+        AND u.vendedor_codigo IS NULL -- Excluir vendedores si están en esta tabla
+        AND u.id NOT IN (SELECT user_id FROM user_roles) -- Excluir usuarios con roles asignados (admin, marketing, etc.)
+        GROUP BY u.id
+
+        HAVING
+          -- Tiene pedidos, pero el último es antiguo (> 1 mes)
+          (MAX(o.created_at) < NOW() - INTERVAL '1 month')
+          OR
+          -- No tiene pedidos, y el usuario fue creado hace tiempo (> 1 mes)
+          (MAX(o.created_at) IS NULL AND u.created_at < NOW() - INTERVAL '1 month')
+      )
+      RETURNING id, full_name, email;
+    `;
+
+    const result = await pool2.query(query);
+
+    if (result.rows.length > 0) {
+      console.log(`[userModel] deactivateInactiveClients -> Desactivados ${result.rows.length} usuarios.`);
+      result.rows.forEach(u => console.log(` - Usuario desactivado: ID ${u.id} | ${u.full_name} (${u.email})`));
+    } else {
+      console.log('[userModel] deactivateInactiveClients -> No se encontraron usuarios inactivos para desactivar.');
+    }
+
+    return result.rowCount;
+  } catch (error) {
+    console.error('[userModel] Error desactivando usuarios inactivos:', error);
+    return 0;
+  }
+};
+
 module.exports = {
   findUserByEmail,
   findUserById,
@@ -478,4 +526,6 @@ module.exports = {
   getUserRoleFromDB2,
   findUserByCode,
   getVendedoresByCodes,
+  deactivateInactiveClients,
+
 };

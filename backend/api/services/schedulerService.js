@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const { runFullSync, syncProducts } = require('./syncService');
 const testUserModel = require('../models/testUserModel');
+const userModel = require('../models/userModel');
 
 const initScheduler = () => {
     console.log('Initializing Scheduler...');
@@ -38,6 +39,17 @@ const initScheduler = () => {
             console.log(`[Scheduler] Expired ${count} test users.`);
         } catch (error) {
             console.error('[Scheduler] Error during test user expiration check:', error);
+        }
+    });
+
+    // Schedule inactive client deactivation check every day at 01:00 AM
+    cron.schedule('0 1 * * *', async () => {
+        console.log('[Scheduler] Running scheduled inactive client deactivation check...');
+        try {
+            const count = await userModel.deactivateInactiveClients();
+            console.log(`[Scheduler] Deactivated ${count} inactive clients.`);
+        } catch (error) {
+            console.error('[Scheduler] Error during inactive client deactivation check:', error);
         }
     });
 
