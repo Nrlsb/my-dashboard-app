@@ -70,12 +70,10 @@ const getUserFilters = async (userOrId) => {
                 const roleData = await userModel.getUserRoleFromDB2(userId);
                 role = roleData ? roleData.role : 'cliente';
 
-                // Si no es marketing, es usuario restringido (necesita verificación de imagen)
-                if (role !== 'marketing') {
-                    isRestrictedUser = true;
-                    // Obtener códigos de productos con imágenes para filtrar
-                    allowedProductCodes = await productModel.getAllProductImageCodes();
-                }
+                // [MODIFIED] Regular users are no longer restricted by default.
+                // We still fetch image codes to allow optional "Image Only" filtering if requested.
+                allowedProductCodes = await productModel.getAllProductImageCodes();
+                isRestrictedUser = false;
             }
         }
     } else {

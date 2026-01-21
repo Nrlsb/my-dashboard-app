@@ -280,7 +280,7 @@ const findProducts = async ({
     const termConditions = searchTerms.map(() => {
       const currentParamIndex = paramIndex;
       paramIndex++;
-      return `(b1_desc ILIKE $${currentParamIndex} OR b1_cod ILIKE $${currentParamIndex})`;
+      return `(b1_desc ILIKE $${currentParamIndex} OR b1_cod ILIKE $${currentParamIndex} OR sbm_desc ILIKE $${currentParamIndex})`;
     });
 
     const finalSearchQuery = ` AND (${termConditions.join(' AND ')}) `;

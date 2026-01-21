@@ -65,7 +65,7 @@ const uploadAndAnalyzeImage = async (req, res) => {
                         const andConditions = [];
 
                         userKws.forEach(kw => {
-                            andConditions.push(`(description ILIKE $${paramCount} OR code ILIKE $${paramCount})`);
+                            andConditions.push(`(b1_desc ILIKE $${paramCount} OR b1_cod ILIKE $${paramCount})`);
                             queryParams.push(`%${kw}%`);
                             paramCount++;
                         });
@@ -80,14 +80,14 @@ const uploadAndAnalyzeImage = async (req, res) => {
 
                         // 1. If AI found a code, try to search by code FIRST (High Precision)
                         if (aiResult && aiResult.code) {
-                            queryConditions.push(`code ILIKE $${paramCount}`);
+                            queryConditions.push(`b1_cod ILIKE $${paramCount}`);
                             queryParams.push(`%${aiResult.code}%`);
                             paramCount++;
                         }
                         // 2. If no code, but AI found brand/name, try strict description match
                         else if (aiResult && aiResult.brand && aiResult.name) {
                             // Try to find products that have BOTH brand and name parts
-                            queryConditions.push(`(description ILIKE $${paramCount} AND description ILIKE $${paramCount + 1})`);
+                            queryConditions.push(`(b1_desc ILIKE $${paramCount} AND b1_desc ILIKE $${paramCount + 1})`);
                             queryParams.push(`%${aiResult.brand}%`);
                             queryParams.push(`%${aiResult.name.split(' ')[0]}%`); // First word of name
                             paramCount += 2;
@@ -115,7 +115,7 @@ const uploadAndAnalyzeImage = async (req, res) => {
 
                             if (searchTerms.length > 0) {
                                 searchTerms.slice(0, 6).forEach(kw => {
-                                    queryConditions.push(`(description ILIKE $${paramCount} OR code ILIKE $${paramCount})`);
+                                    queryConditions.push(`(b1_desc ILIKE $${paramCount} OR b1_cod ILIKE $${paramCount})`);
                                     queryParams.push(`%${kw}%`);
                                     paramCount++;
                                 });
@@ -129,7 +129,7 @@ const uploadAndAnalyzeImage = async (req, res) => {
                     if (ignoreWords && ignoreWords.trim().length > 0) {
                         const ignores = ignoreWords.split(/[\s,]+/).map(w => w.toLowerCase().trim()).filter(w => w.length > 0);
                         ignores.forEach(ignoreKw => {
-                            ignoreConditions.push(`description NOT ILIKE $${paramCount}`);
+                            ignoreConditions.push(`b1_desc NOT ILIKE $${paramCount}`);
                             queryParams.push(`%${ignoreKw}%`);
                             paramCount++;
                         });
@@ -139,7 +139,7 @@ const uploadAndAnalyzeImage = async (req, res) => {
                     // If user provided a brand, we enforce it as a hard requirement using the brand column
                     let brandCondition = "";
                     if (brand && brand.trim().length > 0) {
-                        brandCondition = `AND brand = $${paramCount}`;
+                        brandCondition = `AND sbm_desc = $${paramCount}`;
                         queryParams.push(brand.trim());
                         paramCount++;
                     }
@@ -155,12 +155,12 @@ const uploadAndAnalyzeImage = async (req, res) => {
                         }
 
                         const sql = `
-                            SELECT id, code, description, price, stock_disponible as stock 
+                            SELECT id, b1_cod as code, b1_desc as description, da1_prcven as price, stock_disp as stock 
                             FROM products 
                             WHERE ${finalWhereClause}
                             ${brandCondition}
-                            AND price > 0 
-                            AND description IS NOT NULL
+                            AND da1_prcven > 0 
+                            AND b1_desc IS NOT NULL
                             LIMIT 250
                         `;
 
