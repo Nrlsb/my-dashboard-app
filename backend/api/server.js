@@ -57,7 +57,8 @@ app.use((req, res, next) => {
 // Excluir endpoints de SSE para evitar buffering
 app.use(compression({
   filter: (req, res) => {
-    if (req.path.includes('/api/admin/sync-events')) {
+    if (req.originalUrl.includes('/api/admin/sync-events')) {
+      // console.log('Disabling compression for SSE endpoint: ' + req.originalUrl);
       return false;
     }
     // fallback to standard filter function
@@ -74,7 +75,7 @@ const limiter = rateLimit({
   legacyHeaders: false, // Deshabilita headers `X-RateLimit-*`
   message: 'Demasiadas peticiones desde esta IP, por favor intente de nuevo en 15 minutos.',
   // Skip preflight requests (OPTIONS)
-  skip: (req) => req.method === 'OPTIONS' || req.path.includes('/api/admin/sync-events'),
+  skip: (req) => req.method === 'OPTIONS' || req.originalUrl.includes('/api/admin/sync-events'),
 });
 
 // Aplicar limiter global
