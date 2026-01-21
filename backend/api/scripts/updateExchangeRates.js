@@ -1,4 +1,4 @@
-const { getExchangeRates } = require('../utils/exchangeRateService');
+const { updateStoredExchangeRates } = require('../utils/exchangeRateService');
 
 /**
  * Script para actualizar y mostrar las cotizaciones del dólar.
@@ -6,7 +6,7 @@ const { getExchangeRates } = require('../utils/exchangeRateService');
  */
 const runUpdate = async () => {
   try {
-    const rates = await getExchangeRates();
+    const rates = await updateStoredExchangeRates();
     console.log('Cotizaciones del Dólar BNA actualizadas:');
     console.log(rates);
   } catch (error) {

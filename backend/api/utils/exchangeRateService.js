@@ -5,8 +5,8 @@ const { redisClient, isRedisReady } = require('../redisClient');
 // URL ÚNICA de BNA
 const URL_BNA = 'https://www.bna.com.ar/Personas';
 
-// Duración del caché: 30 minutos en segundos (Redis usa segundos)
-const CACHE_DURATION_SECONDS = 30 * 60;
+// Duración del caché: 24 horas (para cubrir los intervalos estáticos)
+const CACHE_DURATION_SECONDS = 24 * 60 * 60;
 
 // --- Funciones Auxiliares ---
 
@@ -37,32 +37,14 @@ const parsearFormatoDivisa = (valor) => {
 };
 
 /**
- * Obtiene las cotizaciones del dólar (billete y divisa) del BNA.
- * Utiliza caché Redis para evitar peticiones excesivas.
- * @returns {Promise<Object>} Objeto con las cotizaciones de venta del dólar.
+ * Fuerza la actualización de las cotizaciones desde el BNA y actualiza el caché.
+ * @returns {Promise<Object>} Nuevas cotizaciones.
  */
-const getExchangeRates = async () => {
+const updateStoredExchangeRates = async () => {
   const cacheKey = 'exchange_rates';
-
-  // 1. Intentar obtener del caché Redis
-  if (isRedisReady()) {
-    try {
-      const cachedData = await redisClient.get(cacheKey);
-      if (cachedData) {
-        // console.log('Sirviendo cotizaciones desde el caché Redis...');
-        return JSON.parse(cachedData);
-      }
-    } catch (err) {
-      console.error('Redis error in getExchangeRates (get):', err);
-    }
-  }
-
-  console.log(
-    'Caché de cotizaciones expirado o vacío. Obteniendo nuevos datos del BNA...'
-  );
+  console.log('Iniciando actualización forzada de cotizaciones del dólar (BNA)...');
 
   try {
-    // 2. Si el caché no es válido o falló Redis, buscar los datos
     const { data: html } = await axios.get(URL_BNA, {
       timeout: 5000,
       headers: {
@@ -70,8 +52,6 @@ const getExchangeRates = async () => {
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       },
     });
-
-    // console.log('[DEBUG-BNA] HTML recibido, longitud:', html.length);
 
     const $ = cheerio.load(html);
 
@@ -85,39 +65,55 @@ const getExchangeRates = async () => {
     const filaDolarDivisa = tablaDivisas.find('tbody tr').first();
     const divisaVenta = limpiarTexto(filaDolarDivisa.find('td').eq(2).text());
 
-    // console.log(`[DEBUG-BNA] Extracted RAW: Billete=${billeteVenta}, Divisa=${divisaVenta}`);
-
-    // 3. Crear la nueva respuesta simplificada
     const nuevaRespuesta = {
       status: 'ok',
       fecha_actualizacion: new Date().toISOString(),
       banco: 'Banco de la Nación Argentina',
-      // Aplicamos el parser correcto a cada valor
       venta_billete: parsearFormatoBillete(billeteVenta),
       venta_divisa: parsearFormatoDivisa(divisaVenta),
     };
 
-    // console.log(`[DEBUG-BNA] Parsed: Billete=${nuevaRespuesta.venta_billete}, Divisa=${nuevaRespuesta.venta_divisa}`);
-
-    // 4. Guardar la nueva respuesta en el caché Redis
     if (isRedisReady()) {
       try {
         await redisClient.set(cacheKey, JSON.stringify(nuevaRespuesta), { EX: CACHE_DURATION_SECONDS });
+        console.log('Cotizaciones actualizadas en Redis correctamente.');
       } catch (err) {
-        console.error('Redis error in getExchangeRates (set):', err);
+        console.error('Redis error in updateStoredExchangeRates (set):', err);
       }
     }
 
     return nuevaRespuesta;
   } catch (error) {
-    console.error('Error al obtener cotizaciones:', error.message);
-
-    // Intentar servir del caché VENCIDO si existe en variable local (fallback extremo)
-    // O simplemente lanzar error. En este caso lanzamos error para que el consumidor maneje el fallback.
+    console.error('Error al obtener cotizaciones del BNA:', error.message);
     throw new Error('No se pudo obtener la cotización del BNA');
   }
 };
 
+/**
+ * Obtiene las cotizaciones del dólar.
+ * Intenta devolver desde caché. Si no existe, fuerza una actualización.
+ * @returns {Promise<Object>}
+ */
+const getExchangeRates = async () => {
+  const cacheKey = 'exchange_rates';
+
+  // 1. Intentar obtener del caché Redis
+  if (isRedisReady()) {
+    try {
+      const cachedData = await redisClient.get(cacheKey);
+      if (cachedData) {
+        return JSON.parse(cachedData);
+      }
+    } catch (err) {
+      console.error('Redis error in getExchangeRates (get):', err);
+    }
+  }
+
+  console.log('Caché de cotizaciones vacío. Solicitando actualización...');
+  return updateStoredExchangeRates();
+};
+
 module.exports = {
   getExchangeRates,
+  updateStoredExchangeRates
 };

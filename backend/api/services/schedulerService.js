@@ -1,10 +1,36 @@
 const cron = require('node-cron');
 const { runFullSync, syncProducts } = require('./syncService');
+const { updateStoredExchangeRates } = require('../utils/exchangeRateService');
 const testUserModel = require('../models/testUserModel');
 const userModel = require('../models/userModel');
 
 const initScheduler = () => {
     console.log('Initializing Scheduler...');
+
+    // 0. Exchange Rates Schedules (08:00 and 12:30 Argentina Time)
+    const timezone = "America/Argentina/Buenos_Aires";
+
+    // 08:00 AM
+    cron.schedule('0 8 * * *', async () => {
+        console.log('[Scheduler] Running scheduled Dollar Rate Update (08:00)...');
+        try {
+            await updateStoredExchangeRates();
+            console.log('[Scheduler] Dollar Rate Update (08:00) completed.');
+        } catch (error) {
+            console.error('[Scheduler] Error updating dollar rate:', error);
+        }
+    }, { timezone });
+
+    // 12:30 PM
+    cron.schedule('30 12 * * *', async () => {
+        console.log('[Scheduler] Running scheduled Dollar Rate Update (12:30)...');
+        try {
+            await updateStoredExchangeRates();
+            console.log('[Scheduler] Dollar Rate Update (12:30) completed.');
+        } catch (error) {
+            console.error('[Scheduler] Error updating dollar rate:', error);
+        }
+    }, { timezone });
 
     // 1. Hourly Sync: Products (Stock) & Prices
     // '0 * * * *' = Every hour
@@ -53,7 +79,7 @@ const initScheduler = () => {
         }
     });
 
-    console.log('Scheduler initialized. Price sync set to run every hour.');
+    console.log('Scheduler initialized with Argentina Time jobs (Dollar: 08:00, 12:30).');
 };
 
 module.exports = {
