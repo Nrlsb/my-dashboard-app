@@ -249,9 +249,9 @@ const findProducts = async ({
     WHERE da1_prcven > 0 AND b1_desc IS NOT NULL
   `;
 
-  // New Release Candidate Filter (30 days logic)
+  // New Release Candidate Filter (30 days logic) -> Updated to 65 days (User calc approx 2 months + buffer)
   if (onlyNewReleasesCandidates) {
-    const dateFilter = ` AND (inclusion_date >= NOW() - INTERVAL '60 days' OR modification_date >= NOW() - INTERVAL '60 days') `;
+    const dateFilter = ` AND (inclusion_date >= NOW() - INTERVAL '65 days' OR modification_date >= NOW() - INTERVAL '65 days') `;
     countQuery += dateFilter;
     dataQuery += dateFilter;
   }

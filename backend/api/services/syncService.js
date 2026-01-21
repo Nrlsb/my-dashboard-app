@@ -85,9 +85,26 @@ const syncProducts = async (emitCompletion = true) => {
 
                 // Parse Protheus date format "dd/mm/yyyy" or "  /  /  " to ISO or null
                 // Parse Protheus date format "dd/mm/yyyy" or "dd/mm/yy" or "  /  /  " to ISO or null
+                // Also handles "yyyy-mm-dd" and "yyyymmdd"
                 const parseProtheusDate = (dateStr) => {
-                    if (!dateStr || dateStr.trim() === '' || dateStr.includes('/  /')) return null;
-                    const parts = dateStr.trim().split('/');
+                    if (!dateStr || typeof dateStr !== 'string' || dateStr.trim() === '' || dateStr.includes('/  /')) return null;
+
+                    const trimmed = dateStr.trim();
+
+                    // Handle yyyymmdd (8 digits)
+                    if (/^\d{8}$/.test(trimmed)) {
+                        const year = trimmed.substring(0, 4);
+                        const month = trimmed.substring(4, 6);
+                        const day = trimmed.substring(6, 8);
+                        return `${year}-${month}-${day}`;
+                    }
+
+                    // Handle yyyy-mm-dd
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+                        return trimmed;
+                    }
+
+                    const parts = trimmed.split('/');
                     if (parts.length === 3) {
                         let year = parts[2];
                         if (year.length === 2) {
