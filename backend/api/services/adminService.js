@@ -561,7 +561,33 @@ module.exports = {
 
   updateVendorClientsGroupPermissions: async (vendedorCodigo, groups) => {
     try {
-      // 1. Get all clients for this vendor
+      // 0. Update persistent vendor rules in DB2
+      const client = await pool2.connect();
+      try {
+        await client.query('BEGIN');
+        // Delete existing rules for this vendor
+        await client.query(
+          'DELETE FROM vendor_product_group_permissions WHERE vendedor_code = $1',
+          [vendedorCodigo]
+        );
+        // Insert new rules
+        if (groups && groups.length > 0) {
+          const insertQuery =
+            'INSERT INTO vendor_product_group_permissions (vendedor_code, product_group) VALUES ($1, $2)';
+          for (const group of groups) {
+            await client.query(insertQuery, [vendedorCodigo, group]);
+          }
+        }
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Error updating persistent vendor permissions:', err);
+        throw err;
+      } finally {
+        client.release();
+      }
+
+      // 1. Get all clients for this vendor using DB1
       // Note: We only care about users in our local DB as restrictions apply to them
       const result = await pool.query(
         'SELECT id FROM users WHERE vendedor_codigo = $1',

@@ -438,8 +438,44 @@ const syncClients = async () => {
             const total = clients.length;
 
             for (const c of clients) {
-                const existingRes = await client.query('SELECT id FROM users WHERE a1_cod = $1', [c.a1_cod]);
+                const existingRes = await client.query('SELECT id, vendedor_codigo FROM users WHERE a1_cod = $1', [c.a1_cod]);
+                const newVendorCode = c.a1_vend ? c.a1_vend.trim() : null;
+
+                // Helper to apply permissions
+                const applyVendorPermissions = async (userId, vendorCode) => {
+                    if (!vendorCode) return;
+                    const vendorPerms = await client.query(
+                        'SELECT product_group FROM vendor_product_group_permissions WHERE vendedor_code = $1',
+                        [vendorCode]
+                    );
+
+                    if (vendorPerms.rows.length > 0) {
+                        const values = [];
+                        let placeholderIndex = 1;
+                        vendorPerms.rows.forEach(row => {
+                            values.push(userId, row.product_group);
+                        });
+
+                        // Construct bulk insert ( ($1, $2), ($3, $4) ... )
+                        const placeholders = [];
+                        for (let i = 0; i < vendorPerms.rows.length; i++) {
+                            placeholders.push(`($${placeholderIndex++}, $${placeholderIndex++})`);
+                        }
+
+                        await client.query(
+                            `INSERT INTO user_product_group_permissions (user_id, product_group) 
+                              VALUES ${placeholders.join(', ')} 
+                              ON CONFLICT (user_id, product_group) DO NOTHING`,
+                            values
+                        );
+                        logger.info(`Applied ${vendorPerms.rows.length} vendor permissions to user ${userId}`);
+                    }
+                };
+
                 if (existingRes.rows.length > 0) {
+                    const existingUser = existingRes.rows[0];
+                    const oldVendorCode = existingUser.vendedor_codigo ? existingUser.vendedor_codigo.trim() : null;
+
                     await client.query(
                         `UPDATE users SET 
                     full_name = $1, email = $2, vendedor_codigo = $3, 
@@ -448,30 +484,44 @@ const syncClients = async () => {
                         [
                             (c.a1_nome || '').trim(),
                             (c.a1_email || '').trim(),
-                            c.a1_vend ? c.a1_vend.trim() : null,
+                            newVendorCode,
                             (c.a1_cgc || '').trim(),
                             (c.a1_xtel1 || '').trim(),
                             `${(c.a1_end || '').trim()}, ${(c.a1_mun || '').trim()}, ${(c.a1_est || '').trim()}`,
                             c.a1_cod.trim()
                         ]
                     );
+
+                    // If vendor changed, apply new vendor's permissions (Additive only to avoid data loss?)
+                    // Requirement: "Ensure... updated clients also inherit".
+                    // If I assume "inherit" means "GET defaults", then yes.
+                    if (newVendorCode && newVendorCode !== oldVendorCode) {
+                        logger.info(`Vendor changed for user ${existingUser.id} (${oldVendorCode} -> ${newVendorCode}). Applying new permissions.`);
+                        await applyVendorPermissions(existingUser.id, newVendorCode);
+                    }
+
                 } else {
-                    await client.query(
+                    const insertRes = await client.query(
                         `INSERT INTO users (
                     a1_cod, a1_loja, full_name, email, 
                     vendedor_codigo, a1_cgc, a1_tel, a1_endereco, last_synced_at, is_admin
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), false)`,
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), false) RETURNING id`,
                         [
                             c.a1_cod.trim(),
                             c.a1_loja,
                             (c.a1_nome || '').trim(),
                             (c.a1_email || '').trim(),
-                            c.a1_vend ? c.a1_vend.trim() : null,
+                            newVendorCode,
                             (c.a1_cgc || '').trim(),
                             (c.a1_xtel1 || '').trim(),
                             `${(c.a1_end || '').trim()}, ${(c.a1_mun || '').trim()}, ${(c.a1_est || '').trim()}`
                         ]
                     );
+
+                    const newUserId = insertRes.rows[0].id;
+                    if (newVendorCode) {
+                        await applyVendorPermissions(newUserId, newVendorCode);
+                    }
                 }
 
                 processedCount++;

@@ -29,7 +29,7 @@ exports.getProductsController = catchAsync(async (req, res) => {
         search,
         brand,
         moneda,
-        userId: req.userId,
+        user: req.user, // [CHANGED] Pass full user object
         bypassCache: shouldBypass,
         hasImage,
         isExport: shouldExport,
@@ -50,20 +50,20 @@ exports.getProductsByGroupController = catchAsync(async (req, res) => {
         groupCode,
         page,
         limit,
-        req.userId
+        req.user // [CHANGED]
     );
     res.json(data);
 });
 
 exports.getBrandsController = catchAsync(async (req, res) => {
     // console.log('GET /api/brands -> Consultando lista de marcas...');
-    const brands = await productService.fetchProtheusBrands(req.userId);
+    const brands = await productService.fetchProtheusBrands(req.user); // [CHANGED]
     res.json(brands);
 });
 
 exports.getOffersController = catchAsync(async (req, res) => {
     logger.info('GET /api/offers -> Consultando ofertas en DB...');
-    const offers = await productService.fetchProtheusOffers(req.userId);
+    const offers = await productService.fetchProtheusOffers(req.user); // [CHANGED]
     res.set('Cache-Control', 'no-store');
     res.json(offers);
 });
@@ -75,7 +75,7 @@ exports.getProductsByIdController = catchAsync(async (req, res) => {
     );
     const product = await productService.fetchProductDetails(
         productId,
-        req.userId
+        req.user // [CHANGED]
     );
     if (product) {
         res.json(product);
@@ -91,7 +91,7 @@ exports.getProductsByCodeController = catchAsync(async (req, res) => {
     );
     const product = await productService.fetchProductDetailsByCode(
         productCode,
-        req.userId
+        req.user // [CHANGED]
     );
     if (product) {
         res.json(product);
@@ -106,14 +106,14 @@ exports.getProductsOrdersController = catchAsync(async (req, res) => {
 });
 
 exports.getAccessories = catchAsync(async (req, res) => {
-    const userId = req.userId;
-    const accessories = await productService.getAccessories(userId);
+    const user = req.user; // [CHANGED]
+    const accessories = await productService.getAccessories(user);
     res.json(accessories);
 });
 
 exports.getProductGroupsDetails = catchAsync(async (req, res) => {
-    const userId = req.userId;
-    const groupDetails = await productService.getProductGroupsDetails(userId);
+    const user = req.user; // [CHANGED]
+    const groupDetails = await productService.getProductGroupsDetails(user);
     res.json(groupDetails);
 });
 
@@ -135,7 +135,7 @@ exports.updateProductOfferDetails = catchAsync(async (req, res) => {
 });
 
 exports.getCustomCollectionProducts = catchAsync(async (req, res) => {
-    const products = await productService.getCustomCollectionProducts(req.params.collectionId, req.userId);
+    const products = await productService.getCustomCollectionProducts(req.params.collectionId, req.user); // [CHANGED]
     res.json(products);
 });
 
@@ -145,7 +145,7 @@ exports.generateAiDescription = catchAsync(async (req, res) => {
 
     // If we want to be secure, we should fetch from DB using ID.
     // Let's fetch from DB to be safe and consistent.
-    const product = await productService.fetchProductDetails(id, req.userId);
+    const product = await productService.fetchProductDetails(id, req.user); // [CHANGED]
     if (!product) {
         return res.status(404).json({ message: 'Producto no encontrado.' });
     }
@@ -180,7 +180,7 @@ exports.getBatchGenerationProgress = catchAsync(async (req, res) => {
 
 exports.getNewReleasesController = catchAsync(async (req, res) => {
     // console.log('GET /api/new-releases -> Consultando nuevos lanzamientos...');
-    const releases = await productService.fetchNewReleases(req.userId);
+    const releases = await productService.fetchNewReleases(req.user); // [CHANGED]
     res.set('Cache-Control', 'no-store');
     res.json(releases);
 });

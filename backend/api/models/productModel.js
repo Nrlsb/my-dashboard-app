@@ -138,6 +138,25 @@ const getDeniedProductGroups = async (userId) => {
   }
 };
 
+const getVendorDeniedProductGroups = async (vendedorCode) => {
+  try {
+    const query = `
+      SELECT product_group
+      FROM vendor_product_group_permissions
+      WHERE vendedor_code = $1
+    `;
+    const result = await pool2.query(query, [vendedorCode]);
+    return result.rows.map(row => row.product_group);
+  } catch (error) {
+    console.error(`Error in getVendorDeniedProductGroups for vendor ${vendedorCode}:`, error);
+    if (error.code === '42P01') {
+      console.warn('[WARNING] Table vendor_product_group_permissions does not exist.');
+      return [];
+    }
+    throw error;
+  }
+};
+
 const invalidatePermissionsCache = async (userId) => {
   if (!isRedisReady()) return;
 
@@ -1250,4 +1269,5 @@ module.exports = {
   getNewReleasesProductCodes,
   toggleProductNewReleaseStatus,
   updateProductNewReleaseDetails,
+  getVendorDeniedProductGroups, // [NEW]
 };

@@ -6,7 +6,7 @@ const { formatCurrency } = require('./helpers');
 /**
  * Obtiene los filtros y permisos de productos para un usuario dado.
  * Centraliza la lógica de usuarios admin, restringidos y de marketing.
- * @param {number|null} userId 
+ * @param {object|number|null} userOrId 
  * @returns {Promise<{
  *   isUserAdmin: boolean, 
  *   deniedGroups: string[], 
@@ -15,35 +15,67 @@ const { formatCurrency } = require('./helpers');
  *   role: string
  * }>}
  */
-const getUserFilters = async (userId) => {
+const getUserFilters = async (userOrId) => {
     let isUserAdmin = false;
     let deniedGroups = [];
     let allowedProductCodes = [];
     let isRestrictedUser = false;
     let role = 'cliente';
 
-    if (userId) {
-        // Verificar si el usuario es admin
-        const userResult = await pool.query(
-            'SELECT is_admin FROM users WHERE id = $1',
-            [userId]
-        );
-        isUserAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin;
+    let userId = null;
+    let userObj = null;
 
-        if (!isUserAdmin) {
-            // Obtener grupos denegados
-            deniedGroups = await productModel.getDeniedProductGroups(userId);
+    if (userOrId && typeof userOrId === 'object') {
+        userObj = userOrId;
+        userId = userObj.id;
+    } else {
+        userId = userOrId;
+    }
 
-            // Obtener rol
-            const roleData = await userModel.getUserRoleFromDB2(userId);
-            role = roleData ? roleData.role : 'cliente';
+    if (userId || userObj) {
+        // Special Handling for Test Users (Must be passed as object with role 'test_user')
+        if (userObj && userObj.role === 'test_user') {
+            isUserAdmin = false; // Security: Test users are NEVER admins
+            role = 'test_user';
 
-            // Si no es marketing, es usuario restringido (necesita verificación de imagen)
-            if (role !== 'marketing') {
-                isRestrictedUser = true;
-                // Obtener códigos de productos con imágenes para filtrar
-                allowedProductCodes = await productModel.getAllProductImageCodes();
-                console.log(`[DEBUG] userId: ${userId}, role: ${role}. Found ${allowedProductCodes.length} allowed product codes with images.`);
+            // Inherit denied groups from Vendor
+            const vendorCode = userObj.vendedor_code || userObj.vendedorCode;
+            if (vendorCode) {
+                deniedGroups = await productModel.getVendorDeniedProductGroups(vendorCode);
+            }
+
+            // Test users are restricted
+            isRestrictedUser = true;
+            allowedProductCodes = await productModel.getAllProductImageCodes();
+
+            console.log(`[DEBUG] getUserFilters -> Test User: ${userId}, Vendor: ${vendorCode}, DeniedGroups: ${deniedGroups.length}`);
+        } else {
+            // Normal User Logic
+            // Check admin status
+            if (userObj && userObj.is_admin !== undefined) {
+                isUserAdmin = userObj.is_admin;
+            } else if (userId) {
+                const userResult = await pool.query(
+                    'SELECT is_admin FROM users WHERE id = $1',
+                    [userId]
+                );
+                isUserAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin;
+            }
+
+            if (!isUserAdmin) {
+                // Obtener grupos denegados (User specific)
+                deniedGroups = await productModel.getDeniedProductGroups(userId);
+
+                // Obtener rol (Prefer DB for freshness, or token if available)
+                const roleData = await userModel.getUserRoleFromDB2(userId);
+                role = roleData ? roleData.role : 'cliente';
+
+                // Si no es marketing, es usuario restringido (necesita verificación de imagen)
+                if (role !== 'marketing') {
+                    isRestrictedUser = true;
+                    // Obtener códigos de productos con imágenes para filtrar
+                    allowedProductCodes = await productModel.getAllProductImageCodes();
+                }
             }
         }
     } else {
@@ -53,7 +85,7 @@ const getUserFilters = async (userId) => {
         allowedProductCodes = await productModel.getAllProductImageCodes();
     }
 
-    console.log(`[DEBUG] getUserFilters -> User: ${userId}, Role: ${role}, Restricted: ${isRestrictedUser}, AllowedCodes: ${allowedProductCodes.length}`);
+    console.log(`[DEBUG] getUserFilters -> User: ${userId}, Role: ${role}, AllowedCodes: ${allowedProductCodes.length}`);
 
     return {
         isUserAdmin,

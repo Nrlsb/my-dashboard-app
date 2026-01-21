@@ -42,6 +42,7 @@ const fetchProducts = async ({
   search = '',
   brand = '',
   userId = null,
+  user = null,
   bypassCache = false,
   hasImage = '',
   isExport = false,
@@ -62,7 +63,8 @@ const fetchProducts = async ({
     }
 
     // 2. Determinar permisos usando utilidad
-    const { deniedGroups, allowedProductCodes, isRestrictedUser } = await getUserFilters(userId);
+    const effectiveUser = user || userId;
+    const { deniedGroups, allowedProductCodes, isRestrictedUser } = await getUserFilters(effectiveUser);
 
     // 3. Preparar filtros para el modelo
     let finalLimit = limit;
@@ -148,12 +150,12 @@ const fetchProducts = async ({
   }
 };
 
-const getAccessories = async (userId) => {
+const getAccessories = async (user) => {
   try {
     const dbAccessories = await productModel.findCarouselAccessories();
 
     if (dbAccessories.length > 0) {
-      const { deniedGroups } = await getUserFilters(userId);
+      const { deniedGroups } = await getUserFilters(user);
 
       let filteredAccessories = dbAccessories;
       if (deniedGroups.length > 0) {
@@ -180,7 +182,7 @@ const getAccessories = async (userId) => {
   }
 };
 
-const getProductGroupsDetails = async (userId) => {
+const getProductGroupsDetails = async (user) => {
   try {
     const dbGroups = await productModel.findCarouselGroups();
 
@@ -225,7 +227,7 @@ const getProductGroupsDetails = async (userId) => {
       });
 
       // Filter denied groups for static groups
-      const { deniedGroups } = await getUserFilters(userId);
+      const { deniedGroups } = await getUserFilters(user);
       if (deniedGroups.length > 0) {
         finalGroups = finalGroups.filter(g => {
           if (g.type === 'static_group') {
@@ -244,9 +246,9 @@ const getProductGroupsDetails = async (userId) => {
   }
 };
 
-const fetchProductDetails = async (productId, userId = null) => {
+const fetchProductDetails = async (productId, user = null) => {
   try {
-    const { deniedGroups } = await getUserFilters(userId);
+    const { deniedGroups } = await getUserFilters(user);
     const prod = await productModel.findProductById(productId, deniedGroups);
 
     if (!prod) {
@@ -290,9 +292,9 @@ const fetchProductDetails = async (productId, userId = null) => {
   }
 };
 
-const fetchProductDetailsByCode = async (productCode, userId = null) => {
+const fetchProductDetailsByCode = async (productCode, user = null) => {
   try {
-    const { deniedGroups } = await getUserFilters(userId);
+    const { deniedGroups } = await getUserFilters(user);
     const prod = await productModel.findProductByCode(productCode, deniedGroups);
 
     if (!prod) {
@@ -336,9 +338,9 @@ const fetchProductDetailsByCode = async (productCode, userId = null) => {
   }
 };
 
-const fetchProtheusBrands = async (userId = null) => {
+const fetchProtheusBrands = async (user = null) => {
   try {
-    const { deniedGroups } = await getUserFilters(userId);
+    const { deniedGroups } = await getUserFilters(user);
     const brands = await productModel.findUniqueBrands(deniedGroups);
     return brands;
   } catch (error) {
@@ -347,9 +349,9 @@ const fetchProtheusBrands = async (userId = null) => {
   }
 };
 
-const fetchProtheusOffers = async (userId = null) => {
+const fetchProtheusOffers = async (user = null) => {
   try {
-    const { deniedGroups } = await getUserFilters(userId);
+    const { deniedGroups } = await getUserFilters(user);
     const offerData = await productModel.getOnOfferData();
     const rawOffers = await productModel.findOffers(offerData, deniedGroups);
 
@@ -403,7 +405,7 @@ const fetchProductsByGroup = async (
   groupCode,
   page = 1,
   limit = 20,
-  userId = null
+  user = null
 ) => {
   try {
     let exchangeRates;
@@ -420,7 +422,7 @@ const fetchProductsByGroup = async (
     const offset = (page - 1) * limit;
 
     // Use helper to get permissions and restricted products
-    const { deniedGroups, allowedProductCodes, isRestrictedUser } = await getUserFilters(userId);
+    const { deniedGroups, allowedProductCodes, isRestrictedUser } = await getUserFilters(user);
 
     let effectiveAllowedCodes = [];
     if (isRestrictedUser) {
@@ -595,39 +597,44 @@ const deleteCarouselGroup = async (id) => {
   return result;
 };
 
-const getCustomCollectionProducts = async (collectionId, userId = null) => {
+const getCustomCollectionProducts = async (collectionId, user = null) => {
   const rawProducts = await productModel.findCustomCollectionProducts(collectionId);
 
   let filteredProducts = rawProducts;
-  if (userId) {
-    const userResult = await pool.query(
-      'SELECT is_admin FROM users WHERE id = $1',
-      [userId]
-    );
-    const isUserAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin;
+  if (user) {
+    // Check permissions using helper (handles admins and test users internally now)
+    const { deniedGroups, allowedProductCodes, isRestrictedUser } = await getUserFilters(user);
 
-    if (!isUserAdmin) {
-      const deniedGroups = await productModel.getDeniedProductGroups(userId);
+    // If getUserFilters returned "no restrictions" (empty denied, no restricted flag) but user MIGHT be allowed, we need to apply logic.
+    // Actually optimize: REUSE getUserFilters logic rather than reimplementing.
 
-      // Check for marketing role to decide on image restrictions
-      const roleData = await userModel.getUserRoleFromDB2(userId);
-      const userRole = roleData ? roleData.role : 'cliente';
+    // However, getUserFilters calls DB for admin check if only ID passed.
+    // Here we might have duplicates. 
+    // Let's rely on getUserFilters.
 
-      let allowedImageCodes = null;
-      if (userRole !== 'marketing') {
-        allowedImageCodes = await productModel.getAllProductImageCodes();
-      }
+    // Legacy logic here was checking is_admin manually.
+    // getUserFilters handles is_admin.
 
-      filteredProducts = rawProducts.filter(prod => {
-        const isGroupDenied = deniedGroups.includes(prod.product_group);
+    // Check for marketing role (legacy logic preserved?)
+    // getUserFilters doesn't check marketing role explicitly for images.
+    // Let's keep marketing logic but use getUserFilters for groups.
 
-        let isAllowedByImage = true;
-        if (allowedImageCodes !== null) {
-          isAllowedByImage = allowedImageCodes.includes(prod.code);
-        }
+    // Re-implementation using getUserFilters for consistency:
 
-        return !isGroupDenied && isAllowedByImage;
-      });
+    // 1. Filter by denied groups
+    filteredProducts = rawProducts.filter(prod => !deniedGroups.includes(prod.product_group));
+
+    // 2. Filter by images/marketing
+    // Logic from legacy:
+    // Check for marketing role to decide on image restrictions
+    // If not marketing, filter by allowedImageCodes.
+    // This is "isRestrictedUser" logic mostly.
+
+    // Since we don't return "userRole" from getUserFilters, we might need to fetch it or rely on isRestrictedUser.
+    // isRestrictedUser in getUserFilters is true if NOT admin and NOT marketing.
+
+    if (isRestrictedUser) {
+      filteredProducts = filteredProducts.filter(prod => allowedProductCodes.includes(prod.code));
     }
   } else {
     // If no user, apply global restrictions AND image restriction
@@ -744,20 +751,9 @@ const removeCustomGroupItem = async (groupId, productId) => {
   return result;
 };
 
-const fetchNewReleases = async (userId = null) => {
+const fetchNewReleases = async (user = null) => {
   try {
-    let deniedGroups = [];
-    if (userId) {
-      const userResult = await pool.query(
-        'SELECT is_admin FROM users WHERE id = $1',
-        [userId]
-      );
-      const isUserAdmin =
-        userResult.rows.length > 0 && userResult.rows[0].is_admin;
-      if (!isUserAdmin) {
-        deniedGroups = await productModel.getDeniedProductGroups(userId);
-      }
-    }
+    const { deniedGroups } = await getUserFilters(user);
 
     const newReleasesData = await productModel.getNewReleasesData();
     const rawOffers = await productModel.findOffers(newReleasesData, deniedGroups);
