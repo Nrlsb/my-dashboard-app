@@ -319,8 +319,19 @@ const fetchOrderDetails = async (orderId, user) => {
   }
 
   // Formatear y enriquecer
+  let clientName = 'Cliente Desconocido';
+  try {
+    const orderUser = await userModel.findUserById(orderDetails.user_id);
+    if (orderUser) {
+      clientName = orderUser.full_name;
+    }
+  } catch (err) {
+    console.error('Error fetching user for order details:', err);
+  }
+
   return {
     ...orderDetails,
+    client_name: clientName,
     items: orderDetails.items.map((item) => ({
       ...item,
       product_name: item.product_name,

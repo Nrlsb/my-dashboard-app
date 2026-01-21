@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 
 import LoadingSpinner from '../components/LoadingSpinner';
 import { UploadCloud, FileText } from 'lucide-react';
+import NotificationModal from '../components/NotificationModal';
 
 const useCurrencyFormatter = () => {
   return new Intl.NumberFormat('es-AR', {
@@ -24,7 +25,14 @@ function OrderDetailPage() {
   const [isDownloadingCsv, setIsDownloadingCsv] = useState(false);
   const [isUploadingInvoice, setIsUploadingInvoice] = useState(false);
   const [isDownloadingInvoice, setIsDownloadingInvoice] = useState(false);
+
   const fileInputRef = React.useRef(null);
+  const [notification, setNotification] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info'
+  });
 
   const {
     data: orderDetails,
@@ -50,7 +58,13 @@ function OrderDetailPage() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Error al descargar el PDF:', err);
-      alert(`No se pudo descargar el PDF: ${err.message}`);
+      console.error('Error al descargar el PDF:', err);
+      setNotification({
+        isOpen: true,
+        title: 'Error',
+        message: `No se pudo descargar el PDF: ${err.message}`,
+        variant: 'error'
+      });
     } finally {
       setIsDownloadingPdf(false);
     }
@@ -70,7 +84,13 @@ function OrderDetailPage() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Error al descargar el CSV:', err);
-      alert(`No se pudo descargar el CSV: ${err.message}`);
+      console.error('Error al descargar el CSV:', err);
+      setNotification({
+        isOpen: true,
+        title: 'Error',
+        message: `No se pudo descargar el CSV: ${err.message}`,
+        variant: 'error'
+      });
     } finally {
       setIsDownloadingCsv(false);
     }
@@ -81,8 +101,15 @@ function OrderDetailPage() {
     if (!file) return;
 
     if (file.type !== 'application/pdf') {
-      alert('Solo se permiten archivos PDF.');
-      return;
+      if (file.type !== 'application/pdf') {
+        setNotification({
+          isOpen: true,
+          title: 'Error',
+          message: 'Solo se permiten archivos PDF.',
+          variant: 'error'
+        });
+        return;
+      }
     }
 
     setIsUploadingInvoice(true);
@@ -91,12 +118,23 @@ function OrderDetailPage() {
 
     try {
       await apiService.uploadOrderInvoice(orderId, formData);
-      alert('Factura subida exitosamente.');
+      await apiService.uploadOrderInvoice(orderId, formData);
+      setNotification({
+        isOpen: true,
+        title: 'Éxito',
+        message: 'Factura subida exitosamente.',
+        variant: 'success'
+      });
       // Recargar detalles del pedido
       window.location.reload();
     } catch (err) {
       console.error('Error al subir factura:', err);
-      alert(`Error al subir factura: ${err.message}`);
+      setNotification({
+        isOpen: true,
+        title: 'Error',
+        message: `Error al subir factura: ${err.message}`,
+        variant: 'error'
+      });
     } finally {
       setIsUploadingInvoice(false);
     }
@@ -117,7 +155,13 @@ function OrderDetailPage() {
 
     } catch (err) {
       console.error('Error al descargar factura:', err);
-      alert(`Error al descargar factura: ${err.message}`);
+      console.error('Error al descargar factura:', err);
+      setNotification({
+        isOpen: true,
+        title: 'Error',
+        message: `Error al descargar factura: ${err.message}`,
+        variant: 'error'
+      });
     } finally {
       setIsDownloadingInvoice(false);
     }
@@ -216,6 +260,9 @@ function OrderDetailPage() {
         <div className="flex justify-between items-start">
           <div className="text-sm text-gray-600 space-y-1">
             <p><strong className="text-gray-900">Fecha:</strong> {orderDetails.formatted_date}</p>
+            {orderDetails.client_name && (
+              <p><strong className="text-gray-900">Cliente:</strong> {orderDetails.a1_cod} - {orderDetails.client_name}</p>
+            )}
             {orderDetails.status === 'Confirmado' && orderDetails.vendor_sales_order_number && (
               <p><strong className="text-gray-900">N° Pedido Venta:</strong> #{orderDetails.vendor_sales_order_number}</p>
             )}
@@ -291,6 +338,14 @@ function OrderDetailPage() {
           </tbody>
         </table>
       </div>
+
+      <NotificationModal
+        isOpen={notification.isOpen}
+        onClose={() => setNotification({ ...notification, isOpen: false })}
+        title={notification.title}
+        message={notification.message}
+        variant={notification.variant}
+      />
     </div>
   );
 }

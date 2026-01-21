@@ -6,6 +6,7 @@ import apiService from '../api/apiService';
 import { useAuth } from '../context/AuthContext';
 import { Calendar, Package, ChevronRight } from 'lucide-react';
 import CustomSelect from '../components/CustomSelect';
+import NotificationModal from '../components/NotificationModal';
 
 const useCurrencyFormatter = () => {
   return new Intl.NumberFormat('es-AR', {
@@ -25,6 +26,12 @@ function OrderHistoryPage() {
   const [orderStatus, setOrderStatus] = useState({});
   const [statusFilter, setStatusFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [notification, setNotification] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info'
+  });
 
   const handleVendorSalesOrderNumberChange = (orderId, value) => {
     setVendorSalesOrderNumbers((prev) => ({ ...prev, [orderId]: value }));
@@ -61,11 +68,21 @@ function OrderHistoryPage() {
   const updateOrderDetailsMutation = useMutation({
     mutationFn: (updatedOrders) => apiService.updateOrderDetails(updatedOrders),
     onSuccess: () => {
-      alert('Cambios guardados exitosamente!');
+      setNotification({
+        isOpen: true,
+        title: 'Éxito',
+        message: 'Cambios guardados exitosamente!',
+        variant: 'success'
+      });
       queryClient.invalidateQueries(['orderHistory', user.id]);
     },
     onError: (error) => {
-      alert('Error al guardar los cambios: ' + error.message);
+      setNotification({
+        isOpen: true,
+        title: 'Error',
+        message: 'Error al guardar los cambios: ' + error.message,
+        variant: 'error'
+      });
     },
   });
 
@@ -82,7 +99,12 @@ function OrderHistoryPage() {
     );
 
     if (invalidOrder) {
-      alert(`Para confirmar el pedido #${invalidOrder.id}, debes ingresar el Nº de Pedido Venta.`);
+      setNotification({
+        isOpen: true,
+        title: 'Atención',
+        message: `Para confirmar el pedido #${invalidOrder.id}, debes ingresar el Nº de Pedido Venta.`,
+        variant: 'info'
+      });
       return;
     }
 
@@ -170,7 +192,7 @@ function OrderHistoryPage() {
                 {isVendor && (
                   <div className="mb-3 text-sm font-medium text-gray-700">
                     <span className="text-gray-500 mr-1">Cliente:</span>
-                    {order.client_name}
+                    {order.a1_cod} - {order.client_name}
                   </div>
                 )}
 
@@ -266,7 +288,7 @@ function OrderHistoryPage() {
                   <tr key={order.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-mono">#{order.id}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{order.formatted_date}</td>
-                    {isVendor && <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{order.client_name}</td>}
+                    {isVendor && <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-medium">{order.a1_cod} - {order.client_name}</td>}
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-mono">{order.formattedTotal}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{order.status}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 text-center">{order.item_count}</td>
@@ -322,6 +344,14 @@ function OrderHistoryPage() {
           )}
         </div>
       </div>
+
+      <NotificationModal
+        isOpen={notification.isOpen}
+        onClose={() => setNotification({ ...notification, isOpen: false })}
+        title={notification.title}
+        message={notification.message}
+        variant={notification.variant}
+      />
     </div>
   );
 }
