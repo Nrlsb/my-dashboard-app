@@ -47,6 +47,12 @@ app.set('trust proxy', 1);
 // Usar Helmet para securizar la app
 app.use(helmet());
 
+// DEBUG LOGGER - Verify requests reach the server (Moved UP)
+app.use((req, res, next) => {
+  console.log(`[SERVER-HIT] ${req.method} ${req.originalUrl} at ${new Date().toISOString()}`);
+  next();
+});
+
 // (OPTIMIZACIÓN) Habilitar compresión Gzip para todas las respuestas HTTP
 // Excluir endpoints de SSE para evitar buffering
 app.use(compression({
@@ -68,7 +74,7 @@ const limiter = rateLimit({
   legacyHeaders: false, // Deshabilita headers `X-RateLimit-*`
   message: 'Demasiadas peticiones desde esta IP, por favor intente de nuevo en 15 minutos.',
   // Skip preflight requests (OPTIONS)
-  skip: (req) => req.method === 'OPTIONS',
+  skip: (req) => req.method === 'OPTIONS' || req.path.includes('/api/admin/sync-events'),
 });
 
 // Aplicar limiter global
@@ -89,11 +95,6 @@ const authLimiter = rateLimit({
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
-// DEBUG LOGGER - Verify requests reach the server
-app.use((req, res, next) => {
-  // console.log(`[SERVER-HIT] ${req.method} ${req.originalUrl} at ${new Date().toISOString()}`);
-  next();
-});
 
 const PORT = process.env.PORT || 3001;
 

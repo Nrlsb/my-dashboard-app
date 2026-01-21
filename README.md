@@ -18,6 +18,9 @@ Esta es una aplicación full-stack con un frontend de React y un backend de Node
   - Ver todos los usuarios y pedidos.
   - Activar/desactivar ofertas de productos.
   - Gestionar la visibilidad del panel del dashboard.
+  - Sincronización con ERP (Automática y Manual).
+  - Filtrado de productos (Nuevos candidatos, Precios Modificados).
+  - Gestión automática de clientes inactivos.
 
 ## Primeros Pasos
 
@@ -51,6 +54,36 @@ Estas instrucciones te permitirán obtener una copia del proyecto en funcionamie
     cd ../..
     ```
 
+### Configuración (Variables de Entorno)
+
+Crea un archivo `.env` en `backend/api` con las siguientes variables:
+
+```env
+# Base de Datos
+DB_USER=postgres
+DB_HOST=localhost
+DB_NAME=my_dashboard_db
+DB_PASSWORD=tu_password
+DB_PORT=5432
+
+# Autenticación
+JWT_SECRET=tu_secreto_jwt
+
+# Correo (Gmail)
+GMAIL_USER=tu_email@gmail.com
+GMAIL_APP_PASSWORD=tu_app_password
+
+# Redis
+REDIS_URL=redis://localhost:6379
+
+# Integraciones (Google)
+GEMINI_API_KEY=tu_clave_gemini
+GOOGLE_DRIVE_CLIENT_ID=...
+GOOGLE_DRIVE_CLIENT_SECRET=...
+GOOGLE_DRIVE_REDIRECT_URI=...
+GOOGLE_DRIVE_REFRESH_TOKEN=...
+```
+
 ### Ejecutando la Aplicación
 
 1.  **Inicia el servidor del backend:**
@@ -61,6 +94,14 @@ Estas instrucciones te permitirán obtener una copia del proyecto en funcionamie
     cd backend/api
     node server.js
     ```
+
+### Scripts de Utilidad
+
+- **Sincronización Manual:**
+  Ejecuta este script para forzar una sincronización inmediata con el ERP.
+  ```bash
+  node backend/api/scripts/manual_sync.js
+  ```
 
 2.  **Inicia el servidor de desarrollo del frontend:**
 
@@ -131,6 +172,10 @@ La API del backend tiene el prefijo `/api`.
 - [Multer](https://github.com/expressjs/multer) para la carga de archivos.
 - [CORS](https://expressjs.com/en/resources/middleware/cors.html)
 - [dotenv](https://www.npmjs.com/package/dotenv) para variables de entorno.
+- [Redis](https://redis.io/) para caché y colas.
+- [Google Drive API](https://developers.google.com/drive/api) para almacenamiento de comprobantes.
+- [Google Gemini API](https://ai.google.dev/) para procesamiento inteligente.
+- [node-cron](https://www.npmjs.com/package/node-cron) para tareas programadas.
 
 ## Despliegue (Producción)
 

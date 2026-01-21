@@ -282,7 +282,7 @@ const updateProductsTable = async (prices) => {
             } else {
                 const priceDiff = Math.abs(newPrice - currentProduct.price);
                 const moedaDiff = newMoeda !== currentProduct.moeda;
-                if (priceDiff > 0.01 || moedaDiff) {
+                if (priceDiff > 0.0001 || moedaDiff) {
                     needsUpdate = true;
                 }
             }
@@ -373,7 +373,7 @@ const updatePriceHistory = async (prices) => {
                     [code, newPrice]
                 );
                 historyInserts++;
-            } else if (Math.abs(newPrice - oldPriceSnapshot) > 0.01) {
+            } else if (Math.abs(newPrice - oldPriceSnapshot) > 0.0001) {
                 // Price changed
                 await client.query(
                     `UPDATE product_price_snapshots

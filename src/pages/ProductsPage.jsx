@@ -17,7 +17,7 @@ import { useCart } from '../context/CartContext';
 
 // --- Formateadores ---
 const formatCurrency = (amount) =>
-    new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(
+    new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(
         amount || 0
     );
 
