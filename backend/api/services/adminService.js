@@ -559,6 +559,10 @@ module.exports = {
     }
   },
 
+  getVendorDeniedGroups: async (vendedorCodigo) => {
+    return await productModel.getVendorDeniedProductGroups(vendedorCodigo);
+  },
+
   updateVendorClientsGroupPermissions: async (vendedorCodigo, groups) => {
     try {
       // 0. Update persistent vendor rules in DB2

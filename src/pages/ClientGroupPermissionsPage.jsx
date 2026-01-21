@@ -60,29 +60,30 @@ const ClientGroupPermissionsPage = () => {
       return;
     }
 
-    // If "ALL_CLIENTS" is selected, we start with empty selection (or could fetch common ones, but empty is safer so user builds from scratch)
-    // Alternatively, we could default to NONE denied, effectively resetting everyone if they save empty.
-    if (selectedClient === 'ALL_CLIENTS') {
-      setClientDeniedGroups([]);
-      return;
-    }
-
     const fetchPermissions = async () => {
       try {
         setIsLoading(true);
         setError(null);
-        const permissionsData =
-          await apiService.getDeniedProductGroups(selectedClient);
-        setClientDeniedGroups(permissionsData);
+        let permissionsData = [];
+
+        if (selectedClient === 'ALL_CLIENTS') {
+          if (selectedSeller) {
+            permissionsData = await apiService.getVendorDeniedProductGroups(selectedSeller.codigo);
+          }
+        } else {
+          permissionsData = await apiService.getDeniedProductGroups(selectedClient);
+        }
+
+        setClientDeniedGroups(permissionsData || []);
       } catch (err) {
-        setError(`Error al cargar los permisos para el cliente seleccionado.`);
+        setError(`Error al cargar los permisos.`);
         console.error(err);
       } finally {
         setIsLoading(false);
       }
     };
     fetchPermissions();
-  }, [selectedClient, currentUser]);
+  }, [selectedClient, selectedSeller, currentUser]);
 
   const handleCheckboxChange = (group) => {
     setClientDeniedGroups((prev) =>

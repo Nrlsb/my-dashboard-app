@@ -167,6 +167,12 @@ exports.getAllSellers = catchAsync(async (req, res) => {
     res.json(sellers);
 });
 
+exports.getVendorDeniedGroups = catchAsync(async (req, res) => {
+    const { vendedorCode } = req.params;
+    const permissions = await adminService.getVendorDeniedGroups(vendedorCode);
+    res.json(permissions);
+});
+
 exports.updateVendorClientsGroupPermissions = catchAsync(async (req, res) => {
     const { vendedorCode } = req.params;
     const { groups } = req.body; // Array of denied groups

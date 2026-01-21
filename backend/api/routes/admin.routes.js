@@ -78,7 +78,8 @@ router.get('/clients', requireAdmin, getAllClientsController); // Add the new ro
 // (NUEVO) Ruta para obtener todos los vendedores
 router.get('/sellers', requireAdmin, getAllSellers);
 
-const { updateVendorClientsGroupPermissions } = require('../controllers/adminController');
+const { updateVendorClientsGroupPermissions, getVendorDeniedGroups } = require('../controllers/adminController');
+router.get('/sellers/:vendedorCode/product-groups', requireAdmin, getVendorDeniedGroups);
 router.put('/sellers/:vendedorCode/product-groups', requireAdmin, updateVendorClientsGroupPermissions);
 
 const analyticsController = require('../controllers/analyticsController');

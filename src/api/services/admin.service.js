@@ -9,6 +9,10 @@ export const adminService = {
         return apiClient.put(`/admin/sellers/${vendedorCode}/product-groups`, { groups: deniedGroups });
     },
 
+    getVendorDeniedProductGroups(vendedorCode) {
+        return apiClient.get(`/admin/sellers/${vendedorCode}/product-groups`);
+    },
+
     resetUserPassword(userId, password) {
         if (!userId) throw new Error('ID de usuario requerido');
         if (!password) throw new Error('Contraseña requerida');

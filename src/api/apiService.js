@@ -97,6 +97,7 @@ const apiService = {
   // Admin
   getAdminSellers: adminService.getAdminSellers,
   updateVendorGroupPermissions: adminService.updateVendorGroupPermissions,
+  getVendorDeniedProductGroups: adminService.getVendorDeniedProductGroups,
   resetUserPassword: adminService.resetUserPassword,
   assignClientPassword: adminService.assignClientPassword,
   fetchAdminOrderDetailApi: adminService.fetchAdminOrderDetailApi,
