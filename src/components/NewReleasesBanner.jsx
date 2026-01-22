@@ -145,9 +145,7 @@ const NewReleasesBanner = ({ products: propProducts }) => {
                             {currentProduct.formattedPrice}
                         </span>
                     </div>
-                    <div className="bg-white/20 p-2 rounded-full backdrop-blur-sm group-hover:bg-white/30 transition-colors">
-                        <ArrowRight className="w-5 h-5" />
-                    </div>
+
                 </div>
             </div>
 

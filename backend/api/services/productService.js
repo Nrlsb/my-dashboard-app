@@ -772,32 +772,20 @@ const fetchNewReleases = async (user = null) => {
     const ventaDivisa = exchangeRates.venta_divisa || 1;
 
     const releases = rawOffers.map((prod) => {
-      let originalPrice = prod.price;
-      let finalPrice = prod.price;
-
-      if (prod.moneda === 2) {
-        finalPrice = originalPrice * ventaBillete;
-      } else if (prod.moneda === 3) {
-        finalPrice = originalPrice * ventaDivisa;
-      }
+      const { finalPrice, cotizacionUsed, formattedPrice } = calculateFinalPrice(prod, exchangeRates);
 
       return {
         id: prod.id,
         code: prod.code,
         name: prod.description,
         price: finalPrice,
-        formattedPrice: formatCurrency(finalPrice),
+        formattedPrice: formattedPrice,
         brand: prod.brand,
         imageUrl: null,
         capacityDesc: prod.capacity_description,
         moneda: prod.moneda,
-        cotizacion:
-          prod.moneda === 2
-            ? ventaBillete
-            : prod.moneda === 3
-              ? ventaDivisa
-              : 1,
-        originalPrice: originalPrice,
+        cotizacion: cotizacionUsed,
+        originalPrice: prod.price,
         product_group: prod.product_group,
         is_new_release: true,
         custom_title: prod.custom_title,
