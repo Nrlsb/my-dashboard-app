@@ -1188,7 +1188,7 @@ const findProductsWithImagesNoDescription = async (limit = 50) => {
     const params = codesToProcess.map((_, index) => `$${index + 1}`);
     const productsQuery = `
       SELECT * FROM products 
-      WHERE code IN (${params.join(',')})
+      WHERE b1_cod IN (${params.join(',')})
     `;
 
     const productsResult = await pool.query(productsQuery, codesToProcess);

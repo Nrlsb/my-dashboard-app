@@ -15,23 +15,33 @@ const pool2Config = {
 
 const pool2 = new Pool(pool2Config);
 
+
 async function inspect() {
     try {
-        console.log('--- Inspecting user_roles constraints ---');
-        const resConstraints = await pool2.query(`
-      SELECT conname, pg_get_constraintdef(oid)
-      FROM pg_constraint
-      WHERE conrelid = 'user_roles'::regclass
-    `);
-        console.log('user_roles Constraints:', resConstraints.rows);
-
-        console.log('\n--- Inspecting user_credentials columns ---');
-        const resCreds = await pool2.query(`
+        console.log('--- Inspecting product_new_release_status columns ---');
+        const resReleases = await pool2.query(`
         SELECT column_name, data_type 
         FROM information_schema.columns 
-        WHERE table_name = 'user_credentials' AND table_schema = 'public'
+        WHERE table_name = 'product_new_release_status' AND table_schema = 'public'
     `);
-        console.log('user_credentials columns:', resCreds.rows.map(r => r.column_name));
+        console.log('product_new_release_status columns:', resReleases.rows.map(r => r.column_name));
+
+        console.log('\n--- Inspecting products columns (partial) ---');
+        const resProducts = await pool2.query(`
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'products' AND table_schema = 'public'
+        AND column_name IN ('code', 'b1_cod', 'product_code')
+    `);
+        console.log('products columns check:', resProducts.rows);
+
+        console.log('\n--- Inspecting inventory_scans columns ---');
+        const resScans = await pool2.query(`
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'inventory_scans' AND table_schema = 'public'
+    `);
+        console.log('inventory_scans columns:', resScans.rows.map(r => r.column_name));
 
     } catch (err) {
         console.error('Error:', err);
