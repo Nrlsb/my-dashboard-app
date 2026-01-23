@@ -676,7 +676,7 @@ const getCustomCollectionProducts = async (collectionId, user = null) => {
 
 const updateProductAiDescription = async (productId, description) => {
   // Fetch product code first
-  const productResult = await pool.query('SELECT code FROM products WHERE id = $1', [productId]);
+  const productResult = await pool.query('SELECT b1_cod AS code FROM products WHERE id = $1', [productId]);
   if (productResult.rows.length === 0) {
     throw new Error('Product not found');
   }
@@ -836,7 +836,7 @@ const toggleProductNewRelease = async (productId) => {
 
 const updateProductNewReleaseDetails = async (productId, details) => {
   try {
-    const productResult = await pool.query('SELECT code FROM products WHERE id = $1', [productId]);
+    const productResult = await pool.query('SELECT b1_cod AS code FROM products WHERE id = $1', [productId]);
     if (productResult.rows.length === 0) throw new Error('Product not found');
     const productCode = productResult.rows[0].code;
 
