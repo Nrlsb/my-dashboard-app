@@ -34,9 +34,15 @@ const LaunchGroupPublicPage = () => {
             // Actually, `findCustomCollectionProducts` DB query usually joins with collection table.
             // Let's check `productModel.js`.
             console.log(`[LaunchGroupPublicPage] Fetching products for collection ${id}`);
-            const result = await apiService.get(`/products/collection/${id}`);
-            console.log(`[LaunchGroupPublicPage] Result:`, result);
-            return result;
+            try {
+                // apiService.get no existe, usamos el método específico
+                const result = await apiService.getCustomCollectionProducts(id);
+                console.log(`[LaunchGroupPublicPage] Result:`, result);
+                return result;
+            } catch (error) {
+                console.error(`[LaunchGroupPublicPage] Error fetching collection:`, error);
+                throw error;
+            }
         },
         retry: false
     });
