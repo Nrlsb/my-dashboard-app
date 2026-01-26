@@ -57,6 +57,7 @@ const DashboardCards = () => {
     );
   }
 
+
   return (
     <div className="flex flex-col md:flex-row w-full rounded-3xl shadow-xl bg-white relative z-0 mb-8">
       {cards.map((card, index) => (
@@ -95,7 +96,7 @@ const DashboardPage = () => {
   const { data: launchGroups = [] } = useQuery({
     queryKey: ['dashboard-launch-groups'],
     queryFn: async () => {
-      const groups = await apiService.getCarouselGroups();
+      const groups = await apiService.getProductGroupsDetails();
       return groups.filter(g => g.is_launch_group);
     },
     staleTime: 1000 * 60 * 5,
