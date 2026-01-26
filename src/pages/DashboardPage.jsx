@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import DashboardCard from '/src/components/DashboardCard.jsx';
 import AccessoryCarousel from '../components/AccessoryCarousel';
 import ProductGroupCarousel from '../components/ProductGroupCarousel';
+import apiService from '../api/apiService';
 
 // ... (existing helper function if needed, but imports are at top usually)
 
@@ -38,6 +39,8 @@ const DashboardCards = () => {
     queryFn: () => apiService.getDashboardPanels(),
   });
 
+  const safeCards = Array.isArray(cards) ? cards : [];
+
   // Fetch new releases to check if we should show the section
   const { data: newReleases = [] } = useQuery({
     queryKey: ['new-releases-banner'],
@@ -60,7 +63,7 @@ const DashboardCards = () => {
 
   return (
     <div className="flex flex-col md:flex-row w-full rounded-3xl shadow-xl bg-white relative z-0 mb-8">
-      {cards.map((card, index) => (
+      {safeCards.map((card, index) => (
         <DashboardCard
           key={card.id}
           title={card.title}
@@ -102,7 +105,7 @@ const DashboardPage = () => {
     staleTime: 1000 * 60 * 5,
   });
 
-  const combinedReleases = [...launchGroups, ...newReleases];
+  const combinedReleases = [...(launchGroups || []), ...(newReleases || [])];
 
   return (
     <div className="font-sans">
