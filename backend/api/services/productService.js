@@ -48,6 +48,7 @@ const fetchProducts = async ({
   isExport = false,
   onlyNewReleasesCandidates = false,
   onlyModifiedPrices = false,
+  dateFilterType = '',
 }) => {
   try {
     // 1. Obtener cotizaciones
@@ -80,6 +81,7 @@ const fetchProducts = async ({
       bypassCache,
       onlyNewReleasesCandidates,
       onlyModifiedPrices,
+      dateFilterType, // Pass to model
     };
 
     // Filtro por imagen
@@ -135,6 +137,8 @@ const fetchProducts = async ({
         indicator_description: prod.indicator_description,
         pack_quantity: prod.pack_quantity,
         isPriceModified: prod.is_price_modified,
+        inclusion_date: prod.inclusion_date, // Map from DB
+        modification_date: prod.modification_date, // Map from DB
       };
     });
 
@@ -791,6 +795,8 @@ const fetchNewReleases = async (user = null) => {
         custom_title: prod.custom_title,
         custom_description: prod.custom_description,
         custom_image_url: prod.custom_image_url,
+        created_at: prod.created_at,
+        updated_at: prod.updated_at,
       };
     });
 

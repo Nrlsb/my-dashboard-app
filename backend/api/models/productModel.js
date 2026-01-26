@@ -62,17 +62,7 @@ const getOnOfferProductCodes = async (bypassCache = false) => {
 
 // --- NEW RELEASES METHODS ---
 
-const getNewReleasesData = async () => {
-  try {
-    const result = await pool2.query(
-      'SELECT product_id, product_code, custom_title, custom_description, custom_image_url FROM product_new_release_status WHERE is_new_release = true'
-    );
-    return result.rows;
-  } catch (error) {
-    console.error('Error fetching new releases data:', error);
-    return [];
-  }
-};
+
 
 const getNewReleasesProductCodes = async () => {
   const data = await getNewReleasesData();
@@ -217,6 +207,7 @@ const findProducts = async ({
   bypassCache = false,
   onlyNewReleasesCandidates = false,
   onlyModifiedPrices = false,
+  dateFilterType = '', // 'included' or 'modified'
 }) => {
   const cacheKey = `products:search:v3:${JSON.stringify({
     limit,
@@ -228,6 +219,7 @@ const findProducts = async ({
     excludedIds: excludedIds ? excludedIds.sort() : [],
     onlyNewReleasesCandidates,
     onlyModifiedPrices,
+    dateFilterType, // Add to cache key
   })}`;
 
   if (!bypassCache && isRedisReady()) {
@@ -260,20 +252,29 @@ const findProducts = async ({
         sbm_desc AS brand, b1_grupo AS product_group, sbm_desc AS group_description,
         z02_descri AS capacity_description, da1_moeda AS moneda, cotizacion,
         stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, sbz_desc AS indicator_description, 
-        b1_um AS unit_type, b1_qe AS pack_quantity
+        b1_um AS unit_type, b1_qe AS pack_quantity,
+        inclusion_date, modification_date -- Select dates
     FROM products
     WHERE da1_prcven > 0 AND b1_desc IS NOT NULL
   `;
 
-  // New Release Candidate Filter (30 days logic) -> Updated to 65 days (User calc approx 2 months + buffer)
+  // Date Filter Type Logic
+  if (dateFilterType === 'included') {
+    const filter = ` AND inclusion_date >= NOW() - INTERVAL '60 days' `;
+    countQuery += filter;
+    dataQuery += filter;
+  } else if (dateFilterType === 'modified') {
+    const filter = ` AND modification_date >= NOW() - INTERVAL '60 days' `;
+    countQuery += filter;
+    dataQuery += filter;
+  }
+
+  // New Release Candidate Filter (Legacy logic, maybe unused now but kept for safety)
   if (onlyNewReleasesCandidates) {
     const dateFilter = ` AND (inclusion_date >= NOW() - INTERVAL '65 days' OR modification_date >= NOW() - INTERVAL '65 days') `;
     countQuery += dateFilter;
     dataQuery += dateFilter;
   }
-
-
-
 
   // Modified Price Filter
   if (onlyModifiedPrices) {
@@ -560,6 +561,18 @@ sbm_desc AS brand,
   }
 };
 
+const getNewReleasesData = async () => {
+  try {
+    const result = await pool2.query(
+      'SELECT product_id, product_code, custom_title, custom_description, custom_image_url, updated_at FROM product_new_release_status WHERE is_new_release = true'
+    );
+    return result.rows;
+  } catch (error) {
+    console.error('Error fetching new releases data', error);
+    throw error;
+  }
+};
+
 const findOffers = async (offerData, deniedGroups = []) => {
   try {
     if (offerData.length === 0) {
@@ -603,7 +616,9 @@ sbm_desc AS brand,
         ...product,
         custom_title: details?.custom_title || null,
         custom_description: details?.custom_description || null,
-        custom_image_url: details?.custom_image_url || null
+        custom_image_url: details?.custom_image_url || null,
+        created_at: details?.updated_at || null, // [CHANGED] - Use updated_at as created_at proxy
+        updated_at: details?.updated_at || null
       };
     });
 

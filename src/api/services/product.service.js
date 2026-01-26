@@ -1,7 +1,7 @@
 import apiClient from '../core/client';
 
 export const productService = {
-    fetchProducts(page, searchTerm, brands, bypassCache = false, limit = 20, hasImage = '', onlyNewReleasesCandidates = false, onlyModifiedPrices = false) {
+    fetchProducts(page, searchTerm, brands, bypassCache = false, limit = 20, hasImage = '', onlyNewReleasesCandidates = false, onlyModifiedPrices = false, dateFilterType = '') {
         const params = {
             page,
             limit,
@@ -9,6 +9,7 @@ export const productService = {
             bypassCache: String(bypassCache),
             onlyNewReleasesCandidates,
             onlyModifiedPrices,
+            dateFilterType,
         };
 
         if (hasImage !== '') {

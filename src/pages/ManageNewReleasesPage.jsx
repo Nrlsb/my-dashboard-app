@@ -184,61 +184,88 @@ const EditReleaseModal = ({ product, onClose, onSave, isSaving }) => {
 };
 
 // --- Componente para la Fila de Producto ---
-const ProductRow = ({ product, onToggle, isToggling, onEdit }) => (
-    <tr className="border-b border-gray-200 hover:bg-gray-50">
-        <td className="py-3 px-4 text-sm text-gray-500 font-mono">
-            {product.code}
-        </td>
-        <td className="py-3 px-4 text-sm text-gray-900 font-medium">
-            <div>
-                {product.custom_title || product.name}
-                {product.custom_title && (
-                    <span className="ml-2 text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100">
-                        Personalizado
+const ProductRow = ({ product, onToggle, isToggling, onEdit, viewMode }) => {
+    const formatDate = (dateString) => {
+        if (!dateString) return '-';
+        try {
+            return new Date(dateString).toLocaleDateString('es-AR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (e) {
+            return '-';
+        }
+    };
+
+    const dateToShow = viewMode === 'included' ? product.inclusion_date :
+        viewMode === 'modified' ? product.modification_date : null;
+
+    return (
+        <tr className="border-b border-gray-200 hover:bg-gray-50">
+            <td className="py-3 px-4 text-sm text-gray-500 font-mono">
+                {product.code}
+            </td>
+            <td className="py-3 px-4 text-sm text-gray-900 font-medium">
+                <div>
+                    {product.custom_title || product.name}
+                    {product.custom_title && (
+                        <span className="ml-2 text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100">
+                            Personalizado
+                        </span>
+                    )}
+                </div>
+            </td>
+            <td className="py-3 px-4 text-sm text-gray-500">
+                {product.is_new_release ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        <Star className="w-4 h-4 mr-1 fill-current" />
+                        Lanzamiento
+                    </span>
+                ) : (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        <XCircle className="w-4 h-4 mr-1" />
+                        Estándar
                     </span>
                 )}
-            </div>
-        </td>
-        <td className="py-3 px-4 text-sm text-gray-500">
-            {product.is_new_release ? (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                    <Star className="w-4 h-4 mr-1 fill-current" />
-                    Lanzamiento
-                </span>
-            ) : (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                    <XCircle className="w-4 h-4 mr-1" />
-                    Estándar
-                </span>
+            </td>
+            {viewMode !== null && ( // Only show date column if viewMode is not null (i.e., not in "show only active" mode)
+                <td className="py-3 px-4 text-sm text-gray-500 font-mono whitespace-nowrap">
+                    {formatDate(dateToShow)}
+                </td>
             )}
-        </td>
-        <td className="py-3 px-4 text-center">
-            <div className="flex items-center justify-center space-x-4">
-                <ToggleSwitch
-                    checked={!!product.is_new_release}
-                    onChange={onToggle}
-                    disabled={isToggling}
-                />
-                {product.is_new_release && (
-                    <button
-                        onClick={() => onEdit(product)}
-                        className="p-1 text-gray-400 hover:text-blue-600 transition-colors cursor-pointer"
-                        title="Editar detalles de lanzamiento"
-                    >
-                        <Edit2 className="w-5 h-5" />
-                    </button>
-                )}
-            </div>
-        </td>
-    </tr>
-);
+            <td className="py-3 px-4 text-center">
+                <div className="flex items-center justify-center space-x-4">
+                    <ToggleSwitch
+                        checked={!!product.is_new_release}
+                        onChange={onToggle}
+                        disabled={isToggling}
+                    />
+                    {product.is_new_release && (
+                        <button
+                            onClick={() => onEdit(product)}
+                            className="p-1 text-gray-400 hover:text-blue-600 transition-colors cursor-pointer"
+                            title="Editar detalles de lanzamiento"
+                        >
+                            <Edit2 className="w-5 h-5" />
+                        </button>
+                    )}
+                </div>
+            </td>
+        </tr>
+    );
+};
 
 // --- Componente Principal de la Página ---
 export default function ManageNewReleasesPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
     const [editingProduct, setEditingProduct] = useState(null);
-    const [showOnlyActive, setShowOnlyActive] = useState(false);
+    const [viewMode, setViewMode] = useState('included'); // 'included', 'modified'
+    const [showOnlyActive, setShowOnlyActive] = useState(false); // Restore toggle state
+
     const debounceTimeout = useRef(null);
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -253,7 +280,7 @@ export default function ManageNewReleasesPage() {
         return () => clearTimeout(debounceTimeout.current);
     }, [searchTerm]);
 
-    // Query para obtener TODOS los productos
+    // Query para obtener productos FILTRADOS por fecha (backend) - ONLY when toggle is OFF
     const {
         data: infiniteData,
         fetchNextPage,
@@ -263,12 +290,24 @@ export default function ManageNewReleasesPage() {
         isError: isErrorInfinite,
         error: errorInfinite,
     } = useInfiniteQuery({
-        queryKey: ['products', debounceSearchTerm, ['new_releases']], // Key original
+        queryKey: ['products', debounceSearchTerm, ['new_releases', viewMode]],
         queryFn: async ({ pageParam = 1 }) => {
-            // Fetch standard products (candidates for new releases)
-            const productsData = await apiService.fetchProducts(pageParam, debounceSearchTerm, [], true, 20, '', true);
+            const productsData = await apiService.fetchProducts(
+                pageParam,
+                debounceSearchTerm,
+                [],
+                true, // bypassCache
+                20, // limit
+                '', // hasImage
+                false, // onlyNewReleasesCandidates
+                false, // onlyModifiedPrices
+                viewMode // dateFilterType ('included' or 'modified')
+            );
 
-            // Fetch active new releases to merge info
+            // We still need to fetch active releases status to mark "is_new_release" correctly in the list
+            // because findProducts doesn't strictly join with new_releases table for that flag by default?
+            // Actually findProducts maps "oferta" but maybe not "is_new_release" properly unless we merged it in backend?
+            // The previous code did manual merge. Let's keep it safe.
             const newReleases = await apiService.fetchNewReleases();
             const newReleasesMap = new Map(newReleases.map(r => [r.code, r]));
 
@@ -279,26 +318,23 @@ export default function ManageNewReleasesPage() {
                     is_new_release: !!releaseInfo,
                     custom_title: releaseInfo?.custom_title,
                     custom_description: releaseInfo?.custom_description,
-                    custom_image_url: releaseInfo?.custom_image_url
+                    custom_image_url: releaseInfo?.custom_image_url,
+                    // Prefer returned date from backend if available, mostly for sort/display
+                    inclusion_date: p.inclusion_date,
+                    modification_date: p.modification_date
                 };
             });
-
             return { ...productsData, products };
         },
         getNextPageParam: (lastPage, allPages) => {
-            const productsLoaded = allPages.reduce(
-                (acc, page) => acc + page.products.length,
-                0
-            );
-            return productsLoaded < lastPage.totalProducts
-                ? allPages.length + 1
-                : undefined;
+            const productsLoaded = allPages.reduce((acc, page) => acc + page.products.length, 0);
+            return productsLoaded < lastPage.totalProducts ? allPages.length + 1 : undefined;
         },
         initialPageParam: 1,
-        enabled: !!(user?.is_admin || user?.role === 'marketing') && !showOnlyActive,
+        enabled: !!(user?.is_admin || user?.role === 'marketing') && !showOnlyActive, // Disable when showing only active
     });
 
-    // Query para obtener SOLO los lanzamientos activos
+    // Query for Active Releases - ONLY when toggle is ON
     const {
         data: activeReleasesData,
         isLoading: isLoadingActive,
@@ -310,7 +346,6 @@ export default function ManageNewReleasesPage() {
             const releases = await apiService.fetchNewReleases();
             const releasesWithFlag = releases.map(r => ({ ...r, is_new_release: true }));
 
-            // Filtro local por nombre si hay búsqueda
             if (!debounceSearchTerm) return releasesWithFlag;
             const lowerInfos = debounceSearchTerm.toLowerCase();
             return releasesWithFlag.filter(p =>
@@ -321,13 +356,12 @@ export default function ManageNewReleasesPage() {
         enabled: !!(user?.is_admin || user?.role === 'marketing') && showOnlyActive,
     });
 
-
     const { mutate: toggleRelease, isPending: isToggling } = useMutation({
         mutationFn: (productId) => apiService.toggleProductNewRelease(productId),
         onSuccess: (data) => {
             // Update Infinite Query cache
             queryClient.setQueryData(
-                ['products', debounceSearchTerm, ['new_releases']],
+                ['products', debounceSearchTerm, ['new_releases', viewMode]],
                 (oldData) => {
                     if (!oldData) return oldData;
                     return {
@@ -336,7 +370,7 @@ export default function ManageNewReleasesPage() {
                             ...page,
                             products: page.products.map((p) =>
                                 p.id === data.id
-                                    ? { ...p, is_new_release: data.is_new_release }
+                                    ? { ...p, is_new_release: data.is_new_release } // Just toggle flag
                                     : p
                             ),
                         })),
@@ -344,36 +378,27 @@ export default function ManageNewReleasesPage() {
                 }
             );
 
-            // Invalidate active releases query
             queryClient.invalidateQueries({ queryKey: ['activeNewReleases'] });
-            queryClient.invalidateQueries({ queryKey: ['newReleases'] }); // Public query
+            queryClient.invalidateQueries({ queryKey: ['newReleases'] });
 
-            toast.success(
-                data.is_new_release
-                    ? 'Lanzamiento activado correctamente'
-                    : 'Lanzamiento desactivado correctamente'
-            );
+            toast.success(data.is_new_release ? 'Lanzamiento activado' : 'Lanzamiento desactivado');
         },
-        onError: (err) => {
-            toast.error(`Error: ${err.message}`);
-        },
+        onError: (err) => toast.error(`Error: ${err.message}`),
     });
 
     const { mutate: saveDetails, isPending: isSavingDetails } = useMutation({
         mutationFn: ({ productId, details }) => apiService.updateProductNewReleaseDetails(productId, details),
-        onSuccess: (data, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['products', debounceSearchTerm, ['new_releases']] });
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
             queryClient.invalidateQueries({ queryKey: ['activeNewReleases'] });
             queryClient.invalidateQueries({ queryKey: ['newReleases'] });
             setEditingProduct(null);
             toast.success('Detalles actualizados');
         },
-        onError: (err) => {
-            toast.error(`Error: ${err.message}`);
-        },
+        onError: (err) => toast.error(`Error: ${err.message}`),
     });
 
-    // Determinar lista de visualización
+    // Determine products to show
     const productsToShow = showOnlyActive
         ? (activeReleasesData || [])
         : (infiniteData?.pages.flatMap((page) => page.products) || []);
@@ -390,20 +415,12 @@ export default function ManageNewReleasesPage() {
         <div className="p-6 bg-gray-50 min-h-screen">
             <header className="mb-6 flex items-center justify-between">
                 <div className="flex items-center">
-                    <button
-                        onClick={() => navigate('/manage-content')}
-                        className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors cursor-pointer"
-                        aria-label="Volver a Configuración"
-                    >
+                    <button onClick={() => navigate('/manage-content')} className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors cursor-pointer">
                         <ArrowLeft className="w-6 h-6" />
                     </button>
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800">
-                            Gestionar Nuevos Lanzamientos
-                        </h1>
-                        <p className="text-gray-500">
-                            Destaca productos como nuevos lanzamientos en la plataforma.
-                        </p>
+                        <h1 className="text-3xl font-bold text-gray-800">Gestionar Nuevos Lanzamientos</h1>
+                        <p className="text-gray-500">Destaca productos como nuevos lanzamientos.</p>
                     </div>
                 </div>
             </header>
@@ -421,6 +438,29 @@ export default function ManageNewReleasesPage() {
                 </div>
 
                 <div className="flex items-center space-x-3 bg-white p-2 rounded-lg shadow-sm border border-gray-200">
+                    <div className="flex space-x-2 mr-4 border-r pr-4 border-gray-200">
+                        <button
+                            onClick={() => setViewMode('included')}
+                            disabled={showOnlyActive}
+                            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${viewMode === 'included' && !showOnlyActive
+                                ? 'bg-purple-100 text-purple-800'
+                                : 'text-gray-600 hover:bg-gray-50 disabled:opacity-50'
+                                }`}
+                        >
+                            Productos Incluidos
+                        </button>
+                        <button
+                            onClick={() => setViewMode('modified')}
+                            disabled={showOnlyActive}
+                            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${viewMode === 'modified' && !showOnlyActive
+                                ? 'bg-purple-100 text-purple-800'
+                                : 'text-gray-600 hover:bg-gray-50 disabled:opacity-50'
+                                }`}
+                        >
+                            Producto Modificado
+                        </button>
+                    </div>
+
                     <div className="flex items-center space-x-2">
                         <Filter className={`w-5 h-5 ${showOnlyActive ? 'text-purple-600' : 'text-gray-400'}`} />
                         <span className="text-sm font-medium text-gray-700">Ver solo activos</span>
@@ -428,15 +468,14 @@ export default function ManageNewReleasesPage() {
                     <ToggleSwitch
                         checked={showOnlyActive}
                         onChange={() => setShowOnlyActive(!showOnlyActive)}
-                        labelOff="Mostrar todo"
-                        labelOn="Solo activos"
+                        labelOff="Todo"
+                        labelOn="Activos"
                         colorClass="bg-purple-600"
                     />
                 </div>
             </div>
 
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                {/* Desktop Table View */}
                 <div className="hidden md:block overflow-x-auto">
                     <table className="min-w-full bg-white">
                         <thead className="bg-gray-100 border-b border-gray-300">
@@ -444,18 +483,21 @@ export default function ManageNewReleasesPage() {
                                 <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Código</th>
                                 <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Descripción</th>
                                 <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Estado</th>
+                                {!showOnlyActive && (
+                                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Fecha</th>
+                                )}
                                 <th className="py-3 px-4 text-center text-xs font-semibold text-gray-600 uppercase">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
                             {isLoading && (
-                                <tr><td colSpan="4" className="p-0"><LoadingSpinner text="Cargando productos..." /></td></tr>
+                                <tr><td colSpan={showOnlyActive ? "4" : "5"} className="p-0"><LoadingSpinner text="Cargando productos..." /></td></tr>
                             )}
                             {isError && (
-                                <tr><td colSpan="4" className="p-8 text-center text-red-500">Error: {error?.message}</td></tr>
+                                <tr><td colSpan={showOnlyActive ? "4" : "5"} className="p-8 text-center text-red-500">Error: {error?.message}</td></tr>
                             )}
                             {!isLoading && !isError && productsToShow.length === 0 && (
-                                <tr><td colSpan="4" className="p-8 text-center text-gray-500">No se encontraron productos{showOnlyActive ? ' activos.' : '.'}</td></tr>
+                                <tr><td colSpan={showOnlyActive ? "4" : "5"} className="p-8 text-center text-gray-500">No se encontraron productos.</td></tr>
                             )}
                             {productsToShow.map((product) => (
                                 <ProductRow
@@ -464,6 +506,7 @@ export default function ManageNewReleasesPage() {
                                     onToggle={() => toggleRelease(product.id)}
                                     isToggling={isToggling}
                                     onEdit={setEditingProduct}
+                                    viewMode={showOnlyActive ? null : viewMode} // Pass null if showOnlyActive so date is not shown? Or logic inside row handles it?
                                 />
                             ))}
                         </tbody>
@@ -489,7 +532,6 @@ export default function ManageNewReleasesPage() {
                     </div>
                 )}
             </div>
-
             {editingProduct && (
                 <EditReleaseModal
                     product={editingProduct}
