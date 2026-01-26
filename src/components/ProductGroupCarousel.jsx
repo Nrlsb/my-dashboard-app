@@ -29,10 +29,13 @@ const ProductGroupCarousel = () => {
   }, []);
 
   const handleCardClick = (group) => {
+    // Usamos product_group que es el nombre real que viene del modelo
+    const groupCode = group.product_group || group.group_code;
+
     if (group.type === 'custom_collection') {
       navigate(`/collection/${group.collection_id}`);
     } else {
-      navigate(`/category/${group.group_code}`);
+      navigate(`/category/${groupCode}`);
     }
   };
 
@@ -59,7 +62,7 @@ const ProductGroupCarousel = () => {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {displayedGroups.map((group) => (
           <div
-            key={group.id || group.group_code}
+            key={group.id || group.product_group || group.group_code}
             className="w-full bg-white rounded-lg overflow-hidden cursor-pointer transition-all duration-200 ease-in-out hover:-translate-y-1 shadow-sm hover:shadow-md border-b-[3px] border-espint-green group flex flex-col h-auto aspect-square md:aspect-auto md:h-auto"
             onClick={() => handleCardClick(group)}
           >

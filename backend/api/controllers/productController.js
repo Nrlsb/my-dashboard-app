@@ -3,7 +3,6 @@ const catchAsync = require('../utils/catchAsync');
 const logger = require('../utils/logger'); // (NUEVO) Importar logger
 
 exports.getProductsController = catchAsync(async (req, res) => {
-    // console.log('GET /api/products -> Consultando productos en DB (paginado)...');
     const {
         page = 1,
         limit = 20,
@@ -30,42 +29,41 @@ exports.getProductsController = catchAsync(async (req, res) => {
         search,
         brand,
         moneda,
-        user: req.user, // [CHANGED] Pass full user object
+        user: req.user,
         bypassCache: shouldBypass,
         hasImage,
         isExport: shouldExport,
         onlyNewReleasesCandidates: String(onlyNewReleasesCandidates).toLowerCase() === 'true',
         onlyModifiedPrices: String(onlyModifiedPrices).toLowerCase() === 'true',
-        dateFilterType, // Pass to service
+        dateFilterType,
     });
     res.set('Cache-Control', 'no-store');
     res.json(data);
 });
 
 exports.getProductsByGroupController = catchAsync(async (req, res) => {
-    logger.info(
-        `GET /api/products/group/${req.params.groupCode} -> Consultando productos por grupo...`
-    );
     const { groupCode } = req.params;
+    logger.info(
+        `GET /api/products/group/${groupCode} -> Consultando productos por grupo...`
+    );
     const { page = 1, limit = 20 } = req.query;
     const data = await productService.fetchProductsByGroup(
         groupCode,
         page,
         limit,
-        req.user // [CHANGED]
+        req.user
     );
     res.json(data);
 });
 
 exports.getBrandsController = catchAsync(async (req, res) => {
-    // console.log('GET /api/brands -> Consultando lista de marcas...');
-    const brands = await productService.fetchProtheusBrands(req.user); // [CHANGED]
+    const brands = await productService.fetchProtheusBrands(req.user);
     res.json(brands);
 });
 
 exports.getOffersController = catchAsync(async (req, res) => {
     logger.info('GET /api/offers -> Consultando ofertas en DB...');
-    const offers = await productService.fetchProtheusOffers(req.user); // [CHANGED]
+    const offers = await productService.fetchProtheusOffers(req.user);
     res.set('Cache-Control', 'no-store');
     res.json(offers);
 });
@@ -77,7 +75,7 @@ exports.getProductsByIdController = catchAsync(async (req, res) => {
     );
     const product = await productService.fetchProductDetails(
         productId,
-        req.user // [CHANGED]
+        req.user
     );
     if (product) {
         res.json(product);
@@ -93,7 +91,7 @@ exports.getProductsByCodeController = catchAsync(async (req, res) => {
     );
     const product = await productService.fetchProductDetailsByCode(
         productCode,
-        req.user // [CHANGED]
+        req.user
     );
     if (product) {
         res.json(product);
@@ -108,13 +106,13 @@ exports.getProductsOrdersController = catchAsync(async (req, res) => {
 });
 
 exports.getAccessories = catchAsync(async (req, res) => {
-    const user = req.user; // [CHANGED]
+    const user = req.user;
     const accessories = await productService.getAccessories(user);
     res.json(accessories);
 });
 
 exports.getProductGroupsDetails = catchAsync(async (req, res) => {
-    const user = req.user; // [CHANGED]
+    const user = req.user;
     const groupDetails = await productService.getProductGroupsDetails(user);
     res.json(groupDetails);
 });
@@ -137,17 +135,13 @@ exports.updateProductOfferDetails = catchAsync(async (req, res) => {
 });
 
 exports.getCustomCollectionProducts = catchAsync(async (req, res) => {
-    const products = await productService.getCustomCollectionProducts(req.params.collectionId, req.user); // [CHANGED]
+    const products = await productService.getCustomCollectionProducts(req.params.collectionId, req.user);
     res.json(products);
 });
 
 exports.generateAiDescription = catchAsync(async (req, res) => {
     const { id } = req.params;
-    const { name, brand, price } = req.body; // Or fetch from DB if preferred, but passing from frontend is faster if we have it
-
-    // If we want to be secure, we should fetch from DB using ID.
-    // Let's fetch from DB to be safe and consistent.
-    const product = await productService.fetchProductDetails(id, req.user); // [CHANGED]
+    const product = await productService.fetchProductDetails(id, req.user);
     if (!product) {
         return res.status(404).json({ message: 'Producto no encontrado.' });
     }
@@ -178,11 +172,8 @@ exports.getBatchGenerationProgress = catchAsync(async (req, res) => {
     res.json(progress);
 });
 
-// --- New Releases Controllers ---
-
 exports.getNewReleasesController = catchAsync(async (req, res) => {
-    // console.log('GET /api/new-releases -> Consultando nuevos lanzamientos...');
-    const releases = await productService.fetchNewReleases(req.user); // [CHANGED]
+    const releases = await productService.fetchNewReleases(req.user);
     res.set('Cache-Control', 'no-store');
     res.json(releases);
 });

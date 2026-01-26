@@ -403,6 +403,7 @@ const findProductGroupsDetails = async (groupCodes) => {
     const query = `
       SELECT DISTINCT ON(b1_grupo)
           b1_grupo AS product_group,
+          b1_grupo AS group_code, -- Agregamos alias para consistencia
           b1_grupo AS brand,
           sbm_desc AS description
       FROM products
