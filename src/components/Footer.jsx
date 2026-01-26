@@ -9,6 +9,22 @@ const Footer = () => {
   return (
     <footer className="bg-espint-blue/95 text-slate-300 pt-16 pb-8 mt-auto border-t border-slate-800">
       <div className="max-w-6xl mx-auto px-6">
+        {/* Catalog Banner */}
+        <div className="p-10 text-center mb-12 relative overflow-hidden group">
+
+          <h3 className="text-white text-2xl font-bold mb-6 font-sans relative z-10">¿Buscás algo específico?</h3>
+          <Link
+            to="/products"
+            className="inline-flex items-center gap-2 bg-white text-[#003366] px-8 py-3 rounded-full font-bold text-lg hover:bg-yellow-400 hover:text-[#003366] hover:scale-105 transition-all duration-300 shadow-lg relative z-10"
+            onClick={() => window.scrollTo(0, 0)}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Ver Nuestro Catálogo Completo
+          </Link>
+        </div>
+
         {/* Brand Logos Section */}
         <div className="mb-12 border-b border-slate-800 pb-8">
           <h4 className="text-white font-semibold mb-6 text-center">Nuestras Marcas</h4>

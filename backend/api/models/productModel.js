@@ -837,6 +837,11 @@ const addCarouselAccessory = async (productId) => {
     const productCode = productResult.rows[0].code;
 
     await pool2.query('INSERT INTO carousel_accessories (product_code, product_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [productCode, productId]);
+
+    if (isRedisReady()) {
+      await redisClient.del('carousel:accessories');
+    }
+
     return { success: true };
   } catch (error) {
     console.error('Error in addCarouselAccessory:', error);
@@ -851,6 +856,11 @@ const removeCarouselAccessory = async (productId) => {
     const productCode = productResult.rows[0].code;
 
     await pool2.query('DELETE FROM carousel_accessories WHERE product_code = $1', [productCode]);
+
+    if (isRedisReady()) {
+      await redisClient.del('carousel:accessories');
+    }
+
     return { success: true };
   } catch (error) {
     console.error('Error in removeCarouselAccessory:', error);

@@ -1,5 +1,6 @@
 import React from 'react';
 import LoadingSpinner from './components/LoadingSpinner';
+import SessionExpiredModal from './components/SessionExpiredModal';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
@@ -22,7 +23,26 @@ function App() {
   const { clearCart } = useCart();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
   const location = useLocation();
+  const [isSessionExpired, setIsSessionExpired] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleSessionExpired = () => {
+      setIsSessionExpired(true);
+    };
+
+    window.addEventListener('session-expired', handleSessionExpired);
+
+    return () => {
+      window.removeEventListener('session-expired', handleSessionExpired);
+    };
+  }, []);
+
+  const handleExpiredConfirm = () => {
+    setIsSessionExpired(false);
+    handleLogout();
+  };
 
   const handleLogout = () => {
     logout();
@@ -53,6 +73,10 @@ function App() {
       </div>
       {location.pathname !== '/login' && <Footer />}
       <Toaster position="top-right" />
+      <SessionExpiredModal
+        isOpen={isSessionExpired}
+        onConfirm={handleExpiredConfirm}
+      />
     </div>
   );
 }

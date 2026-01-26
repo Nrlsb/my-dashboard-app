@@ -107,16 +107,16 @@ const NewReleasesBanner = ({ products: propProducts }) => {
             </div>
 
             {/* Image Area */}
-            <div className="w-full h-1/2 bg-white/10 p-6 flex items-center justify-center relative">
+            <div className="w-full h-[65%] bg-white p-0 flex items-center justify-center relative">
                 {currentProduct.custom_image_url || currentProduct.imageUrl ? (
                     <img
                         src={currentProduct.custom_image_url || currentProduct.imageUrl}
                         alt={currentProduct.name}
-                        className="w-full h-full object-contain drop-shadow-xl transition-transform duration-500 group-hover:scale-110"
+                        className="w-full h-full object-cover drop-shadow-xl transition-transform duration-500 group-hover:scale-105"
                         referrerPolicy="no-referrer"
                     />
                 ) : (
-                    <div className="flex flex-col items-center text-white/50">
+                    <div className="flex flex-col items-center text-gray-300">
                         <Package className="w-16 h-16 mb-2" />
                         <span className="text-xs">Sin imagen</span>
                     </div>
@@ -124,28 +124,23 @@ const NewReleasesBanner = ({ products: propProducts }) => {
             </div>
 
             {/* Content Area */}
-            <div className="p-6 flex flex-col flex-grow relative z-10">
-                <div className="mb-2">
-                    <span className="text-xs font-medium text-white/70 uppercase tracking-wider">
-                        {currentProduct.brand}
-                    </span>
-                </div>
-
-                <h3 className="text-xl font-bold leading-tight mb-2 line-clamp-3" title={currentProduct.custom_title || currentProduct.name}>
-                    {currentProduct.custom_title || currentProduct.name}
-                </h3>
-
-                <p className="text-sm text-white/80 line-clamp-2 mb-4">
-                    {currentProduct.custom_description || currentProduct.capacityDesc || "Un nuevo producto destacado para ti."}
-                </p>
-
-                <div className="mt-auto flex items-center justify-between">
-                    <div className="flex flex-col">
-                        <span className="text-2xl font-bold text-white">
-                            {currentProduct.formattedPrice}
+            <div className="px-5 py-4 flex flex-col flex-grow relative z-10 h-[35%] justify-between">
+                <div>
+                    <div className="mb-1">
+                        <span className="text-[10px] font-bold text-white/70 uppercase tracking-wider">
+                            {currentProduct.brand}
                         </span>
                     </div>
 
+                    <h3 className="text-lg font-bold leading-tight mb-1 line-clamp-2" title={currentProduct.custom_title || currentProduct.name}>
+                        {currentProduct.custom_title || currentProduct.name}
+                    </h3>
+
+                    <div className="flex flex-col mt-2">
+                        <span className="text-2xl font-black text-white tracking-tight">
+                            {currentProduct.formattedPrice}
+                        </span>
+                    </div>
                 </div>
             </div>
 

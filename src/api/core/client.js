@@ -62,7 +62,12 @@ apiClient.interceptors.response.use(
             const friendlyMessage = getFriendlyErrorMessage(status);
             // Evitar mostar toast si es 401 y quizas estamos verificando sesion silenciosamente? 
             // Por ahora mantenemos el comportamiento original.
-            toast.error(friendlyMessage);
+            if (status === 401) {
+                // Disparar evento de sesión expirada
+                window.dispatchEvent(new CustomEvent('session-expired'));
+            } else {
+                toast.error(friendlyMessage);
+            }
         } else {
             toast.error('Error de conexión o desconocido.');
         }
