@@ -137,9 +137,19 @@ const GroupsTab = () => {
                 image_url: editGroupImage
             });
             toast.success('Grupo actualizado');
-            fetchGroups();
-            // Update local state to reflect changes immediately in header
+
+            // Update local state immediately
+            setGroups(prevGroups => prevGroups.map(g =>
+                g.id === currentCollection.id
+                    ? { ...g, name: editGroupName, image_url: editGroupImage }
+                    : g
+            ));
+
+            // Optimistically update current collection view
             setCurrentCollection(prev => ({ ...prev, name: editGroupName, image_url: editGroupImage }));
+
+            // Background refetch (optional, to ensure consistency)
+            fetchGroups();
         } catch (error) {
             toast.error('Error al actualizar grupo');
         }
