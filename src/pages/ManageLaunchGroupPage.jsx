@@ -13,29 +13,28 @@ const ManageLaunchGroupPage = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [searchTerm, setSearchTerm] = useState('');
-    const [searchResult, setSearchResult] = useState(null);
+    const [searchResults, setSearchResults] = useState([]);
     const [isSearchingProduct, setIsSearchingProduct] = useState(false);
 
     // Fetch Group Details to show name
     const { data: groups } = useQuery({
         queryKey: ['adminCarouselGroups'],
-        queryFn: () => apiService.get('/admin/carousel-groups'),
+        queryFn: () => apiService.getCarouselGroups(),
     });
     const currentGroup = groups?.find(g => g.id.toString() === id);
 
     // Fetch Group Products
     const { data: groupProducts, isLoading } = useQuery({
         queryKey: ['customCollectionProducts', id],
-        queryFn: () => apiService.get(`/products/collection/${id}`),
+        queryFn: () => apiService.getCustomCollectionProducts(id),
     });
 
     const addProductMutation = useMutation({
-        mutationFn: (productId) => apiService.post(`/admin/custom-collection/${id}/items`, { productId }),
+        mutationFn: (productId) => apiService.addCustomGroupItem(id, productId),
         onSuccess: () => {
             queryClient.invalidateQueries(['customCollectionProducts', id]);
             toast.success('Producto agregado');
-            setSearchResult(null);
-            setSearchTerm('');
+            // Keep search results but show success
         },
         onError: (err) => {
             console.error(err);
@@ -44,7 +43,7 @@ const ManageLaunchGroupPage = () => {
     });
 
     const removeProductMutation = useMutation({
-        mutationFn: (productId) => apiService.delete(`/admin/custom-collection/${id}/items/${productId}`),
+        mutationFn: (productId) => apiService.removeCustomGroupItem(id, productId),
         onSuccess: () => {
             queryClient.invalidateQueries(['customCollectionProducts', id]);
             toast.success('Producto eliminado del grupo');
@@ -61,13 +60,17 @@ const ManageLaunchGroupPage = () => {
 
         setIsSearchingProduct(true);
         try {
-            // Find product by code exact match usually better for admin adding
-            // Reusing getProductByCode public endpoint
-            const product = await apiService.get(`/products/code/${searchTerm.trim()}`);
-            setSearchResult(product);
+            // General search (code or name)
+            const res = await apiService.fetchProducts(1, searchTerm);
+            if (res.products && res.products.length > 0) {
+                setSearchResults(res.products);
+            } else {
+                toast.error('No se encontraron productos');
+                setSearchResults([]);
+            }
         } catch (error) {
-            toast.error('Producto no encontrado');
-            setSearchResult(null);
+            toast.error('Error al buscar producto');
+            setSearchResults([]);
         } finally {
             setIsSearchingProduct(false);
         }
@@ -136,7 +139,7 @@ const ManageLaunchGroupPage = () => {
                         <div className="relative">
                             <input
                                 type="text"
-                                placeholder="Buscar Código Exacto..."
+                                placeholder="Buscar por nombre o código..."
                                 className="w-full border border-gray-300 rounded-lg pl-3 pr-10 py-2 focus:ring-2 focus:ring-espint-blue focus:border-transparent outline-none"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -151,27 +154,38 @@ const ManageLaunchGroupPage = () => {
                         </div>
                     </form>
 
-                    {searchResult && (
-                        <div className="border border-gray-200 rounded-lg p-3 animate-fadeIn">
-                            <div className="w-full h-32 bg-gray-100 rounded-md overflow-hidden mb-3">
-                                {searchResult.imageUrl ? (
-                                    <img src={searchResult.imageUrl} alt={searchResult.name} className="w-full h-full object-contain mix-blend-multiply" />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">Sin Imagen</div>
-                                )}
+                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                        {searchResults.map(product => (
+                            <div key={product.id} className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors">
+                                <div className="flex gap-3 mb-2">
+                                    <div className="w-16 h-16 bg-gray-100 rounded-md overflow-hidden flex-shrink-0">
+                                        {product.imageUrl ? (
+                                            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain mix-blend-multiply" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs text-center p-1">Sin Imagen</div>
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="font-semibold text-sm line-clamp-2 leading-tight mb-1" title={product.name}>{product.name}</h4>
+                                        <p className="text-xs text-blue-600 font-bold">{product.code}</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => addProductMutation.mutate(product.id)}
+                                    className="w-full bg-white border border-espint-blue text-espint-blue py-1.5 rounded-md text-sm font-medium hover:bg-espint-blue hover:text-white transition-colors flex items-center justify-center gap-2"
+                                    disabled={addProductMutation.isLoading}
+                                >
+                                    <Plus size={16} />
+                                    Agregar
+                                </button>
                             </div>
-                            <h4 className="font-semibold text-sm line-clamp-2 mb-1">{searchResult.name}</h4>
-                            <p className="text-xs text-gray-500 mb-2">{searchResult.code}</p>
-                            <button
-                                onClick={() => addProductMutation.mutate(searchResult.id)}
-                                className="w-full bg-espint-blue text-white py-2 rounded-lg text-sm font-medium hover:bg-espint-blue-dark transition-colors flex items-center justify-center gap-2"
-                                disabled={addProductMutation.isLoading}
-                            >
-                                <Plus size={16} />
-                                {addProductMutation.isLoading ? 'Agregando...' : 'Agregar al Grupo'}
-                            </button>
-                        </div>
-                    )}
+                        ))}
+                        {searchResults.length === 0 && !isSearchingProduct && searchTerm && (
+                            <p className="text-center text-gray-500 text-sm py-4">
+                                No hay resultados
+                            </p>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

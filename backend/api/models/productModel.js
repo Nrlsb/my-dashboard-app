@@ -979,6 +979,19 @@ const deleteCarouselGroup = async (id) => {
 };
 
 const findCustomCollectionProducts = async (collectionId) => {
+  const cacheKey = `carousel:custom_collection:${collectionId}`;
+
+  if (isRedisReady()) {
+    try {
+      const cachedData = await redisClient.get(cacheKey);
+      if (cachedData) {
+        return JSON.parse(cachedData);
+      }
+    } catch (err) {
+      console.error('Redis error in findCustomCollectionProducts:', err);
+    }
+  }
+
   try {
     const idsResult = await pool2.query('SELECT product_code FROM carousel_custom_group_items WHERE group_id = $1', [collectionId]);
     const productCodes = idsResult.rows.map(row => row.product_code);
@@ -997,7 +1010,13 @@ const findCustomCollectionProducts = async (collectionId) => {
       WHERE b1_cod = ANY($1:: varchar[])
   `;
     const productsResult = await pool2.query(productsQuery, [productCodes]);
-    return productsResult.rows;
+    const result = productsResult.rows;
+
+    if (isRedisReady()) {
+      await redisClient.set(cacheKey, JSON.stringify(result), { EX: 3600 }); // Cache for 1 hour
+    }
+
+    return result;
   } catch (error) {
     console.error('Error in findCustomCollectionProducts:', error);
     throw error;
@@ -1011,6 +1030,11 @@ const addCustomGroupItem = async (groupId, productId) => {
     const productCode = productResult.rows[0].code;
 
     await pool2.query('INSERT INTO carousel_custom_group_items (group_id, product_code, product_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [groupId, productCode, productId]);
+
+    if (isRedisReady()) {
+      await redisClient.del(`carousel:custom_collection:${groupId}`);
+    }
+
     return { success: true };
   } catch (error) {
     console.error('Error in addCustomGroupItem:', error);
@@ -1025,6 +1049,11 @@ const removeCustomGroupItem = async (groupId, productId) => {
     const productCode = productResult.rows[0].code;
 
     await pool2.query('DELETE FROM carousel_custom_group_items WHERE group_id = $1 AND product_code = $2', [groupId, productCode]);
+
+    if (isRedisReady()) {
+      await redisClient.del(`carousel:custom_collection:${groupId}`);
+    }
+
     return { success: true };
   } catch (error) {
     console.error('Error in removeCustomGroupItem:', error);

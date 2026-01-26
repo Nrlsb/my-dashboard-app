@@ -44,7 +44,7 @@ const GroupsTab = () => {
         setLoading(true);
         try {
             const dbGroups = await apiService.getCarouselGroups();
-            setGroups(dbGroups);
+            setGroups(dbGroups.filter(g => !g.is_launch_group));
         } catch (error) {
             console.error(error);
             toast.error('Error al cargar grupos');

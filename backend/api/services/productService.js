@@ -225,7 +225,8 @@ const getProductGroupsDetails = async (user) => {
             name: group.name,
             imageUrl: group.image_url || `https://placehold.co/150/2D3748/FFFFFF?text=${encodeURIComponent(group.name)}`,
             type: 'custom_collection',
-            id: group.id
+            id: group.id,
+            is_launch_group: group.is_launch_group // [FIX] Include flag
           };
         }
       });

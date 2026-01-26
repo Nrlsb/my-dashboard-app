@@ -204,7 +204,7 @@ const ProductRow = ({ product, onToggle, isToggling, onEdit, viewMode }) => {
     };
 
     const dateToShow = viewMode === 'included' ? product.inclusion_date :
-        viewMode === 'modified' ? product.modification_date : null;
+        viewMode === 'modified' ? product.modification_date : product.inclusion_date;
 
     return (
         <tr className="border-b border-gray-200 hover:bg-gray-50">
@@ -481,6 +481,16 @@ export default function ManageNewReleasesPage() {
                                         }`}
                                 >
                                     Producto Modificado
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('all')}
+                                    disabled={showOnlyActive}
+                                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${viewMode === 'all' && !showOnlyActive
+                                        ? 'bg-purple-100 text-purple-800'
+                                        : 'text-gray-600 hover:bg-gray-50 disabled:opacity-50'
+                                        }`}
+                                >
+                                    Todos
                                 </button>
                             </div>
 
