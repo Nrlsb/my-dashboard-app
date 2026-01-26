@@ -48,8 +48,10 @@ const ProductGroupCarousel = () => {
     return null;
   }
 
-  // Limit to 5 items
-  const displayedGroups = groups.slice(0, 5);
+  // Limit to 5 items and filter out launch groups (they have their own section)
+  const displayedGroups = groups
+    .filter(g => !g.is_launch_group)
+    .slice(0, 5);
 
   return (
     <div className="relative py-4 mt-8">

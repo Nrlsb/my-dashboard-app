@@ -35,13 +35,13 @@ async function inspect() {
     `);
         console.log('products columns check:', resProducts.rows);
 
-        console.log('\n--- Inspecting inventory_scans columns ---');
-        const resScans = await pool2.query(`
+        console.log('\n--- Inspecting carousel_product_groups columns ---');
+        const resGroups = await pool2.query(`
         SELECT column_name, data_type 
         FROM information_schema.columns 
-        WHERE table_name = 'inventory_scans' AND table_schema = 'public'
+        WHERE table_name = 'carousel_product_groups' AND table_schema = 'public'
     `);
-        console.log('inventory_scans columns:', resScans.rows.map(r => r.column_name));
+        console.log('carousel_product_groups columns:', resGroups.rows.map(r => r.column_name));
 
     } catch (err) {
         console.error('Error:', err);

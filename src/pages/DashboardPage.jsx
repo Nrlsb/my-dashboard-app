@@ -4,7 +4,9 @@ import { useQuery } from '@tanstack/react-query';
 import DashboardCard from '/src/components/DashboardCard.jsx';
 import AccessoryCarousel from '../components/AccessoryCarousel';
 import ProductGroupCarousel from '../components/ProductGroupCarousel';
-import apiService from '../api/apiService';
+
+// ... (existing helper function if needed, but imports are at top usually)
+
 import { useAuth } from '../context/AuthContext';
 import {
   ShoppingCart,
@@ -82,11 +84,24 @@ const DashboardPage = () => {
   // DashboardCards only returns the cards. The banner is in DashboardPage.
   // I will fix this by putting the query in DashboardPage.
 
+  // Fetch new releases
   const { data: newReleases = [] } = useQuery({
     queryKey: ['new-releases-banner'],
     queryFn: () => apiService.fetchNewReleases(),
     staleTime: 1000 * 60 * 5,
   });
+
+  // Fetch launch groups to merge into banner
+  const { data: launchGroups = [] } = useQuery({
+    queryKey: ['dashboard-launch-groups'],
+    queryFn: async () => {
+      const groups = await apiService.getCarouselGroups();
+      return groups.filter(g => g.is_launch_group);
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const combinedReleases = [...launchGroups, ...newReleases];
 
   return (
     <div className="font-sans">
@@ -95,19 +110,19 @@ const DashboardPage = () => {
 
         <div className="flex flex-col md:flex-row gap-6 mt-8">
           {/* Sidebar Banner */}
-          {newReleases.length > 0 && (
+          {combinedReleases.length > 0 && (
             <div className="flex-shrink-0 hidden md:flex md:flex-col mt-8 py-4">
               <h2 className="text-2xl font-bold mb-4 text-espint-blue break-words w-64 lg:w-72 leading-tight">
                 Nuevos Lanzamientos
               </h2>
-              <NewReleasesBanner products={newReleases} />
+              <NewReleasesBanner products={combinedReleases} />
             </div>
           )}
 
           {/* Mobile Banner (Horizontal) */}
-          {newReleases.length > 0 && (
+          {combinedReleases.length > 0 && (
             <div className="block md:hidden mb-4">
-              <NewReleasesBanner products={newReleases} />
+              <NewReleasesBanner products={combinedReleases} />
             </div>
           )}
 

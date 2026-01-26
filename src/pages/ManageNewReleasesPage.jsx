@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+// --- Componente Principal de la Página ---
+import React, { useState, useRef, useEffect, Suspense, lazy } from 'react';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
@@ -11,6 +12,8 @@ import {
 import { Loader2, ArrowLeft, Search, CheckCircle, XCircle, Edit2, Save, X, Star, Filter, Upload } from 'lucide-react';
 import apiService from '../api/apiService.js';
 import { useAuth } from "../context/AuthContext.jsx";
+
+const LaunchGroupsTab = lazy(() => import('../components/ManageContent/LaunchGroupsTab'));
 
 // --- Componente Reutilizable para el Interruptor ---
 const ToggleSwitch = ({ checked, onChange, disabled, labelOff, labelOn, colorClass = 'bg-purple-600' }) => (
@@ -260,6 +263,7 @@ const ProductRow = ({ product, onToggle, isToggling, onEdit, viewMode }) => {
 
 // --- Componente Principal de la Página ---
 export default function ManageNewReleasesPage() {
+    const [activeTab, setActiveTab] = useState('general'); // 'general' | 'groups'
     const [searchTerm, setSearchTerm] = useState('');
     const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
     const [editingProduct, setEditingProduct] = useState(null);
@@ -331,7 +335,7 @@ export default function ManageNewReleasesPage() {
             return productsLoaded < lastPage.totalProducts ? allPages.length + 1 : undefined;
         },
         initialPageParam: 1,
-        enabled: !!(user?.is_admin || user?.role === 'marketing') && !showOnlyActive, // Disable when showing only active
+        enabled: !!(user?.is_admin || user?.role === 'marketing') && !showOnlyActive && activeTab === 'general',
     });
 
     // Query for Active Releases - ONLY when toggle is ON
@@ -353,7 +357,7 @@ export default function ManageNewReleasesPage() {
                 p.code.toLowerCase().includes(lowerInfos)
             );
         },
-        enabled: !!(user?.is_admin || user?.role === 'marketing') && showOnlyActive,
+        enabled: !!(user?.is_admin || user?.role === 'marketing') && showOnlyActive && activeTab === 'general',
     });
 
     const { mutate: toggleRelease, isPending: isToggling } = useMutation({
@@ -413,125 +417,154 @@ export default function ManageNewReleasesPage() {
 
     return (
         <div className="p-6 bg-gray-50 min-h-screen">
-            <header className="mb-6 flex items-center justify-between">
+            <header className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center">
                     <button onClick={() => navigate('/manage-content')} className="flex items-center justify-center p-2 mr-4 text-gray-600 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors cursor-pointer">
                         <ArrowLeft className="w-6 h-6" />
                     </button>
                     <div>
                         <h1 className="text-3xl font-bold text-gray-800">Gestionar Nuevos Lanzamientos</h1>
-                        <p className="text-gray-500">Destaca productos como nuevos lanzamientos.</p>
+                        <p className="text-gray-500">Gestiona productos individuales y grupos de lanzamiento.</p>
                     </div>
                 </div>
             </header>
 
-            <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="relative flex-1 max-w-sm">
-                    <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        placeholder="Buscar por nombre o código..."
-                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                </div>
-
-                <div className="flex items-center space-x-3 bg-white p-2 rounded-lg shadow-sm border border-gray-200">
-                    <div className="flex space-x-2 mr-4 border-r pr-4 border-gray-200">
-                        <button
-                            onClick={() => setViewMode('included')}
-                            disabled={showOnlyActive}
-                            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${viewMode === 'included' && !showOnlyActive
-                                ? 'bg-purple-100 text-purple-800'
-                                : 'text-gray-600 hover:bg-gray-50 disabled:opacity-50'
-                                }`}
-                        >
-                            Productos Incluidos
-                        </button>
-                        <button
-                            onClick={() => setViewMode('modified')}
-                            disabled={showOnlyActive}
-                            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${viewMode === 'modified' && !showOnlyActive
-                                ? 'bg-purple-100 text-purple-800'
-                                : 'text-gray-600 hover:bg-gray-50 disabled:opacity-50'
-                                }`}
-                        >
-                            Producto Modificado
-                        </button>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                        <Filter className={`w-5 h-5 ${showOnlyActive ? 'text-purple-600' : 'text-gray-400'}`} />
-                        <span className="text-sm font-medium text-gray-700">Ver solo activos</span>
-                    </div>
-                    <ToggleSwitch
-                        checked={showOnlyActive}
-                        onChange={() => setShowOnlyActive(!showOnlyActive)}
-                        labelOff="Todo"
-                        labelOn="Activos"
-                        colorClass="bg-purple-600"
-                    />
-                </div>
+            {/* TABS */}
+            <div className="flex space-x-4 mb-6 border-b border-gray-200">
+                <button
+                    className={`py-2 px-4 font-semibold ${activeTab === 'general' ? 'text-espint-blue border-b-2 border-espint-blue' : 'text-gray-500 hover:text-gray-700'}`}
+                    onClick={() => setActiveTab('general')}
+                >
+                    Productos Individuales
+                </button>
+                <button
+                    className={`py-2 px-4 font-semibold ${activeTab === 'groups' ? 'text-espint-blue border-b-2 border-espint-blue' : 'text-gray-500 hover:text-gray-700'}`}
+                    onClick={() => setActiveTab('groups')}
+                >
+                    Grupos de Lanzamiento
+                </button>
             </div>
 
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="hidden md:block overflow-x-auto">
-                    <table className="min-w-full bg-white">
-                        <thead className="bg-gray-100 border-b border-gray-300">
-                            <tr>
-                                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Código</th>
-                                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Descripción</th>
-                                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Estado</th>
-                                {!showOnlyActive && (
-                                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Fecha</th>
+            {/* TAB CONTENT: GENERAL */}
+            {activeTab === 'general' && (
+                <div className="animate-fadeIn">
+                    <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="relative flex-1 max-w-sm">
+                            <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Buscar por nombre o código..."
+                                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+
+                        <div className="flex items-center space-x-3 bg-white p-2 rounded-lg shadow-sm border border-gray-200">
+                            <div className="flex space-x-2 mr-4 border-r pr-4 border-gray-200">
+                                <button
+                                    onClick={() => setViewMode('included')}
+                                    disabled={showOnlyActive}
+                                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${viewMode === 'included' && !showOnlyActive
+                                        ? 'bg-purple-100 text-purple-800'
+                                        : 'text-gray-600 hover:bg-gray-50 disabled:opacity-50'
+                                        }`}
+                                >
+                                    Productos Incluidos
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('modified')}
+                                    disabled={showOnlyActive}
+                                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${viewMode === 'modified' && !showOnlyActive
+                                        ? 'bg-purple-100 text-purple-800'
+                                        : 'text-gray-600 hover:bg-gray-50 disabled:opacity-50'
+                                        }`}
+                                >
+                                    Producto Modificado
+                                </button>
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                                <Filter className={`w-5 h-5 ${showOnlyActive ? 'text-purple-600' : 'text-gray-400'}`} />
+                                <span className="text-sm font-medium text-gray-700">Ver solo activos</span>
+                            </div>
+                            <ToggleSwitch
+                                checked={showOnlyActive}
+                                onChange={() => setShowOnlyActive(!showOnlyActive)}
+                                labelOff="Todo"
+                                labelOn="Activos"
+                                colorClass="bg-purple-600"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="min-w-full bg-white">
+                                <thead className="bg-gray-100 border-b border-gray-300">
+                                    <tr>
+                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Código</th>
+                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Descripción</th>
+                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Estado</th>
+                                        {!showOnlyActive && (
+                                            <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Fecha</th>
+                                        )}
+                                        <th className="py-3 px-4 text-center text-xs font-semibold text-gray-600 uppercase">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {isLoading && (
+                                        <tr><td colSpan={showOnlyActive ? "4" : "5"} className="p-0"><LoadingSpinner text="Cargando productos..." /></td></tr>
+                                    )}
+                                    {isError && (
+                                        <tr><td colSpan={showOnlyActive ? "4" : "5"} className="p-8 text-center text-red-500">Error: {error?.message}</td></tr>
+                                    )}
+                                    {!isLoading && !isError && productsToShow.length === 0 && (
+                                        <tr><td colSpan={showOnlyActive ? "4" : "5"} className="p-8 text-center text-gray-500">No se encontraron productos.</td></tr>
+                                    )}
+                                    {productsToShow.map((product) => (
+                                        <ProductRow
+                                            key={product.id}
+                                            product={product}
+                                            onToggle={() => toggleRelease(product.id)}
+                                            isToggling={isToggling}
+                                            onEdit={setEditingProduct}
+                                            viewMode={showOnlyActive ? null : viewMode} // Pass null if showOnlyActive so date is not shown? Or logic inside row handles it?
+                                        />
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Mobile View Omitted - Rendering Logic reuse if needed similar to ManageOffers */}
+
+                        {!showOnlyActive && (
+                            <div className="p-4 text-center">
+                                {hasNextPage && (
+                                    <button
+                                        onClick={() => fetchNextPage()}
+                                        disabled={isFetchingNextPage}
+                                        className="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+                                    >
+                                        {isFetchingNextPage ? 'Cargando...' : 'Cargar más productos'}
+                                    </button>
                                 )}
-                                <th className="py-3 px-4 text-center text-xs font-semibold text-gray-600 uppercase">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                            {isLoading && (
-                                <tr><td colSpan={showOnlyActive ? "4" : "5"} className="p-0"><LoadingSpinner text="Cargando productos..." /></td></tr>
-                            )}
-                            {isError && (
-                                <tr><td colSpan={showOnlyActive ? "4" : "5"} className="p-8 text-center text-red-500">Error: {error?.message}</td></tr>
-                            )}
-                            {!isLoading && !isError && productsToShow.length === 0 && (
-                                <tr><td colSpan={showOnlyActive ? "4" : "5"} className="p-8 text-center text-gray-500">No se encontraron productos.</td></tr>
-                            )}
-                            {productsToShow.map((product) => (
-                                <ProductRow
-                                    key={product.id}
-                                    product={product}
-                                    onToggle={() => toggleRelease(product.id)}
-                                    isToggling={isToggling}
-                                    onEdit={setEditingProduct}
-                                    viewMode={showOnlyActive ? null : viewMode} // Pass null if showOnlyActive so date is not shown? Or logic inside row handles it?
-                                />
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-
-                {/* Mobile View Omitted - Rendering Logic reuse if needed similar to ManageOffers */}
-
-                {!showOnlyActive && (
-                    <div className="p-4 text-center">
-                        {hasNextPage && (
-                            <button
-                                onClick={() => fetchNextPage()}
-                                disabled={isFetchingNextPage}
-                                className="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-                            >
-                                {isFetchingNextPage ? 'Cargando...' : 'Cargar más productos'}
-                            </button>
-                        )}
-                        {!hasNextPage && !isLoading && productsToShow.length > 0 && (
-                            <p className="text-gray-500 text-sm">Fin de los resultados.</p>
+                                {!hasNextPage && !isLoading && productsToShow.length > 0 && (
+                                    <p className="text-gray-500 text-sm">Fin de los resultados.</p>
+                                )}
+                            </div>
                         )}
                     </div>
-                )}
-            </div>
+                </div>
+            )}
+
+            {/* TAB CONTENT: GROUPS */}
+            {activeTab === 'groups' && (
+                <Suspense fallback={<LoadingSpinner />}>
+                    <LaunchGroupsTab />
+                </Suspense>
+            )}
+
             {editingProduct && (
                 <EditReleaseModal
                     product={editingProduct}

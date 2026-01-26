@@ -78,7 +78,13 @@ const NewReleasesBanner = ({ products: propProducts }) => {
 
     return (
         <div
-            onClick={() => navigate(`/product-detail/${currentProduct.id}`)}
+            onClick={() => {
+                if (currentProduct.is_launch_group) {
+                    navigate(`/collection/${currentProduct.id}`);
+                } else {
+                    navigate(`/product-detail/${currentProduct.id}`);
+                }
+            }}
             className="
             group cursor-pointer 
             bg-gradient-to-b from-indigo-600 to-purple-700 
@@ -100,17 +106,20 @@ const NewReleasesBanner = ({ products: propProducts }) => {
 
             {/* Badge */}
             <div className="absolute top-4 right-4 z-20">
-                <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-full shadow-md flex items-center gap-1">
+                <span className={`
+                    ${currentProduct.is_launch_group ? 'bg-espint-blue text-white' : 'bg-yellow-400 text-yellow-900'}
+                    text-xs font-bold px-3 py-1 rounded-full shadow-md flex items-center gap-1
+                `}>
                     <Sparkles className="w-3 h-3" />
-                    NUEVO
+                    {currentProduct.is_launch_group ? 'COLECCIÓN' : 'NUEVO'}
                 </span>
             </div>
 
             {/* Image Area */}
             <div className="w-full h-[65%] bg-white p-0 flex items-center justify-center relative">
-                {currentProduct.custom_image_url || currentProduct.imageUrl ? (
+                {currentProduct.custom_image_url || currentProduct.imageUrl || currentProduct.image_url ? (
                     <img
-                        src={currentProduct.custom_image_url || currentProduct.imageUrl}
+                        src={currentProduct.custom_image_url || currentProduct.imageUrl || currentProduct.image_url}
                         alt={currentProduct.name}
                         className="w-full h-full object-cover drop-shadow-xl transition-transform duration-500 group-hover:scale-105"
                         referrerPolicy="no-referrer"
@@ -128,7 +137,7 @@ const NewReleasesBanner = ({ products: propProducts }) => {
                 <div>
                     <div className="mb-1">
                         <span className="text-[10px] font-bold text-white/70 uppercase tracking-wider">
-                            {currentProduct.brand}
+                            {currentProduct.is_launch_group ? 'Lanzamiento' : currentProduct.brand}
                         </span>
                     </div>
 
@@ -137,9 +146,15 @@ const NewReleasesBanner = ({ products: propProducts }) => {
                     </h3>
 
                     <div className="flex flex-col mt-2">
-                        <span className="text-2xl font-black text-white tracking-tight">
-                            {currentProduct.formattedPrice}
-                        </span>
+                        {currentProduct.is_launch_group ? (
+                            <span className="text-sm text-white/90 line-clamp-2">
+                                {currentProduct.description || 'Ver colección completa'}
+                            </span>
+                        ) : (
+                            <span className="text-2xl font-black text-white tracking-tight">
+                                {currentProduct.formattedPrice}
+                            </span>
+                        )}
                     </div>
                 </div>
             </div>

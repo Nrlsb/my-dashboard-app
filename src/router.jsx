@@ -44,6 +44,9 @@ const TestUsersPage = lazyImport(() => import('./pages/TestUsersPage.jsx'));
 const TestUserAccessDeniedPage = lazyImport(() => import('./pages/TestUserAccessDeniedPage.jsx'));
 const TestUserExpiredPage = lazyImport(() => import('./pages/TestUserExpiredPage.jsx'));
 const ManageUsersPage = lazyImport(() => import('./pages/ManageUsersPage.jsx')); // NUEVO IMPORT
+const LaunchGroupsPage = lazyImport(() => import('./pages/LaunchGroupsPage.jsx'));
+const ManageLaunchGroupPage = lazyImport(() => import('./pages/ManageLaunchGroupPage.jsx'));
+const LaunchGroupPublicPage = lazyImport(() => import('./pages/LaunchGroupPublicPage.jsx'));
 
 // Error Element for Dashboard
 const DashboardError = () => (
@@ -108,6 +111,12 @@ const router = createBrowserRouter(
                 </Suspense>
             } />
 
+            <Route path="collection/:id" element={
+                <Suspense fallback={<LoadingFallback />}>
+                    <LaunchGroupPublicPage />
+                </Suspense>
+            } />
+
             {/* Rutas Protegidas */}
             <Route index element={<RootRedirect />} />
 
@@ -121,6 +130,26 @@ const router = createBrowserRouter(
                 </ProtectedRoute>
             }
             />
+
+            <Route path="admin/launch-groups" element={
+                <ProtectedRoute>
+                    <ClientRoute>
+                        <Suspense fallback={<LoadingFallback />}>
+                            <LaunchGroupsPage />
+                        </Suspense>
+                    </ClientRoute>
+                </ProtectedRoute>
+            } />
+
+            <Route path="admin/launch-groups/:id" element={
+                <ProtectedRoute>
+                    <ClientRoute>
+                        <Suspense fallback={<LoadingFallback />}>
+                            <ManageLaunchGroupPage />
+                        </Suspense>
+                    </ClientRoute>
+                </ProtectedRoute>
+            } />
 
             <Route path="vendedor-dashboard" element={
                 <ProtectedRoute>

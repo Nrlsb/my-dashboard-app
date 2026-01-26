@@ -917,11 +917,11 @@ const findCarouselGroups = async () => {
 };
 
 const createCarouselGroup = async (data) => {
-  const { name, image_url, type, reference_id, display_order } = data;
+  const { name, image_url, type, reference_id, display_order, description, is_launch_group } = data;
   try {
     const result = await pool2.query(
-      'INSERT INTO carousel_product_groups (name, image_url, type, reference_id, display_order) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [name, image_url, type, reference_id, display_order || 0]
+      'INSERT INTO carousel_product_groups (name, image_url, type, reference_id, display_order, description, is_launch_group) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [name, image_url, type, reference_id, display_order || 0, description, is_launch_group || false]
     );
 
     if (isRedisReady()) {
@@ -936,18 +936,20 @@ const createCarouselGroup = async (data) => {
 };
 
 const updateCarouselGroup = async (id, data) => {
-  const { name, image_url, type, reference_id, is_active, display_order } = data;
+  const { name, image_url, type, reference_id, is_active, display_order, description, is_launch_group } = data;
   try {
     const result = await pool2.query(
       `UPDATE carousel_product_groups 
        SET name = COALESCE($1, name),
-  image_url = COALESCE($2, image_url),
-  type = COALESCE($3, type),
-  reference_id = COALESCE($4, reference_id),
-  is_active = COALESCE($5, is_active),
-  display_order = COALESCE($6, display_order)
-       WHERE id = $7 RETURNING * `,
-      [name, image_url, type, reference_id, is_active, display_order, id]
+          image_url = COALESCE($2, image_url),
+          type = COALESCE($3, type),
+          reference_id = COALESCE($4, reference_id),
+          is_active = COALESCE($5, is_active),
+          display_order = COALESCE($6, display_order),
+          description = COALESCE($7, description),
+          is_launch_group = COALESCE($8, is_launch_group)
+       WHERE id = $9 RETURNING * `,
+      [name, image_url, type, reference_id, is_active, display_order, description, is_launch_group, id]
     );
 
     if (isRedisReady()) {
