@@ -60,25 +60,25 @@ const TestUsersTable = ({ users = [] }) => {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Usuario de Prueba
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Credenciales
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Contacto
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Estado
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Fecha Creación
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Creado Por (Vendedor)
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Vendedor
                             </th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Acciones
                             </th>
                         </tr>
@@ -86,11 +86,11 @@ const TestUsersTable = ({ users = [] }) => {
                     <tbody className="bg-white divide-y divide-gray-200">
                         {users.map((user) => (
                             <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="px-6 py-4 whitespace-nowrap">
+                                <td className="px-3 py-4">
                                     <div className="text-sm font-medium text-gray-900">{user.name}</div>
                                     <div className="text-xs text-gray-500">ID: {user.id}</div>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
+                                <td className="px-3 py-4 whitespace-nowrap">
                                     <div className="text-sm text-gray-600">
                                         <span className="font-semibold text-xs uppercase text-gray-400 mr-1">Pass:</span>
                                         <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs text-gray-800">
@@ -98,7 +98,7 @@ const TestUsersTable = ({ users = [] }) => {
                                         </span>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                                     {user.cellphone ? (
                                         <div className="flex items-center gap-2">
                                             <FaWhatsapp className="text-green-500 text-lg" />
@@ -108,7 +108,7 @@ const TestUsersTable = ({ users = [] }) => {
                                         <span className="text-gray-400">-</span>
                                     )}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
+                                <td className="px-3 py-4 whitespace-nowrap">
                                     {user.deleted_at ? (
                                         <div className="flex flex-col">
                                             <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 w-fit mb-1">
@@ -124,25 +124,25 @@ const TestUsersTable = ({ users = [] }) => {
                                         </span>
                                     )}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                                     {new Date(user.created_at).toLocaleDateString()}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
+                                <td className="px-3 py-4">
                                     <div className="flex items-center">
-                                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-500 mr-3">
+                                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-500 mr-3 hidden sm:flex">
                                             <FaUserTie />
                                         </div>
                                         <div>
                                             <div className="text-sm font-medium text-gray-900">
                                                 {user.vendedor?.nombre || 'Desconocido'}
                                             </div>
-                                            <div className="text-xs text-gray-500">
+                                            <div className="text-xs text-gray-500 break-all">
                                                 {user.vendedor?.email || '-'}
                                             </div>
                                         </div>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex items-center justify-end gap-2">
+                                <td className="px-3 py-4 whitespace-nowrap text-right text-sm font-medium flex items-center justify-end gap-2">
                                     <button
                                         onClick={() => openAnalytics(user)}
                                         className="text-blue-600 hover:text-blue-900 bg-blue-50 p-2 rounded-full transition-colors"
