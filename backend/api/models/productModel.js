@@ -979,6 +979,16 @@ const deleteCarouselGroup = async (id) => {
   }
 };
 
+const findGroupById = async (id) => {
+  try {
+    const result = await pool2.query('SELECT * FROM carousel_product_groups WHERE id = $1', [id]);
+    return result.rows[0];
+  } catch (error) {
+    console.error('Error in findGroupById:', error);
+    throw error;
+  }
+};
+
 const findCustomCollectionProducts = async (collectionId) => {
   const cacheKey = `carousel:custom_collection:${collectionId}`;
 
@@ -1341,6 +1351,7 @@ module.exports = {
   createCarouselGroup,
   updateCarouselGroup,
   deleteCarouselGroup,
+  findGroupById,
   findCustomCollectionProducts,
   addCustomGroupItem,
   removeCustomGroupItem,

@@ -602,8 +602,29 @@ const deleteCarouselGroup = async (id) => {
   return result;
 };
 
-const getCustomCollectionProducts = async (collectionId, user = null) => {
-  const rawProducts = await productModel.findCustomCollectionProducts(collectionId);
+const getCustomCollectionProducts_Duplicate = async (collectionId, user = null) => {
+  // 1. Get group details to check type
+  const group = await productModel.findGroupById(collectionId);
+
+  let rawProducts = [];
+  if (group && group.is_launch_group) {
+    console.log(`[DEBUG] Collection ${collectionId} is a Launch Group. Fetching new releases...`);
+    // Reuse fetchNewReleases logic but we need raw products here to filter later or reuse filtering logic.
+    // fetchNewReleases returns enriched products directly.
+    // Ideally we should get raw data first.
+    // Let's call a helper or getNewReleasesData directly.
+    const newReleasesData = await productModel.getNewReleasesData();
+    // findOffers is used in fetchNewReleases to get full details matching newReleasesData codes
+    // But findOffers already filters by denied groups if passed.
+    // Let's rely on fetchNewReleases implementation which handles everything including enrichment.
+    // BUT getCustomCollectionProducts usually expects to do filtering itself?
+    // Let's look at how getCustomCollectionProducts works: it gets raw, filters, then enriches.
+
+    // We can call fetchNewReleases(user) and return immediately because it handles permissions.
+    return await fetchNewReleases(user);
+  } else {
+    rawProducts = await productModel.findCustomCollectionProducts(collectionId);
+  }
 
   let filteredProducts = rawProducts;
   if (user) {
@@ -853,6 +874,63 @@ const updateProductNewReleaseDetails = async (productId, details) => {
     console.error('Error in updateProductNewReleaseDetails (service):', error);
     throw error;
   }
+};
+
+const getCustomCollectionProducts = async (collectionId, user = null) => {
+  // 1. Get group details to check type
+  const group = await productModel.findGroupById(collectionId);
+
+  let rawProducts = [];
+  if (group && group.is_launch_group) {
+    console.log(`[DEBUG] Collection ${collectionId} is a Launch Group. Fetching new releases...`);
+    return await fetchNewReleases(user);
+  } else {
+    rawProducts = await productModel.findCustomCollectionProducts(collectionId);
+  }
+
+  let filteredProducts = rawProducts;
+  if (user) {
+    const { deniedGroups, allowedProductCodes, isRestrictedUser } = await getUserFilters(user);
+    filteredProducts = rawProducts.filter(prod => !deniedGroups.includes(prod.product_group));
+
+    if (isRestrictedUser) {
+      filteredProducts = filteredProducts.filter(prod => allowedProductCodes.includes(prod.code));
+    }
+  } else {
+    const globalDeniedCodes = await productModel.getGlobalDeniedProducts();
+    const allowedImageCodes = await productModel.getAllProductImageCodes();
+
+    filteredProducts = rawProducts.filter(prod =>
+      !globalDeniedCodes.includes(prod.code) && allowedImageCodes.includes(prod.code)
+    );
+  }
+
+  let exchangeRates;
+  try {
+    exchangeRates = await getExchangeRates();
+  } catch (error) {
+    exchangeRates = { venta_billete: 1, venta_divisa: 1 };
+  }
+  const ventaBillete = exchangeRates.venta_billete || 1;
+  const ventaDivisa = exchangeRates.venta_divisa || 1;
+
+  const mappedProducts = filteredProducts.map((prod) => {
+    let originalPrice = prod.price;
+    let finalPrice = prod.price;
+
+    if (prod.moneda === 2) {
+      finalPrice = originalPrice * ventaBillete;
+    } else if (prod.moneda === 3) {
+      finalPrice = originalPrice * ventaDivisa;
+    }
+
+    return {
+      ...prod,
+      name: prod.description,
+      price: finalPrice
+    };
+  });
+  return await enrichProductsWithImages(mappedProducts);
 };
 
 module.exports = {

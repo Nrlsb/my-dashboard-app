@@ -33,7 +33,10 @@ const LaunchGroupPublicPage = () => {
             // For now, let's assume we fetch products and if we need the name, we might need a separate call or it's included.
             // Actually, `findCustomCollectionProducts` DB query usually joins with collection table.
             // Let's check `productModel.js`.
-            return apiService.get(`/products/collection/${id}`);
+            console.log(`[LaunchGroupPublicPage] Fetching products for collection ${id}`);
+            const result = await apiService.get(`/products/collection/${id}`);
+            console.log(`[LaunchGroupPublicPage] Result:`, result);
+            return result;
         },
         retry: false
     });

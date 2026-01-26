@@ -26,6 +26,7 @@ const CollectionPage = () => {
                 // But for now, I'll just fetch products.
 
                 const data = await apiService.getCustomCollectionProducts(collectionId);
+                console.log(`[CollectionPage] Fetched products for collection ${collectionId}:`, data);
                 setProducts(data);
 
                 // Try to find name from groups list (inefficient but works for now)

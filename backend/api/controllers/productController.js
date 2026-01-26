@@ -135,8 +135,17 @@ exports.updateProductOfferDetails = catchAsync(async (req, res) => {
 });
 
 exports.getCustomCollectionProducts = catchAsync(async (req, res) => {
-    const products = await productService.getCustomCollectionProducts(req.params.collectionId, req.user);
-    res.json(products);
+    const { collectionId } = req.params;
+    logger.info(`GET /api/products/collection/${collectionId} -> Fetching custom collection products...`);
+
+    try {
+        const products = await productService.getCustomCollectionProducts(collectionId, req.user);
+        logger.info(`Collection ${collectionId} returned ${products.length} products`);
+        res.json(products);
+    } catch (error) {
+        logger.error(`Error fetching collection ${collectionId}: ${error.message}`);
+        throw error;
+    }
 });
 
 exports.generateAiDescription = catchAsync(async (req, res) => {
