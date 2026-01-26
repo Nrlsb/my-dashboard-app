@@ -923,6 +923,11 @@ const createCarouselGroup = async (data) => {
       'INSERT INTO carousel_product_groups (name, image_url, type, reference_id, display_order) VALUES ($1, $2, $3, $4, $5) RETURNING *',
       [name, image_url, type, reference_id, display_order || 0]
     );
+
+    if (isRedisReady()) {
+      await redisClient.del('carousel:groups');
+    }
+
     return result.rows[0];
   } catch (error) {
     console.error('Error in createCarouselGroup:', error);
@@ -944,6 +949,11 @@ const updateCarouselGroup = async (id, data) => {
        WHERE id = $7 RETURNING * `,
       [name, image_url, type, reference_id, is_active, display_order, id]
     );
+
+    if (isRedisReady()) {
+      await redisClient.del('carousel:groups');
+    }
+
     return result.rows[0];
   } catch (error) {
     console.error('Error in updateCarouselGroup:', error);
@@ -954,6 +964,11 @@ const updateCarouselGroup = async (id, data) => {
 const deleteCarouselGroup = async (id) => {
   try {
     await pool2.query('DELETE FROM carousel_product_groups WHERE id = $1', [id]);
+
+    if (isRedisReady()) {
+      await redisClient.del('carousel:groups');
+    }
+
     return { success: true };
   } catch (error) {
     console.error('Error in deleteCarouselGroup:', error);
