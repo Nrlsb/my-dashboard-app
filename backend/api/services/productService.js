@@ -881,12 +881,9 @@ const getCustomCollectionProducts = async (collectionId, user = null) => {
   const group = await productModel.findGroupById(collectionId);
 
   let rawProducts = [];
-  if (group && group.is_launch_group) {
-    console.log(`[DEBUG] Collection ${collectionId} is a Launch Group. Fetching new releases...`);
-    return await fetchNewReleases(user);
-  } else {
-    rawProducts = await productModel.findCustomCollectionProducts(collectionId);
-  }
+  // [MODIFIED] Treat launch groups as normal custom collections to allow manual add/remove
+  // if (group && group.is_launch_group) { ... } logic removed.
+  rawProducts = await productModel.findCustomCollectionProducts(collectionId);
 
   let filteredProducts = rawProducts;
   if (user) {
