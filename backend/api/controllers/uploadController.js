@@ -8,9 +8,10 @@ exports.uploadToDrive = catchAsync(async (req, res) => {
 
     try {
         // "Products" folder ID could be configured in .env, for now optional or root
-        // If you have a specific folder ID, load it from env: process.env.DRIVE_PRODUCT_FOLDER_ID
+        // If you have a specific folder ID, load it from env: process.env.GOOGLE_DRIVE_FOLDER_ID
         console.log('Received file for Drive upload:', req.file);
-        const result = await googleDriveService.uploadFile(req.file);
+        const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+        const result = await googleDriveService.uploadFile(req.file, folderId);
 
         res.json({
             message: 'File uploaded successfully',
