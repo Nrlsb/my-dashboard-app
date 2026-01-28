@@ -11,6 +11,12 @@ exports.uploadToDrive = catchAsync(async (req, res) => {
         // If you have a specific folder ID, load it from env: process.env.GOOGLE_DRIVE_FOLDER_ID
         console.log('Received file for Drive upload:', req.file);
         const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+        console.log('DEBUG: Uploading to Folder ID:', folderId ? folderId : 'UNDEFINED/NULL');
+
+        if (!folderId) {
+            console.warn('WARNING: No GOOGLE_DRIVE_FOLDER_ID found. Uploading to root (likely to fail for Service Accounts).');
+        }
+
         const result = await googleDriveService.uploadFile(req.file, folderId);
 
         res.json({
