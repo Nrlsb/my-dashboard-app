@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { VirtuosoGrid } from 'react-virtuoso';
 import {
     Loader2,
     ArrowLeft,
@@ -9,14 +11,16 @@ import {
     ChevronDown,
     ShoppingCart,
     CheckCircle,
-    Package
+
+    Package,
+    ArrowUp
 } from 'lucide-react';
 import apiService from '../api/apiService';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 
 // --- Formateadores ---
-// --- Formateadores ---
+
 const formatCurrency = (amount) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
         amount || 0
@@ -136,8 +140,11 @@ export default function ProductsPage() {
     const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
     const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
 
+    const [showScrollTop, setShowScrollTop] = useState(false);
+
     const brandDropdownRef = useRef(null);
     const debounceTimeout = useRef(null);
+    const virtuosoRef = useRef(null);
 
 
 
@@ -323,18 +330,53 @@ export default function ProductsPage() {
                     </div>
                 </div>
 
-                {/* Product Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {isLoading && allProducts.length === 0 && (
-                        Array.from({ length: 8 }).map((_, i) => (
-                            <ProductSkeleton key={i} />
-                        ))
-                    )}
-
-                    {allProducts.map((product) => (
-                        <ProductCard key={product.id} product={product} />
-                    ))}
-                </div>
+                {/* Product Grid Virtualized */}
+                {allProducts.length > 0 && (
+                    <div className="w-full min-h-screen">
+                        <VirtuosoGrid
+                            ref={virtuosoRef}
+                            useWindowScroll
+                            data={allProducts}
+                            endReached={() => {
+                                if (hasNextPage && !isFetchingNextPage) {
+                                    fetchNextPage();
+                                }
+                            }}
+                            overscan={200}
+                            itemContent={(index, product) => (
+                                <div className="p-2 h-full">
+                                    <ProductCard product={product} />
+                                </div>
+                            )}
+                            components={{
+                                List: React.forwardRef(({ style, children, ...props }, ref) => (
+                                    <div
+                                        ref={ref}
+                                        {...props}
+                                        style={{ ...style }}
+                                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 mb-20 pb-20"
+                                    >
+                                        {children}
+                                    </div>
+                                )),
+                                Footer: () => (
+                                    <div className="py-8 flex justify-center w-full col-span-full">
+                                        {isFetchingNextPage ? (
+                                            <div className="flex items-center gap-2 text-gray-500">
+                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                                <span>Cargando más productos...</span>
+                                            </div>
+                                        ) : hasNextPage ? (
+                                            <span className="text-gray-400 text-sm">Desliza para ver más</span>
+                                        ) : (
+                                            <span className="text-gray-400 text-sm">Has llegado al final del catálogo</span>
+                                        )}
+                                    </div>
+                                )
+                            }}
+                        />
+                    </div>
+                )}
 
                 {/* Empty State */}
                 {!isLoading && allProducts.length === 0 && (
@@ -370,33 +412,14 @@ export default function ProductsPage() {
                     </div>
                 )}
 
-                {/* Load More */}
-                {hasNextPage && (
-                    <div className="mt-12 flex justify-center">
-                        <button
-                            onClick={() => fetchNextPage()}
-                            disabled={isFetchingNextPage}
-                            className="group flex items-center gap-2 px-8 py-3 bg-white border border-gray-200 text-gray-700 font-medium rounded-full shadow-sm hover:shadow-md hover:border-espint-blue hover:text-espint-blue transition-all disabled:opacity-50"
-                        >
-                            {isFetchingNextPage ? (
-                                <>
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                    Cargando...
-                                </>
-                            ) : (
-                                <>
-                                    Ver más productos
-                                    <ChevronDown className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" />
-                                </>
-                            )}
-                        </button>
-                    </div>
-                )}
-
-                {!hasNextPage && allProducts.length > 0 && (
-                    <div className="mt-12 text-center">
-                        <p className="text-gray-400 text-sm">Has llegado al final del catálogo</p>
-                    </div>
+                {/* Scroll to Top Button */}
+                {showScrollTop && (
+                    <button
+                        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                        className="fixed bottom-8 right-8 p-3 bg-espint-blue text-white rounded-full shadow-lg hover:bg-blue-700 transition-all z-50 animate-bounce"
+                    >
+                        <ArrowUp className="w-6 h-6" />
+                    </button>
                 )}
             </div>
         </div >

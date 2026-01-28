@@ -235,6 +235,8 @@ const findProducts = async ({
   let queryParams = [];
   let paramIndex = 1;
 
+  // Optimización: Uso de índices GIN (pg_trgm) y B-Tree
+  // Asegurarse de que las extensiones y los índices estén creados (ver scripts/optimize_db_indices.js)
   let countQuery =
     'SELECT COUNT(*) FROM products WHERE da1_prcven > 0 AND b1_desc IS NOT NULL';
   let dataQuery = `
@@ -303,11 +305,11 @@ const findProducts = async ({
 
       if (isNumeric) {
         // Lógica Numérica:
-        // 1. b1_desc: Busca "Palabra que empieza con TERM" seguido de NO-DIGITO o Fin.
+        // 1. b1_desc: Busca "Palabra que empieza con TERM". Optimizado con índice GIN.
         //    Ej: Matches "20", "20L", "20kg", "Lata 20". No matches "200", "120".
         //    Regex: \mTERM(\D|$) -> \m = inicio de palabra.
-        // 2. z02_descri (Capacidad): Búsqueda laxa (ILIKE) porque este campo es específico.
-        // 3. b1_cod: Busca inicio de palabra código. Ej: "20-ABC", "A-20". No "120".
+        // 2. z02_descri (Capacidad): Búsqueda laxa (ILIKE) indexada.
+        // 3. b1_cod: Busca inicio de palabra código.
 
         // Nota: Postgres concatena strings con ||. 
         // Pasamos el término "20" limpio.
