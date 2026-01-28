@@ -238,26 +238,27 @@ const findProducts = async ({
   // Optimización: Uso de índices GIN (pg_trgm) y B-Tree
   // Asegurarse de que las extensiones y los índices estén creados (ver scripts/optimize_db_indices.js)
   let countQuery =
-    'SELECT COUNT(*) FROM products WHERE da1_prcven > 0 AND b1_desc IS NOT NULL';
+    'SELECT COUNT(*) FROM products LEFT JOIN product_price_snapshots pps ON products.id = pps.product_id WHERE products.da1_prcven > 0 AND products.b1_desc IS NOT NULL';
   let dataQuery = `
       SELECT
-        id, b1_cod AS code, b1_desc AS description, 
+        products.id, products.b1_cod AS code, products.b1_desc AS description, 
         CASE
-            WHEN b1_ts = '503' THEN da1_prcven * 1.21
-            WHEN b1_ts = '501' THEN da1_prcven * 1.105
-            ELSE da1_prcven
+            WHEN products.b1_ts = '503' THEN products.da1_prcven * 1.21
+            WHEN products.b1_ts = '501' THEN products.da1_prcven * 1.105
+            ELSE products.da1_prcven
         END AS price,
         CASE
-            WHEN b1_ts IN ('503', '501') THEN true
+            WHEN pps.last_change_timestamp >= NOW() - INTERVAL '1 hour' THEN true
             ELSE false
         END AS is_price_modified,
-        sbm_desc AS brand, b1_grupo AS product_group, sbm_desc AS group_description,
-        z02_descri AS capacity_description, da1_moeda AS moneda, cotizacion,
-        stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, sbz_desc AS indicator_description, 
-        b1_um AS unit_type, b1_qe AS pack_quantity,
-        inclusion_date, modification_date -- Select dates
+        products.sbm_desc AS brand, products.b1_grupo AS product_group, products.sbm_desc AS group_description,
+        products.z02_descri AS capacity_description, products.da1_moeda AS moneda, products.cotizacion,
+        products.stock_disp AS stock_disponible, products.stock_prev AS stock_de_seguridad, products.sbz_desc AS indicator_description, 
+        products.b1_um AS unit_type, products.b1_qe AS pack_quantity,
+        products.inclusion_date, products.modification_date -- Select dates
     FROM products
-    WHERE da1_prcven > 0 AND b1_desc IS NOT NULL
+    LEFT JOIN product_price_snapshots pps ON products.id = pps.product_id
+    WHERE products.da1_prcven > 0 AND products.b1_desc IS NOT NULL
   `;
 
   // Date Filter Type Logic
@@ -280,7 +281,7 @@ const findProducts = async ({
 
   // Modified Price Filter
   if (onlyModifiedPrices) {
-    const modifiedPriceFilter = ` AND b1_ts IN ('503', '501') `;
+    const modifiedPriceFilter = ` AND pps.last_change_timestamp >= NOW() - INTERVAL '1 hour' `;
     countQuery += modifiedPriceFilter;
     dataQuery += modifiedPriceFilter;
   }
@@ -476,9 +477,14 @@ END AS price,
 sbm_desc AS brand,
   z02_descri AS capacity_description, b1_grupo AS product_group,
   stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, da1_moeda AS moneda,
-  sbz_desc AS indicator_description, b1_qe AS pack_quantity
+  sbz_desc AS indicator_description, b1_qe AS pack_quantity,
+  CASE
+    WHEN pps.last_change_timestamp >= NOW() - INTERVAL '1 hour' THEN true
+    ELSE false
+  END AS is_price_modified
       FROM products
-      WHERE id = $1 AND da1_prcven > 0 AND b1_desc IS NOT NULL
+      LEFT JOIN product_price_snapshots pps ON products.id = pps.product_id
+      WHERE products.id = $1 AND products.da1_prcven > 0 AND products.b1_desc IS NOT NULL
     `;
     let queryParams = [productId];
     let paramIndex = 2;
@@ -548,9 +554,14 @@ END AS price,
 sbm_desc AS brand,
   z02_descri AS capacity_description, b1_grupo AS product_group,
   stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, da1_moeda AS moneda,
-  sbz_desc AS indicator_description, b1_qe AS pack_quantity
+  sbz_desc AS indicator_description, b1_qe AS pack_quantity,
+  CASE
+    WHEN pps.last_change_timestamp >= NOW() - INTERVAL '1 hour' THEN true
+    ELSE false
+  END AS is_price_modified
       FROM products
-      WHERE b1_cod = $1 AND da1_prcven > 0 AND b1_desc IS NOT NULL
+      LEFT JOIN product_price_snapshots pps ON products.id = pps.product_id
+      WHERE products.b1_cod = $1 AND products.da1_prcven > 0 AND products.b1_desc IS NOT NULL
     `;
     let queryParams = [productCode];
     let paramIndex = 2;
@@ -730,37 +741,7 @@ b1_grupo AS brand,
   return { products, totalProducts, groupName };
 };
 
-const getRecentlyChangedProducts = async (productIds) => {
-  if (!productIds || productIds.length === 0) return [];
-
-  try {
-    // Map IDs to codes first?
-    // Or just use product_id if the table still has it (it does).
-    // But we should try to use code.
-    // Let's stick to ID for this one as it's internal history and table has both.
-    // Wait, the requirement is "siempre tomen como referencia el parametro code".
-    // So I should use code.
-
-    // Get codes for these IDs
-    const codesResult = await pool2.query('SELECT b1_cod AS code, id FROM products WHERE id = ANY($1::int[])', [productIds]);
-    const codes = codesResult.rows.map(r => r.code);
-    const codeToIdMap = new Map(codesResult.rows.map(r => [r.code, r.id]));
-
-    const query = `
-      SELECT product_code 
-      FROM product_price_snapshots 
-      WHERE product_code = ANY($1:: varchar[]) 
-        AND last_change_timestamp >= NOW() - INTERVAL '30 minutes'
-    `;
-    const result = await pool2.query(query, [codes]);
-
-    // Map back to IDs
-    return result.rows.map(row => codeToIdMap.get(row.product_code)).filter(id => id != null);
-  } catch (error) {
-    console.error('Error in getRecentlyChangedProducts:', error);
-    return [];
-  }
-};
+// getRecentlyChangedProducts removed as logic is deprecated
 
 const toggleProductNewReleaseStatus = async (productId, productCode, status) => {
   try {
@@ -1373,7 +1354,7 @@ module.exports = {
   getOnOfferData,
   findOffers,
   findProductsByGroup,
-  getRecentlyChangedProducts,
+
   updateProductOfferDetails,
   // Carousel exports
   findCarouselAccessories,

@@ -105,12 +105,9 @@ const fetchProducts = async ({
     const { products: rawProducts, totalProducts } = await productModel.findProducts(filters);
 
     // 5. Aplicar lógica de negocio
-    let recentlyChangedSet = new Set();
-    if (!isExport) {
-      const productIds = rawProducts.map(p => p.id);
-      const recentlyChangedIds = await productModel.getRecentlyChangedProducts(productIds);
-      recentlyChangedSet = new Set(recentlyChangedIds);
-    }
+    // 5. Aplicar lógica de negocio
+    // recentlyChanged logic removed
+
 
     const products = rawProducts.map((prod) => {
       const { finalPrice, cotizacionUsed, formattedPrice } = calculateFinalPrice(prod, exchangeRates);
@@ -131,7 +128,7 @@ const fetchProducts = async ({
         originalPrice: prod.price,
         product_group: prod.product_group,
         oferta: prod.oferta,
-        recentlyChanged: recentlyChangedSet.has(prod.id),
+        recentlyChanged: false, // Legacy support, logic removed
         stock_disponible: prod.stock_disponible,
         stock_de_seguridad: prod.stock_de_seguridad,
         indicator_description: prod.indicator_description,
