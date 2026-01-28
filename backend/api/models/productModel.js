@@ -294,10 +294,34 @@ const findProducts = async ({
   const searchTerms = search ? search.trim().split(/\s+/).filter(term => term.length > 0) : [];
 
   if (searchTerms.length > 0) {
-    const termConditions = searchTerms.map(() => {
+    const termConditions = searchTerms.map((term) => {
+      // Detección "Smart": Si es numérico (ej: "20", "20.5"), aplicamos lógica más estricta
+      // para evitar coincidencias parciales ruidosas (ej: "20" dentro de "12034").
+      const isNumeric = /^\d+(\.\d+)?$/.test(term);
       const currentParamIndex = paramIndex;
-      paramIndex++;
-      return `(b1_desc ILIKE $${currentParamIndex} OR b1_cod ILIKE $${currentParamIndex} OR sbm_desc ILIKE $${currentParamIndex})`;
+      paramIndex++; // Increment for the term value pushed later
+
+      if (isNumeric) {
+        // Lógica Numérica:
+        // 1. b1_desc: Busca "Palabra que empieza con TERM" seguido de NO-DIGITO o Fin.
+        //    Ej: Matches "20", "20L", "20kg", "Lata 20". No matches "200", "120".
+        //    Regex: \mTERM(\D|$) -> \m = inicio de palabra.
+        // 2. z02_descri (Capacidad): Búsqueda laxa (ILIKE) porque este campo es específico.
+        // 3. b1_cod: Busca inicio de palabra código. Ej: "20-ABC", "A-20". No "120".
+
+        // Nota: Postgres concatena strings con ||. 
+        // Pasamos el término "20" limpio.
+        return `(
+              b1_desc ~* ('\\m' || $${currentParamIndex} || '(\\D|$)') 
+              OR z02_descri ILIKE ('%' || $${currentParamIndex} || '%') 
+              OR b1_cod ~* ('\\m' || $${currentParamIndex} || '(\\D|$)')
+          )`;
+      } else {
+        // Lógica Texto (Standard):
+        // Buscamos coincidencia parcial en descripción, código o marca.
+        // Pasamos "%term%" como valor.
+        return `(b1_desc ILIKE $${currentParamIndex} OR b1_cod ILIKE $${currentParamIndex} OR sbm_desc ILIKE $${currentParamIndex})`;
+      }
     });
 
     const finalSearchQuery = ` AND (${termConditions.join(' AND ')}) `;
@@ -305,8 +329,14 @@ const findProducts = async ({
     countQuery += finalSearchQuery;
     dataQuery += finalSearchQuery;
 
+    // Push values based on type
     searchTerms.forEach(term => {
-      queryParams.push(`%${term}%`);
+      const isNumeric = /^\d+(\.\d+)?$/.test(term);
+      if (isNumeric) {
+        queryParams.push(term); // Push raw term for Regex/Manual wildcard construction
+      } else {
+        queryParams.push(`%${term}%`); // Push wildcards for ILIKE
+      }
     });
   }
 
