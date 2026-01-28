@@ -85,7 +85,7 @@ const authenticateUser = async (email, password) => {
           }
         }
 
-        // Calcular si el usuario ha expirado (1 semana = 7 días) - Lógica de respaldo si no se corrió el cron
+        // Calcular si el usuario ha  expirado (1 semana = 7 días) - Lógica de respaldo si no se corrió el cron
         const ONE_WEEK_IN_MS = 7 * 24 * 60 * 60 * 1000;
         const createdAt = new Date(testUserRecord.created_at).getTime();
         const now = new Date().getTime();
