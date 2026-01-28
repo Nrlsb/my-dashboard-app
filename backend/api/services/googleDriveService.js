@@ -26,6 +26,17 @@ const authorize = async () => {
             throw new Error(`Credentials not found. Checked ${CREDENTIALS_PATH} and GOOGLE_CREDENTIALS env var.`);
         }
 
+        // Check if it is a Service Account
+        if (credentials.type === 'service_account') {
+            console.log('Using Service Account Credentials');
+            const auth = new google.auth.GoogleAuth({
+                credentials,
+                scopes: SCOPES,
+            });
+            return auth.getClient();
+        }
+
+        // Otherwise, assume OAuth 2.0 Web/Installed Client
         const { client_secret, client_id, redirect_uris } = credentials.installed || credentials.web;
         const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
 
