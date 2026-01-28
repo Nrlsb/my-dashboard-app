@@ -19,6 +19,10 @@ exports.uploadToDrive = catchAsync(async (req, res) => {
         });
     } catch (error) {
         console.error('Upload controller error:', error);
-        res.status(500).json({ message: 'Error uploading to Google Drive', error: error.message });
+        res.status(500).json({
+            message: 'Error uploading to Google Drive',
+            error: error.message,
+            details: error.toString()
+        });
     }
 });
