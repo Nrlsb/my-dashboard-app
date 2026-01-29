@@ -30,6 +30,7 @@ const LoginPage = () => {
           });
           return;
         }
+        console.log('[DEBUG] Setting error to:', result.message);
         setError(
           result.message || 'Credenciales inválidas. Inténtalo de nuevo.'
         );
@@ -112,7 +113,11 @@ const LoginPage = () => {
             </div>
           </div>
 
-          {error && <p className="text-sm text-center text-red-600">{error}</p>}
+          {error && (
+            <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded relative text-center">
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
 
           <button
             type="submit"
