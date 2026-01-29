@@ -44,7 +44,7 @@ const Header = ({ onLogout, currentUser }) => {
   };
 
   return (
-    <div className="flex flex-col w-full z-50 relative font-sans">
+    <div className="flex flex-col w-full z-50 sticky top-0 md:relative font-sans">
       {/* Top Bar - Institutional/Admin Info */}
       <div className="bg-[#002244] text-white py-1.5 border-b border-white/10">
         <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex justify-between items-center text-xs">
