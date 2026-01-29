@@ -650,6 +650,16 @@ module.exports = {
         throw new Error('No se puede eliminar a un usuario con rol de Administrador.');
       }
 
+      // 2.5 Check if user has associated orders (Prevent FK Violation)
+      const ordersCheck = await client.query('SELECT 1 FROM orders WHERE user_id = $1 LIMIT 1', [userId]);
+      if (ordersCheck.rows.length > 0) {
+        await client.query('ROLLBACK'); // Ensure we rollback before returning
+        return {
+          success: false,
+          message: 'No se puede eliminar al usuario porque tiene pedidos asociados. Esto violaría la integridad de los datos.'
+        };
+      }
+
       // 3. Proceed with deletion
       console.log(`[adminService] Deleting user ${userId} and associated data...`);
 
