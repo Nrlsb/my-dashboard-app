@@ -1029,7 +1029,7 @@ const findCustomCollectionProducts = async (collectionId) => {
         WHEN b1_ts = '501' THEN da1_prcven * 1.105
         ELSE da1_prcven
       END as price,
-      sbm_desc as brand, z02_descri as capacity_description, b1_grupo as product_group, stock_disp as stock_disponible, stock_prev as stock_de_seguridad
+      sbm_desc as brand, z02_descri as capacity_description, b1_grupo as product_group, stock_disp as stock_disponible, stock_prev as stock_de_seguridad, da1_moeda as moneda
       FROM products
       WHERE b1_cod = ANY($1:: varchar[])
   `;

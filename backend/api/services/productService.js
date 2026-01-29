@@ -909,19 +909,13 @@ const getCustomCollectionProducts = async (collectionId, user = null) => {
   const ventaDivisa = exchangeRates.venta_divisa || 1;
 
   const mappedProducts = filteredProducts.map((prod) => {
-    let originalPrice = prod.price;
-    let finalPrice = prod.price;
-
-    if (prod.moneda === 2) {
-      finalPrice = originalPrice * ventaBillete;
-    } else if (prod.moneda === 3) {
-      finalPrice = originalPrice * ventaDivisa;
-    }
+    const { finalPrice, formattedPrice } = calculateFinalPrice(prod, exchangeRates);
 
     return {
       ...prod,
       name: prod.description,
-      price: finalPrice
+      price: finalPrice,
+      formattedPrice: formattedPrice
     };
   });
   return await enrichProductsWithImages(mappedProducts);
