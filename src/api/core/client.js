@@ -63,8 +63,13 @@ apiClient.interceptors.response.use(
             // Evitar mostar toast si es 401 y quizas estamos verificando sesion silenciosamente? 
             // Por ahora mantenemos el comportamiento original.
             if (status === 401) {
-                // Disparar evento de sesión expirada
-                window.dispatchEvent(new CustomEvent('session-expired'));
+                // No disparar "Sesión Expirada" si el error viene del login (credenciales inválidas)
+                const isLoginRequest = error.config?.url?.includes('/login');
+
+                if (!isLoginRequest) {
+                    // Disparar evento de sesión expirada
+                    window.dispatchEvent(new CustomEvent('session-expired'));
+                }
             } else {
                 toast.error(friendlyMessage);
             }
