@@ -14,9 +14,8 @@ const LaunchGroupCarousel = () => {
         const fetchLaunchGroups = async () => {
             try {
                 setLoading(true);
-                // We reuse getCarouselGroups but filter client-side or we could add endpoint param
-                // For now, let's fetch all and filter by is_launch_group
-                const allGroups = await apiService.getCarouselGroups();
+                // Use public endpoint so sellers can see it too
+                const allGroups = await apiService.getProductGroupsDetails();
                 const launchGroups = allGroups.filter(g => g.is_launch_group);
                 setGroups(launchGroups);
                 setLoading(false);
