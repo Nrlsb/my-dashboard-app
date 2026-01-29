@@ -75,7 +75,7 @@ export const AuthProvider = ({ children }) => {
         errorMessage = 'Usuario o contraseña incorrectos.';
       }
 
-      return { success: false, message: errorMessage, ...error.data };
+      return { success: false, ...error.data, message: errorMessage };
     }
   };
 

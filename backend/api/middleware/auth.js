@@ -19,8 +19,8 @@ const authenticateToken = (req, res, next) => {
     if (err) {
       console.error('Error de verificación de JWT:', err.message);
       return res
-        .status(403)
-        .json({ message: 'Prohibido: Token no válido o expirado.' });
+        .status(401)
+        .json({ message: 'No autorizado: Token no válido o expirado.' });
     }
 
     req.user = userPayload;

@@ -20,6 +20,7 @@ const LoginPage = () => {
       const result = await login(email, password);
 
       if (!result.success) {
+        console.log('[DEBUG] Login result failed:', result); // [DEBUG]
         if (result.isExpired === true || result.isExpired === 'true') {
           navigate('/test-user-expired', {
             state: {
