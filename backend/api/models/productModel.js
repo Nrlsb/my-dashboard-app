@@ -1282,7 +1282,8 @@ const findProductsWithImagesNoDescription = async (limit = 50) => {
     // We need to handle the IN clause dynamically
     const params = codesToProcess.map((_, index) => `$${index + 1}`);
     const productsQuery = `
-      SELECT * FROM products 
+      SELECT id, b1_cod as code, b1_desc as description, b1_desc as name, da1_prcven as price, sbm_desc as brand, b1_grupo as product_group 
+      FROM products 
       WHERE b1_cod IN (${params.join(',')})
     `;
 
