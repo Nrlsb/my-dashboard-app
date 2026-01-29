@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
-    setLoading(true);
+    // setLoading(true); // Removed to prevent re-render of App component
     try {
       const data = await apiService.login({ email, password });
 
@@ -46,19 +46,19 @@ export const AuthProvider = ({ children }) => {
         if (data.first_login || data.user.must_change_password) {
           setFirstLogin(true);
         }
-        setLoading(false);
+        // setLoading(false); // Removed
         return data;
       } else {
         // El login falló, asegúrate de limpiar cualquier estado residual
         logout();
         console.error('Login failed:', data.message);
-        setLoading(false);
+        // setLoading(false); // Removed
         return data;
       }
     } catch (error) {
       logout();
       console.error('Error during login API call:', error);
-      setLoading(false);
+      // setLoading(false); // Removed
 
       let errorMessage = 'Ocurrió un error inesperado.';
 
