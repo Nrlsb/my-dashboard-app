@@ -1056,7 +1056,7 @@ const addCustomGroupItem = async (groupId, productId) => {
     await pool2.query('INSERT INTO carousel_custom_group_items (group_id, product_code, product_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [groupId, productCode, productId]);
 
     if (isRedisReady()) {
-      await redisClient.del(`carousel:custom_collection:${groupId}`);
+      await redisClient.del(`carousel:custom_collection:v2:${groupId}`);
     }
 
     return { success: true };
@@ -1075,7 +1075,7 @@ const removeCustomGroupItem = async (groupId, productId) => {
     await pool2.query('DELETE FROM carousel_custom_group_items WHERE group_id = $1 AND product_code = $2', [groupId, productCode]);
 
     if (isRedisReady()) {
-      await redisClient.del(`carousel:custom_collection:${groupId}`);
+      await redisClient.del(`carousel:custom_collection:v2:${groupId}`);
     }
 
     return { success: true };
