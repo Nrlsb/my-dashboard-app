@@ -11,6 +11,7 @@ const LaunchGroupsTab = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [editingGroup, setEditingGroup] = useState(null); // Estado para el grupo en edición
     const [formData, setFormData] = useState({
         name: '',
         description: '',
@@ -28,19 +29,26 @@ const LaunchGroupsTab = () => {
         mutationFn: (data) => apiService.createCarouselGroup(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminCarouselGroups'] });
-            setIsCreateModalOpen(false);
-            setFormData({
-                name: '',
-                description: '',
-                image_url: '',
-                isUploading: false,
-                previewUrl: ''
-            });
+            closeModal();
             toast.success('Grupo creado exitosamente');
         },
         onError: (err) => {
             console.error(err);
             toast.error('Error al crear el grupo');
+        }
+    });
+
+    // Nueva mutación para actualizar
+    const updateGroupMutation = useMutation({
+        mutationFn: ({ id, data }) => apiService.updateCarouselGroup(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['adminCarouselGroups'] });
+            closeModal();
+            toast.success('Grupo actualizado exitosamente');
+        },
+        onError: (err) => {
+            console.error(err);
+            toast.error('Error al actualizar el grupo');
         }
     });
 
@@ -56,16 +64,59 @@ const LaunchGroupsTab = () => {
         }
     });
 
-    const handleCreate = (e) => {
+    const openCreateModal = () => {
+        setEditingGroup(null);
+        setFormData({
+            name: '',
+            description: '',
+            image_url: '',
+            isUploading: false,
+            previewUrl: ''
+        });
+        setIsCreateModalOpen(true);
+    };
+
+    const openEditModal = (group) => {
+        setEditingGroup(group);
+        setFormData({
+            name: group.name,
+            description: group.description || '',
+            image_url: group.image_url || '',
+            isUploading: false,
+            previewUrl: ''
+        });
+        setIsCreateModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setIsCreateModalOpen(false);
+        setEditingGroup(null);
+        setFormData({
+            name: '',
+            description: '',
+            image_url: '',
+            isUploading: false,
+            previewUrl: ''
+        });
+    };
+
+    const handleSubmit = (e) => {
         e.preventDefault();
         if (!formData.name.trim()) return;
-        createGroupMutation.mutate({
+
+        const groupData = {
             name: formData.name,
             description: formData.description,
             image_url: formData.image_url,
             type: 'custom_collection',
             is_launch_group: true
-        });
+        };
+
+        if (editingGroup) {
+            updateGroupMutation.mutate({ id: editingGroup.id, data: groupData });
+        } else {
+            createGroupMutation.mutate(groupData);
+        }
     };
 
     const handleDelete = (id) => {
@@ -104,6 +155,8 @@ const LaunchGroupsTab = () => {
     // Only show launch groups
     const customGroups = groups?.filter(g => g.is_launch_group === true) || [];
 
+    const isSubmitting = createGroupMutation.isPending || updateGroupMutation.isPending;
+
     return (
         <div className="pt-4">
             <div className="flex justify-between items-center mb-6">
@@ -112,7 +165,7 @@ const LaunchGroupsTab = () => {
                     <p className="text-gray-500 text-sm">Crea y gestiona colecciones de productos para compartir.</p>
                 </div>
                 <button
-                    onClick={() => setIsCreateModalOpen(true)}
+                    onClick={openCreateModal}
                     className="flex items-center gap-2 bg-espint-blue text-white px-4 py-2 rounded-lg hover:bg-espint-blue-dark transition-colors"
                 >
                     <Plus size={20} />
@@ -136,13 +189,22 @@ const LaunchGroupsTab = () => {
                                     <Upload size={40} className="opacity-20" />
                                 </div>
                             )}
-                            <button
-                                onClick={() => handleDelete(group.id)}
-                                className="absolute top-2 right-2 p-2 bg-white/80 backdrop-blur-sm text-gray-400 hover:text-red-500 rounded-full shadow-sm transition-colors"
-                                title="Eliminar Grupo"
-                            >
-                                <Trash2 size={18} />
-                            </button>
+                            <div className="absolute top-2 right-2 flex gap-2">
+                                <button
+                                    onClick={() => openEditModal(group)}
+                                    className="p-2 bg-white/80 backdrop-blur-sm text-gray-500 hover:text-blue-600 rounded-full shadow-sm transition-colors"
+                                    title="Editar Grupo"
+                                >
+                                    <Edit2 size={16} />
+                                </button>
+                                <button
+                                    onClick={() => handleDelete(group.id)}
+                                    className="p-2 bg-white/80 backdrop-blur-sm text-gray-400 hover:text-red-500 rounded-full shadow-sm transition-colors"
+                                    title="Eliminar Grupo"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
                         </div>
 
                         <div className="p-5">
@@ -178,18 +240,20 @@ const LaunchGroupsTab = () => {
                 )}
             </div>
 
-            {/* Create Modal */}
+            {/* Create/Edit Modal */}
             {isCreateModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
                         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                            <h2 className="text-lg font-bold text-gray-800">Crear Nuevo Grupo</h2>
-                            <button onClick={() => setIsCreateModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                            <h2 className="text-lg font-bold text-gray-800">
+                                {editingGroup ? 'Editar Grupo' : 'Crear Nuevo Grupo'}
+                            </h2>
+                            <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition-colors">
                                 <X size={20} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleCreate} className="p-6">
+                        <form onSubmit={handleSubmit} className="p-6">
                             <div className="space-y-5">
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
@@ -259,23 +323,23 @@ const LaunchGroupsTab = () => {
                             <div className="mt-8 flex gap-3">
                                 <button
                                     type="button"
-                                    onClick={() => setIsCreateModalOpen(false)}
+                                    onClick={closeModal}
                                     className="flex-1 px-4 py-2.5 text-gray-600 font-semibold hover:bg-gray-50 rounded-lg transition-colors border border-gray-100"
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={!formData.name.trim() || createGroupMutation.isPending || formData.isUploading}
+                                    disabled={!formData.name.trim() || isSubmitting || formData.isUploading}
                                     className="flex-1 px-4 py-2.5 bg-espint-blue text-white font-bold rounded-lg hover:bg-espint-blue-dark transition-all disabled:opacity-50 shadow-md flex items-center justify-center gap-2"
                                 >
-                                    {createGroupMutation.isPending ? (
+                                    {isSubmitting ? (
                                         <>
                                             <Loader2 className="animate-spin" size={18} />
-                                            Creando...
+                                            {editingGroup ? 'Guardando...' : 'Creando...'}
                                         </>
                                     ) : (
-                                        'Crear Grupo'
+                                        editingGroup ? 'Guardar Cambios' : 'Crear Grupo'
                                     )}
                                 </button>
                             </div>
