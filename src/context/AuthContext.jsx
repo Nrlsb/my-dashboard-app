@@ -60,11 +60,22 @@ export const AuthProvider = ({ children }) => {
       console.error('Error during login API call:', error);
       setLoading(false);
 
-      if (error.data) {
-        return { success: false, ...error.data };
+      let errorMessage = 'Ocurrió un error inesperado.';
+
+      // Priorizar el mensaje que viene del backend (errorController)
+      if (error.data && error.data.message) {
+        errorMessage = error.data.message;
+      } else if (error.message) {
+        // Si es un error de conexión o similar
+        errorMessage = error.message;
       }
 
-      return { success: false, message: error.message };
+      // Fallback específico para 401 si no hay mensaje claro
+      if (error.status === 401 && (!error.data || !error.data.message)) {
+        errorMessage = 'Usuario o contraseña incorrectos.';
+      }
+
+      return { success: false, message: errorMessage, ...error.data };
     }
   };
 
