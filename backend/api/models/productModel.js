@@ -1003,7 +1003,7 @@ const findGroupById = async (id) => {
 };
 
 const findCustomCollectionProducts = async (collectionId) => {
-  const cacheKey = `carousel:custom_collection:${collectionId}`;
+  const cacheKey = `carousel:custom_collection:v2:${collectionId}`;
 
   if (isRedisReady()) {
     try {

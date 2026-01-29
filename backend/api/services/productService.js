@@ -911,6 +911,11 @@ const getCustomCollectionProducts = async (collectionId, user = null) => {
   const mappedProducts = filteredProducts.map((prod) => {
     const { finalPrice, formattedPrice } = calculateFinalPrice(prod, exchangeRates);
 
+    // [DEBUG] Log conversion for verification
+    if (prod.moneda === 2 || prod.moneda === 3) {
+      console.log(`[DEBUG] Product ${prod.code} (Moneda ${prod.moneda}): Original ${prod.price} -> Final ${finalPrice} (Rate: ${exchangeRates.venta_billete}/${exchangeRates.venta_divisa})`);
+    }
+
     return {
       ...prod,
       name: prod.description,
