@@ -152,6 +152,7 @@ const authenticateUser = async (email, password) => {
             is_admin: false,
             role: 'vendedor',
             codigo: vendedorRecord.codigo,
+            must_change_password: vendedorRecord.must_change_password,
           };
           userType = 'vendedor';
           console.log('[DEBUG AUTH] Usuario identificado como VENDEDOR:', JSON.stringify(user, null, 2));
@@ -237,7 +238,7 @@ const authenticateUser = async (email, password) => {
     }
     console.log('[DEBUG AUTH] Valor FINAL de userWithoutPassword.is_admin:', userWithoutPassword.is_admin, 'para userType:', userType);
 
-    return { success: true, user: userWithoutPassword, first_login: false };
+    return { success: true, user: userWithoutPassword, first_login: !!user.must_change_password };
   } catch (error) {
     console.error('Error en authenticateUser (service):', error);
     throw error;
