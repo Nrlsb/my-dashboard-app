@@ -2,7 +2,7 @@ const cartModel = require('../models/cartModel');
 
 const getCart = async (req, res) => {
     try {
-        const userId = req.user.id; // Suponiendo que el middleware de auth añade req.user
+        const userId = req.user.userId; // Middleware auth añade req.user con userId
         const items = await cartModel.getCartByUserId(userId);
         res.json(items);
     } catch (error) {
@@ -13,7 +13,7 @@ const getCart = async (req, res) => {
 
 const updateCart = async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user.userId;
         const { items } = req.body;
 
         if (!Array.isArray(items)) {
