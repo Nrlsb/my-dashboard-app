@@ -3,10 +3,19 @@ const catchAsync = require('../utils/catchAsync');
 
 exports.recordVisit = catchAsync(async (req, res) => {
     const { path } = req.body;
-    const userId = req.user ? req.user.userId : null;
+    let userId = req.user ? req.user.userId : null;
     const userRole = req.user ? (req.user.role || 'cliente') : 'cliente';
     const ip = req.ip;
     const userAgent = req.get('User-Agent');
+
+    // Ensure userId is an integer. If it's a vendor code (string), set to null for page_visits (which expects int).
+    // Or try to parse it if it looks like an int.
+    if (userId && isNaN(parseInt(userId))) {
+        // If it's not a number (e.g. "V001"), set to null to avoid DB crash
+        userId = null;
+    } else if (userId) {
+        userId = parseInt(userId);
+    }
 
     await analyticsModel.recordVisit(path, userId, ip, userAgent, userRole);
     res.status(200).json({ success: true });
