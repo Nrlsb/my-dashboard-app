@@ -8,6 +8,7 @@ import { orderService } from './services/order.service';
 import { adminService } from './services/admin.service';
 import { userService } from './services/user.service';
 import { commonService } from './services/common.service';
+import { cartService } from './services/cart.service';
 
 const apiService = {
   // Core & Auth
@@ -19,6 +20,7 @@ const apiService = {
 
   // Método genérico 'request' para compatibilidad (Adapter para Axios)
   async request(endpoint, options = {}) {
+    // ... (unchanged) ...
     const {
       method = 'GET',
       body = null,
@@ -79,6 +81,10 @@ const apiService = {
   batchGenerateAiDescriptions: productService.batchGenerateAiDescriptions,
   getBatchGenerationProgress: productService.getBatchGenerationProgress,
   getExchangeRates: productService.getExchangeRates,
+
+  // Cart
+  getCart: cartService.getCart,
+  updateCart: cartService.updateCart,
 
   // Orders
   fetchAccountBalance: orderService.fetchAccountBalance,

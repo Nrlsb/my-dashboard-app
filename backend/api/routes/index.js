@@ -19,6 +19,7 @@ router.use('/analytics', require('./analytics.routes'));
 router.use('/reports', require('./report.routes'));
 router.use('/test-users', require('./testUserRoutes'));
 router.use('/upload', require('./upload.routes'));
+router.use('/cart', require('./cartRoutes'));
 
 
 module.exports = router;
