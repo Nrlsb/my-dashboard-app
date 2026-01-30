@@ -248,7 +248,7 @@ const findProducts = async ({
             ELSE products.da1_prcven
         END AS price,
         CASE
-            WHEN pps.last_change_timestamp >= NOW() - INTERVAL '1 hour' THEN true
+            WHEN pps.last_change_timestamp >= NOW() - INTERVAL '24 hours' THEN true
             ELSE false
         END AS is_price_modified,
         products.sbm_desc AS brand, products.b1_grupo AS product_group, products.sbm_desc AS group_description,
@@ -281,7 +281,7 @@ const findProducts = async ({
 
   // Modified Price Filter
   if (onlyModifiedPrices) {
-    const modifiedPriceFilter = ` AND pps.last_change_timestamp >= NOW() - INTERVAL '1 hour' `;
+    const modifiedPriceFilter = ` AND pps.last_change_timestamp >= NOW() - INTERVAL '24 hours' `;
     countQuery += modifiedPriceFilter;
     dataQuery += modifiedPriceFilter;
   }
@@ -479,7 +479,7 @@ sbm_desc AS brand,
   stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, da1_moeda AS moneda,
   sbz_desc AS indicator_description, b1_qe AS pack_quantity,
   CASE
-    WHEN pps.last_change_timestamp >= NOW() - INTERVAL '1 hour' THEN true
+    WHEN pps.last_change_timestamp >= NOW() - INTERVAL '24 hours' THEN true
     ELSE false
   END AS is_price_modified
       FROM products
@@ -556,7 +556,7 @@ sbm_desc AS brand,
   stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, da1_moeda AS moneda,
   sbz_desc AS indicator_description, b1_qe AS pack_quantity,
   CASE
-    WHEN pps.last_change_timestamp >= NOW() - INTERVAL '1 hour' THEN true
+    WHEN pps.last_change_timestamp >= NOW() - INTERVAL '24 hours' THEN true
     ELSE false
   END AS is_price_modified
       FROM products
