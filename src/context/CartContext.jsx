@@ -26,15 +26,20 @@ export const CartProvider = ({ children }) => {
           // 1. Get Local Cart
           const localCartJson = localStorage.getItem(`shopping-cart-${user.id}`);
           const localCart = localCartJson ? JSON.parse(localCartJson) : [];
+          console.log('[CartContext] Local Cart loaded:', localCart.length, 'items');
 
           // 2. Get Remote Cart
           let remoteCart = [];
           try {
-            remoteCart = await apiService.getCart(); // Should return array
-            if (!Array.isArray(remoteCart)) remoteCart = [];
+            remoteCart = await apiService.getCart();
+            // Ensure array
+            if (!Array.isArray(remoteCart)) {
+              console.warn('[CartContext] Remote cart response is not an array:', remoteCart);
+              remoteCart = [];
+            }
+            console.log('[CartContext] Remote Cart loaded:', remoteCart.length, 'items');
           } catch (apiError) {
-            console.error('Error fetching remote cart:', apiError);
-            // Fallback to local cart if API fails
+            console.error('[CartContext] Error fetching remote cart:', apiError);
             if (isMounted) {
               setCart(localCart);
               setIsLoaded(true);
@@ -42,66 +47,32 @@ export const CartProvider = ({ children }) => {
             return;
           }
 
-          // 3. Merge Logic (Remote takes precedence for existence, but we can merge quantities if needed)
-          // Strategy: Combine both. If item exists in both, use the one with higher quantity or sum them?
-          // Let's sum quantities to be safe and avoid losing "offline" additions.
-          // Note: Ideally we track "last updated" but for now summing is a reasonable UX for "I added on mobile, then added on PC".
-
+          // 3. Merge Logic (Union: Remote items + Local items not in remote)
           const mergedMap = new Map();
 
-          // Add remote items first
+          // A. Add Remote Items (Source of Truth)
           remoteCart.forEach(item => {
             mergedMap.set(item.id, { ...item });
           });
 
-          // Merge local items
+          // B. Add Local Items (Offline additions)
           localCart.forEach(localItem => {
             if (mergedMap.has(localItem.id)) {
-              // Item exists in both - logic decision:
-              // If we assume local is "newer" because they just logged in? No, remote could be newer.
-              // Let's use the maximum quantity or the remote quantity?
-              // Simple approach: Use Remote. 
-              // Better approach: Since we don't track timestamps per item easily here, 
-              // let's assume if the user has a local cart, they might have been working offline.
-              // BUT, usually "local" just means the last state of this browser.
-              // If I buy on mobile, my PC local cart is STALE. So Remote should WIN.
-              // UNLESS, I was adding items anonymously? But here we use `shopping-cart-${user.id}`.
-              // So this local cart belongs to THIS user on THIS device.
-              // Use Remote as the source of truth for synchronization.
-
-              // However, if the user just ADDED something to this local cart while offline?
-              // Let's strictly USE REMOTE as the base.
-              // If we want to support "offline additions", it's complex.
-              // Let's stick to: Remote Cart overwrites Local Stale Cart.
-              // EXCEPT if remote is empty and local is not? 
-
-              // Let's just use Remote.
-              // If the user wants to merge, we'd need a separate "guest" cart concept.
-              // Since keys are user-specific, we assume cloud state is master.
-
-              // Correction: If the backend is empty (new feature), we should upload the local cart?
-              // Yes.
+              // Item exists in remote too.
+              // Strategy: Keep Remote version (synced).
+              // Optional: Could sum quantities if we wanted `localItem.quantity + remoteItem.quantity`
+              // For now, assume Remote is 'Correct' state and Local is stale if conflicting.
+              //console.log(`[CartContext] Conflict for item ${localItem.id}. Keeping Remote.`);
             } else {
-              // Local item NOT in remote.
-              // Maybe it was deleted on another device? Or added here offline?
-              // Hard to know.
-              // Safe bet: Keep it? or Discard it?
-              // If I deleted it on mobile, it's gone from remote. If I keep it here, it reappears. Ghost item.
-              // So Remote should be the Single Source of Truth.
+              // Item ONLY in Local. Add to merge.
+              console.log(`[CartContext] Item ${localItem.id} found only in local. Merging.`);
+              mergedMap.set(localItem.id, { ...localItem });
             }
           });
 
-          // REVISED STRATEGY: 
-          // 1. If Remote has items, IT IS THE TRUTH.
-          // 2. If Remote is empty, but Local has items, assumes first sync -> Upload Local.
-
-          let finalCart = remoteCart;
-
-          // Edge case: First time using this feature, DB is empty, but user has Local Storage cart.
-          if (remoteCart.length === 0 && localCart.length > 0) {
-            finalCart = localCart;
-            // Trigger explicit save immediately? No, the next useEffect will handle it because 'cart' changes.
-          }
+          // Convert Map to Array
+          let finalCart = Array.from(mergedMap.values());
+          console.log('[CartContext] Final Merged Cart:', finalCart.length, 'items');
 
           if (isMounted) {
             setCart(finalCart);
@@ -109,7 +80,7 @@ export const CartProvider = ({ children }) => {
           }
 
         } catch (error) {
-          console.error('Error in cart sync:', error);
+          console.error('[CartContext] Critical error in cart sync:', error);
           if (isMounted) setIsLoaded(true);
         }
       } else {
