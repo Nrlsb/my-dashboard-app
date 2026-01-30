@@ -434,7 +434,7 @@ const getAllClients = async () => {
 const getVendedorClientAnalytics = async (vendedorCodigo, clientId) => {
   try {
     // 1. Verify Client belongs to Seller
-    const client = await findUserById(clientId);
+    const client = await userModel.findUserById(clientId);
     if (!client) {
       throw new Error('Cliente no encontrado');
     }
