@@ -528,6 +528,51 @@ const deactivateInactiveClients = async () => {
   }
 };
 
+const updateSellerPermissions = async (userId, groups) => {
+  const client = await pool2.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Get user_code
+    let userQuery = 'SELECT a1_cod FROM users WHERE id = $1';
+    let userResult = await client.query(userQuery, [userId]);
+    let userCode = userResult.rows.length > 0 ? userResult.rows[0].a1_cod : null;
+
+    if (!userCode) {
+      const credResult = await client.query('SELECT a1_cod FROM user_credentials WHERE user_id = $1', [userId]);
+      userCode = credResult.rows.length > 0 ? credResult.rows[0].a1_cod : null;
+    }
+
+    if (!userCode) {
+      throw new Error('Usuario sin código A1 asignado');
+    }
+
+    // 2. Delete existing Seller permissions
+    await client.query(
+      "DELETE FROM user_product_group_permissions WHERE user_code = $1 AND assigned_by_role = 'vendedor'",
+      [userCode]
+    );
+
+    // 3. Insert new Seller permissions
+    if (groups && groups.length > 0) {
+      const insertQuery =
+        "INSERT INTO user_product_group_permissions (user_id, product_group, user_code, assigned_by_role) VALUES ($1, $2, $3, 'vendedor')";
+      for (const group of groups) {
+        await client.query(insertQuery, [userId, group, userCode]);
+      }
+    }
+
+    await client.query('COMMIT');
+    return { success: true };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error in updateSellerPermissions:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   findUserByEmail,
   findUserById,
@@ -542,5 +587,5 @@ module.exports = {
   findUserByCode,
   getVendedoresByCodes,
   deactivateInactiveClients,
-
+  updateSellerPermissions, // [NEW]
 };

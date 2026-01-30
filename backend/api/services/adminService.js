@@ -268,16 +268,16 @@ const updateUserGroupPermissions = async (userId, groups) => {
       throw new Error(`El usuario ${userId} no tiene un código A1 asignado.`);
     }
 
-    // 2. Delete old permissions using user_code
+    // 2. Delete old permissions using user_code AND assigned_by_role = 'admin'
     await client.query(
-      'DELETE FROM user_product_group_permissions WHERE user_code = $1',
+      "DELETE FROM user_product_group_permissions WHERE user_code = $1 AND assigned_by_role = 'admin'",
       [userCode]
     );
 
     // 3. Insert new permissions if any
     if (groups && groups.length > 0) {
       const insertQuery =
-        'INSERT INTO user_product_group_permissions (user_id, product_group, user_code) VALUES ($1, $2, $3)';
+        "INSERT INTO user_product_group_permissions (user_id, product_group, user_code, assigned_by_role) VALUES ($1, $2, $3, 'admin')";
       for (const group of groups) {
         // Note: We still save userId for reference, but the logic relies on user_code
         await client.query(insertQuery, [userId, group, userCode]);

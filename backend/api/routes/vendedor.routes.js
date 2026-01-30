@@ -15,4 +15,9 @@ router.get('/clientes', async (req, res) => {
 
 router.get('/clientes/:userId/analytics', controllers.getVendedorClientAnalyticsController);
 
+router.get('/clientes/:userId/permissions', controllers.getClientPermissionsController);
+router.put('/clientes/:userId/permissions', controllers.updateClientPermissionsController);
+
+router.get('/product-groups', controllers.getProductGroupsController);
+
 module.exports = router;

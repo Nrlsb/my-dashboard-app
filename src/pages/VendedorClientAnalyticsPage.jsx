@@ -1,8 +1,10 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, BarChart2, Download, Filter, Eye, Calendar, User, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, BarChart2, Download, Filter, Eye, Calendar, User, ShoppingBag, Shield } from 'lucide-react';
 import apiService from '../api/apiService';
 import LoadingSpinner from '../components/LoadingSpinner';
+import SellerClientPermissionsModal from '../components/SellerClientPermissionsModal';
 
 const PATH_NAMES = {
     '/dashboard': 'Inicio',
@@ -27,6 +29,7 @@ export default function VendedorClientAnalyticsPage() {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
 
     useEffect(() => {
         if (userId) {
@@ -143,7 +146,14 @@ export default function VendedorClientAnalyticsPage() {
                                     <span className="text-sm font-semibold uppercase tracking-wider">Perfil</span>
                                 </div>
                                 <p className="text-lg font-medium text-gray-900 mt-2 truncated">{clientName}</p>
-                                <p className="text-xs text-gray-500 mt-1">ID: {userId}</p>
+                                <p className="text-xs text-gray-500 mt-1">ID: {stats.a1_cod || userId}</p>
+                                <button
+                                    onClick={() => setIsPermissionsModalOpen(true)}
+                                    className="mt-4 w-full py-2 bg-purple-50 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-100 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <Shield className="w-4 h-4" />
+                                    Gestionar Permisos
+                                </button>
                             </div>
                         </div>
 
@@ -154,7 +164,7 @@ export default function VendedorClientAnalyticsPage() {
                                     <h3 className="text-lg font-bold text-gray-900">Páginas Más Vistas</h3>
                                 </div>
 
-                                {stats.topPages.length > 0 ? (
+                                {stats.topPages && stats.topPages.length > 0 ? (
                                     <ul className="divide-y divide-gray-100">
                                         {stats.topPages.map((page, index) => (
                                             <li key={index} className="p-4 hover:bg-gray-50 transition flex justify-between items-center">
@@ -173,9 +183,7 @@ export default function VendedorClientAnalyticsPage() {
                                         ))}
                                     </ul>
                                 ) : (
-                                    <div className="p-8 text-center text-gray-500">
-                                        No hay información de páginas visitadas.
-                                    </div>
+                                    <p className="p-6 text-gray-500 text-center">Sin actividad registrada.</p>
                                 )}
                             </div>
 
@@ -247,6 +255,13 @@ export default function VendedorClientAnalyticsPage() {
                     </div>
                 )}
             </main>
+
+            <SellerClientPermissionsModal
+                isOpen={isPermissionsModalOpen}
+                onClose={() => setIsPermissionsModalOpen(false)}
+                clientId={userId}
+                clientName={clientName}
+            />
         </div>
     );
 }

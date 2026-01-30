@@ -448,9 +448,63 @@ const getVendedorClientAnalytics = async (vendedorCodigo, clientId) => {
     }
 
     // 2. Fetch Analytics
-    return await analyticsModel.getUserStats(clientId);
+    const stats = await analyticsModel.getUserStats(clientId);
+
+    return {
+      ...stats,
+      a1_cod: client.a1_cod
+    };
   } catch (error) {
     console.error('Error en getVendedorClientAnalytics (service):', error);
+    throw error;
+  }
+};
+
+const productModel = require('../models/productModel');
+
+const getCalculatedClientPermissions = async (vendedorCodigo, clientId) => {
+  try {
+    // 1. Verify Client belongs to Seller
+    const client = await userModel.findUserById(clientId);
+    if (!client) throw new Error('Cliente no encontrado');
+
+    const clientVendorCode = String(client.vendedor_codigo || '').trim();
+    const sellerCode = String(vendedorCodigo || '').trim();
+
+    if (clientVendorCode !== sellerCode) {
+      throw new Error('Acceso denegado: El cliente no pertenece a este vendedor');
+    }
+
+    // 2. Get Permissions with Source
+    return await productModel.getDeniedProductGroupsWithSource(clientId);
+  } catch (error) {
+    console.error('Error in getCalculatedClientPermissions:', error);
+    throw error;
+  }
+};
+
+const updateClientPermissionsBySeller = async (vendedorCodigo, clientId, groups) => {
+  try {
+    // 1. Verify Client belongs to Seller
+    const client = await userModel.findUserById(clientId);
+    if (!client) throw new Error('Cliente no encontrado');
+
+    const clientVendorCode = String(client.vendedor_codigo || '').trim();
+    const sellerCode = String(vendedorCodigo || '').trim();
+
+    if (clientVendorCode !== sellerCode) {
+      throw new Error('Acceso denegado: El cliente no pertenece a este vendedor');
+    }
+
+    // 2. Update via userModel (I need to add this method to userModel)
+    await userModel.updateSellerPermissions(clientId, groups);
+
+    // 3. Invalidate Cache
+    await productModel.invalidatePermissionsCache(clientId);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error in updateClientPermissionsBySeller:', error);
     throw error;
   }
 };
@@ -464,4 +518,6 @@ module.exports = {
   changePassword,
   getAllClients,
   getVendedorClientAnalytics,
+  getCalculatedClientPermissions,
+  updateClientPermissionsBySeller,
 };

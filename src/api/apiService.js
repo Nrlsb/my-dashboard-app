@@ -147,6 +147,9 @@ const apiService = {
   getVendedorClientAnalytics: userService.getVendedorClientAnalytics,
   getUserAnalytics: userService.getUserAnalytics,
   getAllClients: userService.getAllClients,
+  getClientPermissions: userService.getClientPermissions,
+  updateClientPermissions: userService.updateClientPermissions,
+  getVendedorProductGroups: userService.getProductGroups,
 
   // Common
   sendQuery: commonService.sendQuery,

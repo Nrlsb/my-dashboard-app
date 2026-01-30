@@ -34,4 +34,16 @@ export const userService = {
         const params = search ? { search } : null;
         return apiClient.get('/admin/clients', { params });
     },
+
+    getClientPermissions(userId) {
+        return apiClient.get(`/vendedor/clientes/${userId}/permissions`);
+    },
+
+    updateClientPermissions(userId, groups) {
+        return apiClient.put(`/vendedor/clientes/${userId}/permissions`, { groups });
+    },
+
+    getProductGroups() {
+        return apiClient.get('/vendedor/product-groups');
+    },
 };

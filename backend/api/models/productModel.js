@@ -130,6 +130,38 @@ const getDeniedProductGroups = async (userId) => {
 
 
 
+const getDeniedProductGroupsWithSource = async (userId) => {
+  try {
+    // 1. Get user_code first from users OR user_credentials
+    let userQuery = 'SELECT a1_cod FROM users WHERE id = $1';
+    let userResult = await pool2.query(userQuery, [userId]);
+    let userCode = userResult.rows.length > 0 ? userResult.rows[0].a1_cod : null;
+
+    if (!userCode) {
+      // Fallback for decoupled users
+      const credResult = await pool2.query('SELECT a1_cod FROM user_credentials WHERE user_id = $1', [userId]);
+      userCode = credResult.rows.length > 0 ? credResult.rows[0].a1_cod : null;
+    }
+
+    if (!userCode) return [];
+
+    const query = `
+      SELECT product_group, assigned_by_role
+      FROM user_product_group_permissions 
+      WHERE user_code = $1;
+    `;
+    const result = await pool2.query(query, [userCode]);
+
+    return result.rows.map(row => ({
+      group: row.product_group,
+      source: row.assigned_by_role || 'admin' // Default to admin if null
+    }));
+  } catch (error) {
+    console.error(`Error in getDeniedProductGroupsWithSource for user ${userId}:`, error);
+    return [];
+  }
+};
+
 const getGlobalSetting = async (key) => {
   // Basic caching could be added here if needed
   try {
@@ -1372,6 +1404,7 @@ module.exports = {
   getProductImages,
   getAllProductImageCodes,
   getDeniedProductGroups,
+  getDeniedProductGroupsWithSource, // [NEW]
   getGlobalDeniedProducts,
   getGlobalDeniedProductsWithDetails,
   updateProductAiDescription,

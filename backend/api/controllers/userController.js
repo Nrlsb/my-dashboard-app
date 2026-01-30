@@ -96,3 +96,40 @@ exports.changePasswordController = catchAsync(async (req, res) => {
     );
     res.json(result);
 });
+
+exports.getClientPermissionsController = catchAsync(async (req, res) => {
+    const { user } = req;
+    const { userId } = req.params;
+
+    if (!user || user.role !== 'vendedor' || !user.codigo) {
+        return res.status(403).json({ message: 'Acceso denegado. Se requiere rol de vendedor.' });
+    }
+
+    const permissions = await userService.getCalculatedClientPermissions(user.codigo, userId);
+    res.json(permissions);
+});
+
+const adminService = require('../services/admin.service');
+
+exports.updateClientPermissionsController = catchAsync(async (req, res) => {
+    const { user } = req;
+    const { userId } = req.params;
+    const { groups } = req.body;
+
+    if (!user || user.role !== 'vendedor' || !user.codigo) {
+        return res.status(403).json({ message: 'Acceso denegado. Se requiere rol de vendedor.' });
+    }
+
+    const result = await userService.updateClientPermissionsBySeller(
+        user.codigo,
+        userId,
+        groups
+    );
+    res.json(result);
+});
+
+exports.getProductGroupsController = catchAsync(async (req, res) => {
+    // Reusing the service method as the logic is just "get distinct groups"
+    const groups = await adminService.getProductGroupsForAdmin();
+    res.json(groups);
+});
