@@ -216,7 +216,7 @@ export default function VendedorClientAnalyticsPage() {
                                                                 )}
                                                                 {dl.filters?.brands && dl.filters.brands.length > 0 && (
                                                                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
-                                                                        {dl.filters.brands.length} Marcas
+                                                                        Marcas: {dl.filters.brands.join(', ')}
                                                                     </span>
                                                                 )}
                                                                 {dl.filters?.onlyModifiedPrices && (

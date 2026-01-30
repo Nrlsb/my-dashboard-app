@@ -133,7 +133,7 @@ const TestUserAnalyticsModal = ({ isOpen, onClose, userId, userName, isRegularUs
                                                 <div className="text-xs text-gray-600 flex flex-wrap gap-2 items-center bg-gray-50 p-2 rounded">
                                                     <Filter className="w-3 h-3 text-gray-400" />
                                                     {dl.filters?.searchTerm && <span className="bg-blue-100 text-blue-800 px-1 rounded">Busq: {dl.filters.searchTerm}</span>}
-                                                    {dl.filters?.brands && dl.filters.brands.length > 0 && <span className="bg-purple-100 text-purple-800 px-1 rounded">Marcas: {dl.filters.brands.length}</span>}
+                                                    {dl.filters?.brands && dl.filters.brands.length > 0 && <span className="bg-purple-100 text-purple-800 px-1 rounded">Marcas: {dl.filters.brands.join(', ')}</span>}
                                                     {dl.filters?.onlyModifiedPrices && <span className="bg-yellow-100 text-yellow-800 px-1 rounded">Solo Modif.</span>}
                                                     {!dl.filters?.searchTerm && (!dl.filters?.brands || dl.filters.brands.length === 0) && !dl.filters?.onlyModifiedPrices && <span className="italic text-gray-400">Sin filtros</span>}
                                                 </div>
