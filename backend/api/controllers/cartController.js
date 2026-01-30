@@ -2,8 +2,12 @@ const cartModel = require('../models/cartModel');
 
 const getCart = async (req, res) => {
     try {
-        const userId = req.user.userId; // Middleware auth añade req.user con userId
+        const userId = req.user.userId;
+        console.log(`[DEBUG] getCart called for userId: ${userId}`);
+
         const items = await cartModel.getCartByUserId(userId);
+        console.log(`[DEBUG] getCart returning ${items ? items.length : 0} items for userId: ${userId}`);
+
         res.json(items);
     } catch (error) {
         console.error('Error in getCart controller:', error);
