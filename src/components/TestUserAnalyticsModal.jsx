@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { X, BarChart2, Calendar, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { X, BarChart2, Calendar, Eye, Download, Filter } from 'lucide-react';
 import apiService from '../api/apiService';
 import LoadingSpinner from './LoadingSpinner';
 
@@ -20,6 +21,9 @@ const PATH_NAMES = {
 const TestUserAnalyticsModal = ({ isOpen, onClose, userId, userName, isRegularUser = false, isSellerView = false }) => {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
+
+
 
     useEffect(() => {
         if (isOpen && userId) {
@@ -111,13 +115,51 @@ const TestUserAnalyticsModal = ({ isOpen, onClose, userId, userName, isRegularUs
                                     <p className="text-sm text-gray-500 italic">No hay actividad registrada.</p>
                                 )}
                             </div>
+
+
+                            {/* Downloads Section */}
+                            {stats.downloads && stats.downloads.length > 0 && (
+                                <div className="mt-6 pt-6 border-t border-gray-100">
+                                    <h4 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide flex items-center gap-2">
+                                        <Download className="w-4 h-4" /> Últimas Descargas de Precios
+                                    </h4>
+                                    <ul className="divide-y divide-gray-100">
+                                        {stats.downloads.map((dl, index) => (
+                                            <li key={index} className="py-2 text-sm">
+                                                <div className="flex justify-between mb-1">
+                                                    <span className="font-medium text-gray-800">{new Date(dl.created_at).toLocaleDateString()}</span>
+                                                    <span className="text-gray-500 text-xs">{new Date(dl.created_at).toLocaleTimeString()}</span>
+                                                </div>
+                                                <div className="text-xs text-gray-600 flex flex-wrap gap-2 items-center bg-gray-50 p-2 rounded">
+                                                    <Filter className="w-3 h-3 text-gray-400" />
+                                                    {dl.filters?.searchTerm && <span className="bg-blue-100 text-blue-800 px-1 rounded">Busq: {dl.filters.searchTerm}</span>}
+                                                    {dl.filters?.brands && dl.filters.brands.length > 0 && <span className="bg-purple-100 text-purple-800 px-1 rounded">Marcas: {dl.filters.brands.length}</span>}
+                                                    {dl.filters?.onlyModifiedPrices && <span className="bg-yellow-100 text-yellow-800 px-1 rounded">Solo Modif.</span>}
+                                                    {!dl.filters?.searchTerm && (!dl.filters?.brands || dl.filters.brands.length === 0) && !dl.filters?.onlyModifiedPrices && <span className="italic text-gray-400">Sin filtros</span>}
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <p className="text-center text-gray-500">No se pudieron cargar los datos.</p>
                     )}
                 </div>
 
-                <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end">
+                <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-between items-center">
+                    {isSellerView && (
+                        <button
+                            onClick={() => {
+                                onClose();
+                                navigate(`/vendedor-client-analytics/${userId}?name=${encodeURIComponent(userName)}`);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
+                        >
+                            Ver análisis completo <BarChart2 className="w-4 h-4" />
+                        </button>
+                    )}
                     <button
                         onClick={onClose}
                         className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -126,7 +168,7 @@ const TestUserAnalyticsModal = ({ isOpen, onClose, userId, userName, isRegularUs
                     </button>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

@@ -156,6 +156,7 @@ const apiService = {
   uploadToDrive: commonService.uploadToDrive,
   assignImageToProducts: commonService.assignImageToProducts,
   recordVisit: commonService.recordVisit,
+  recordDownload: commonService.recordDownload,
   getAnalytics: commonService.getAnalytics,
   downloadMissingImagesReport: commonService.downloadMissingImagesReport,
 };

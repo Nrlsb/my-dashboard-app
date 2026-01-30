@@ -32,6 +32,7 @@ const ManageContentPage = lazyImport(() => import('./pages/ManageContentPage.jsx
 const CollectionPage = lazyImport(() => import('./pages/CollectionPage.jsx'));
 const VendedorDashboardPage = lazyImport(() => import('./pages/VendedorDashboardPage.jsx'));
 const VendedorClientsPage = lazyImport(() => import('./pages/VendedorClientsPage.jsx'));
+const VendedorClientAnalyticsPage = lazyImport(() => import('./pages/VendedorClientAnalyticsPage.jsx'));
 const ChangePasswordPage = lazyImport(() => import('./pages/ChangePasswordPage.jsx'));
 const VendedorAccountBalancePage = lazyImport(() => import('./pages/VendedorAccountBalancePage.jsx'));
 const VendedorOrderHistoryPage = lazyImport(() => import('./pages/VendedorOrderHistoryPage.jsx'));
@@ -163,6 +164,14 @@ const router = createBrowserRouter(
                 <ProtectedRoute>
                     <Suspense fallback={<LoadingFallback />}>
                         <VendedorClientsPage />
+                    </Suspense>
+                </ProtectedRoute>
+            } />
+
+            <Route path="vendedor-client-analytics/:userId" element={
+                <ProtectedRoute>
+                    <Suspense fallback={<LoadingFallback />}>
+                        <VendedorClientAnalyticsPage />
                     </Suspense>
                 </ProtectedRoute>
             } />

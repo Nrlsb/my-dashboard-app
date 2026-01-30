@@ -35,6 +35,10 @@ export const commonService = {
         return apiClient.post('/analytics/visit', { path });
     },
 
+    recordDownload(filters, format = 'excel') {
+        return apiClient.post('/analytics/download', { filters, format });
+    },
+
     getAnalytics(params) {
         return apiClient.get('/analytics/stats', { params });
     },

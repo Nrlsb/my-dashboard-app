@@ -5,6 +5,7 @@ const { authenticateToken, requireAdmin, optionalAuthenticateToken } = require('
 const { requirePermission } = require('../middleware/roleAuth');
 
 router.post('/visit', optionalAuthenticateToken, analyticsController.recordVisit);
+router.post('/download', optionalAuthenticateToken, analyticsController.recordDownload);
 router.get('/stats', authenticateToken, requirePermission('view_analytics'), analyticsController.getAnalytics);
 
 module.exports = router;

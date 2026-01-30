@@ -282,6 +282,14 @@ export default function PriceListPage() {
         anchor.download = 'lista-de-precios.xlsx';
         anchor.click();
         window.URL.revokeObjectURL(url);
+
+        // Registrar la descarga
+        apiService.recordDownload({
+          searchTerm: debounceSearchTerm,
+          brands: selectedBrands,
+          onlyModifiedPrices
+        }, 'excel').catch(err => console.error('Error tracking download:', err));
+
       } catch (error) {
         console.error('Error al generar el Excel:', error);
         alert(`Error al generar el Excel: ${error.message}`);

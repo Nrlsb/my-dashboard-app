@@ -21,6 +21,24 @@ exports.recordVisit = catchAsync(async (req, res) => {
     res.status(200).json({ success: true });
 });
 
+exports.recordDownload = catchAsync(async (req, res) => {
+    const { filters, format } = req.body;
+    let userId = req.user ? req.user.userId : null;
+
+    // Ensure userId is integer for this table
+    if (userId && isNaN(parseInt(userId))) {
+        userId = null;
+    } else if (userId) {
+        userId = parseInt(userId);
+    }
+
+    const ip = req.ip;
+    const userAgent = req.get('User-Agent');
+
+    await analyticsModel.recordPriceListDownload(userId, filters, format, ip, userAgent);
+    res.status(200).json({ success: true });
+});
+
 exports.getTestUserAnalytics = catchAsync(async (req, res) => {
     const { id } = req.params;
     const stats = await analyticsModel.getTestUserStats(id);

@@ -40,6 +40,27 @@ const ensurePageVisitsTable = async () => {
 // Initialize table
 ensurePageVisitsTable();
 
+const ensurePriceListDownloadsTable = async () => {
+    const query = `
+      CREATE TABLE IF NOT EXISTS price_list_downloads (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER,
+        filters JSONB,
+        format VARCHAR(20),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        ip_address VARCHAR(50),
+        user_agent TEXT
+      );
+    `;
+    try {
+        await pool2.query(query);
+    } catch (error) {
+        console.error('Error ensuring price_list_downloads table:', error);
+    }
+};
+
+ensurePriceListDownloadsTable();
+
 const recordVisit = async (path, userId, ip, userAgent, userRole = 'cliente') => {
     try {
         const query = `
@@ -49,6 +70,18 @@ const recordVisit = async (path, userId, ip, userAgent, userRole = 'cliente') =>
         await pool2.query(query, [path, userId, ip, userAgent, userRole]);
     } catch (error) {
         console.error('Error recording visit:', error);
+    }
+};
+
+const recordPriceListDownload = async (userId, filters, format, ip, userAgent) => {
+    try {
+        const query = `
+            INSERT INTO price_list_downloads (user_id, filters, format, ip_address, user_agent)
+            VALUES ($1, $2, $3, $4, $5)
+        `;
+        await pool2.query(query, [userId, filters, format, ip, userAgent]);
+    } catch (error) {
+        console.error('Error recording price list download:', error);
     }
 };
 
@@ -381,14 +414,32 @@ const getUserStats = async (userId) => {
         `;
         const topPagesResult = await pool2.query(topPagesQuery, [userId]);
 
+        // 4. Download History
+        let downloads = [];
+        try {
+            const downloadsQuery = `
+                SELECT created_at, filters, format
+                FROM price_list_downloads
+                WHERE user_id = $1
+                ORDER BY created_at DESC
+                LIMIT 10
+            `;
+            const downloadsResult = await pool2.query(downloadsQuery, [userId]);
+            downloads = downloadsResult.rows;
+        } catch (e) {
+            console.error('Error fetching downloads history:', e);
+            // Ignore if table doesn't exist yet or other error, return empty
+        }
+
         return {
             totalVisits,
             lastVisit,
-            topPages: topPagesResult.rows
+            topPages: topPagesResult.rows,
+            downloads
         };
     } catch (error) {
         console.error('Error getting user stats:', error);
-        return { totalVisits: 0, lastVisit: null, topPages: [] };
+        return { totalVisits: 0, lastVisit: null, topPages: [], downloads: [] };
     }
 };
 
@@ -399,5 +450,6 @@ module.exports = {
     getClientStats,
     getSellerStats,
     getTestUserStats,
-    getUserStats
+    getUserStats,
+    recordPriceListDownload
 };
