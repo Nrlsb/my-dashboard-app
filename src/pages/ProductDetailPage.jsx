@@ -168,25 +168,27 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
-            <button
-              onClick={handleAddToCart}
-              className={`w-full py-3 px-6 rounded-lg text-white font-semibold transition-colors duration-300 cursor-pointer ${isAdded
-                ? 'bg-green-500 hover:bg-green-600'
-                : 'bg-blue-600 hover:bg-blue-700'
-                }`}
-            >
-              {isAdded ? (
-                <span className="flex items-center justify-center">
-                  <CheckCircle className="w-5 h-5 mr-2" />
-                  Agregado
-                </span>
-              ) : (
-                <span className="flex items-center justify-center">
-                  <ShoppingCart className="w-5 h-5 mr-2" />
-                  Agregar al Carrito
-                </span>
-              )}
-            </button>
+            {user?.role !== 'vendedor' && (
+              <button
+                onClick={handleAddToCart}
+                className={`w-full py-3 px-6 rounded-lg text-white font-semibold transition-colors duration-300 cursor-pointer ${isAdded
+                  ? 'bg-green-500 hover:bg-green-600'
+                  : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+              >
+                {isAdded ? (
+                  <span className="flex items-center justify-center">
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Agregado
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center">
+                    <ShoppingCart className="w-5 h-5 mr-2" />
+                    Agregar al Carrito
+                  </span>
+                )}
+              </button>
+            )}
 
             <div className="flex items-center text-sm text-gray-500 justify-between mt-4">
               <div className="flex items-center">

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import apiService from '../api/apiService';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { ChevronDown, ChevronUp, Phone, Mail } from 'lucide-react';
+import { ChevronDown, ChevronUp, Phone, Mail, BarChart2 } from 'lucide-react';
+import TestUserAnalyticsModal from '../components/TestUserAnalyticsModal';
 
 const VendedorClientsPage = () => {
   const { user: authUser } = useAuth();
@@ -10,6 +11,8 @@ const VendedorClientsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedClientIds, setExpandedClientIds] = useState(new Set());
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [isAnalyticsModalOpen, setIsAnalyticsModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -55,6 +58,11 @@ const VendedorClientsPage = () => {
       newExpanded.add(id);
     }
     setExpandedClientIds(newExpanded);
+  };
+
+  const openAnalytics = (client) => {
+    setSelectedClient(client);
+    setIsAnalyticsModalOpen(true);
   };
 
   return (
@@ -139,6 +147,14 @@ const VendedorClientsPage = () => {
                               Carrito: {client.cart_item_count} items
                             </span>
                           )}
+
+                          <button
+                            onClick={() => openAnalytics(client)}
+                            className="mt-1 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                          >
+                            <BarChart2 size={12} />
+                            Ver Análisis
+                          </button>
                         </div>
                       </td>
 
@@ -195,6 +211,14 @@ const VendedorClientsPage = () => {
         ) : (
           <p className="text-center text-gray-500 mt-10">No hay clientes {authUser && authUser.is_admin ? 'en el sistema.' : 'asignados a este vendedor.'}</p>
         ))}
+
+      <TestUserAnalyticsModal
+        isOpen={isAnalyticsModalOpen}
+        onClose={() => setIsAnalyticsModalOpen(false)}
+        userId={selectedClient?.id}
+        userName={selectedClient?.full_name}
+        isRegularUser={true}
+      />
     </div>
   );
 };

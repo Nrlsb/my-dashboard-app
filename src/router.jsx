@@ -227,19 +227,23 @@ const router = createBrowserRouter(
 
             <Route path="new-order" element={
                 <ProtectedRoute>
-                    <VisibilityRoute path="new-order">
-                        <Suspense fallback={<LoadingFallback />}>
-                            <NewOrderPage />
-                        </Suspense>
-                    </VisibilityRoute>
+                    <ClientRoute>
+                        <VisibilityRoute path="new-order">
+                            <Suspense fallback={<LoadingFallback />}>
+                                <NewOrderPage />
+                            </Suspense>
+                        </VisibilityRoute>
+                    </ClientRoute>
                 </ProtectedRoute>
             } />
 
             <Route path="order-preview" element={
                 <ProtectedRoute>
-                    <Suspense fallback={<LoadingFallback />}>
-                        <OrderPreviewPage />
-                    </Suspense>
+                    <ClientRoute>
+                        <Suspense fallback={<LoadingFallback />}>
+                            <OrderPreviewPage />
+                        </Suspense>
+                    </ClientRoute>
                 </ProtectedRoute>
             } />
 

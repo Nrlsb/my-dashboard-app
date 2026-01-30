@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, CheckCircle, Package } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 // --- Formateadores ---
 const formatCurrency = (amount) =>
@@ -12,6 +13,7 @@ const formatCurrency = (amount) =>
 const ProductCard = ({ product }) => {
     const navigate = useNavigate();
     const { addToCart } = useCart();
+    const { user } = useAuth();
     const [isAdded, setIsAdded] = useState(false);
 
     const handleAddToCart = (e) => {
@@ -84,16 +86,18 @@ const ProductCard = ({ product }) => {
                             </span>
                         </div>
 
-                        <button
-                            onClick={handleAddToCart}
-                            className={`p-2 rounded-full transition-colors shadow-sm ${isAdded
-                                ? 'bg-green-100 text-green-600'
-                                : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
-                                }`}
-                            title="Agregar al carrito"
-                        >
-                            {isAdded ? <CheckCircle className="w-5 h-5" /> : <ShoppingCart className="w-5 h-5" />}
-                        </button>
+                        {user?.role !== 'vendedor' && (
+                            <button
+                                onClick={handleAddToCart}
+                                className={`p-2 rounded-full transition-colors shadow-sm ${isAdded
+                                    ? 'bg-green-100 text-green-600'
+                                    : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                                    }`}
+                                title="Agregar al carrito"
+                            >
+                                {isAdded ? <CheckCircle className="w-5 h-5" /> : <ShoppingCart className="w-5 h-5" />}
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
