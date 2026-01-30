@@ -281,6 +281,8 @@ const fetchProductDetails = async (productId, user = null) => {
       ai_description: prod.ai_description,
       stock_disponible: prod.stock_disponible,
       stock_de_seguridad: prod.stock_de_seguridad,
+      indicator_description: prod.indicator_description,
+      pack_quantity: prod.pack_quantity,
     };
 
     const [enrichedProduct] = await enrichProductsWithImages([productDetails]);
@@ -327,6 +329,8 @@ const fetchProductDetailsByCode = async (productCode, user = null) => {
       ai_description: prod.ai_description,
       stock_disponible: prod.stock_disponible,
       stock_de_seguridad: prod.stock_de_seguridad,
+      indicator_description: prod.indicator_description,
+      pack_quantity: prod.pack_quantity,
     };
 
     const [enrichedProduct] = await enrichProductsWithImages([productDetails]);
