@@ -53,9 +53,9 @@ const TestUserAnalyticsModal = ({ isOpen, onClose, userId, userName, isRegularUs
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 overflow-hidden">
-                <div className="flex justify-between items-center p-4 border-b border-gray-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-lg flex flex-col max-h-[90vh]">
+                <div className="flex justify-between items-center p-4 border-b border-gray-200 flex-shrink-0">
                     <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                         <BarChart2 className="w-5 h-5 text-blue-600" />
                         Análisis: {userName}
@@ -65,7 +65,7 @@ const TestUserAnalyticsModal = ({ isOpen, onClose, userId, userName, isRegularUs
                     </button>
                 </div>
 
-                <div className="p-6">
+                <div className="p-6 overflow-y-auto">
                     {loading ? (
                         <div className="flex justify-center py-8">
                             <LoadingSpinner text="Cargando datos..." />
@@ -133,7 +133,16 @@ const TestUserAnalyticsModal = ({ isOpen, onClose, userId, userName, isRegularUs
                                                 <div className="text-xs text-gray-600 flex flex-wrap gap-2 items-center bg-gray-50 p-2 rounded">
                                                     <Filter className="w-3 h-3 text-gray-400" />
                                                     {dl.filters?.searchTerm && <span className="bg-blue-100 text-blue-800 px-1 rounded">Busq: {dl.filters.searchTerm}</span>}
-                                                    {dl.filters?.brands && dl.filters.brands.length > 0 && <span className="bg-purple-100 text-purple-800 px-1 rounded">Marcas: {dl.filters.brands.join(', ')}</span>}
+                                                    {dl.filters?.brands && dl.filters.brands.length > 0 && (
+                                                        <span
+                                                            className="bg-purple-100 text-purple-800 px-1 rounded cursor-help"
+                                                            title={dl.filters.brands.join(', ')}
+                                                        >
+                                                            Marcas: {dl.filters.brands.length > 3
+                                                                ? `${dl.filters.brands.slice(0, 3).join(', ')} y ${dl.filters.brands.length - 3} más`
+                                                                : dl.filters.brands.join(', ')}
+                                                        </span>
+                                                    )}
                                                     {dl.filters?.onlyModifiedPrices && <span className="bg-yellow-100 text-yellow-800 px-1 rounded">Solo Modif.</span>}
                                                     {!dl.filters?.searchTerm && (!dl.filters?.brands || dl.filters.brands.length === 0) && !dl.filters?.onlyModifiedPrices && <span className="italic text-gray-400">Sin filtros</span>}
                                                 </div>
