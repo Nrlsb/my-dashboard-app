@@ -52,9 +52,9 @@ const LaunchGroupCarousel = () => {
                     >
                         {/* Background Image */}
                         <div className="absolute inset-0">
-                            {group.image_url ? (
+                            {group.imageUrl ? (
                                 <img
-                                    src={group.image_url}
+                                    src={group.imageUrl}
                                     alt={group.name}
                                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                                     referrerPolicy="no-referrer"

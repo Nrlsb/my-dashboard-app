@@ -51,16 +51,15 @@ export const CartProvider = ({ children }) => {
   const addToCart = (product, quantity) => {
     setCart((prevCart) => {
       const existingItem = prevCart.find((item) => item.id === product.id);
+
       if (existingItem) {
-        // Si el item ya existe, actualiza su cantidad
-        return prevCart.map((item) =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + quantity }
-            : item
-        );
+        // Si ya existe, lo quitamos de su posición actual y lo ponemos al inicio con la nueva cantidad
+        const otherItems = prevCart.filter((item) => item.id !== product.id);
+        const updatedItem = { ...existingItem, quantity: existingItem.quantity + quantity };
+        return [updatedItem, ...otherItems];
       } else {
-        // Si es un item nuevo, lo agrega al carrito
-        return [...prevCart, { ...product, quantity }];
+        // Si es nuevo, lo agregamos al inicio
+        return [{ ...product, quantity }, ...prevCart];
       }
     });
   };
