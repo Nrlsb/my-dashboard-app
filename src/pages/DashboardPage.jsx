@@ -37,6 +37,7 @@ const DashboardCards = () => {
   const { data: cards, isLoading: isLoadingCards, error } = useQuery({
     queryKey: ['dashboardPanels'],
     queryFn: () => apiService.getDashboardPanels(),
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
   const safeCards = Array.isArray(cards) ? cards : [];
