@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import apiService from '../api/apiService.js';
 import { useCart } from '../context/CartContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useProductQuantity } from '../hooks/useProductQuantity';
 import {
   ArrowLeft,
   Package,
@@ -61,8 +62,6 @@ export default function ProductDetailPage() {
   const navigate = useNavigate();
   const { addToCart } = useCart();
   const { user } = useAuth();
-  const [quantity, setQuantity] = useState(1);
-  const [isAdded, setIsAdded] = useState(false);
 
   const {
     data: product,
@@ -74,6 +73,16 @@ export default function ProductDetailPage() {
     queryFn: () => apiService.fetchProductById(productId),
     enabled: !!productId,
   });
+
+  const {
+    quantity,
+    increment,
+    decrement,
+    handleInputChange,
+    handleBlur,
+  } = useProductQuantity(product, 1);
+
+  const [isAdded, setIsAdded] = useState(false);
 
   const handleAddToCart = () => {
     if (!product) return;
@@ -137,7 +146,7 @@ export default function ProductDetailPage() {
               <span className="font-medium text-gray-700">Cantidad:</span>
               <div className="flex items-center border border-gray-300 rounded-lg">
                 <button
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  onClick={decrement}
                   className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-l-lg cursor-pointer"
                 >
                   -
@@ -145,14 +154,13 @@ export default function ProductDetailPage() {
                 <input
                   type="number"
                   value={quantity}
-                  onChange={(e) =>
-                    setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))
-                  }
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
                   className="w-16 text-center border-none focus:ring-0"
                   min="1"
                 />
                 <button
-                  onClick={() => setQuantity((q) => q + 1)}
+                  onClick={increment}
                   className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-r-lg cursor-pointer"
                 >
                   +
