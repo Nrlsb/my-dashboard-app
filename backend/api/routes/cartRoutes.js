@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const cartController = require('../controllers/cartController');
-const authenticateToken = require('../middleware/auth'); // Asegúrate de que la ruta al middleware sea correcta
+const { authenticateToken } = require('../middleware/auth');
 
 // Todas las rutas de carrito requieren autenticación
 router.use(authenticateToken);
