@@ -201,10 +201,24 @@ const findUsersByVendedorCodigo = async (vendedorCodigo) => {
     // Query local users table
     // Note: We select fields to match the previous structure as closely as possible
     const query = `
-      SELECT id, full_name, email, a1_cod, a1_loja, a1_cgc, a1_tel, a1_endereco, vendedor_codigo
-      FROM users
-      WHERE vendedor_codigo = $1
-      ORDER BY full_name ASC
+      SELECT 
+        u.id, 
+        u.full_name, 
+        u.email, 
+        u.a1_cod, 
+        u.a1_loja, 
+        u.a1_cgc, 
+        u.a1_tel, 
+        u.a1_endereco, 
+        u.vendedor_codigo,
+        (
+          SELECT TO_CHAR(MAX(o.created_at), 'DD/MM/YYYY')
+          FROM orders o 
+          WHERE o.user_id = u.id
+        ) as last_order_date
+      FROM users u
+      WHERE u.vendedor_codigo = $1
+      ORDER BY u.full_name ASC
     `;
 
     const result = await pool2.query(query, [normalizedVendorCode]);
@@ -223,7 +237,8 @@ const findUsersByVendedorCodigo = async (vendedorCodigo) => {
       a1_cgc: c.a1_cgc,
       a1_tel: c.a1_tel,
       a1_endereco: c.a1_endereco,
-      vendedor_codigo: c.vendedor_codigo
+      vendedor_codigo: c.vendedor_codigo,
+      last_order_date: c.last_order_date
     }));
 
   } catch (error) {

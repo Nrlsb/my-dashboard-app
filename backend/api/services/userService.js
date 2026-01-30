@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const userModel = require('../models/userModel');
 const vendedorModel = require('../models/vendedorModel'); // Importar el modelo de vendedor
 const testUserModel = require('../models/testUserModel');
+const cartModel = require('../models/cartModel');
 
 /**
  * Autentica a un usuario, sea cliente o vendedor, usando contraseña temporal o principal.
@@ -336,10 +337,21 @@ const getVendedorClients = async (vendedorCodigo) => {
       `[userService] getVendedorClients -> Buscando clientes para vendedorCodigo: ${vendedorCodigo}`
     );
     const clients = await userModel.findUsersByVendedorCodigo(vendedorCodigo);
+
+    // [NUEVO] Obtener contadores del carrito para estos clientes
+    const clientIds = clients.map(c => c.id).filter(id => id); // Filtrar IDs nulos por seguridad
+    const cartCounts = await cartModel.getCartItemCountsByUserIds(clientIds);
+
+    // Fusionar datos
+    const clientsWithActivity = clients.map(client => ({
+      ...client,
+      cart_item_count: cartCounts[client.id] || 0
+    }));
+
     console.log(
       `[userService] getVendedorClients -> Encontrados ${clients.length} clientes para vendedorCodigo: ${vendedorCodigo}`
     );
-    return clients;
+    return clientsWithActivity;
   } catch (error) {
     console.error('Error en getVendedorClients (service):', error);
     throw error;

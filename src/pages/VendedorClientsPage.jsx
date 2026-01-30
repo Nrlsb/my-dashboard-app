@@ -74,6 +74,7 @@ const VendedorClientsPage = () => {
                   <th className="px-4 py-3 text-left font-semibold text-base">Nombre Completo</th>
                   {authUser.is_admin && <th className="px-4 py-3 text-left font-semibold text-base">Vendedor</th>}
                   <th className="px-4 py-3 text-left font-semibold text-base">Email</th>
+                  <th className="px-4 py-3 text-left font-semibold text-base">Actividad</th>
                   <th className="px-4 py-3 text-left font-semibold text-base">Código</th>
                   <th className="px-4 py-3 text-left font-semibold text-base">Cuit/Cuil</th>
                   <th className="px-4 py-3 text-left font-semibold text-base">Teléfono</th>
@@ -119,6 +120,25 @@ const VendedorClientsPage = () => {
                         <div className="flex items-center gap-2">
                           <span className="md:hidden text-gray-400"><Mail size={16} /></span>
                           <span>{client.email}</span>
+                        </div>
+                      </td>
+
+                      {/* Actividad - Visible on Mobile (Secondary) */}
+                      <td className="px-4 py-2 md:py-3 text-sm text-gray-700 block md:table-cell">
+                        <div className="flex flex-col gap-1">
+                          {client.last_order_date ? (
+                            <span className="text-xs text-gray-500">
+                              Último pedido: <span className="font-medium text-gray-800">{client.last_order_date}</span>
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-400">Sin pedidos recientes</span>
+                          )}
+
+                          {client.cart_item_count > 0 && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 w-fit">
+                              Carrito: {client.cart_item_count} items
+                            </span>
+                          )}
                         </div>
                       </td>
 

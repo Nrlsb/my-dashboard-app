@@ -30,7 +30,39 @@ const upsertCart = async (userId, items) => {
     }
 };
 
+const getCartItemCountsByUserIds = async (userIds) => {
+    if (!userIds || userIds.length === 0) return {};
+
+    try {
+        const query = `
+            SELECT user_id, items 
+            FROM carts 
+            WHERE user_id = ANY($1)
+        `;
+        const result = await pool.query(query, [userIds]);
+
+        const cartCounts = {};
+        // Initialize all to 0
+        userIds.forEach(id => cartCounts[id] = 0);
+
+        result.rows.forEach(row => {
+            // items is JSONB or JSON, array of objects
+            let count = 0;
+            if (Array.isArray(row.items)) {
+                count = row.items.length;
+            }
+            cartCounts[row.user_id] = count;
+        });
+
+        return cartCounts;
+    } catch (error) {
+        console.error('Error fetching cart counts:', error);
+        return {}; // Return empty object on error to avoid crashing
+    }
+};
+
 module.exports = {
     getCartByUserId,
     upsertCart,
+    getCartItemCountsByUserIds,
 };

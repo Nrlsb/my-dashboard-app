@@ -26,7 +26,6 @@ export const CartProvider = ({ children }) => {
           // 1. Get Local Cart
           const localCartJson = localStorage.getItem(`shopping-cart-${user.id}`);
           const localCart = localCartJson ? JSON.parse(localCartJson) : [];
-          console.log('[CartContext] Local Cart loaded:', localCart.length, 'items');
 
           // 2. Get Remote Cart
           let remoteCart = [];
@@ -34,10 +33,8 @@ export const CartProvider = ({ children }) => {
             remoteCart = await apiService.getCart();
             // Ensure array
             if (!Array.isArray(remoteCart)) {
-              console.warn('[CartContext] Remote cart response is not an array:', remoteCart);
               remoteCart = [];
             }
-            console.log('[CartContext] Remote Cart loaded:', remoteCart.length, 'items');
           } catch (apiError) {
             console.error('[CartContext] Error fetching remote cart:', apiError);
             if (isMounted) {
@@ -57,22 +54,14 @@ export const CartProvider = ({ children }) => {
 
           // B. Add Local Items (Offline additions)
           localCart.forEach(localItem => {
-            if (mergedMap.has(localItem.id)) {
-              // Item exists in remote too.
-              // Strategy: Keep Remote version (synced).
-              // Optional: Could sum quantities if we wanted `localItem.quantity + remoteItem.quantity`
-              // For now, assume Remote is 'Correct' state and Local is stale if conflicting.
-              //console.log(`[CartContext] Conflict for item ${localItem.id}. Keeping Remote.`);
-            } else {
+            if (!mergedMap.has(localItem.id)) {
               // Item ONLY in Local. Add to merge.
-              console.log(`[CartContext] Item ${localItem.id} found only in local. Merging.`);
               mergedMap.set(localItem.id, { ...localItem });
             }
           });
 
           // Convert Map to Array
           let finalCart = Array.from(mergedMap.values());
-          console.log('[CartContext] Final Merged Cart:', finalCart.length, 'items');
 
           if (isMounted) {
             setCart(finalCart);
