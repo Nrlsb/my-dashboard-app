@@ -425,41 +425,42 @@ const getAllClients = async () => {
   }
 };
 
+/**
+ * Obtiene las estadísticas de un cliente específico de un vendedor.
+ * @param {string} vendedorCodigo - El código del vendedor.
+ * @param {number} clientId - El ID del cliente.
+ * @returns {Promise<object>}
+ */
+const getVendedorClientAnalytics = async (vendedorCodigo, clientId) => {
+  try {
+    // 1. Verify Client belongs to Seller
+    const client = await findUserById(clientId);
+    if (!client) {
+      throw new Error('Cliente no encontrado');
+    }
+
+    // Normalize codes for comparison
+    const clientVendorCode = String(client.vendedor_codigo || '').trim();
+    const sellerCode = String(vendedorCodigo || '').trim();
+
+    if (clientVendorCode !== sellerCode) {
+      throw new Error('Acceso denegado: El cliente no pertenece a este vendedor');
+    }
+
+    // 2. Fetch Analytics
+    return await analyticsModel.getUserStats(clientId);
+  } catch (error) {
+    console.error('Error en getVendedorClientAnalytics (service):', error);
+    throw error;
+  }
+};
+
 module.exports = {
   authenticateUser,
   registerUser,
   getUserProfile,
   updateUserProfile,
   getVendedorClients,
-  /**
-   * Obtiene las estadísticas de un cliente específico de un vendedor.
-   * @param {string} vendedorCodigo - El código del vendedor.
-   * @param {number} clientId - El ID del cliente.
-   * @returns {Promise<object>}
-   */
-  getVendedorClientAnalytics: async (vendedorCodigo, clientId) => {
-    try {
-      // 1. Verify Client belongs to Seller
-      const client = await findUserById(clientId);
-      if (!client) {
-        throw new Error('Cliente no encontrado');
-      }
-
-      // Normalize codes for comparison
-      const clientVendorCode = String(client.vendedor_codigo || '').trim();
-      const sellerCode = String(vendedorCodigo || '').trim();
-
-      if (clientVendorCode !== sellerCode) {
-        throw new Error('Acceso denegado: El cliente no pertenece a este vendedor');
-      }
-
-      // 2. Fetch Analytics
-      return await analyticsModel.getUserStats(clientId);
-    } catch (error) {
-      console.error('Error en getVendedorClientAnalytics (service):', error);
-      throw error;
-    }
-  },
   changePassword,
   getAllClients,
   getVendedorClientAnalytics,
