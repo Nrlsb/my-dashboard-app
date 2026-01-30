@@ -22,12 +22,13 @@ export const productService = {
         return apiClient.get('/products', { params });
     },
 
-    fetchAllProductsForPDF(searchTerm, brands) {
+    fetchAllProductsForPDF(searchTerm, brands, onlyModifiedPrices = false) {
         const params = {
             page: 1,
             limit: 9999,
             search: searchTerm,
             isExport: 'true',
+            onlyModifiedPrices,
         };
         if (brands && brands.length > 0) {
             params.brand = brands.join(',');

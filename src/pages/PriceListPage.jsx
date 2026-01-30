@@ -217,7 +217,7 @@ export default function PriceListPage() {
 
   const excelMutation = useMutation({
     mutationFn: () =>
-      apiService.fetchAllProductsForPDF(debounceSearchTerm, selectedBrands),
+      apiService.fetchAllProductsForPDF(debounceSearchTerm, selectedBrands, onlyModifiedPrices),
     onSuccess: async (products) => {
       if (!products || products.length === 0) {
         alert(
