@@ -109,7 +109,7 @@ exports.getClientPermissionsController = catchAsync(async (req, res) => {
     res.json(permissions);
 });
 
-const adminService = require('../services/admin.service');
+const adminService = require('../services/adminService');
 
 exports.updateClientPermissionsController = catchAsync(async (req, res) => {
     const { user } = req;
