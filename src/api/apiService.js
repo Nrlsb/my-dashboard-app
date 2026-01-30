@@ -144,6 +144,7 @@ const apiService = {
   createTestUser: userService.createTestUser,
   deleteTestUser: userService.deleteTestUser,
   getTestUserAnalytics: userService.getTestUserAnalytics,
+  getVendedorClientAnalytics: userService.getVendedorClientAnalytics,
   getUserAnalytics: userService.getUserAnalytics,
   getAllClients: userService.getAllClients,
 

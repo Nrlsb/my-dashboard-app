@@ -5,6 +5,7 @@ const userModel = require('../models/userModel');
 const vendedorModel = require('../models/vendedorModel'); // Importar el modelo de vendedor
 const testUserModel = require('../models/testUserModel');
 const cartModel = require('../models/cartModel');
+const analyticsModel = require('../models/analyticsModel');
 
 /**
  * Autentica a un usuario, sea cliente o vendedor, usando contraseña temporal o principal.
@@ -430,6 +431,36 @@ module.exports = {
   getUserProfile,
   updateUserProfile,
   getVendedorClients,
+  /**
+   * Obtiene las estadísticas de un cliente específico de un vendedor.
+   * @param {string} vendedorCodigo - El código del vendedor.
+   * @param {number} clientId - El ID del cliente.
+   * @returns {Promise<object>}
+   */
+  getVendedorClientAnalytics: async (vendedorCodigo, clientId) => {
+    try {
+      // 1. Verify Client belongs to Seller
+      const client = await findUserById(clientId);
+      if (!client) {
+        throw new Error('Cliente no encontrado');
+      }
+
+      // Normalize codes for comparison
+      const clientVendorCode = String(client.vendedor_codigo || '').trim();
+      const sellerCode = String(vendedorCodigo || '').trim();
+
+      if (clientVendorCode !== sellerCode) {
+        throw new Error('Acceso denegado: El cliente no pertenece a este vendedor');
+      }
+
+      // 2. Fetch Analytics
+      return await analyticsModel.getUserStats(clientId);
+    } catch (error) {
+      console.error('Error en getVendedorClientAnalytics (service):', error);
+      throw error;
+    }
+  },
   changePassword,
-  getAllClients, // Add the new function to the export
+  getAllClients,
+  getVendedorClientAnalytics,
 };

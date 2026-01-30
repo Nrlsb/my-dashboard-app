@@ -218,6 +218,7 @@ const VendedorClientsPage = () => {
         userId={selectedClient?.id}
         userName={selectedClient?.full_name}
         isRegularUser={true}
+        isSellerView={!authUser?.is_admin} // Pass true if not admin (implies seller or other)
       />
     </div>
   );

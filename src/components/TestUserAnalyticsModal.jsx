@@ -17,7 +17,7 @@ const PATH_NAMES = {
     '/admin/products': 'Gestión Productos'
 };
 
-const TestUserAnalyticsModal = ({ isOpen, onClose, userId, userName, isRegularUser = false }) => {
+const TestUserAnalyticsModal = ({ isOpen, onClose, userId, userName, isRegularUser = false, isSellerView = false }) => {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(false);
 
@@ -30,9 +30,14 @@ const TestUserAnalyticsModal = ({ isOpen, onClose, userId, userName, isRegularUs
     const fetchStats = async () => {
         setLoading(true);
         try {
-            const response = isRegularUser
-                ? await apiService.getUserAnalytics(userId)
-                : await apiService.getTestUserAnalytics(userId);
+            let response;
+            if (isSellerView) {
+                response = await apiService.getVendedorClientAnalytics(userId);
+            } else if (isRegularUser) {
+                response = await apiService.getUserAnalytics(userId);
+            } else {
+                response = await apiService.getTestUserAnalytics(userId);
+            }
             setStats(response.data);
         } catch (error) {
             console.error('Error fetching stats:', error);

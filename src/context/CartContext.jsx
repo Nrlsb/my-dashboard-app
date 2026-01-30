@@ -21,6 +21,13 @@ export const CartProvider = ({ children }) => {
     let isMounted = true;
 
     const loadCart = async () => {
+      // Don't sync for sellers
+      if (user?.role === 'vendedor') {
+        setCart([]);
+        setIsLoaded(true);
+        return;
+      }
+
       if (user && user.id) {
         try {
           // 1. Get Local Cart
@@ -85,7 +92,7 @@ export const CartProvider = ({ children }) => {
 
   // Persist cart changes to localStorage AND Backend
   useEffect(() => {
-    if (user && user.id && isLoaded) {
+    if (user && user.id && isLoaded && user.role !== 'vendedor') {
       // 1. Save to LocalStorage (Instant backup)
       try {
         localStorage.setItem(`shopping-cart-${user.id}`, JSON.stringify(cart));

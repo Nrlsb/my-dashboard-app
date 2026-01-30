@@ -16,6 +16,33 @@ exports.getVendedorClientsController = catchAsync(async (req, res) => {
     res.json(clients);
 });
 
+exports.getVendedorClientAnalyticsController = catchAsync(async (req, res) => {
+    const { user } = req;
+    const { userId } = req.params;
+
+    if (!user || user.role !== 'vendedor' || !user.codigo) {
+        return res
+            .status(403)
+            .json({ message: 'Acceso denegado. Se requiere rol de vendedor.' });
+    }
+
+    try {
+        const stats = await userService.getVendedorClientAnalytics(user.codigo, userId);
+        res.json({
+            status: 'success',
+            data: stats
+        });
+    } catch (error) {
+        if (error.message.includes('Acceso denegado')) {
+            return res.status(403).json({ message: error.message });
+        }
+        if (error.message.includes('Cliente no encontrado')) {
+            return res.status(404).json({ message: error.message });
+        }
+        throw error;
+    }
+});
+
 exports.getProfileController = catchAsync(async (req, res) => {
     console.log('GET /api/profile -> Consultando perfil de usuario en DB...');
 

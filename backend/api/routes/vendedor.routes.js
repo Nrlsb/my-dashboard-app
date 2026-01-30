@@ -13,4 +13,6 @@ router.get('/clientes', async (req, res) => {
   await controllers.getVendedorClientsController(req, res);
 });
 
+router.get('/clientes/:userId/analytics', controllers.getVendedorClientAnalyticsController);
+
 module.exports = router;

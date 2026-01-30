@@ -22,6 +22,10 @@ export const userService = {
         return apiClient.get(`/test-users/${userId}/analytics`);
     },
 
+    getVendedorClientAnalytics(userId) {
+        return apiClient.get(`/vendedor/clientes/${userId}/analytics`);
+    },
+
     getUserAnalytics(userId) {
         return apiClient.get(`/admin/users/${userId}/analytics`);
     },
