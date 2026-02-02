@@ -139,7 +139,7 @@ const getUsersForAdmin = async (search = '') => {
         (uc.password_hash IS NOT NULL) as has_password,
         'vendor' as source,
         v.codigo as vendedor_codigo,
-        v.nombre as vendedor_nombre
+        NULL as vendedor_nombre
       FROM vendedores v
       LEFT JOIN user_credentials uc ON (v.codigo = uc.a1_cod)
       ${whereClauseVendors}
