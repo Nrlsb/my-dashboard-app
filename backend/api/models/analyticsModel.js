@@ -383,6 +383,11 @@ const getTestUserStats = async (userId) => {
 
 const getUserStats = async (userId) => {
     try {
+        // 0. Get User Details (for ID display)
+        const userQuery = `SELECT role, a1_cod, vendedor_codigo FROM users WHERE id = $1`;
+        const userResult = await pool.query(userQuery, [userId]);
+        const user = userResult.rows[0] || {};
+
         // 1. Total Visits
         const countQuery = `
             SELECT COUNT(*) 
@@ -435,11 +440,13 @@ const getUserStats = async (userId) => {
             totalVisits,
             lastVisit,
             topPages: topPagesResult.rows,
-            downloads
+            downloads,
+            a1_cod: user.a1_cod,
+            codigo: user.role === 'vendedor' ? user.vendedor_codigo : undefined
         };
     } catch (error) {
         console.error('Error getting user stats:', error);
-        return { totalVisits: 0, lastVisit: null, topPages: [], downloads: [] };
+        return { totalVisits: 0, lastVisit: null, topPages: [], downloads: [], a1_cod: null, codigo: null };
     }
 };
 
