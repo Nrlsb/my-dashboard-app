@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import apiService from '../api/apiService';
-import { Search, Lock, Edit, AlertCircle, CheckCircle, Trash } from 'lucide-react';
+import { Search, Lock, Edit, AlertCircle, CheckCircle, Trash, Download } from 'lucide-react';
 import TestUserAnalyticsModal from '../components/TestUserAnalyticsModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 
@@ -21,6 +21,7 @@ const ManageUsersPage = () => {
     const [selectedUserForAnalytics, setSelectedUserForAnalytics] = useState(null);
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [downloadCredentials, setDownloadCredentials] = useState(true);
 
     // Delete Modal State
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -121,6 +122,56 @@ const ManageUsersPage = () => {
                 setActionSuccess(`Contraseña asignada correctamente a ${selectedUser.full_name}.`);
                 // Refresh list to update status, maintaining the current search
                 fetchClients(searchTerm);
+            }
+
+            // Generate Excel
+            if (downloadCredentials) {
+                try {
+                    // Import dynamically to match PriceListPage pattern and ensure correct loading
+                    const ExcelJS = (await import('exceljs')).default;
+                    const workbook = new ExcelJS.Workbook();
+                    const worksheet = workbook.addWorksheet('Credenciales');
+
+                    worksheet.columns = [
+                        { header: 'Dato', key: 'key', width: 25 },
+                        { header: 'Valor', key: 'value', width: 40 },
+                    ];
+
+                    // Style header
+                    worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                    worksheet.getRow(1).fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'FF283A5A' }, // Dark blue
+                    };
+
+                    worksheet.addRows([
+                        { key: 'Cliente', value: selectedUser.full_name },
+                        { key: 'Código', value: selectedUser.codigo || selectedUser.a1_cod }, // Use codigo as primary
+                        { key: 'Email', value: selectedUser.email },
+                        { key: 'Contraseña', value: newPassword },
+                        { key: 'Fecha', value: new Date().toLocaleDateString() }
+                    ]);
+
+                    // Add simple styling to the data
+                    worksheet.eachRow((row, rowNumber) => {
+                        if (rowNumber > 1) {
+                            row.font = { size: 12 };
+                        }
+                    });
+
+                    const buffer = await workbook.xlsx.writeBuffer();
+                    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Credenciales_${selectedUser.codigo || selectedUser.full_name}.xlsx`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                } catch (err) {
+                    console.error('Error generando Excel:', err);
+                    setActionError('Error al generar el archivo Excel, pero la contraseña se guardó.');
+                }
             }
 
             closeResetModal();
@@ -360,44 +411,52 @@ const ManageUsersPage = () => {
                                             placeholder="Ingresa la nueva contraseña"
                                         />
                                     </div>
-                                    <div>
-                                        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                                            Confirmar Contraseña
-                                        </label>
-                                        <input
-                                            type="password"
-                                            id="confirmPassword"
-                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
-                                            value={confirmPassword}
-                                            onChange={(e) => setConfirmPassword(e.target.value)}
-                                            placeholder="Repite la nueva contraseña"
-                                        />
-                                    </div>
-                                    {actionError && (
-                                        <div className="text-red-600 text-sm bg-red-50 p-2 rounded flex items-start gap-2">
-                                            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                                            <span>{actionError}</span>
-                                        </div>
-                                    )}
+                                    <input
+                                        type="password"
+                                        id="confirmPassword"
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        placeholder="Repite la nueva contraseña"
+                                    />
                                 </div>
+
+                                <div className="flex items-center mt-2 p-2 bg-gray-50 rounded text-sm text-gray-700">
+                                    <input
+                                        id="downloadCredentials"
+                                        type="checkbox"
+                                        checked={downloadCredentials}
+                                        onChange={(e) => setDownloadCredentials(e.target.checked)}
+                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                                    />
+                                    <label htmlFor="downloadCredentials" className="ml-2 block cursor-pointer select-none">
+                                        Descargar credenciales en Excel
+                                    </label>
+                                </div>
+                                {actionError && (
+                                    <div className="text-red-600 text-sm bg-red-50 p-2 rounded flex items-start gap-2">
+                                        <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                        <span>{actionError}</span>
+                                    </div>
+                                )}
                             </div>
-                            {/* Footer */}
-                            <div className="flex items-center justify-end p-6 border-t border-solid border-gray-200 rounded-b-xl bg-gray-50">
-                                <button
-                                    className="text-gray-500 background-transparent font-bold uppercase px-6 py-2 text-sm outline-none focus:outline-none mr-2 mb-1 ease-linear transition-all duration-150 hover:bg-gray-200 rounded-lg"
-                                    type="button"
-                                    onClick={closeResetModal}
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    className="bg-indigo-600 text-white active:bg-indigo-700 font-bold uppercase text-sm px-6 py-3 rounded-lg shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 hover:bg-indigo-700"
-                                    type="button"
-                                    onClick={handleResetPassword}
-                                >
-                                    Guardar Cambios
-                                </button>
-                            </div>
+                        </div>
+                        {/* Footer */}
+                        <div className="flex items-center justify-end p-6 border-t border-solid border-gray-200 rounded-b-xl bg-gray-50">
+                            <button
+                                className="text-gray-500 background-transparent font-bold uppercase px-6 py-2 text-sm outline-none focus:outline-none mr-2 mb-1 ease-linear transition-all duration-150 hover:bg-gray-200 rounded-lg"
+                                type="button"
+                                onClick={closeResetModal}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                className="bg-indigo-600 text-white active:bg-indigo-700 font-bold uppercase text-sm px-6 py-3 rounded-lg shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 hover:bg-indigo-700"
+                                type="button"
+                                onClick={handleResetPassword}
+                            >
+                                Guardar Cambios
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -417,11 +476,11 @@ const ManageUsersPage = () => {
                 onClose={cancelDeleteUser}
                 onConfirm={confirmDeleteUser}
                 title="Eliminar Usuario"
-                message={`¿Estás seguro de que deseas eliminar al usuario ${userToDelete?.full_name}? esta acción borrará sus credenciales y datos del sistema.`}
+                message={`¿Estás seguro de que deseas eliminar al usuario ${userToDelete?.full_name}? Esta acción borrará sus credenciales y datos del sistema.`}
                 confirmText="Eliminar"
                 variant="danger"
             />
-        </div>
+        </div >
     );
 };
 
