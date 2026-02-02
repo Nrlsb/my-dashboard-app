@@ -12,6 +12,7 @@ const ManageUsersPage = () => {
     const [actionError, setActionError] = useState(null);
     const [actionSuccess, setActionSuccess] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedSeller, setSelectedSeller] = useState(''); // NEW: State for seller filter
 
     // Modal state
     const [isResetModalOpen, setIsResetModalOpen] = useState(false);
@@ -52,8 +53,19 @@ const ManageUsersPage = () => {
         setSearchTerm(e.target.value);
     };
 
-    // Client side filtering removed, rely on backend result which returns filtered list
-    const filteredClients = clients;
+    // NEW: Compute unique sellers for the dropdown
+    const uniqueSellers = useMemo(() => {
+        const sellers = clients
+            .map(client => client.vendedor_nombre)
+            .filter(name => name); // Filter out null/undefined
+        return [...new Set(sellers)].sort(); // Unique and sorted
+    }, [clients]);
+
+    // NEW: Filter clients by selected seller
+    const filteredClients = useMemo(() => {
+        if (!selectedSeller) return clients;
+        return clients.filter(client => client.vendedor_nombre === selectedSeller);
+    }, [clients, selectedSeller]);
 
     const openResetModal = (user) => {
         setSelectedUser(user);
@@ -162,8 +174,8 @@ const ManageUsersPage = () => {
     }
 
     return (
-        <div className="p-4 sm:p-8 max-w-7xl mx-auto min-h-screen bg-gray-50">
-            <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">Gestión de Usuarios</h1>
+        <div className="p-4 sm:p-6 max-w-[1600px] mx-auto min-h-screen bg-gray-50">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 text-center">Gestión de Usuarios</h1>
 
             {actionSuccess && (
                 <div className="mb-6 p-4 bg-green-100 border-l-4 border-green-500 text-green-700 flex items-center justify-center rounded shadow-sm animate-fade-in-down">
@@ -173,39 +185,54 @@ const ManageUsersPage = () => {
             )}
 
             <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
-                <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gray-50/50">
-                    <form className="relative w-full sm:w-96" onSubmit={(e) => e.preventDefault()} autoComplete="off">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Search className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <input
-                            type="search"
-                            name="search_users_query"
-                            id="search_users_query"
-                            placeholder="Buscar por nombre, email o código..."
-                            className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm"
-                            value={searchTerm}
-                            onChange={handleSearchChange}
-                            autoComplete="off"
-                            results={5}
-                        />
-                    </form>
+                <div className="p-4 sm:p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-gray-50/50">
+                    <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto flex-1">
+                        <form className="relative w-full md:max-w-md" onSubmit={(e) => e.preventDefault()} autoComplete="off">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <Search className="h-5 w-5 text-gray-400" />
+                            </div>
+                            <input
+                                type="search"
+                                name="search_users_query"
+                                id="search_users_query"
+                                placeholder="Buscar por nombre, email o código..."
+                                className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm"
+                                value={searchTerm}
+                                onChange={handleSearchChange}
+                                autoComplete="off"
+                            />
+                        </form>
+
+                        <select
+                            className="w-full md:w-64 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm bg-white text-gray-700"
+                            value={selectedSeller}
+                            onChange={(e) => setSelectedSeller(e.target.value)}
+                        >
+                            <option value="">Todos los Vendedores</option>
+                            {uniqueSellers.map(seller => (
+                                <option key={seller} value={seller}>{seller}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
+                <div className="w-full overflow-hidden">
+                    <table className="w-full divide-y divide-gray-200 table-fixed">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                <th scope="col" className="w-[30%] px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
                                     Usuario
                                 </th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                <th scope="col" className="w-[10%] px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell truncate">
                                     Código
                                 </th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                <th scope="col" className="w-[20%] px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell truncate">
                                     Email
                                 </th>
-                                <th scope="col" className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                <th scope="col" className="w-[15%] px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell truncate">
+                                    Vendedor
+                                </th>
+                                <th scope="col" className="w-[25%] px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                     Acciones
                                 </th>
                             </tr>
@@ -214,50 +241,55 @@ const ManageUsersPage = () => {
                             {filteredClients.length > 0 ? (
                                 filteredClients.map((client) => (
                                     <tr key={client.id} className="hover:bg-blue-50/30 transition-colors duration-150">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center">
-                                                <div className="flex-shrink-0 h-10 w-10">
-                                                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-blue-700 font-bold shadow-sm">
+                                        <td className="px-4 py-3 overflow-hidden">
+                                            <div className="flex items-center min-w-0">
+                                                <div className="flex-shrink-0 h-9 w-9 hidden xs:block">
+                                                    <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-blue-700 font-bold shadow-sm">
                                                         {client.full_name?.charAt(0).toUpperCase() || 'U'}
                                                     </div>
                                                 </div>
-                                                <div className="ml-4">
-                                                    <div className="text-sm font-medium text-gray-900">{client.full_name}</div>
+                                                <div className="ml-0 xs:ml-3 min-w-0 flex-1">
+                                                    <div className="text-sm font-medium text-gray-900 truncate" title={client.full_name}>{client.full_name}</div>
+                                                    <div className="md:hidden text-xs text-gray-500 truncate">{client.email}</div>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                        <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell">
+                                            <span className="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
                                                 {client.a1_cod || 'N/A'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <td className="px-4 py-3 text-sm text-gray-500 truncate hidden md:table-cell" title={client.email}>
                                             {client.email}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <div className="flex items-center justify-end gap-2">
+                                        <td className="px-4 py-3 text-sm text-gray-500 truncate hidden lg:table-cell" title={client.vendedor_nombre}>
+                                            {client.vendedor_nombre || '-'}
+                                        </td>
+                                        <td className="px-4 py-3 text-right text-sm font-medium whitespace-nowrap">
+                                            <div className="flex items-center justify-end gap-1 sm:gap-2">
                                                 <button
                                                     onClick={() => openAnalyticsModal(client)}
-                                                    className="text-white bg-blue-500 hover:bg-blue-600 font-medium rounded-lg text-xs px-3 py-2 transition-all shadow-sm focus:outline-none flex items-center gap-1"
+                                                    className="text-white bg-blue-500 hover:bg-blue-600 font-medium rounded-lg text-xs px-2.5 py-1.5 transition-all shadow-sm focus:outline-none flex items-center gap-1"
                                                     title="Ver Análisis"
                                                 >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-bar-chart-2"><line x1="18" x2="18" y1="20" y2="10" /><line x1="12" x2="12" y1="20" y2="4" /><line x1="6" x2="6" y1="20" y2="14" /></svg>
-                                                    Análisis
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-bar-chart-2"><line x1="18" x2="18" y1="20" y2="10" /><line x1="12" x2="12" y1="20" y2="4" /><line x1="6" x2="6" y1="20" y2="14" /></svg>
+                                                    <span className="hidden xl:inline">Análisis</span>
                                                 </button>
                                                 <button
                                                     onClick={() => openResetModal(client)}
-                                                    className={`text-white font-medium rounded-lg text-xs px-4 py-2 transition-all shadow-sm focus:outline-none flex items-center justify-center gap-2 ${client.has_password
+                                                    className={`text-white font-medium rounded-lg text-xs px-2.5 py-1.5 transition-all shadow-sm focus:outline-none flex items-center justify-center gap-1 ${client.has_password
                                                         ? "bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-300"
                                                         : "bg-green-600 hover:bg-green-700 focus:ring-4 focus:ring-green-300"
                                                         }`}
+                                                    title={client.has_password ? "Resetear" : "Asignar"}
                                                 >
                                                     {client.has_password ? <Lock className="w-3.5 h-3.5" /> : <Edit className="w-3.5 h-3.5" />}
-                                                    {client.has_password ? "Reset Pwd" : "Asignar Pwd"}
+                                                    <span className="hidden xl:inline">{client.has_password ? "Reset" : "Asignar"}</span>
                                                 </button>
                                                 {!client.is_admin && (
                                                     <button
                                                         onClick={() => initiateDeleteUser(client)}
-                                                        className="text-white bg-red-500 hover:bg-red-600 font-medium rounded-lg text-xs px-3 py-2 transition-all shadow-sm focus:outline-none flex items-center gap-1"
+                                                        className="text-white bg-red-500 hover:bg-red-600 font-medium rounded-lg text-xs px-2.5 py-1.5 transition-all shadow-sm focus:outline-none flex items-center gap-1"
                                                         title="Eliminar Usuario"
                                                     >
                                                         <Trash className="w-3.5 h-3.5" />
@@ -269,11 +301,11 @@ const ManageUsersPage = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="4" className="px-6 py-10 text-center text-gray-500">
+                                    <td colSpan="5" className="px-6 py-10 text-center text-gray-500">
                                         <div className="flex flex-col items-center justify-center">
                                             <Search className="h-10 w-10 text-gray-300 mb-3" />
                                             <p className="text-lg font-medium">No se encontraron usuarios</p>
-                                            <p className="text-sm">Intenta con otros términos de búsqueda.</p>
+                                            <p className="text-sm">Intenta con otros filtros o términos de búsqueda.</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -286,7 +318,7 @@ const ManageUsersPage = () => {
             {/* Modal de Resetear Contraseña */}
             {isResetModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center overflow-x-hidden overflow-y-auto outline-none focus:outline-none bg-black/50 backdrop-blur-sm transition-opacity">
-                    <div className="relative w-full max-w-md mx-auto my-6">
+                    <div className="relative w-full max-w-md mx-4 my-6">
                         <div className="relative flex flex-col w-full bg-white border-0 rounded-xl shadow-2xl outline-none focus:outline-none animate-bounce-in">
                             {/* Header */}
                             <div className="flex items-start justify-between p-5 border-b border-solid border-gray-200 rounded-t-xl bg-gray-50">
