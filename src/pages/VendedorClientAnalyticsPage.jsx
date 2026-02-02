@@ -5,6 +5,7 @@ import apiService from '../api/apiService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import SellerClientPermissionsModal from '../components/SellerClientPermissionsModal';
 import ClientAnalyticsView from '../components/ClientAnalyticsView';
+import { useAuth } from '../context/AuthContext';
 
 export default function VendedorClientAnalyticsPage() {
     const { userId } = useParams();
@@ -17,6 +18,9 @@ export default function VendedorClientAnalyticsPage() {
     const [error, setError] = useState(null);
     const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
 
+    const { user } = useAuth();
+    const isTestUser = searchParams.get('type') === 'test';
+
     useEffect(() => {
         if (userId) {
             fetchStats();
@@ -27,8 +31,17 @@ export default function VendedorClientAnalyticsPage() {
         setLoading(true);
         setError(null);
         try {
-            // Always seller view for this page
-            const response = await apiService.getVendedorClientAnalytics(userId);
+            let response;
+            if (user?.role === 'admin' || user?.role === 'marketing') {
+                if (isTestUser) {
+                    response = await apiService.getTestUserAnalytics(userId);
+                } else {
+                    response = await apiService.getUserAnalytics(userId);
+                }
+            } else {
+                // Default for sellers
+                response = await apiService.getVendedorClientAnalytics(userId);
+            }
             setStats(response.data);
         } catch (err) {
             console.error('Error fetching analytics:', err);
