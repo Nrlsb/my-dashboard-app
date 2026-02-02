@@ -61,7 +61,7 @@ const ClientAnalyticsView = ({ stats, clientName, onManagePermissions }) => {
                         <span className="text-sm font-semibold uppercase tracking-wider">Perfil</span>
                     </div>
                     <p className="text-lg font-medium text-gray-900 mt-2 truncated">{clientName}</p>
-                    <p className="text-xs text-gray-500 mt-1">ID: {stats.a1_cod || stats.id || '-'}</p>
+                    <p className="text-xs text-gray-500 mt-1">ID: {stats.a1_cod || stats.codigo || '-'}</p>
                     {onManagePermissions && (
                         <button
                             onClick={onManagePermissions}
