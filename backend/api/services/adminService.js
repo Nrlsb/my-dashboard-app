@@ -171,10 +171,10 @@ const getUsersForAdmin = async (search = '') => {
 /**
  * (Admin) Asigna una contraseña a un cliente (Creando credencial desacoplada o vinculada).
  */
-const assignClientPassword = async (a1_cod, password, email) => {
+const assignClientPassword = async (code, password, email, codeColumn = 'a1_cod') => {
   const client = await pool2.connect();
   try {
-    const cleanCode = a1_cod.trim();
+    const cleanCode = code.trim();
     await client.query('BEGIN');
 
     // 0. GENERATE HASH
@@ -182,11 +182,17 @@ const assignClientPassword = async (a1_cod, password, email) => {
     const hash = await bcrypt.hash(password, salt);
 
     // 1. Check if a Real User exists in 'users' table
-    const userRes = await client.query('SELECT id FROM users WHERE a1_cod = $1', [cleanCode]);
-    const realUserId = userRes.rows.length > 0 ? userRes.rows[0].id : null;
+    // Note: This logic primarily applies to 'a1_cod' linked users.
+    // For 'a3_cod' (vendors), they might not be in 'users' table or linked differently.
+    let realUserId = null;
+    if (codeColumn === 'a1_cod') {
+      const userRes = await client.query('SELECT id FROM users WHERE a1_cod = $1', [cleanCode]);
+      realUserId = userRes.rows.length > 0 ? userRes.rows[0].id : null;
+    }
 
-    // 2. Check if a Credential exists for this a1_cod
-    const credRes = await client.query('SELECT user_id FROM user_credentials WHERE a1_cod = $1', [cleanCode]);
+    // 2. Check if a Credential exists for this code
+    // Dynamically use the column name
+    const credRes = await client.query(`SELECT user_id FROM user_credentials WHERE ${codeColumn} = $1`, [cleanCode]);
     const existingCredentialUserId = credRes.rows.length > 0 ? credRes.rows[0].user_id : null;
 
     let targetUserId = null;
@@ -194,21 +200,14 @@ const assignClientPassword = async (a1_cod, password, email) => {
     if (realUserId) {
       targetUserId = realUserId;
       // We have a real user. Ensure credentials point to THIS id.
-
-      // AGGRESSIVE CLEANUP:
-      // Delete ANY credential with this a1_cod that is NOT the realUserId.
-      // This handles cases where multiple credentials exist (one correct, one detached), causing UI duplicates and login loops.
+      // AGGRESSIVE CLEANUP: Delete ANY credential with this code that is NOT the realUserId.
       await client.query(
-        'DELETE FROM user_credentials WHERE a1_cod = $1 AND user_id != $2',
+        `DELETE FROM user_credentials WHERE ${codeColumn} = $1 AND user_id != $2`,
         [cleanCode, realUserId]
       );
-
       console.log(`[adminService] Enforced credential cleanup for user ${realUserId} (Code: ${cleanCode})`);
-
     } else {
-      // No real user. 
-      // If we have an existing credential, keep using its ID.
-      // If not, generate a new Virtual ID.
+      // No real user (or Vendor case).
       if (existingCredentialUserId) {
         targetUserId = existingCredentialUserId;
       } else {
@@ -219,7 +218,6 @@ const assignClientPassword = async (a1_cod, password, email) => {
     }
 
     // 3. UPSERT the credential
-    // We try UPDATE first, then INSERT.
     const updateRes = await client.query(
       'UPDATE user_credentials SET password_hash = $1, temp_password_hash = NULL, email = COALESCE($2, email), must_change_password = TRUE WHERE user_id = $3',
       [hash, email, targetUserId]
@@ -227,8 +225,10 @@ const assignClientPassword = async (a1_cod, password, email) => {
 
     if (updateRes.rowCount === 0) {
       // Insert
+      // Ensure the OTHER column is NULL (implicitly handled by table structure if not included, but let's be safe)
+      // Logic: If codeColumn is a3_cod, a1_cod is null. If codeColumn is a1_cod, a3_cod is null.
       await client.query(
-        'INSERT INTO user_credentials (user_id, email, a1_cod, password_hash, must_change_password) VALUES ($1, $2, $3, $4, TRUE)',
+        `INSERT INTO user_credentials (user_id, email, ${codeColumn}, password_hash, must_change_password) VALUES ($1, $2, $3, $4, TRUE)`,
         [targetUserId, email, cleanCode, hash]
       );
     }
@@ -507,8 +507,8 @@ module.exports = {
         }
         const email = vendorRes.rows[0].email;
 
-        // Use assignClientPassword to Create or Update credentials using the Code
-        return await assignClientPassword(vendorCode, newPassword, email);
+        // Use assignClientPassword to Create or Update credentials using the Code AND specify 'a3_cod'
+        return await assignClientPassword(vendorCode, newPassword, email, 'a3_cod');
       }
 
       // Default: Existing User with Numeric ID

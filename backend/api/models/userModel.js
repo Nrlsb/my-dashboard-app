@@ -362,16 +362,39 @@ const findUserByCode = async (code) => {
     }
 
     if (!apiClient) {
-      console.log(`[userModel] User code ${cleanCode} not found in API (Neither Client nor Vendor).`);
+      // Intento final: Buscar en tabla local de Vendedores (DB2)
+      // Puede que el vendedor esté sincronizado en DB pero no responda la API en este momento o sea un vendedor manual.
+      const localVendorRes = await pool2.query('SELECT * FROM vendedores WHERE codigo = $1', [cleanCode]);
+
+      if (localVendorRes.rows.length > 0) {
+        const localVendor = localVendorRes.rows[0];
+        isVendor = true;
+        apiClient = {
+          a1_nome: localVendor.nombre,
+          a1_email: localVendor.email,
+          a1_cod: localVendor.codigo,
+          a1_loja: '00',
+          a1_cgc: null,
+          a1_xtel1: localVendor.telefono,
+          a1_end: null,
+          a1_mun: null,
+          a1_est: null
+        };
+        console.log(`[userModel] Identificado como Vendedor Local (DB): ${cleanCode}`);
+      }
+    }
+
+    if (!apiClient) {
+      console.log(`[userModel] User code ${cleanCode} not found in API (Neither Client nor Vendor) and not in Local Vendors.`);
       return null;
     }
 
     // 3. Buscar Credenciales DIRECTAMENTE en user_credentials
-    // Usamos a1_cod como llave de enlace
+    // Usamos a1_cod O a3_cod como llave de enlace
     const credsResult = await pool2.query(
       `SELECT user_id, password_hash, temp_password_hash, email, must_change_password
        FROM user_credentials 
-       WHERE a1_cod = $1`,
+       WHERE a1_cod = $1 OR a3_cod = $1`,
       [cleanCode]
     );
 
