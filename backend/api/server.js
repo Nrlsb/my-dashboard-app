@@ -31,7 +31,7 @@ console.log(`[SERVER-INIT] DB_HOST: ${process.env.DB_HOST} | DB2_HOST: ${process
 console.log(`[SERVER-INIT] DB_DATABASE: ${process.env.DB_DATABASE} | DB2_DATABASE: ${process.env.DB2_DATABASE}`);
 const express = require('express');
 const cors = require('cors');
-// const path = require('path'); // Removed duplicate
+// const  path = require('path'); // Removed duplicate
 const mainRoutes = require('./routes/index'); // (NUEVO) Importar el enrutador principal
 const helmet = require('helmet');
 const compression = require('compression'); // (OPTIMIZACIÓN) Importar compresión
