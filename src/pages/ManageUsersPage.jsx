@@ -212,6 +212,51 @@ const ManageUsersPage = () => {
         setUserToDelete(null);
     };
 
+    const handleExportUsersList = async () => {
+        try {
+            const ExcelJS = (await import('exceljs')).default;
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('Usuarios');
+
+            worksheet.columns = [
+                { header: 'Nombre', key: 'full_name', width: 40 },
+                { header: 'Código', key: 'a1_cod', width: 20 },
+                { header: 'Contraseña Temporal', key: 'temp_pass', width: 30 },
+            ];
+
+            // Style header
+            worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            worksheet.getRow(1).fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FF283A5A' }, // Dark blue
+            };
+
+            const rows = filteredClients.map(client => ({
+                full_name: client.full_name,
+                a1_cod: client.a1_cod || client.codigo,
+                temp_pass: ''
+            }));
+
+            worksheet.addRows(rows);
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Lista_Usuarios_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+
+            setActionSuccess('Lista de usuarios descargada correctamente.');
+            setTimeout(() => setActionSuccess(null), 3000);
+        } catch (err) {
+            console.error('Error generando Excel:', err);
+            setActionError('Error al generar el archivo Excel.');
+        }
+    };
+
     if (loading) return <LoadingSpinner text="Cargando usuarios..." />;
 
     if (error) {
@@ -264,6 +309,14 @@ const ManageUsersPage = () => {
                                 <option key={seller} value={seller}>{seller}</option>
                             ))}
                         </select>
+                        <button
+                            onClick={handleExportUsersList}
+                            className="w-full md:w-auto px-4 py-2.5 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors shadow-sm flex items-center justify-center gap-2"
+                            title="Exportar Lista a Excel"
+                        >
+                            <Download className="w-5 h-5" />
+                            <span className="hidden md:inline">Exportar Excel</span>
+                        </button>
                     </div>
                 </div>
 
