@@ -138,7 +138,7 @@ const getUsersForAdmin = async (search = '') => {
         'vendedor' as role,
         (uc.password_hash IS NOT NULL) as has_password,
         'vendor' as source,
-        v.codigo as vendedor_codigo,
+        NULL as vendedor_codigo,
         NULL as vendedor_nombre
       FROM vendedores v
       LEFT JOIN user_credentials uc ON (v.codigo = uc.a1_cod)
