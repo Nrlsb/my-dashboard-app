@@ -384,8 +384,14 @@ const getTestUserStats = async (userId) => {
 const getUserStats = async (userId) => {
     try {
         // 0. Get User Details (for ID display)
-        const userQuery = `SELECT role, a1_cod, vendedor_codigo FROM users WHERE id = $1`;
-        const userResult = await pool.query(userQuery, [userId]);
+        // We join with vendedores to see if this user is a vendor and get their code
+        const userQuery = `
+            SELECT u.a1_cod, v.codigo as vendor_code
+            FROM users u
+            LEFT JOIN vendedores v ON v.user_id = u.id
+            WHERE u.id = $1
+        `;
+        const userResult = await pool2.query(userQuery, [userId]);
         const user = userResult.rows[0] || {};
 
         // 1. Total Visits
@@ -442,7 +448,7 @@ const getUserStats = async (userId) => {
             topPages: topPagesResult.rows,
             downloads,
             a1_cod: user.a1_cod,
-            codigo: user.role === 'vendedor' ? user.vendedor_codigo : undefined
+            codigo: user.vendor_code
         };
     } catch (error) {
         console.error('Error getting user stats:', error);
