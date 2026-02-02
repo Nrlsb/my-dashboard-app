@@ -51,10 +51,14 @@ const ChangePasswordPage = () => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 font-sans">
       <div className="w-full max-w-sm p-8 space-y-6 bg-white rounded-lg shadow-xl">
-        <div className="text-center">
-          <span className="text-3xl font-bold text-red-600">
-            Pintureria Mercurio
-          </span>
+        <div className="text-center flex justify-center">
+          <img
+            src="/logo.svg"
+            alt="Espint Logo"
+            className="h-16 w-auto"
+            width="103"
+            height="64"
+          />
         </div>
 
         <h2 className="text-2xl font-bold text-center text-gray-800">
