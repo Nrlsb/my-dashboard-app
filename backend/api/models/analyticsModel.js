@@ -1,9 +1,10 @@
 const { pool, pool2 } = require('../db');
+const logger = require('../utils/logger');
 
 const getDateFilter = (startDate, endDate) => {
     if (startDate && endDate) {
         return {
-            condition: "created_at >= $1::timestamp AND created_at <= $2::timestamp",
+            condition: "created_at >= $1::timestamp AND created_at < ($2::date + INTERVAL '1 day')",
             params: [startDate, endDate]
         };
     }
@@ -383,16 +384,23 @@ const getTestUserStats = async (userId) => {
 
 const getUserStats = async (userId) => {
     try {
+        logger.info(`[DEBUG] analyticsModel.getUserStats processing userId: ${userId}`);
+
         // 0. Get User Details (for ID display)
         // We join with vendedores to see if this user is a vendor and get their code
         const userQuery = `
-            SELECT u.a1_cod, v.codigo as vendor_code
+            SELECT u.a1_cod
             FROM users u
-            LEFT JOIN vendedores v ON v.user_id = u.id
             WHERE u.id = $1
         `;
         const userResult = await pool2.query(userQuery, [userId]);
         const user = userResult.rows[0] || {};
+
+        if (!userResult.rows[0]) {
+            logger.warn(`[DEBUG] No user found for userId: ${userId}`);
+        } else {
+            logger.info(`[DEBUG] User found: ${JSON.stringify(user)}`);
+        }
 
         // 1. Total Visits
         const countQuery = `
@@ -402,6 +410,7 @@ const getUserStats = async (userId) => {
         `;
         const countResult = await pool2.query(countQuery, [userId]);
         const totalVisits = parseInt(countResult.rows[0].count, 10);
+        logger.info(`[DEBUG] Total visits for userId ${userId}: ${totalVisits}`);
 
         // 2. Last Visit
         const lastVisitQuery = `
@@ -438,7 +447,7 @@ const getUserStats = async (userId) => {
             const downloadsResult = await pool2.query(downloadsQuery, [userId]);
             downloads = downloadsResult.rows;
         } catch (e) {
-            console.error('Error fetching downloads history:', e);
+            logger.error('Error fetching downloads history:', e);
             // Ignore if table doesn't exist yet or other error, return empty
         }
 
@@ -451,7 +460,7 @@ const getUserStats = async (userId) => {
             codigo: user.vendor_code
         };
     } catch (error) {
-        console.error('Error getting user stats:', error);
+        logger.error(`Error getting user stats for userId ${userId}:`, error);
         return { totalVisits: 0, lastVisit: null, topPages: [], downloads: [], a1_cod: null, codigo: null };
     }
 };

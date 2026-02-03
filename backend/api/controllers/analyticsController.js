@@ -48,9 +48,13 @@ exports.getTestUserAnalytics = catchAsync(async (req, res) => {
     });
 });
 
+const logger = require('../utils/logger');
+
 exports.getUserAnalytics = catchAsync(async (req, res) => {
     const { userId } = req.params;
+    logger.info(`[DEBUG] getUserAnalytics called for userId: ${userId} (${typeof userId})`);
     const stats = await analyticsModel.getUserStats(userId);
+    logger.info(`[DEBUG] stats returned for ${userId}: ${JSON.stringify(stats)}`);
     res.json({
         status: 'success',
         data: stats
