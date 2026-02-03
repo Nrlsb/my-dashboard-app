@@ -58,8 +58,8 @@ router.put('/global-restrictions', requireAdmin, updateGlobalProductPermissionsC
 
 // Global Settings (Visibility)
 const { getGlobalSetting, updateGlobalSetting } = require('../controllers/adminContentController');
-router.get('/settings/:key', requireAdmin, getGlobalSetting);
-router.post('/settings', requireAdmin, updateGlobalSetting);
+router.get('/settings/:key', requireMarketingOrAdmin, getGlobalSetting);
+router.post('/settings', requireMarketingOrAdmin, updateGlobalSetting);
 
 router.get('/dashboard-panels', requireAdmin, getAdminDashboardPanelsController);
 
