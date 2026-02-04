@@ -163,13 +163,31 @@ const getDeniedProductGroupsWithSource = async (userId) => {
 };
 
 const getGlobalSetting = async (key) => {
-  // Basic caching could be added here if needed
+  const cacheKey = `global_setting:${key}`;
+
+  if (isRedisReady()) {
+    try {
+      const cachedValue = await redisClient.get(cacheKey);
+      if (cachedValue !== null) {
+        return cachedValue;
+      }
+    } catch (err) {
+      console.error('Redis error in getGlobalSetting:', err);
+    }
+  }
+
   try {
     const result = await pool2.query('SELECT value FROM global_settings WHERE key = $1', [key]);
+    let value = null;
     if (result.rows.length > 0) {
-      return result.rows[0].value;
+      value = result.rows[0].value;
     }
-    return null;
+
+    if (isRedisReady() && value !== null) {
+      await redisClient.set(cacheKey, value, { EX: 300 }); // Cache for 5 minutes
+    }
+
+    return value;
   } catch (error) {
     console.error(`Error getGlobalSetting(${key}) in productModel:`, error);
     return null;
@@ -264,8 +282,12 @@ const findProducts = async ({
       console.error('Redis error in findProducts:', err);
     }
   }
-  let queryParams = [];
-  let paramIndex = 1;
+  // Fetch dynamic interval setting first
+  const daysSetting = await getGlobalSetting('price_modification_days');
+  const modificationDays = daysSetting ? parseInt(daysSetting, 10) : 7;
+
+  let queryParams = [modificationDays];
+  let paramIndex = 2; // Start at 2 because modificationDays is $1
 
   // Optimización: Uso de índices GIN (pg_trgm) y B-Tree
   // Asegurarse de que las extensiones y los índices estén creados (ver scripts/optimize_db_indices.js)
@@ -280,9 +302,9 @@ const findProducts = async ({
             ELSE products.da1_prcven
         END AS price,
         CASE
-            WHEN pps.last_change_timestamp >= NOW() - INTERVAL '2 days' THEN true
-            ELSE false
-        END AS is_price_modified,
+             WHEN pps.last_change_timestamp >= NOW() - ($1::int || ' days')::interval THEN true
+             ELSE false
+         END AS is_price_modified,
         products.sbm_desc AS brand, products.b1_grupo AS product_group, products.sbm_desc AS group_description,
         products.z02_descri AS capacity_description, products.da1_moeda AS moneda, products.cotizacion,
         products.stock_disp AS stock_disponible, products.stock_prev AS stock_de_seguridad, products.sbz_desc AS indicator_description, 
@@ -313,7 +335,7 @@ const findProducts = async ({
 
   // Modified Price Filter
   if (onlyModifiedPrices) {
-    const modifiedPriceFilter = ` AND pps.last_change_timestamp >= NOW() - INTERVAL '2 days' `;
+    const modifiedPriceFilter = ` AND pps.last_change_timestamp >= NOW() - ($1::int || ' days')::interval `;
     countQuery += modifiedPriceFilter;
     dataQuery += modifiedPriceFilter;
   }
@@ -331,7 +353,7 @@ const findProducts = async ({
   if (searchTerms.length > 0) {
     const termConditions = searchTerms.map((term) => {
       // Detección "Smart": Si es numérico (ej: "20", "20.5"), aplicamos lógica más estricta
-      // para evitar coincidencias parciales ruidosas (ej: "20" dentro de "12034").
+      // para evitar coincidencia parciales ruidosas (ej: "20" dentro de "12034").
       const isNumeric = /^\d+(\.\d+)?$/.test(term);
       const currentParamIndex = paramIndex;
       paramIndex++; // Increment for the term value pushed later
@@ -498,6 +520,10 @@ const findProductById = async (productId, deniedGroups = []) => {
   }
 
   try {
+    // Fetch dynamic interval setting
+    const daysSetting = await getGlobalSetting('price_modification_days');
+    const modificationDays = daysSetting ? parseInt(daysSetting, 10) : 7;
+
     let query = `
 SELECT
 id, b1_cod AS code, b1_desc AS description, 
@@ -511,15 +537,15 @@ sbm_desc AS brand,
   stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, da1_moeda AS moneda,
   sbz_desc AS indicator_description, b1_qe AS pack_quantity,
   CASE
-    WHEN pps.last_change_timestamp >= NOW() - INTERVAL '2 days' THEN true
+    WHEN pps.last_change_timestamp >= NOW() - ($2::int || ' days')::interval THEN true
     ELSE false
   END AS is_price_modified
       FROM products
       LEFT JOIN product_price_snapshots pps ON products.id = pps.product_id
       WHERE products.id = $1 AND products.da1_prcven > 0 AND products.b1_desc IS NOT NULL
     `;
-    let queryParams = [productId];
-    let paramIndex = 2;
+    let queryParams = [productId, modificationDays];
+    let paramIndex = 3;
 
     if (deniedGroups.length > 0) {
       query += ` AND b1_grupo NOT IN(SELECT unnest($${paramIndex}:: varchar[])) `;
@@ -575,6 +601,10 @@ const findProductByCode = async (productCode, deniedGroups = []) => {
   }
 
   try {
+    // Fetch dynamic interval setting
+    const daysSetting = await getGlobalSetting('price_modification_days');
+    const modificationDays = daysSetting ? parseInt(daysSetting, 10) : 7;
+
     let query = `
 SELECT
 id, b1_cod AS code, b1_desc AS description, 
@@ -588,15 +618,15 @@ sbm_desc AS brand,
   stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad, da1_moeda AS moneda,
   sbz_desc AS indicator_description, b1_qe AS pack_quantity,
   CASE
-    WHEN pps.last_change_timestamp >= NOW() - INTERVAL '2 days' THEN true
+    WHEN pps.last_change_timestamp >= NOW() - ($2::int || ' days')::interval THEN true
     ELSE false
   END AS is_price_modified
       FROM products
       LEFT JOIN product_price_snapshots pps ON products.id = pps.product_id
       WHERE products.b1_cod = $1 AND products.da1_prcven > 0 AND products.b1_desc IS NOT NULL
     `;
-    let queryParams = [productCode];
-    let paramIndex = 2;
+    let queryParams = [productCode, modificationDays];
+    let paramIndex = 3;
 
     if (deniedGroups.length > 0) {
       query += ` AND b1_grupo NOT IN(SELECT unnest($${paramIndex}:: varchar[])) `;
