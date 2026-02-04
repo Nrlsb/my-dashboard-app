@@ -159,61 +159,71 @@ const getClientStats = async (startDate, endDate) => {
             for (const row of topClientsResult.rows) {
                 const userId = row.user_id;
 
-                // Prepare params and condition for subqueries
-                // We need to prepend userId to the params list: [userId, startDate, endDate]
-                // So original $1 becomes $2, and $2 becomes $3 in the condition string.
-                const viewParams = [userId, ...filter.params];
-                let viewCondition = filter.condition;
-
-                if (filter.params.length > 0) {
-                    viewCondition = viewCondition.replace(/\$2/g, '$3').replace(/\$1/g, '$2');
-                }
-
                 // Most Viewed Product
-                // Parse product ID from path /product-detail/:id
-                const viewsQuery = `
-                    SELECT SUBSTRING(path FROM '/product-detail/([0-9]+)')::int as product_id, COUNT(*) as count
-                    FROM page_visits
-                    WHERE user_id = $1 AND path LIKE '/product-detail/%' AND ${viewCondition}
-                    GROUP BY product_id
-                    ORDER BY count DESC
-                    LIMIT 1
-                `;
-
-                const viewsResult = await pool2.query(viewsQuery, viewParams);
-
                 let mostViewed = 'N/A';
-                if (viewsResult.rows.length > 0) {
-                    const pid = viewsResult.rows[0].product_id;
-                    if (pid) {
-                        const pRes = await pool.query('SELECT description FROM products WHERE id = $1', [pid]);
-                        if (pRes.rows.length > 0) mostViewed = pRes.rows[0].description;
+                try {
+                    // Prepare params and condition for subqueries
+                    const viewParams = [userId, ...filter.params];
+                    let viewCondition = filter.condition;
+
+                    if (filter.params.length > 0) {
+                        viewCondition = viewCondition.replace(/\$2/g, '$3').replace(/\$1/g, '$2');
                     }
+
+                    const viewsQuery = `
+                        SELECT SUBSTRING(path FROM '/product-detail/([0-9]+)')::int as product_id, COUNT(*) as count
+                        FROM page_visits
+                        WHERE user_id = $1 AND path LIKE '/product-detail/%' AND ${viewCondition}
+                        GROUP BY product_id
+                        ORDER BY count DESC
+                        LIMIT 1
+                    `;
+
+                    const viewsResult = await pool2.query(viewsQuery, viewParams);
+
+                    if (viewsResult.rows.length > 0) {
+                        const pid = viewsResult.rows[0].product_id;
+                        if (pid) {
+                            const pRes = await pool.query('SELECT b1_desc FROM products WHERE id = $1', [pid]);
+                            if (pRes.rows.length > 0) mostViewed = pRes.rows[0].b1_desc;
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Error fetching most viewed for user ${userId}:`, err.message);
                 }
 
                 // Most Bought Product
-                // For boughtQuery, we need to replace 'created_at' with 'o.created_at' in the condition
-                const boughtCondition = viewCondition.replace(/created_at/g, 'o.created_at');
-
-                const boughtQuery = `
-                    SELECT oi.product_id, SUM(oi.quantity) as qty
-                    FROM order_items oi
-                    JOIN orders o ON o.id = oi.order_id
-                    WHERE o.user_id = $1 AND ${boughtCondition}
-                    GROUP BY oi.product_id
-                    ORDER BY qty DESC
-                    LIMIT 1
-                `;
-
-                const boughtResult = await pool2.query(boughtQuery, viewParams);
-
                 let mostBought = 'N/A';
-                if (boughtResult.rows.length > 0) {
-                    const pid = boughtResult.rows[0].product_id;
-                    if (pid) {
-                        const pRes = await pool.query('SELECT description FROM products WHERE id = $1', [pid]);
-                        if (pRes.rows.length > 0) mostBought = pRes.rows[0].description;
+                try {
+                    const viewParams = [userId, ...filter.params];
+                    let viewCondition = filter.condition;
+
+                    if (filter.params.length > 0) {
+                        viewCondition = viewCondition.replace(/\$2/g, '$3').replace(/\$1/g, '$2');
                     }
+
+                    const boughtCondition = viewCondition.replace(/created_at/g, 'o.created_at');
+
+                    const boughtQuery = `
+                        SELECT oi.product_id, SUM(oi.quantity) as qty
+                        FROM order_items oi
+                        JOIN orders o ON o.id = oi.order_id
+                        WHERE o.user_id = $1 AND ${boughtCondition}
+                        GROUP BY oi.product_id
+                        ORDER BY qty DESC
+                        LIMIT 1
+                    `;
+                    const boughtResult = await pool2.query(boughtQuery, viewParams);
+
+                    if (boughtResult.rows.length > 0) {
+                        const pid = boughtResult.rows[0].product_id;
+                        if (pid) {
+                            const pRes = await pool.query('SELECT b1_desc FROM products WHERE id = $1', [pid]);
+                            if (pRes.rows.length > 0) mostBought = pRes.rows[0].b1_desc;
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Error fetching most bought for user ${userId}:`, err.message);
                 }
 
                 topClients.push({
@@ -241,7 +251,7 @@ const getSellerStats = async (startDate, endDate) => {
         const filter = getDateFilter(startDate, endDate);
 
         // 1. Get all users and their seller codes
-        const usersQuery = `SELECT id, vendedor_codigo FROM users WHERE vendedor_codigo IS NOT NULL`;
+        const usersQuery = `SELECT id, vendedor_codigo FROM users WHERE vendedor_codigo IS NOT NULL AND vendedor_codigo != ''`;
         const usersResult = await pool.query(usersQuery);
         const userSellerMap = new Map(usersResult.rows.map(u => [u.id, u.vendedor_codigo]));
 

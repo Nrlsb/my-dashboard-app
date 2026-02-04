@@ -162,7 +162,7 @@ const AdminAnalyticsPage = () => {
                                             <th className="pb-3 text-gray-600 font-medium">Cliente</th>
                                             <th className="pb-3 text-gray-600 font-medium">Pedidos</th>
                                             <th className="pb-3 text-gray-600 font-medium">Más Visto</th>
-                                            <th className="pb-3 text-gray-600 font-medium">Más Comprado</th>
+                                            <th className="pb-3 text-gray-600 font-medium">Más Pedido</th>
                                         </tr>
                                     </thead>
                                     <tbody>
