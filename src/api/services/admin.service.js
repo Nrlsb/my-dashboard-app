@@ -19,8 +19,8 @@ export const adminService = {
         return apiClient.put(`/admin/users/${userId}/password`, { password });
     },
 
-    assignClientPassword({ a1_cod, password, email }) {
-        return apiClient.post('/admin/users/assign-password', { a1_cod, password, email });
+    assignClientPassword({ a1_cod, password, email, is_vendedor }) {
+        return apiClient.post('/admin/users/assign-password', { a1_cod, password, email, is_vendedor });
     },
 
     fetchAdminOrderDetailApi({ orderId }) {
@@ -43,6 +43,17 @@ export const adminService = {
 
     getAdminProductGroups() {
         return apiClient.get('/admin/product-groups');
+    },
+
+    getPriceChangedProducts({ startDate, endDate, brands }) {
+        return apiClient.get('/admin/price-changes', { params: { startDate, endDate, brands } });
+    },
+
+    downloadPriceChangesExcel({ startDate, endDate, brands }) {
+        return apiClient.get('/admin/price-changes/excel', {
+            params: { startDate, endDate, brands },
+            responseType: 'blob'
+        });
     },
 
     getDeniedProductGroups(targetUserId) {

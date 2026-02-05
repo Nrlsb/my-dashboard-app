@@ -27,6 +27,36 @@ exports.getProductGroupsForAdmin = catchAsync(async (req, res) => {
     res.json(result);
 });
 
+exports.getPriceChangedProductsController = catchAsync(async (req, res) => {
+    const { startDate, endDate } = req.query;
+    // brands might come as 'brands' or 'brands[]'
+    const brands = req.query.brands || req.query['brands[]'];
+
+    let brandsArray = brands;
+    if (typeof brands === 'string') {
+        brandsArray = [brands];
+    }
+
+    const result = await adminService.getPriceChangedProducts({ startDate, endDate, brands: brandsArray });
+    res.json(result);
+});
+
+exports.downloadPriceChangesExcelController = catchAsync(async (req, res) => {
+    const { startDate, endDate } = req.query;
+    const brands = req.query.brands || req.query['brands[]'];
+
+    let brandsArray = brands;
+    if (typeof brands === 'string') {
+        brandsArray = [brands];
+    }
+
+    const buffer = await adminService.generatePriceChangesExcel({ startDate, endDate, brands: brandsArray });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=price_changes_${startDate}.xlsx`);
+    res.send(buffer);
+});
+
 exports.getDeniedProductGroupsByUserController = catchAsync(async (req, res) => {
     const { userId } = req.params;
     console.log(
@@ -111,13 +141,14 @@ exports.resetUserPassword = catchAsync(async (req, res) => {
 
 
 exports.assignClientPassword = catchAsync(async (req, res) => {
-    const { a1_cod, password, email } = req.body;
+    const { a1_cod, password, email, is_vendedor } = req.body;
+    const codeColumn = is_vendedor ? 'a3_cod' : 'a1_cod';
 
     if (!a1_cod || !password) {
-        return res.status(400).json({ message: 'Código de cliente y contraseña son requeridos.' });
+        return res.status(400).json({ message: 'Código de cliente/vendedor y contraseña son requeridos.' });
     }
 
-    const result = await adminService.assignClientPassword(a1_cod, password, email);
+    const result = await adminService.assignClientPassword(a1_cod, password, email, codeColumn);
     res.json(result);
 });
 

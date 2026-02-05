@@ -117,7 +117,8 @@ const ManageUsersPage = () => {
                 await apiService.assignClientPassword({
                     a1_cod: selectedUser.a1_cod,
                     password: newPassword,
-                    email: selectedUser.email
+                    email: selectedUser.email,
+                    is_vendedor: selectedUser.role === 'vendedor'
                 });
                 setActionSuccess(`Contraseña asignada correctamente a ${selectedUser.full_name}.`);
                 // Refresh list to update status, maintaining the current search

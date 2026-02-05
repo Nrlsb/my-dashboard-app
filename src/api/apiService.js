@@ -112,6 +112,8 @@ const apiService = {
   getAdminUsers: adminService.getAdminUsers,
   getAdminProductGroups: adminService.getAdminProductGroups,
   getProductGroupsForAdmin: adminService.getAdminProductGroups, // Alias for compatibility
+  getPriceChangedProducts: adminService.getPriceChangedProducts,
+  downloadPriceChangesExcel: adminService.downloadPriceChangesExcel,
   getDeniedProductGroups: adminService.getDeniedProductGroups,
   updateUserGroupPermissions: adminService.updateUserGroupPermissions,
   getDeniedProducts: adminService.getDeniedProducts,

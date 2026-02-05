@@ -8,6 +8,8 @@ const {
   fetchAdminOrderDetails,
   getUsersForAdmin,
   getProductGroupsForAdmin,
+  getPriceChangedProductsController,
+  downloadPriceChangesExcelController,
   getDeniedProductGroupsByUserController,
   updateUserGroupPermissions,
   getAdmins,
@@ -42,6 +44,9 @@ router.get('/order-details/:id', requireAdmin, fetchAdminOrderDetails);
 router.get('/users', requirePermission('manage_admins'), getUsersForAdmin);
 
 router.get('/product-groups', requireAdmin, getProductGroupsForAdmin);
+
+router.get('/price-changes', requireAdmin, getPriceChangedProductsController);
+router.get('/price-changes/excel', requireAdmin, downloadPriceChangesExcelController);
 
 router.get(
   '/users/:userId/product-groups',

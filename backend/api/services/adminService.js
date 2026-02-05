@@ -4,6 +4,7 @@ const productModel = require('../models/productModel');
 const userService = require('./userService');
 const protheusService = require('./protheusService');
 const bcrypt = require('bcryptjs');
+const ExcelJS = require('exceljs');
 
 /**
  * (Admin) Obtiene detalles de CUALQUIER pedido (para NC)
@@ -141,7 +142,7 @@ const getUsersForAdmin = async (search = '') => {
         NULL as vendedor_codigo,
         NULL as vendedor_nombre
       FROM vendedores v
-      LEFT JOIN user_credentials uc ON (v.codigo = uc.a1_cod)
+      LEFT JOIN user_credentials uc ON (v.codigo = uc.a3_cod)
       ${whereClauseVendors}
       
       ORDER BY full_name ASC;
@@ -159,7 +160,8 @@ const getUsersForAdmin = async (search = '') => {
       has_password: row.has_password,
       source: row.source,
       vendedor_codigo: row.vendedor_codigo,
-      vendedor_nombre: row.vendedor_nombre
+      vendedor_nombre: row.vendedor_nombre,
+      role: row.role // Asegurar que el rol se pase para que el frontend sepa que es vendedor
     }));
 
   } catch (error) {
@@ -496,6 +498,125 @@ const getProductGroupsForAdmin = async (options = {}) => {
   }
 };
 
+/**
+ * (Admin) Obtiene productos con cambios de precio en un rango de fechas.
+ */
+const getPriceChangedProducts = async ({ startDate, endDate, brands }) => {
+  try {
+    // Ensure dates are valid
+    if (!startDate || !endDate) {
+      throw new Error('Fechas de inicio y fin son requeridas.');
+    }
+
+    let query = `
+      SELECT
+        p.b1_cod AS code,
+        p.b1_desc AS description,
+        p.sbm_desc AS brand,
+        p.da1_prcven AS current_price,
+        pps.previous_price,
+        to_char(pps.last_change_timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires', 'DD/MM/YYYY HH24:MI') as change_date_formatted,
+        pps.last_change_timestamp
+      FROM products p
+      JOIN product_price_snapshots pps ON p.id = pps.product_id
+      WHERE pps.last_change_timestamp >= $1::timestamp
+        AND pps.last_change_timestamp <= $2::timestamp
+    `;
+
+    const queryParams = [startDate, endDate];
+    let paramIndex = 3;
+
+    if (brands && brands.length > 0) {
+      // Assuming brands is an array of strings
+      // Use TRIM to handle potential trailing spaces in sbm_desc from Protheus
+      query += ` AND TRIM(p.sbm_desc) = ANY($${paramIndex}::varchar[])`;
+      queryParams.push(brands);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY pps.last_change_timestamp DESC`;
+
+    const result = await pool2.query(query, queryParams);
+
+    // Calculate differences
+    return result.rows.map(row => {
+      const current = Number(row.current_price);
+      const previous = row.previous_price ? Number(row.previous_price) : null;
+      let diff = null;
+      let percent = null;
+
+      if (previous !== null) {
+        diff = current - previous;
+        if (previous !== 0) {
+          percent = (diff / previous) * 100;
+        }
+      }
+
+      return {
+        ...row,
+        previous_price: previous,
+        current_price: current,
+        diff,
+        percent
+      };
+    });
+  } catch (error) {
+    console.error('Error en getPriceChangedProducts:', error);
+    throw error;
+  }
+};
+
+const generatePriceChangesExcel = async ({ startDate, endDate, brands }) => {
+  try {
+    const products = await getPriceChangedProducts({ startDate, endDate, brands });
+
+    // Create Workbook
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Cambios de Precio');
+
+    // Headers
+    sheet.columns = [
+      { header: 'Código', key: 'code', width: 15 },
+      { header: 'Descripción', key: 'description', width: 40 },
+      { header: 'Marca', key: 'brand', width: 25 },
+      { header: 'Fecha Cambio', key: 'change_date', width: 20 },
+      { header: 'P. Anterior', key: 'prev', width: 15 },
+      { header: 'P. Actual', key: 'curr', width: 15 },
+      { header: 'Dif ($)', key: 'diff', width: 15 },
+      { header: 'Dif (%)', key: 'percent', width: 15 },
+    ];
+
+    // Style headers
+    sheet.getRow(1).font = { bold: true };
+
+    // Add rows
+    products.forEach(p => {
+      sheet.addRow({
+        code: p.code,
+        description: p.description,
+        brand: p.brand,
+        change_date: p.change_date_formatted,
+        prev: p.previous_price,
+        curr: p.current_price,
+        diff: p.diff,
+        percent: p.percent ? (p.percent / 100) : null // Excel format expects 0.1 for 10%
+      });
+    });
+
+    // Formatting
+    sheet.getColumn('prev').numFmt = '"$"#,##0.00';
+    sheet.getColumn('curr').numFmt = '"$"#,##0.00';
+    sheet.getColumn('diff').numFmt = '"$"#,##0.00';
+    sheet.getColumn('percent').numFmt = '0.00%';
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return buffer;
+
+  } catch (error) {
+    console.error('Error generating Excel:', error);
+    throw error;
+  }
+};
 
 module.exports = {
   fetchAdminOrderDetails,
@@ -507,6 +628,8 @@ module.exports = {
   addAdmin,
   removeAdmin,
   getProductGroupsForAdmin,
+  getPriceChangedProducts,
+  generatePriceChangesExcel,
   updateGlobalProductPermissions,
 
   /**

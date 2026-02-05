@@ -377,9 +377,9 @@ const updatePriceHistory = async (prices) => {
                 // Price changed
                 await client.query(
                     `UPDATE product_price_snapshots
-                        SET price = $1, last_change_timestamp = NOW()
-                        WHERE product_code = $2`,
-                    [newPrice, code]
+                        SET price = $1, previous_price = $2, last_change_timestamp = NOW()
+                        WHERE product_code = $3`,
+                    [newPrice, oldPriceSnapshot, code]
                 );
                 historyUpdates++;
             }
