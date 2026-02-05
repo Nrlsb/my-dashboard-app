@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import apiService from '../api/apiService'; // Importar el apiService
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
+  const queryClient = useQueryClient();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,6 +43,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('authToken', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         apiService.setAuthToken(data.token); // Configurar token en el servicio
+        queryClient.clear(); // Limpiar el cache de React Query para el nuevo usuario
         setIsAuthenticated(true);
         setUser(data.user);
         if (data.first_login || data.user.must_change_password) {
@@ -83,6 +86,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user');
     localStorage.removeItem('authToken');
     apiService.setAuthToken(null); // Limpiar token del servicio
+    queryClient.clear(); // Limpiar el cache de React Query al cerrar sesión
     setIsAuthenticated(false);
     setUser(null);
     setFirstLogin(false);
