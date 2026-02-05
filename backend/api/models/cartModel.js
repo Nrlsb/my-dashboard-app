@@ -2,11 +2,14 @@ const { pool } = require('../db');
 
 const getCartByUserId = async (userId) => {
     try {
-        const result = await pool.query('SELECT items FROM carts WHERE user_id = $1', [userId]);
+        const result = await pool.query('SELECT items, updated_at FROM carts WHERE user_id = $1', [userId]);
         if (result.rows.length > 0) {
-            return result.rows[0].items;
+            return {
+                items: result.rows[0].items,
+                updatedAt: result.rows[0].updated_at
+            };
         }
-        return [];
+        return { items: [], updatedAt: null };
     } catch (error) {
         console.error('Error fetching cart:', error);
         throw error;
@@ -23,7 +26,10 @@ const upsertCart = async (userId, items) => {
       RETURNING *;
     `;
         const result = await pool.query(query, [userId, JSON.stringify(items)]);
-        return result.rows[0];
+        return {
+            items: result.rows[0].items,
+            updatedAt: result.rows[0].updated_at
+        };
     } catch (error) {
         console.error('Error upserting cart:', error);
         throw error;

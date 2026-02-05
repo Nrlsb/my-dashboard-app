@@ -35,12 +35,14 @@ export const CartProvider = ({ children }) => {
           const localCart = localCartJson ? JSON.parse(localCartJson) : [];
 
           // 2. Get Remote Cart
-          let remoteCart = [];
+          let response = { items: [], updatedAt: null };
           try {
-            remoteCart = await apiService.getCart();
-            // Ensure array
-            if (!Array.isArray(remoteCart)) {
-              remoteCart = [];
+            const data = await apiService.getCart();
+            if (data && data.items) {
+              response = data;
+            } else if (Array.isArray(data)) {
+              // Backward compatibility for old cache
+              response = { items: data, updatedAt: null };
             }
           } catch (apiError) {
             console.error('[CartContext] Error fetching remote cart:', apiError);
@@ -51,24 +53,37 @@ export const CartProvider = ({ children }) => {
             return;
           }
 
-          // 3. Merge Logic (Union: Remote items + Local items not in remote)
-          const mergedMap = new Map();
+          const remoteCart = response.items;
+          const remoteUpdatedAt = response.updatedAt ? new Date(response.updatedAt).getTime() : 0;
+          const localLastSyncedAt = Number(localStorage.getItem(`shopping-cart-last-synced-${user.id}`)) || 0;
 
-          // A. Add Remote Items (Source of Truth)
-          remoteCart.forEach(item => {
-            mergedMap.set(item.id, { ...item });
-          });
+          // 3. Merge Logic
+          let finalCart = [];
 
-          // B. Add Local Items (Offline additions)
-          localCart.forEach(localItem => {
-            if (!mergedMap.has(localItem.id)) {
-              // Item ONLY in Local. Add to merge.
-              mergedMap.set(localItem.id, { ...localItem });
-            }
-          });
+          if (remoteUpdatedAt > localLastSyncedAt) {
+            // Remote is newer (someone else deleted or changed things). 
+            // Trust remote completely.
+            finalCart = remoteCart;
+          } else {
+            // Local is same age or newer (maybe offline changes here).
+            // Proceed with merge (Union).
+            const mergedMap = new Map();
 
-          // Convert Map to Array
-          let finalCart = Array.from(mergedMap.values());
+            // A. Add Remote Items (Source of Truth for what already exists)
+            remoteCart.forEach(item => {
+              mergedMap.set(item.id, { ...item });
+            });
+
+            // B. Add Local Items (Offline additions)
+            localCart.forEach(localItem => {
+              if (!mergedMap.has(localItem.id)) {
+                // Item ONLY in Local. Add to merge.
+                mergedMap.set(localItem.id, { ...localItem });
+              }
+            });
+
+            finalCart = Array.from(mergedMap.values());
+          }
 
           if (isMounted) {
             setCart(finalCart);
@@ -102,9 +117,15 @@ export const CartProvider = ({ children }) => {
 
       // 2. Save to Backend (Debounced)
       const saveToBackend = setTimeout(() => {
-        apiService.updateCart(cart).catch(err =>
-          console.error('Failed to sync cart to backend:', err)
-        );
+        apiService.updateCart(cart)
+          .then(res => {
+            if (res && res.updatedAt) {
+              localStorage.setItem(`shopping-cart-last-synced-${user.id}`, new Date(res.updatedAt).getTime());
+            }
+          })
+          .catch(err =>
+            console.error('Failed to sync cart to backend:', err)
+          );
       }, 2000); // 2 seconds debounce
 
       return () => clearTimeout(saveToBackend);
