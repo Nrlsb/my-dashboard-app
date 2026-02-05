@@ -20,7 +20,10 @@ exports.getUsersForAdmin = catchAsync(async (req, res) => {
 });
 
 exports.getProductGroupsForAdmin = catchAsync(async (req, res) => {
-    const result = await adminService.getProductGroupsForAdmin();
+    const { onlyWithModifications } = req.query;
+    const result = await adminService.getProductGroupsForAdmin({
+        onlyWithModifications: onlyWithModifications === 'true'
+    });
     res.json(result);
 });
 

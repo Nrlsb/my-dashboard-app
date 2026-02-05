@@ -16,6 +16,7 @@ import {
   ChevronDown,
   Phone,
   Mail,
+  AlertCircle
 } from 'lucide-react';
 import logo from '../assets/espintBlanco.svg';
 import SearchBar from './SearchBar';
@@ -264,6 +265,13 @@ const Header = ({ onLogout, currentUser }) => {
                           >
                             <Tag className="w-4 h-4 mr-3 text-gray-400" />
                             Gestión de Catálogo
+                          </button>
+                          <button
+                            onClick={() => handleNavigation('/admin/settings/price-alerts')}
+                            className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-espint-blue rounded-lg transition-colors"
+                          >
+                            <AlertCircle className="w-4 h-4 mr-3 text-gray-400" />
+                            Alertas de Precio
                           </button>
                         </>
                       )}

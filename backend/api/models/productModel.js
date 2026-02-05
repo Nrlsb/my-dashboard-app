@@ -292,6 +292,19 @@ const findProducts = async ({
     }
   }
 
+  // Fetch Allowed Groups for Price Modified Legend
+  const allowedGroupsSetting = await getGlobalSetting('price_modified_allowed_groups');
+  let allowedGroups = [];
+  if (allowedGroupsSetting) {
+    try {
+      allowedGroups = JSON.parse(allowedGroupsSetting);
+      if (!Array.isArray(allowedGroups)) allowedGroups = [];
+    } catch (e) {
+      console.error('Error parsing price_modified_allowed_groups:', e);
+      allowedGroups = [];
+    }
+  }
+
   // FIXED: Do not use $1 for interval, inline it to avoid 'could not determine data type' and count mismatch
   let queryParams = [];
   let paramIndex = 1;
@@ -300,6 +313,26 @@ const findProducts = async ({
   // Asegurarse de que las extensiones y los índices estén creados (ver scripts/optimize_db_indices.js)
   let countQuery =
     'SELECT COUNT(*) FROM products LEFT JOIN product_price_snapshots pps ON products.id = pps.product_id WHERE products.da1_prcven > 0 AND products.b1_desc IS NOT NULL';
+
+  // Logic for Price Modified Condition
+  // If allowedGroups is empty => Any group is allowed (legacy behavior)
+  // If allowedGroups has items => Only those groups show the legend
+  let priceModifiedCondition = `pps.last_change_timestamp >= NOW() - INTERVAL '${modificationDays} days'`;
+
+  if (allowedGroups.length > 0) {
+    // Add condition: AND products.b1_grupo = ANY($Param)
+    // We need to manage the parameter index dynamically here which is tricky since we are building the string.
+    // Easiest way: Push the array to queryParams NOW and use its index.
+    queryParams.push(allowedGroups);
+    priceModifiedCondition += ` AND products.b1_grupo = ANY($${paramIndex}::varchar[])`;
+
+    // [FIX] Ensure countQuery also uses this parameter index to prevent "could not determine data type of parameter $1"
+    // caused by gaps in parameter usage (e.g. usage of $2 without $1).
+    // The condition is logically a no-op (always true).
+    countQuery += ` AND ($${paramIndex}::varchar[] IS NOT NULL OR true) `;
+
+    paramIndex++;
+  }
   let dataQuery = `
       SELECT
         products.id, products.b1_cod AS code, products.b1_desc AS description, 
@@ -309,7 +342,7 @@ const findProducts = async ({
             ELSE products.da1_prcven
         END AS price,
              CASE
-             WHEN pps.last_change_timestamp >= NOW() - INTERVAL '${modificationDays} days' THEN true
+             WHEN ${priceModifiedCondition} THEN true
              ELSE false
          END AS is_price_modified,
         products.sbm_desc AS brand, products.b1_grupo AS product_group, products.sbm_desc AS group_description,
@@ -341,7 +374,8 @@ const findProducts = async ({
   }
 
   if (onlyModifiedPrices) {
-    const modifiedPriceFilter = ` AND pps.last_change_timestamp >= NOW() - INTERVAL '${modificationDays} days' `;
+    // [FIX] Use the comprehensive condition (Time + Allowed Groups)
+    const modifiedPriceFilter = ` AND (${priceModifiedCondition}) `;
     countQuery += modifiedPriceFilter;
     dataQuery += modifiedPriceFilter;
   }

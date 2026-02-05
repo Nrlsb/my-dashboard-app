@@ -111,6 +111,7 @@ const apiService = {
   updateDashboardPanel: adminService.updateDashboardPanel,
   getAdminUsers: adminService.getAdminUsers,
   getAdminProductGroups: adminService.getAdminProductGroups,
+  getProductGroupsForAdmin: adminService.getAdminProductGroups, // Alias for compatibility
   getDeniedProductGroups: adminService.getDeniedProductGroups,
   updateUserGroupPermissions: adminService.updateUserGroupPermissions,
   getDeniedProducts: adminService.getDeniedProducts,

@@ -48,6 +48,7 @@ const ManageUsersPage = lazyImport(() => import('./pages/ManageUsersPage.jsx'));
 const LaunchGroupsPage = lazyImport(() => import('./pages/LaunchGroupsPage.jsx'));
 const ManageLaunchGroupPage = lazyImport(() => import('./pages/ManageLaunchGroupPage.jsx'));
 const LaunchGroupPublicPage = lazyImport(() => import('./pages/LaunchGroupPublicPage.jsx'));
+const PriceSettingsPage = lazyImport(() => import('./pages/PriceSettingsPage.jsx'));
 
 // Error Element for Dashboard
 const DashboardError = () => (
@@ -415,6 +416,14 @@ const router = createBrowserRouter(
                         <AdminAnalyticsPage />
                     </Suspense>
                 </PermissionRoute>
+            } />
+
+            <Route path="admin/settings/price-alerts" element={
+                <AdminRoute>
+                    <Suspense fallback={<LoadingFallback />}>
+                        <PriceSettingsPage />
+                    </Suspense>
+                </AdminRoute>
             } />
 
             <Route path="upload-images" element={

@@ -464,17 +464,38 @@ const removeAdmin = async (userId) => {
 /**
  * (Admin) Obtiene todos los grupos de productos y marcas de la tabla de productos.
  */
-const getProductGroupsForAdmin = async () => {
+const getProductGroupsForAdmin = async (options = {}) => {
   try {
-    const result = await pool.query(
-      `SELECT DISTINCT b1_grupo AS product_group, sbm_desc AS brand FROM products WHERE b1_grupo IS NOT NULL AND b1_grupo != '' ORDER BY b1_grupo ASC;`
-    );
+    const { onlyWithModifications } = options;
+    let query = `SELECT DISTINCT b1_grupo AS product_group, sbm_desc AS brand FROM products WHERE b1_grupo IS NOT NULL AND b1_grupo != ''`;
+    let params = [];
+
+    if (onlyWithModifications) {
+      // Fetch the global setting for days
+      const daysRes = await pool2.query("SELECT value FROM global_settings WHERE key = 'price_modification_days'");
+      const days = (daysRes.rows.length > 0 && !isNaN(parseInt(daysRes.rows[0].value)))
+        ? parseInt(daysRes.rows[0].value)
+        : 7;
+
+      query = `
+            SELECT DISTINCT p.b1_grupo AS product_group, p.sbm_desc AS brand 
+            FROM products p
+            JOIN product_price_snapshots pps ON p.id = pps.product_id
+            WHERE p.b1_grupo IS NOT NULL AND p.b1_grupo != ''
+            AND pps.last_change_timestamp >= NOW() - INTERVAL '${days} days'
+         `;
+    }
+
+    query += ` ORDER BY product_group ASC`;
+
+    const result = await pool.query(query);
     return result.rows;
   } catch (error) {
     console.error('Error en getProductGroupsForAdmin (service):', error);
     throw error;
   }
 };
+
 
 module.exports = {
   fetchAdminOrderDetails,
