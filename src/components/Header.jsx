@@ -57,9 +57,9 @@ const Header = ({ onLogout, currentUser }) => {
               <div className="flex items-center gap-3">
                 <span className="text-espint-green font-bold tracking-wide hidden md:inline">DÓLAR BNA</span>
                 <div className="flex items-center gap-3 text-white/80">
-                  <span className="md:border-none">USD/BNA <span className="text-white font-bold ml-1">${Number(dolar.billetes.venta).toFixed(2)}</span></span>
+                  <span className="md:border-none">USD BILLETE <span className="text-white font-bold ml-1">${Number(dolar.billetes.venta).toFixed(2)}</span></span>
                   <span className="w-px h-3 bg-white/20"></span>
-                  <span>DIVISA <span className="text-white font-bold ml-1">${Number(dolar.divisas.venta).toFixed(2)}</span></span>
+                  <span>USD DIVISA <span className="text-white font-bold ml-1">${Number(dolar.divisas.venta).toFixed(2)}</span></span>
                 </div>
               </div>
             )}
