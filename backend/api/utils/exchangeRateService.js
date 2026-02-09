@@ -4,10 +4,12 @@ const { redisClient, isRedisReady } = require('../redisClient');
 const { pool2 } = require('../db');
 
 // URL ÚNICA de BNA
+// URL ÚNICA de BNA
 const URL_BNA = 'https://www.bna.com.ar/Personas';
 
-// Duración del caché: 24 horas (para cubrir los intervalos estáticos)
-const CACHE_DURATION_SECONDS = 24 * 60 * 60;
+// Duración del caché: 5 minutos (para reflejar cambios en DB rápidamente)
+const CACHE_DURATION_SECONDS = 5 * 60;
+const CACHE_KEY = 'exchange_rates_v2'; // Clave versionada para invalidar caché anterior
 
 // --- Funciones Auxiliares ---
 
@@ -42,7 +44,6 @@ const parsearFormatoDivisa = (valor) => {
  * @returns {Promise<Object>} Nuevas cotizaciones.
  */
 const updateStoredExchangeRates = async () => {
-  const cacheKey = 'exchange_rates';
   console.log('Iniciando actualización forzada de cotizaciones del dólar (BNA)...');
 
   try {
@@ -100,7 +101,7 @@ const updateStoredExchangeRates = async () => {
 
     if (isRedisReady()) {
       try {
-        await redisClient.set(cacheKey, JSON.stringify(nuevaRespuesta), { EX: CACHE_DURATION_SECONDS });
+        await redisClient.set(CACHE_KEY, JSON.stringify(nuevaRespuesta), { EX: CACHE_DURATION_SECONDS });
         console.log('Cotizaciones actualizadas en Redis correctamente.');
       } catch (err) {
         console.error('Redis error in updateStoredExchangeRates (set):', err);
@@ -120,12 +121,10 @@ const updateStoredExchangeRates = async () => {
  * @returns {Promise<Object>}
  */
 const getExchangeRates = async () => {
-  const cacheKey = 'exchange_rates';
-
   // 1. Intentar obtener del caché Redis
   if (isRedisReady()) {
     try {
-      const cachedData = await redisClient.get(cacheKey);
+      const cachedData = await redisClient.get(CACHE_KEY);
       if (cachedData) {
         return JSON.parse(cachedData);
       }
@@ -155,7 +154,7 @@ const getExchangeRates = async () => {
 
         // Refrescar caché
         if (isRedisReady()) {
-          await redisClient.set(cacheKey, JSON.stringify(dbData), { EX: CACHE_DURATION_SECONDS });
+          await redisClient.set(CACHE_KEY, JSON.stringify(dbData), { EX: CACHE_DURATION_SECONDS });
         }
 
         return dbData;
