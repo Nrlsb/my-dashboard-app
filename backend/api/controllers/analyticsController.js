@@ -52,12 +52,25 @@ const logger = require('../utils/logger');
 
 exports.getUserAnalytics = catchAsync(async (req, res) => {
     const { userId } = req.params;
-    logger.info(`[DEBUG] getUserAnalytics called for userId: ${userId} (${typeof userId})`);
-    const stats = await analyticsModel.getUserStats(userId);
-    logger.info(`[DEBUG] stats returned for ${userId}: ${JSON.stringify(stats)}`);
+    const { brands } = req.query;
+
+    // Parse brands if it's a string (e.g., "Marca1,Marca2")
+    const brandsArray = brands ? brands.split(',') : [];
+
+    logger.info(`[DEBUG] getUserAnalytics called for userId: ${userId} with brands: ${brands}`);
+    const stats = await analyticsModel.getUserStats(userId, brandsArray);
     res.json({
         status: 'success',
         data: stats
+    });
+});
+
+exports.getUserOrderedBrands = catchAsync(async (req, res) => {
+    const { userId } = req.params;
+    const brands = await analyticsModel.getUserOrderedBrands(userId);
+    res.json({
+        status: 'success',
+        data: brands
     });
 });
 

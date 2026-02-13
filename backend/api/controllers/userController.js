@@ -27,7 +27,10 @@ exports.getVendedorClientAnalyticsController = catchAsync(async (req, res) => {
     }
 
     try {
-        const stats = await userService.getVendedorClientAnalytics(user.codigo, userId);
+        const { brands } = req.query;
+        const brandsArray = brands ? brands.split(',') : [];
+
+        const stats = await userService.getVendedorClientAnalytics(user.codigo, userId, brandsArray);
         res.json({
             status: 'success',
             data: stats

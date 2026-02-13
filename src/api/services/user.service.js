@@ -18,16 +18,23 @@ export const userService = {
         return apiClient.delete(`/test-users/${userId}`);
     },
 
-    getTestUserAnalytics(userId) {
-        return apiClient.get(`/test-users/${userId}/analytics`);
+    getTestUserAnalytics(userId, brands = []) {
+        const params = brands.length > 0 ? { brands: brands.join(',') } : null;
+        return apiClient.get(`/test-users/${userId}/analytics`, { params });
     },
 
-    getVendedorClientAnalytics(userId) {
-        return apiClient.get(`/vendedor/clientes/${userId}/analytics`);
+    getVendedorClientAnalytics(userId, brands = []) {
+        const params = brands.length > 0 ? { brands: brands.join(',') } : null;
+        return apiClient.get(`/vendedor/clientes/${userId}/analytics`, { params });
     },
 
-    getUserAnalytics(userId) {
-        return apiClient.get(`/admin/users/${userId}/analytics`);
+    getUserAnalytics(userId, brands = []) {
+        const params = brands.length > 0 ? { brands: brands.join(',') } : null;
+        return apiClient.get(`/admin/users/${userId}/analytics`, { params });
+    },
+
+    getUserOrderedBrands(userId) {
+        return apiClient.get(`/analytics/user/${userId}/brands`);
     },
 
     getAllClients(search = '') {

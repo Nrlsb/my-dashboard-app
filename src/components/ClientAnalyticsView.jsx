@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, Calendar, User, Shield, Download, ShoppingBag, PieChart, Star } from 'lucide-react';
+import { Eye, Calendar, User, Shield, Download, ShoppingBag, PieChart, Star, Filter, X, Check } from 'lucide-react';
 
 const PATH_NAMES = {
     '/dashboard': 'Inicio',
@@ -15,8 +15,41 @@ const PATH_NAMES = {
     '/admin/products': 'Gestión Productos'
 };
 
-const ClientAnalyticsView = ({ stats, clientName, onManagePermissions }) => {
+const ClientAnalyticsView = ({
+    stats,
+    clientName,
+    onManagePermissions,
+    availableBrands = [],
+    selectedBrands = [],
+    onBrandsChange
+}) => {
+    const [isFilterOpen, setIsFilterOpen] = React.useState(false);
+    const [brandSearch, setBrandSearch] = React.useState('');
+    const [tempSelectedBrands, setTempSelectedBrands] = React.useState(selectedBrands);
+
+    // Sync temp state when selectedBrands changes from outside (e.g. Clear All)
+    React.useEffect(() => {
+        setTempSelectedBrands(selectedBrands);
+    }, [selectedBrands]);
+
     if (!stats) return null;
+
+    const toggleTempBrand = (brand) => {
+        setTempSelectedBrands(prev =>
+            prev.includes(brand)
+                ? prev.filter(b => b !== brand)
+                : [...prev, brand]
+        );
+    };
+
+    const handleApplyFilters = () => {
+        onBrandsChange(tempSelectedBrands);
+        setIsFilterOpen(false);
+    };
+
+    const filteredBrandsList = availableBrands.filter(brand =>
+        brand.toLowerCase().includes(brandSearch.toLowerCase())
+    );
 
     return (
         <div className="space-y-6">
@@ -133,9 +166,112 @@ const ClientAnalyticsView = ({ stats, clientName, onManagePermissions }) => {
 
                 {/* Top Products */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                        <h3 className="text-lg font-bold text-gray-900">Productos Más Pedidos</h3>
-                        <PieChart className="w-5 h-5 text-gray-400" />
+                    <div className="p-6 border-b border-gray-100">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-bold text-gray-900">Productos Más Pedidos</h3>
+                            <div className="relative">
+                                <button
+                                    onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                    className={`p-2 rounded-lg border transition-colors flex items-center gap-2 text-sm font-medium ${selectedBrands.length > 0
+                                        ? 'bg-blue-50 border-blue-200 text-blue-700'
+                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                        }`}
+                                >
+                                    <Filter className="w-4 h-4" />
+                                    Filtrar Marcas
+                                    {selectedBrands.length > 0 && (
+                                        <span className="w-5 h-5 flex items-center justify-center bg-blue-600 text-white rounded-full text-[10px]">
+                                            {selectedBrands.length}
+                                        </span>
+                                    )}
+                                </button>
+
+                                {isFilterOpen && (
+                                    <>
+                                        <div
+                                            className="fixed inset-0 z-20"
+                                            onClick={() => setIsFilterOpen(false)}
+                                        />
+                                        <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 z-30 overflow-hidden">
+                                            <div className="p-3 border-b border-gray-100">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Buscar marca..."
+                                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    value={brandSearch}
+                                                    onChange={(e) => setBrandSearch(e.target.value)}
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            <div className="max-h-60 overflow-y-auto">
+                                                {filteredBrandsList.length > 0 ? (
+                                                    <div className="p-1">
+                                                        {filteredBrandsList.map(brand => (
+                                                            <button
+                                                                key={brand}
+                                                                onClick={() => toggleTempBrand(brand)}
+                                                                className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-50 rounded-lg transition-colors text-left"
+                                                            >
+                                                                <span className="text-sm text-gray-700 truncate">{brand}</span>
+                                                                {tempSelectedBrands.includes(brand) && (
+                                                                    <Check className="w-4 h-4 text-blue-600" />
+                                                                )}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="p-4 text-center text-sm text-gray-500">
+                                                        No se encontraron marcas.
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="p-2 border-t border-gray-100 bg-gray-50 space-y-2">
+                                                <button
+                                                    onClick={handleApplyFilters}
+                                                    className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                                                >
+                                                    Aplicar Filtros
+                                                </button>
+                                                {tempSelectedBrands.length > 0 && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setTempSelectedBrands([]);
+                                                            onBrandsChange([]);
+                                                            setIsFilterOpen(false);
+                                                        }}
+                                                        className="w-full py-1 text-xs font-medium text-gray-500 hover:text-red-600 transition-colors"
+                                                    >
+                                                        Limpiar Todo
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
+                        {selectedBrands.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {selectedBrands.map(brand => (
+                                    <span
+                                        key={brand}
+                                        className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium border border-blue-100"
+                                    >
+                                        {brand}
+                                        <button
+                                            onClick={() => {
+                                                const newBrands = selectedBrands.filter(b => b !== brand);
+                                                onBrandsChange(newBrands);
+                                            }}
+                                            className="hover:text-blue-900"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </span>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {stats.topBoughtProducts && stats.topBoughtProducts.length > 0 ? (

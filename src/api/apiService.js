@@ -149,6 +149,7 @@ const apiService = {
   getTestUserAnalytics: userService.getTestUserAnalytics,
   getVendedorClientAnalytics: userService.getVendedorClientAnalytics,
   getUserAnalytics: userService.getUserAnalytics,
+  getUserOrderedBrands: userService.getUserOrderedBrands,
   getAllClients: userService.getAllClients,
   getClientPermissions: userService.getClientPermissions,
   updateClientPermissions: userService.updateClientPermissions,

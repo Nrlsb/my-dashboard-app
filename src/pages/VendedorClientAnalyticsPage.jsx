@@ -17,30 +17,53 @@ export default function VendedorClientAnalyticsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
+    const [availableBrands, setAvailableBrands] = useState([]);
+    const [selectedBrands, setSelectedBrands] = useState([]);
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
 
     const { user } = useAuth();
     const isTestUser = searchParams.get('type') === 'test';
 
     useEffect(() => {
         if (userId) {
-            fetchStats();
+            initData();
         }
     }, [userId]);
 
-    const fetchStats = async () => {
+    const initData = async () => {
         setLoading(true);
+        try {
+            const brandsResponse = await apiService.getUserOrderedBrands(userId);
+            setAvailableBrands(brandsResponse.data || []);
+            await fetchStats([]);
+        } catch (err) {
+            console.error('Error initializing analytics data:', err);
+            setError('No se pudo cargar la información del cliente.');
+        } finally {
+            setLoading(false);
+            setIsInitialLoad(false);
+        }
+    };
+
+    const handleBrandsChange = (brands) => {
+        setSelectedBrands(brands);
+        fetchStats(brands);
+    };
+
+    const fetchStats = async (brands = selectedBrands) => {
+        if (!isInitialLoad) setLoading(true);
         setError(null);
         try {
             let response;
             if (user?.role === 'admin' || user?.role === 'marketing' || user?.role === 'test_user') {
                 if (isTestUser) {
-                    response = await apiService.getTestUserAnalytics(userId);
+                    response = await apiService.getTestUserAnalytics(userId, brands);
                 } else {
-                    response = await apiService.getUserAnalytics(userId);
+                    response = await apiService.getUserAnalytics(userId, brands);
                 }
             } else {
                 // Default for sellers
-                response = await apiService.getVendedorClientAnalytics(userId);
+                response = await apiService.getVendedorClientAnalytics(userId, brands);
             }
             setStats(response.data);
         } catch (err) {
@@ -107,6 +130,9 @@ export default function VendedorClientAnalyticsPage() {
                         stats={stats}
                         clientName={clientName}
                         onManagePermissions={(user?.role === 'admin' || user?.role === 'vendedor') ? () => setIsPermissionsModalOpen(true) : null}
+                        availableBrands={availableBrands}
+                        selectedBrands={selectedBrands}
+                        onBrandsChange={handleBrandsChange}
                     />
                 )}
             </main>

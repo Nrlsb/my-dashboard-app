@@ -392,7 +392,25 @@ const getTestUserStats = async (userId) => {
     }
 };
 
-const getUserStats = async (userId) => {
+const getUserOrderedBrands = async (userId) => {
+    try {
+        const query = `
+            SELECT DISTINCT TRIM(p.sbm_desc) as brand
+            FROM order_items oi
+            JOIN orders o ON o.id = oi.order_id
+            JOIN products p ON p.id = oi.product_id
+            WHERE o.user_id = $1 AND p.sbm_desc IS NOT NULL AND p.sbm_desc != ''
+            ORDER BY brand ASC
+        `;
+        const result = await pool2.query(query, [userId]);
+        return result.rows.map(r => r.brand);
+    } catch (error) {
+        console.error('Error getting user ordered brands:', error);
+        return [];
+    }
+};
+
+const getUserStats = async (userId, brands = []) => {
     try {
         logger.info(`[DEBUG] analyticsModel.getUserStats processing userId: ${userId}`);
 
@@ -476,16 +494,27 @@ const getUserStats = async (userId) => {
         let topBoughtProducts = [];
         let mostBoughtProduct = 'N/A';
         try {
-            const topProductsResult = await pool2.query(`
+            let topProductsQuery = `
                 SELECT oi.product_id, SUM(oi.quantity) as qty, MAX(p.b1_desc) as description
                 FROM order_items oi
                 JOIN orders o ON o.id = oi.order_id
                 JOIN products p ON p.id = oi.product_id
                 WHERE o.user_id = $1
+            `;
+            const queryParams = [userId];
+
+            if (brands && brands.length > 0) {
+                topProductsQuery += ` AND TRIM(p.sbm_desc) = ANY($2::varchar[]) `;
+                queryParams.push(brands);
+            }
+
+            topProductsQuery += `
                 GROUP BY oi.product_id
                 ORDER BY qty DESC
                 LIMIT 5
-            `, [userId]);
+            `;
+
+            const topProductsResult = await pool2.query(topProductsQuery, queryParams);
             topBoughtProducts = topProductsResult.rows;
             if (topBoughtProducts.length > 0) mostBoughtProduct = topBoughtProducts[0].description;
         } catch (e) {
@@ -681,5 +710,6 @@ module.exports = {
     getSellerStatsDetailed,
     getTestUserStats,
     getUserStats,
+    getUserOrderedBrands,
     recordPriceListDownload
 };

@@ -8,6 +8,7 @@ router.post('/visit', optionalAuthenticateToken, analyticsController.recordVisit
 router.post('/download', optionalAuthenticateToken, analyticsController.recordDownload);
 router.get('/stats', authenticateToken, requirePermission('view_analytics'), analyticsController.getAnalytics);
 router.get('/user/:userId', authenticateToken, requirePermission('view_analytics'), analyticsController.getUserAnalytics);
+router.get('/user/:userId/brands', authenticateToken, requirePermission('view_analytics'), analyticsController.getUserOrderedBrands);
 router.get('/seller/:sellerCode', authenticateToken, requirePermission('view_analytics'), analyticsController.getSellerAnalytics);
 
 module.exports = router;

@@ -429,9 +429,10 @@ const getAllClients = async () => {
  * Obtiene las estadísticas de un cliente específico de un vendedor.
  * @param {string} vendedorCodigo - El código del vendedor.
  * @param {number} clientId - El ID del cliente.
+ * @param {Array<string>} brands - Marcas para filtrar.
  * @returns {Promise<object>}
  */
-const getVendedorClientAnalytics = async (vendedorCodigo, clientId) => {
+const getVendedorClientAnalytics = async (vendedorCodigo, clientId, brands = []) => {
   try {
     // 1. Verify Client belongs to Seller
     const client = await userModel.findUserById(clientId);
@@ -448,7 +449,7 @@ const getVendedorClientAnalytics = async (vendedorCodigo, clientId) => {
     }
 
     // 2. Fetch Analytics
-    const stats = await analyticsModel.getUserStats(clientId);
+    const stats = await analyticsModel.getUserStats(clientId, brands);
 
     return {
       ...stats,
