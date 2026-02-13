@@ -61,6 +61,18 @@ exports.getUserAnalytics = catchAsync(async (req, res) => {
     });
 });
 
+exports.getSellerAnalytics = catchAsync(async (req, res) => {
+    const { sellerCode } = req.params;
+    const { startDate, endDate } = req.query;
+
+    const stats = await analyticsModel.getSellerStatsDetailed(sellerCode, startDate, endDate);
+
+    res.json({
+        status: 'success',
+        data: stats
+    });
+});
+
 exports.getAnalytics = catchAsync(async (req, res) => {
     const { startDate, endDate } = req.query;
 

@@ -6,7 +6,7 @@ import { toast } from 'react-hot-toast';
 import TestUserAnalyticsModal from './TestUserAnalyticsModal';
 import ConfirmationModal from './ConfirmationModal';
 
-const TestUsersTable = ({ users = [] }) => {
+const TestUsersTable = ({ users = [], isMarketing = false }) => {
     const [selectedUser, setSelectedUser] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -150,6 +150,15 @@ const TestUsersTable = ({ users = [] }) => {
                                     >
                                         <BarChart2 className="w-5 h-5" />
                                     </button>
+                                    {!isMarketing && (
+                                        <button
+                                            onClick={() => initiateDelete(user)}
+                                            className="text-red-600 hover:text-red-900 bg-red-50 p-2 rounded-full transition-colors"
+                                            title="Dar de Baja"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                    )}
                                 </td>
                             </tr>
                         ))}

@@ -19,22 +19,37 @@ const restrictTo = (...roles) => {
 // Proteger todas las rutas
 router.use(authenticateToken);
 
-// Solo permitir a vendedores y admin
-router.use(restrictTo('vendedor', 'admin'));
-
 const analyticsController = require('../controllers/analyticsController');
 
-// ... (previous code)
-
+// Rutas generales de gestión (solo vendedor y admin)
 router
     .route('/')
-    .get(testUserController.getMyTestUsers)
-    .post(testUserController.createTestUser);
+    .get(restrictTo('vendedor', 'admin', 'marketing'), testUserController.getMyTestUsers)
+    .post(restrictTo('vendedor', 'admin'), testUserController.createTestUser);
 
-router.get('/:id/analytics', analyticsController.getTestUserAnalytics);
+// Analíticas: Permitir a vendedor, admin, marketing y al propio test_user
+router.get('/:id/analytics', (req, res, next) => {
+    const { id } = req.params;
+    const { user } = req;
+
+    // Permitir si es admin, vendedor, marketing
+    if (user.isAdmin || user.role === 'admin' || user.role === 'vendedor' || user.role === 'marketing') {
+        return next();
+    }
+
+    // Permitir si es el propio usuario de prueba
+    if (user.role === 'test_user' && String(user.userId) === String(id)) {
+        return next();
+    }
+
+    return res.status(403).json({
+        status: 'fail',
+        message: 'No tienes permisos para ver estas analíticas'
+    });
+}, analyticsController.getTestUserAnalytics);
 
 router
     .route('/:id')
-    .delete(testUserController.deleteTestUser);
+    .delete(restrictTo('vendedor', 'admin'), testUserController.deleteTestUser);
 
 module.exports = router;

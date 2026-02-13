@@ -101,11 +101,16 @@ exports.getClientPermissionsController = catchAsync(async (req, res) => {
     const { user } = req;
     const { userId } = req.params;
 
-    if (!user || user.role !== 'vendedor' || !user.codigo) {
-        return res.status(403).json({ message: 'Acceso denegado. Se requiere rol de vendedor.' });
+    // Permitir a vendedores (propios clientes), marketing y admin
+    const canAccess = user && (user.role === 'vendedor' || user.role === 'marketing' || user.isAdmin || user.role === 'admin');
+
+    if (!canAccess) {
+        return res.status(403).json({ message: 'Acceso denegado. No tiene permisos para ver esta información.' });
     }
 
-    const permissions = await userService.getCalculatedClientPermissions(user.codigo, userId);
+    // Si es vendedor, pasamos su código para validación. Si es admin/marketing, pasamos null para saltar validación de pertenencia.
+    const sellerCode = user.role === 'vendedor' ? user.codigo : null;
+    const permissions = await userService.getCalculatedClientPermissions(sellerCode, userId);
     res.json(permissions);
 });
 

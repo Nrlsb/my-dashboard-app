@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import apiService from '../api/apiService';
+import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import TestUsersTable from '../components/TestUsersTable';
 import { toast } from 'react-hot-toast';
@@ -7,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 
 const AdminAnalyticsPage = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('general'); // 'general' | 'test-users'
@@ -80,17 +82,15 @@ const AdminAnalyticsPage = () => {
                     >
                         General
                     </button>
-                    {!isMarketing && (
-                        <button
-                            onClick={() => setActiveTab('test-users')}
-                            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'test-users'
-                                ? 'bg-white text-blue-600 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700'
-                                }`}
-                        >
-                            Usuarios de Prueba
-                        </button>
-                    )}
+                    <button
+                        onClick={() => setActiveTab('test-users')}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'test-users'
+                            ? 'bg-white text-blue-600 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                    >
+                        Usuarios de Prueba
+                    </button>
                 </div>
 
                 {activeTab !== 'test-users' && (
@@ -121,7 +121,7 @@ const AdminAnalyticsPage = () => {
                 loadingTestUsers ? (
                     <LoadingSpinner text="Cargando usuarios de prueba..." />
                 ) : (
-                    <TestUsersTable users={testUsers} />
+                    <TestUsersTable users={testUsers} isMarketing={isMarketing} />
                 )
             ) : (
                 <>
@@ -169,7 +169,12 @@ const AdminAnalyticsPage = () => {
                                         {stats.clients.topClients.map((client, index) => (
                                             <tr key={index} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                                                 <td className="py-3">
-                                                    <div className="font-medium text-gray-800">{client.user.full_name}</div>
+                                                    <div
+                                                        className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer"
+                                                        onClick={() => navigate(`/vendedor-client-analytics/${client.user_id}?name=${encodeURIComponent(client.user.full_name)}`)}
+                                                    >
+                                                        {client.user.full_name}
+                                                    </div>
                                                     <div className="text-xs text-gray-500">{client.user.email}</div>
                                                 </td>
                                                 <td className="py-3 text-gray-700">{client.order_count}</td>
@@ -205,7 +210,14 @@ const AdminAnalyticsPage = () => {
                                     <tbody>
                                         {stats.sellers.map((seller, index) => (
                                             <tr key={index} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                                                <td className="py-3 font-medium text-gray-800">{seller.name}</td>
+                                                <td className="py-3">
+                                                    <div
+                                                        className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer"
+                                                        onClick={() => navigate(`/admin/analytics/seller/${seller.code}?name=${encodeURIComponent(seller.name)}`)}
+                                                    >
+                                                        {seller.name}
+                                                    </div>
+                                                </td>
                                                 <td className="py-3 text-gray-700">{seller.visitCount}</td>
                                                 <td className="py-3 text-gray-700">{seller.orderCount}</td>
                                                 <td className="py-3 font-medium text-green-600">

@@ -32,7 +32,7 @@ export default function VendedorClientAnalyticsPage() {
         setError(null);
         try {
             let response;
-            if (user?.role === 'admin' || user?.role === 'marketing') {
+            if (user?.role === 'admin' || user?.role === 'marketing' || user?.role === 'test_user') {
                 if (isTestUser) {
                     response = await apiService.getTestUserAnalytics(userId);
                 } else {
@@ -106,7 +106,7 @@ export default function VendedorClientAnalyticsPage() {
                     <ClientAnalyticsView
                         stats={stats}
                         clientName={clientName}
-                        onManagePermissions={() => setIsPermissionsModalOpen(true)}
+                        onManagePermissions={(user?.role === 'admin' || user?.role === 'vendedor') ? () => setIsPermissionsModalOpen(true) : null}
                     />
                 )}
             </main>

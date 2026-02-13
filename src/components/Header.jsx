@@ -223,6 +223,17 @@ const Header = ({ onLogout, currentUser }) => {
                         </button>
                       )}
 
+                      {/* (NUEVO) Enlace para Usuarios de Prueba */}
+                      {currentUser?.role === 'test_user' && (
+                        <button
+                          onClick={() => handleNavigation(`/vendedor-client-analytics/${currentUser.id}?name=${encodeURIComponent(currentUser.full_name)}&type=test`)}
+                          className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-espint-blue rounded-lg transition-colors"
+                        >
+                          <BarChart2 className="w-4 h-4 mr-3 text-gray-400" />
+                          Mi Análisis
+                        </button>
+                      )}
+
                       {(currentUser?.is_admin || hasPermission('view_analytics')) && (
                         <button
                           onClick={() => handleNavigation('/analytics')}

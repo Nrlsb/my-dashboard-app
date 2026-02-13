@@ -43,6 +43,10 @@ export const commonService = {
         return apiClient.get('/analytics/stats', { params });
     },
 
+    getSellerAnalytics(sellerCode, params) {
+        return apiClient.get(`/analytics/seller/${sellerCode}`, { params });
+    },
+
     async downloadMissingImagesReport() {
         // IMPORTANT: responseType blob
         return apiClient.get('/reports/missing-images', { responseType: 'blob' });

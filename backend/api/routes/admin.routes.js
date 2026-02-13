@@ -93,7 +93,7 @@ router.get('/sellers/:vendedorCode/product-groups', requireAdmin, getVendorDenie
 router.put('/sellers/:vendedorCode/product-groups', requireAdmin, updateVendorClientsGroupPermissions);
 
 const analyticsController = require('../controllers/analyticsController');
-router.get('/users/:userId/analytics', requireAdmin, analyticsController.getUserAnalytics);
+router.get('/users/:userId/analytics', requireMarketingOrAdmin, analyticsController.getUserAnalytics);
 
 // (NUEVO) Ruta para resetear contraseña de usuario
 const { resetUserPassword } = require('../controllers/adminController');

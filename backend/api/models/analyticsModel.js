@@ -461,17 +461,214 @@ const getUserStats = async (userId) => {
             // Ignore if table doesn't exist yet or other error, return empty
         }
 
+        // 5. Order Stats
+        const orderStatsQuery = `
+            SELECT 
+                COUNT(*) as count, 
+                SUM(CASE WHEN is_confirmed = true THEN 1 ELSE 0 END) as confirmed_count
+            FROM orders 
+            WHERE user_id = $1
+        `;
+        const orderStatsResult = await pool2.query(orderStatsQuery, [userId]);
+        const orderStats = orderStatsResult.rows[0];
+
+        // 6. Top Bought Products
+        let topBoughtProducts = [];
+        let mostBoughtProduct = 'N/A';
+        try {
+            const topProductsResult = await pool2.query(`
+                SELECT oi.product_id, SUM(oi.quantity) as qty, MAX(p.b1_desc) as description
+                FROM order_items oi
+                JOIN orders o ON o.id = oi.order_id
+                JOIN products p ON p.id = oi.product_id
+                WHERE o.user_id = $1
+                GROUP BY oi.product_id
+                ORDER BY qty DESC
+                LIMIT 5
+            `, [userId]);
+            topBoughtProducts = topProductsResult.rows;
+            if (topBoughtProducts.length > 0) mostBoughtProduct = topBoughtProducts[0].description;
+        } catch (e) {
+            logger.error('Error fetching top bought products:', e);
+        }
+
+        // 7. Most Viewed Product
+        let mostViewedProduct = 'N/A';
+        try {
+            const viewsQuery = `
+                SELECT SUBSTRING(path FROM '/product-detail/([0-9]+)')::int as product_id, COUNT(*) as count
+                FROM page_visits
+                WHERE user_id = $1 AND path LIKE '/product-detail/%'
+                GROUP BY product_id
+                ORDER BY count DESC
+                LIMIT 1
+            `;
+            const viewsResult = await pool2.query(viewsQuery, [userId]);
+            if (viewsResult.rows.length > 0) {
+                const pid = viewsResult.rows[0].product_id;
+                const pRes = await pool.query('SELECT b1_desc FROM products WHERE id = $1', [pid]);
+                if (pRes.rows.length > 0) mostViewedProduct = pRes.rows[0].b1_desc;
+            }
+        } catch (e) {
+            logger.error('Error fetching most viewed product:', e);
+        }
+
         return {
             totalVisits,
             lastVisit,
             topPages: topPagesResult.rows,
             downloads,
             a1_cod: user.a1_cod,
-            codigo: user.vendor_code
+            codigo: user.vendor_code,
+            totalOrders: parseInt(orderStats.count || 0),
+            confirmedOrders: parseInt(orderStats.confirmed_count || 0),
+            topBoughtProducts,
+            mostBoughtProduct,
+            mostViewedProduct
         };
     } catch (error) {
         logger.error(`Error getting user stats for userId ${userId}:`, error);
         return { totalVisits: 0, lastVisit: null, topPages: [], downloads: [], a1_cod: null, codigo: null };
+    }
+};
+
+const getSellerStatsDetailed = async (sellerCode, startDate, endDate) => {
+    try {
+        const filter = getDateFilter(startDate, endDate);
+        const sellerCodeStr = String(sellerCode || '').trim();
+
+        // Fix placeholders in filter condition since we are adding $1 for userIds
+        let condition = filter.condition;
+        if (filter.params.length > 0) {
+            condition = condition.replace(/\$2/g, '$3').replace(/\$1/g, '$2');
+        }
+
+        // 1. Get Seller Info
+        const sellerQuery = `SELECT codigo, nombre FROM vendedores WHERE codigo = $1`;
+        const sellerResult = await pool.query(sellerQuery, [sellerCodeStr]);
+        const sellerInfo = sellerResult.rows[0] || { codigo: sellerCodeStr, nombre: sellerCodeStr };
+
+        // 2. Get all users associated with this seller
+        const usersQuery = `SELECT id, full_name, email, a1_cod FROM users WHERE vendedor_codigo = $1`;
+        const usersResult = await pool.query(usersQuery, [sellerCodeStr]);
+        const userIds = usersResult.rows.map(u => u.id);
+        const userMap = new Map(usersResult.rows.map(u => [u.id, u]));
+
+        if (userIds.length === 0) {
+            return {
+                seller: sellerInfo,
+                summary: { visitCount: 0, orderCount: 0, confirmedOrderCount: 0, totalSales: 0 },
+                dailyStats: [],
+                clients: []
+            };
+        }
+
+        // 3. Summary Stats (Total)
+        const summaryOrdersQuery = `
+            SELECT 
+                COUNT(*) as count, 
+                SUM(CASE WHEN is_confirmed = true THEN 1 ELSE 0 END) as confirmed_count,
+                SUM(total) as total 
+            FROM orders 
+            WHERE user_id = ANY($1::int[]) AND ${condition}
+        `;
+        const summaryOrdersResult = await pool2.query(summaryOrdersQuery, [userIds, ...filter.params]);
+        const ordersSummary = summaryOrdersResult.rows[0];
+
+        const summaryVisitsQuery = `
+            SELECT COUNT(*) as count
+            FROM page_visits
+            WHERE user_id = ANY($1::int[]) AND ${condition}
+        `;
+        const summaryVisitsResult = await pool2.query(summaryVisitsQuery, [userIds, ...filter.params]);
+        const visitsSummary = summaryVisitsResult.rows[0];
+
+        // 4. Daily Stats
+        const dailyVisitsQuery = `
+            SELECT 
+                TO_CHAR(created_at, 'YYYY-MM-DD') as date,
+                COUNT(*) as count
+            FROM page_visits
+            WHERE user_id = ANY($1::int[]) AND ${condition}
+            GROUP BY date
+            ORDER BY date ASC
+        `;
+        const dailyVisitsResult = await pool2.query(dailyVisitsQuery, [userIds, ...filter.params]);
+
+        const dailyOrdersQuery = `
+            SELECT 
+                TO_CHAR(created_at, 'YYYY-MM-DD') as date,
+                COUNT(*) as count
+            FROM orders
+            WHERE user_id = ANY($1::int[]) AND ${condition}
+            GROUP BY date
+            ORDER BY date ASC
+        `;
+        const dailyOrdersResult = await pool2.query(dailyOrdersQuery, [userIds, ...filter.params]);
+
+        // Merge daily stats
+        const dailyMap = {};
+        dailyVisitsResult.rows.forEach(r => {
+            dailyMap[r.date] = { date: r.date, visits: parseInt(r.count), orders: 0 };
+        });
+        dailyOrdersResult.rows.forEach(r => {
+            if (!dailyMap[r.date]) dailyMap[r.date] = { date: r.date, visits: 0, orders: 0 };
+            dailyMap[r.date].orders = parseInt(r.count);
+        });
+        const dailyStats = Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
+
+        // 5. Client Breakdown
+        const clientOrdersQuery = `
+            SELECT 
+                user_id, 
+                COUNT(*) as order_count, 
+                SUM(CASE WHEN is_confirmed = true THEN 1 ELSE 0 END) as confirmed_order_count,
+                SUM(total) as total_spent 
+            FROM orders 
+            WHERE user_id = ANY($1::int[]) AND ${condition}
+            GROUP BY user_id
+        `;
+        const clientOrdersResult = await pool2.query(clientOrdersQuery, [userIds, ...filter.params]);
+        const clientOrdersMap = new Map(clientOrdersResult.rows.map(r => [r.user_id, r]));
+
+        const clientVisitsQuery = `
+            SELECT user_id, COUNT(*) as visit_count
+            FROM page_visits
+            WHERE user_id = ANY($1::int[]) AND ${condition}
+            GROUP BY user_id
+        `;
+        const clientVisitsResult = await pool2.query(clientVisitsQuery, [userIds, ...filter.params]);
+        const clientVisitsMap = new Map(clientVisitsResult.rows.map(r => [r.user_id, parseInt(r.visit_count)]));
+
+        const clientsDetailed = usersResult.rows.map(user => {
+            const o = clientOrdersMap.get(user.id) || { order_count: 0, confirmed_order_count: 0, total_spent: 0 };
+            return {
+                id: user.id,
+                full_name: user.full_name,
+                email: user.email,
+                a1_cod: user.a1_cod,
+                visitCount: clientVisitsMap.get(user.id) || 0,
+                orderCount: parseInt(o.order_count),
+                confirmedOrderCount: parseInt(o.confirmed_order_count),
+                totalSpent: parseFloat(o.total_spent)
+            };
+        }).sort((a, b) => b.totalSpent - a.totalSpent);
+
+        return {
+            seller: sellerInfo,
+            summary: {
+                visitCount: parseInt(visitsSummary.count),
+                orderCount: parseInt(ordersSummary.count || 0),
+                confirmedOrderCount: parseInt(ordersSummary.confirmed_count || 0),
+                totalSales: parseFloat(ordersSummary.total || 0)
+            },
+            dailyStats,
+            clients: clientsDetailed
+        };
+
+    } catch (error) {
+        console.error('Error getting detailed seller stats:', error);
+        throw error;
     }
 };
 
@@ -481,6 +678,7 @@ module.exports = {
     getOrderStats,
     getClientStats,
     getSellerStats,
+    getSellerStatsDetailed,
     getTestUserStats,
     getUserStats,
     recordPriceListDownload

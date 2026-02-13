@@ -38,6 +38,7 @@ const VendedorAccountBalancePage = lazyImport(() => import('./pages/VendedorAcco
 const VendedorOrderHistoryPage = lazyImport(() => import('./pages/VendedorOrderHistoryPage.jsx'));
 const ImageUpload = lazyImport(() => import('./components/ImageUpload.jsx'));
 const AdminAnalyticsPage = lazyImport(() => import('./pages/AdminAnalyticsPage.jsx'));
+const AdminSellerAnalyticsPage = lazyImport(() => import('./pages/AdminSellerAnalyticsPage.jsx'));
 const AboutPage = lazyImport(() => import('./pages/AboutPage.jsx'));
 const NewReleasesPage = lazyImport(() => import('./pages/NewReleasesPage.jsx'));
 const ManageNewReleasesPage = lazyImport(() => import('./pages/ManageNewReleasesPage.jsx'));
@@ -414,6 +415,14 @@ const router = createBrowserRouter(
                 <PermissionRoute permission="view_analytics">
                     <Suspense fallback={<LoadingFallback />}>
                         <AdminAnalyticsPage />
+                    </Suspense>
+                </PermissionRoute>
+            } />
+
+            <Route path="admin/analytics/seller/:sellerCode" element={
+                <PermissionRoute permission="view_analytics">
+                    <Suspense fallback={<LoadingFallback />}>
+                        <AdminSellerAnalyticsPage />
                     </Suspense>
                 </PermissionRoute>
             } />

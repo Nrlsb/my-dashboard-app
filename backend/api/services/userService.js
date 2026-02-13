@@ -464,18 +464,21 @@ const productModel = require('../models/productModel');
 
 const getCalculatedClientPermissions = async (vendedorCodigo, clientId) => {
   try {
-    // 1. Verify Client belongs to Seller
+    // 1. Verify Client exists
     const client = await userModel.findUserById(clientId);
     if (!client) throw new Error('Cliente no encontrado');
 
-    const clientVendorCode = String(client.vendedor_codigo || '').trim();
-    const sellerCode = String(vendedorCodigo || '').trim();
+    // 2. Verify Client belongs to Seller (skip if vendedorCodigo is null - admin/marketing call)
+    if (vendedorCodigo) {
+      const clientVendorCode = String(client.vendedor_codigo || '').trim();
+      const sellerCode = String(vendedorCodigo || '').trim();
 
-    if (clientVendorCode !== sellerCode) {
-      throw new Error('Acceso denegado: El cliente no pertenece a este vendedor');
+      if (clientVendorCode !== sellerCode) {
+        throw new Error('Acceso denegado: El cliente no pertenece a este vendedor');
+      }
     }
 
-    // 2. Get Permissions with Source
+    // 3. Get Permissions with Source
     return await productModel.getDeniedProductGroupsWithSource(clientId);
   } catch (error) {
     console.error('Error in getCalculatedClientPermissions:', error);
@@ -485,23 +488,22 @@ const getCalculatedClientPermissions = async (vendedorCodigo, clientId) => {
 
 const updateClientPermissionsBySeller = async (vendedorCodigo, clientId, groups) => {
   try {
-    // 1. Verify Client belongs to Seller
+    // 1. Verify Client exists
     const client = await userModel.findUserById(clientId);
     if (!client) throw new Error('Cliente no encontrado');
 
-    const clientVendorCode = String(client.vendedor_codigo || '').trim();
-    const sellerCode = String(vendedorCodigo || '').trim();
+    // 2. Verify Client belongs to Seller (skip if vendedorCodigo is null - admin call)
+    if (vendedorCodigo) {
+      const clientVendorCode = String(client.vendedor_codigo || '').trim();
+      const sellerCode = String(vendedorCodigo || '').trim();
 
-    if (clientVendorCode !== sellerCode) {
-      throw new Error('Acceso denegado: El cliente no pertenece a este vendedor');
+      if (clientVendorCode !== sellerCode) {
+        throw new Error('Acceso denegado: El cliente no pertenece a este vendedor');
+      }
     }
 
-    // 2. Update via userModel (I need to add this method to userModel)
+    // 3. Update via userModel
     await userModel.updateSellerPermissions(clientId, groups);
-
-    // 3. Invalidate Cache
-    await productModel.invalidatePermissionsCache(clientId);
-
     return { success: true };
   } catch (error) {
     console.error('Error in updateClientPermissionsBySeller:', error);

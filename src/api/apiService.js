@@ -164,6 +164,7 @@ const apiService = {
   recordVisit: commonService.recordVisit,
   recordDownload: commonService.recordDownload,
   getAnalytics: commonService.getAnalytics,
+  getSellerAnalytics: commonService.getSellerAnalytics,
   downloadMissingImagesReport: commonService.downloadMissingImagesReport,
 };
 
