@@ -17,11 +17,16 @@ const ProductCard = ({ product, setSelectedProduct, handleAddToCartClick }) => {
             <div className="flex items-start md:items-center space-x-4 w-full md:w-auto">
                 <div className="flex-shrink-0 p-3 bg-gray-100 rounded-lg">
                     {product.imageUrl ? (
-                        <img
-                            src={product.imageUrl}
-                            alt={product.name}
-                            className="w-16 h-16 object-cover rounded-md"
-                        />
+                        <div className="relative">
+                            <img
+                                src={product.imageUrl}
+                                alt={product.name}
+                                className="w-16 h-16 object-cover rounded-md"
+                            />
+                            <span className="absolute bottom-0 right-0 bg-black/60 text-white text-[7px] px-1 py-0.5 pointer-events-none uppercase font-bold rounded-tl-sm">
+                                Ilustrativa
+                            </span>
+                        </div>
                     ) : (
                         <Package className="w-6 h-6 text-gray-600" />
                     )}

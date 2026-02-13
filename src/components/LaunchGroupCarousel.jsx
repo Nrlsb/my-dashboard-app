@@ -53,12 +53,17 @@ const LaunchGroupCarousel = () => {
                         {/* Background Image */}
                         <div className="absolute inset-0">
                             {group.imageUrl ? (
-                                <img
-                                    src={group.imageUrl}
-                                    alt={group.name}
-                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                    referrerPolicy="no-referrer"
-                                />
+                                <div className="relative w-full h-full">
+                                    <img
+                                        src={group.imageUrl}
+                                        alt={group.name}
+                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                        referrerPolicy="no-referrer"
+                                    />
+                                    <span className="absolute bottom-2 right-4 bg-black/50 text-white text-[9px] px-2 py-0.5 pointer-events-none uppercase tracking-widest font-bold rounded-tl-md backdrop-blur-sm">
+                                        Imagen ilustrativa
+                                    </span>
+                                </div>
                             ) : (
                                 <div className="w-full h-full bg-gradient-to-br from-espint-blue to-espint-blue-dark" />
                             )}

@@ -67,13 +67,18 @@ const ProductGroupCarousel = () => {
             onClick={() => handleCardClick(group)}
           >
             {group.imageUrl ? (
-              <img
-                src={group.imageUrl}
-                alt={group.name}
-                className="w-full h-40 md:h-48 object-cover"
-                referrerPolicy="no-referrer"
-                loading="lazy"
-              />
+              <div className="relative w-full h-40 md:h-48 overflow-hidden">
+                <img
+                  src={group.imageUrl}
+                  alt={group.name}
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
+                />
+                <span className="absolute bottom-0 right-0 bg-black/50 text-white text-[8px] px-1.5 py-0.5 pointer-events-none uppercase tracking-wider font-medium rounded-tl-sm backdrop-blur-sm">
+                  Imagen ilustrativa
+                </span>
+              </div>
             ) : (
               <div className="w-full h-40 md:h-48 bg-[#183B64] flex items-center justify-center p-4">
                 {/* Fallback Icon */}

@@ -68,13 +68,18 @@ const AccessoryCarousel = () => {
             className="w-full bg-white rounded-lg overflow-hidden transition-all duration-200 ease-in-out cursor-pointer hover:-translate-y-1 shadow-sm hover:shadow-md border-b-[3px] border-espint-green group"
             onClick={() => handleAccessoryClick(item.id)}
           >
-            <img
-              src={item.imageUrl}
-              alt={item.name}
-              className="w-full h-32 object-contain p-2"
-              referrerPolicy="no-referrer"
-              loading="lazy"
-            />
+            <div className="relative">
+              <img
+                src={item.imageUrl}
+                alt={item.name}
+                className="w-full h-32 object-contain p-2"
+                referrerPolicy="no-referrer"
+                loading="lazy"
+              />
+              <span className="absolute bottom-0 right-0 bg-black/60 text-white text-[7px] px-1.5 py-0.5 pointer-events-none uppercase font-bold rounded-tl-sm">
+                Ilustrativa
+              </span>
+            </div>
             <div className="p-3">
               <h3 className="text-sm font-bold text-espint-blue whitespace-nowrap truncate">{item.name}</h3>
             </div>

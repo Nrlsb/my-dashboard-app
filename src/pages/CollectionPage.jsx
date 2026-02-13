@@ -87,11 +87,16 @@ const CollectionPage = () => {
                         >
                             <div className="w-full h-48 mb-4 bg-gray-100 rounded-md flex items-center justify-center overflow-hidden">
                                 {product.imageUrl ? (
-                                    <img
-                                        src={product.imageUrl}
-                                        alt={product.name}
-                                        className="w-full h-full object-contain"
-                                    />
+                                    <div className="relative w-full h-full">
+                                        <img
+                                            src={product.imageUrl}
+                                            alt={product.name}
+                                            className="w-full h-full object-contain"
+                                        />
+                                        <span className="absolute bottom-0 right-0 bg-black/50 text-white text-[8px] px-1.5 py-0.5 pointer-events-none uppercase tracking-wider font-medium rounded-tl-sm backdrop-blur-sm">
+                                            Imagen ilustrativa
+                                        </span>
+                                    </div>
                                 ) : (
                                     <span className="text-gray-400 text-sm">Sin imagen</span>
                                 )}
@@ -114,8 +119,9 @@ const CollectionPage = () => {
                         No se encontraron productos en esta colección.
                     </p>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 };
 

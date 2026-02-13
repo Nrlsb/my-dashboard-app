@@ -111,12 +111,17 @@ export default function ProductDetailPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="flex items-center justify-center bg-gray-100 rounded-lg h-80 md:h-96 overflow-hidden">
             {product.imageUrl ? (
-              <img
-                src={product.imageUrl}
-                alt={product.name}
-                className="w-full h-full object-contain"
-                referrerPolicy="no-referrer"
-              />
+              <div className="relative w-full h-full">
+                <img
+                  src={product.imageUrl}
+                  alt={product.name}
+                  className="w-full h-full object-contain"
+                  referrerPolicy="no-referrer"
+                />
+                <span className="absolute bottom-0 right-0 bg-black/50 text-white text-[10px] px-2 py-1 pointer-events-none uppercase tracking-widest font-bold rounded-tl-md backdrop-blur-sm">
+                  Imagen ilustrativa
+                </span>
+              </div>
             ) : (
               <>
                 <Package className="w-24 h-24 text-gray-400" />

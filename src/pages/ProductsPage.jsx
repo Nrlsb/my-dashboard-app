@@ -47,12 +47,17 @@ const ProductCard = ({ product }) => {
             {/* Image Container */}
             <div className="relative aspect-square bg-gray-50 overflow-hidden">
                 {product.imageUrl ? (
-                    <img
-                        src={product.thumbnailUrl || product.imageUrl}
-                        alt={product.name}
-                        className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-105"
-                        loading="lazy"
-                    />
+                    <div className="relative w-full h-full">
+                        <img
+                            src={product.thumbnailUrl || product.imageUrl}
+                            alt={product.name}
+                            className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-105"
+                            loading="lazy"
+                        />
+                        <span className="absolute bottom-0 right-0 bg-black/50 text-white text-[8px] px-1.5 py-0.5 pointer-events-none uppercase tracking-wider font-medium rounded-tl-sm backdrop-blur-sm">
+                            Imagen ilustrativa
+                        </span>
+                    </div>
                 ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
                         <Package className="w-12 h-12 mb-2" />

@@ -60,11 +60,16 @@ const ProductModal = ({ product, onClose, onAddToCart }) => {
 
                 <div className="w-full md:w-1/2 flex items-center justify-center bg-gray-100 p-8">
                     {product.imageUrl ? (
-                        <img
-                            src={product.imageUrl}
-                            alt={product.name}
-                            className="max-h-64 object-contain rounded-lg"
-                        />
+                        <div className="relative">
+                            <img
+                                src={product.imageUrl}
+                                alt={product.name}
+                                className="max-h-64 object-contain rounded-lg"
+                            />
+                            <span className="absolute bottom-0 right-0 bg-black/50 text-white text-[9px] px-2 py-0.5 pointer-events-none uppercase tracking-wider font-bold rounded-tl-md backdrop-blur-sm">
+                                Imagen ilustrativa
+                            </span>
+                        </div>
                     ) : (
                         <Package className="w-48 h-48 text-gray-400" />
                     )}

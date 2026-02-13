@@ -118,12 +118,17 @@ const NewReleasesBanner = ({ products: propProducts }) => {
             {/* Image Area */}
             <div className="w-full h-[65%] bg-white p-0 flex items-center justify-center relative">
                 {currentProduct.custom_image_url || currentProduct.imageUrl || currentProduct.image_url ? (
-                    <img
-                        src={currentProduct.custom_image_url || currentProduct.imageUrl || currentProduct.image_url}
-                        alt={currentProduct.name}
-                        className="w-full h-full object-cover drop-shadow-xl transition-transform duration-500 group-hover:scale-105"
-                        referrerPolicy="no-referrer"
-                    />
+                    <div className="relative w-full h-full">
+                        <img
+                            src={currentProduct.custom_image_url || currentProduct.imageUrl || currentProduct.image_url}
+                            alt={currentProduct.name}
+                            className="w-full h-full object-cover drop-shadow-xl transition-transform duration-500 group-hover:scale-105"
+                            referrerPolicy="no-referrer"
+                        />
+                        <span className="absolute bottom-0 right-0 bg-black/50 text-white text-[10px] px-3 py-1 pointer-events-none uppercase tracking-widest font-bold rounded-tl-lg backdrop-blur-sm">
+                            Imagen ilustrativa
+                        </span>
+                    </div>
                 ) : (
                     <div className="flex flex-col items-center text-gray-300">
                         <Package className="w-16 h-16 mb-2" />

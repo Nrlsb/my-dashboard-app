@@ -28,12 +28,15 @@ const ProductOfferCard = ({ product }) => {
   return (
     <div className="bg-white rounded-lg shadow-lg overflow-hidden transform transition-transform hover:scale-105 duration-300 flex flex-col justify-between h-full">
       {product.custom_image_url && (
-        <div className="h-48 w-full overflow-hidden">
+        <div className="h-48 w-full overflow-hidden relative">
           <img
             src={product.custom_image_url}
             alt={product.custom_title || product.name}
             className="w-full h-full object-cover"
           />
+          <span className="absolute bottom-0 right-0 bg-black/50 text-white text-[9px] px-2 py-0.5 pointer-events-none uppercase tracking-wider font-bold rounded-tl-md backdrop-blur-sm">
+            Imagen ilustrativa
+          </span>
         </div>
       )}
       <div className="p-6 flex-grow flex flex-col">
