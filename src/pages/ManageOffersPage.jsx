@@ -8,7 +8,7 @@ import {
   useQueryClient,
   useMutation,
 } from '@tanstack/react-query';
-import { Loader2, ArrowLeft, Search, CheckCircle, XCircle, Edit2, Save, X, Filter, Upload } from 'lucide-react';
+import { Loader2, ArrowLeft, Search, CheckCircle, XCircle, Edit2, Save, X, Filter, Upload, Eye, Tag } from 'lucide-react';
 import apiService from '../api/apiService.js';
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -187,8 +187,89 @@ const EditOfferModal = ({ product, onClose, onSave, isSaving }) => {
   );
 };
 
+// --- Modal de Vista Previa de Oferta ---
+const PreviewOfferModal = ({ product, onClose }) => {
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency: 'ARS',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount || 0);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-sm overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+          <h3 className="text-lg font-semibold text-gray-800">Vista Previa de Oferta</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-8 bg-gray-100 flex justify-center">
+          {/* Card emulation from OffersPage.jsx */}
+          <div className="bg-white rounded-lg shadow-lg overflow-hidden flex flex-col justify-between w-full border border-gray-100 max-w-[280px]">
+            {(product.custom_image_url || product.imageUrl) && (
+              <div className="h-40 w-full overflow-hidden relative">
+                <img
+                  src={product.custom_image_url || product.imageUrl}
+                  alt={product.custom_title || product.name}
+                  className="w-full h-full object-cover"
+                />
+                <span className="absolute bottom-0 right-0 bg-black/50 text-white text-[9px] px-2 py-0.5 pointer-events-none uppercase tracking-wider font-bold rounded-tl-md backdrop-blur-sm">
+                  Imagen ilustrativa
+                </span>
+              </div>
+            )}
+            <div className="p-5 flex-grow flex flex-col">
+              <div className="flex items-start justify-between mb-2">
+                <span className="inline-block bg-blue-100 text-blue-800 text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase">
+                  {product.brand || 'Marca'}
+                </span>
+                <Tag className="w-5 h-5 text-blue-500" />
+              </div>
+              <h3
+                className={`text-sm font-semibold text-gray-800 mb-2 ${!product.custom_description ? 'h-10 overflow-hidden' : ''}`}
+                title={product.custom_title || product.name}
+              >
+                {product.custom_title || product.name}
+              </h3>
+              {(product.custom_description || product.description) && (
+                <p className="text-xs text-gray-600 mb-3 line-clamp-2">
+                  {product.custom_description || product.description}
+                </p>
+              )}
+              <p className="text-[10px] text-gray-500 mb-3 font-mono">Cód: {product.code}</p>
+              <div className="mt-auto">
+                <p className="text-xl font-bold text-gray-900">
+                  {formatCurrency(product.price)}
+                </p>
+              </div>
+            </div>
+            <div className="p-3 bg-gray-50 mt-auto">
+              <button
+                className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg text-sm font-medium opacity-80 cursor-default"
+                disabled
+              >
+                Ver Detalle
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-3 bg-gray-50 border-t border-gray-200 text-center">
+          <p className="text-xs text-gray-500 italic">Así es como se visualiza en la sección de ofertas.</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 // --- Componente para la Fila de Producto ---
-const ProductRow = ({ product, onToggle, isToggling, onEdit }) => (
+const ProductRow = ({ product, onToggle, isToggling, onEdit, onPreview }) => (
   <tr className="border-b border-gray-200 hover:bg-gray-50">
     <td className="py-3 px-4 text-sm text-gray-500 font-mono">
       {product.code}
@@ -225,7 +306,14 @@ const ProductRow = ({ product, onToggle, isToggling, onEdit }) => (
           labelOff="Activar oferta"
           labelOn="Desactivar oferta"
         />
-        {product.oferta && (
+        <div className="flex items-center space-x-2 border-l pl-4 border-gray-100">
+          <button
+            onClick={() => onPreview(product)}
+            className="p-1 text-gray-400 hover:text-blue-600 transition-colors cursor-pointer"
+            title="Vista previa de oferta"
+          >
+            <Eye className="w-5 h-5" />
+          </button>
           <button
             onClick={() => onEdit(product)}
             className="p-1 text-gray-400 hover:text-blue-600 transition-colors cursor-pointer"
@@ -233,7 +321,7 @@ const ProductRow = ({ product, onToggle, isToggling, onEdit }) => (
           >
             <Edit2 className="w-5 h-5" />
           </button>
-        )}
+        </div>
       </div>
     </td>
   </tr>
@@ -244,6 +332,7 @@ export default function ManageOffersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
   const [editingProduct, setEditingProduct] = useState(null);
+  const [previewProduct, setPreviewProduct] = useState(null);
   const [showOnlyActive, setShowOnlyActive] = useState(false);
   const debounceTimeout = useRef(null);
   const queryClient = useQueryClient();
@@ -494,15 +583,20 @@ export default function ManageOffersPage() {
                   )}
                 </div>
                 <div className="flex items-center space-x-3">
-                  {product.oferta && (
-                    <button
-                      onClick={() => setEditingProduct(product)}
-                      className="p-2 text-gray-400 hover:text-blue-600 bg-gray-50 rounded-full transition-colors cursor-pointer"
-                      aria-label="Editar oferta"
-                    >
-                      <Edit2 className="w-5 h-5" />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setPreviewProduct(product)}
+                    className="p-2 text-gray-400 hover:text-blue-600 bg-gray-50 rounded-full transition-colors cursor-pointer"
+                    aria-label="Vista previa"
+                  >
+                    <Eye className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setEditingProduct(product)}
+                    className="p-2 text-gray-400 hover:text-blue-600 bg-gray-50 rounded-full transition-colors cursor-pointer"
+                    aria-label="Editar oferta"
+                  >
+                    <Edit2 className="w-5 h-5" />
+                  </button>
                   <ToggleSwitch
                     checked={product.oferta}
                     onChange={() => toggleOffer(product.id)}
@@ -562,6 +656,7 @@ export default function ManageOffersPage() {
                   onToggle={() => toggleOffer(product.id)}
                   isToggling={isToggling}
                   onEdit={setEditingProduct}
+                  onPreview={setPreviewProduct}
                 />
               ))}
             </tbody>
@@ -593,6 +688,13 @@ export default function ManageOffersPage() {
           onClose={() => setEditingProduct(null)}
           onSave={(productId, details) => saveOfferDetails({ productId, details })}
           isSaving={isSavingDetails}
+        />
+      )}
+
+      {previewProduct && (
+        <PreviewOfferModal
+          product={previewProduct}
+          onClose={() => setPreviewProduct(null)}
         />
       )}
     </div>

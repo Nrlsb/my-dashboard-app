@@ -110,11 +110,11 @@ export default function ProductDetailPage() {
       <div className="bg-white p-6 md:p-8 rounded-lg shadow-lg">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="flex items-center justify-center bg-gray-100 rounded-lg h-80 md:h-96 overflow-hidden">
-            {product.imageUrl ? (
+            {(product.custom_image_url || product.imageUrl) ? (
               <div className="relative w-full h-full">
                 <img
-                  src={product.imageUrl}
-                  alt={product.name}
+                  src={product.custom_image_url || product.imageUrl}
+                  alt={product.custom_title || product.name}
                   className="w-full h-full object-contain"
                   referrerPolicy="no-referrer"
                 />
@@ -136,14 +136,22 @@ export default function ProductDetailPage() {
             <span className="text-sm font-medium text-blue-600 uppercase">
               {product.brand || 'Marca'}
             </span>
-            <h2 className="text-3xl font-bold text-gray-900">{product.name}</h2>
+            <h2 className="text-3xl font-bold text-gray-900">{product.custom_title || product.name}</h2>
 
-            <p className="text-4xl font-extrabold text-gray-800">
-              {formatCurrency(product.price)}
-            </p>
+            <div className="flex items-center space-x-3">
+              <p className="text-4xl font-extrabold text-gray-800">
+                {formatCurrency(product.price)}
+              </p>
+              {product.oferta && (
+                <span className="flex items-center px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full uppercase tracking-wider animate-pulse">
+                  <Sparkles className="w-4 h-4 mr-1" />
+                  ¡En Oferta!
+                </span>
+              )}
+            </div>
 
             <p className="text-gray-600 leading-relaxed">
-              {product.description ||
+              {product.custom_description || product.description ||
                 product.capacity_description}
             </p>
 
