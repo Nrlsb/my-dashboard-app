@@ -89,11 +89,13 @@ exports.getSellerAnalytics = catchAsync(async (req, res) => {
 exports.getAnalytics = catchAsync(async (req, res) => {
     const { startDate, endDate } = req.query;
 
-    // Pass date range to all stats functions
-    const visitStats = await analyticsModel.getVisitStats(startDate, endDate);
-    const orderStats = await analyticsModel.getOrderStats(startDate, endDate);
-    const clientStats = await analyticsModel.getClientStats(startDate, endDate);
-    const sellerStats = await analyticsModel.getSellerStats(startDate, endDate);
+    // Execute all stats functions in parallel for better performance
+    const [visitStats, orderStats, clientStats, sellerStats] = await Promise.all([
+        analyticsModel.getVisitStats(startDate, endDate),
+        analyticsModel.getOrderStats(startDate, endDate),
+        analyticsModel.getClientStats(startDate, endDate),
+        analyticsModel.getSellerStats(startDate, endDate)
+    ]);
 
     res.json({
         visits: visitStats,

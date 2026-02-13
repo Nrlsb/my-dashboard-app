@@ -150,89 +150,81 @@ const getClientStats = async (startDate, endDate) => {
 
         let topClients = [];
         if (topClientIds.length > 0) {
-            // Fetch user details
+            // Fetch user details for all top clients at once
             const usersQuery = `SELECT id, full_name, email FROM users WHERE id = ANY($1::int[])`;
             const usersResult = await pool.query(usersQuery, [topClientIds]);
             const userMap = new Map(usersResult.rows.map(u => [u.id, u]));
 
-            // Fetch extra metrics for each client
-            for (const row of topClientsResult.rows) {
-                const userId = row.user_id;
-
-                // Most Viewed Product
-                let mostViewed = 'N/A';
-                try {
-                    // Prepare params and condition for subqueries
-                    const viewParams = [userId, ...filter.params];
-                    let viewCondition = filter.condition;
-
-                    if (filter.params.length > 0) {
-                        viewCondition = viewCondition.replace(/\$2/g, '$3').replace(/\$1/g, '$2');
-                    }
-
-                    const viewsQuery = `
-                        SELECT SUBSTRING(path FROM '/product-detail/([0-9]+)')::int as product_id, COUNT(*) as count
-                        FROM page_visits
-                        WHERE user_id = $1 AND path LIKE '/product-detail/%' AND ${viewCondition}
-                        GROUP BY product_id
-                        ORDER BY count DESC
-                        LIMIT 1
-                    `;
-
-                    const viewsResult = await pool2.query(viewsQuery, viewParams);
-
-                    if (viewsResult.rows.length > 0) {
-                        const pid = viewsResult.rows[0].product_id;
-                        if (pid) {
-                            const pRes = await pool.query('SELECT b1_desc FROM products WHERE id = $1', [pid]);
-                            if (pRes.rows.length > 0) mostViewed = pRes.rows[0].b1_desc;
-                        }
-                    }
-                } catch (err) {
-                    console.error(`Error fetching most viewed for user ${userId}:`, err.message);
-                }
-
-                // Most Bought Product
-                let mostBought = 'N/A';
-                try {
-                    const viewParams = [userId, ...filter.params];
-                    let viewCondition = filter.condition;
-
-                    if (filter.params.length > 0) {
-                        viewCondition = viewCondition.replace(/\$2/g, '$3').replace(/\$1/g, '$2');
-                    }
-
-                    const boughtCondition = viewCondition.replace(/created_at/g, 'o.created_at');
-
-                    const boughtQuery = `
-                        SELECT oi.product_id, SUM(oi.quantity) as qty
-                        FROM order_items oi
-                        JOIN orders o ON o.id = oi.order_id
-                        WHERE o.user_id = $1 AND ${boughtCondition}
-                        GROUP BY oi.product_id
-                        ORDER BY qty DESC
-                        LIMIT 1
-                    `;
-                    const boughtResult = await pool2.query(boughtQuery, viewParams);
-
-                    if (boughtResult.rows.length > 0) {
-                        const pid = boughtResult.rows[0].product_id;
-                        if (pid) {
-                            const pRes = await pool.query('SELECT b1_desc FROM products WHERE id = $1', [pid]);
-                            if (pRes.rows.length > 0) mostBought = pRes.rows[0].b1_desc;
-                        }
-                    }
-                } catch (err) {
-                    console.error(`Error fetching most bought for user ${userId}:`, err.message);
-                }
-
-                topClients.push({
-                    ...row,
-                    user: userMap.get(userId) || { full_name: 'Unknown', email: '' },
-                    mostViewedProduct: mostViewed,
-                    mostBoughtProduct: mostBought
-                });
+            // Prepare condition for subqueries (adjusting placeholders for $1 = ANY($1))
+            let subCondition = filter.condition;
+            if (filter.params.length > 0) {
+                subCondition = subCondition.replace(/\$2/g, '$3').replace(/\$1/g, '$2');
             }
+
+            // 3. Fetch most viewed products for ALL top clients in one query
+            const multiViewsQuery = `
+                WITH user_product_views AS (
+                    SELECT 
+                        user_id, 
+                        SUBSTRING(path FROM '/product-detail/([0-9]+)')::int as product_id, 
+                        COUNT(*) as count
+                    FROM page_visits
+                    WHERE user_id = ANY($1::int[]) 
+                      AND path LIKE '/product-detail/%' 
+                      AND ${subCondition}
+                    GROUP BY user_id, product_id
+                ),
+                ranked_views AS (
+                    SELECT 
+                        user_id, 
+                        product_id, 
+                        ROW_NUMBER() OVER(PARTITION BY user_id ORDER BY count DESC) as rank
+                    FROM user_product_views
+                )
+                SELECT rv.user_id, p.b1_desc
+                FROM ranked_views rv
+                JOIN products p ON p.id = rv.product_id
+                WHERE rv.rank = 1
+            `;
+            const viewsResult = await pool2.query(multiViewsQuery, [topClientIds, ...filter.params]);
+            const viewsMap = new Map(viewsResult.rows.map(r => [r.user_id, r.b1_desc]));
+
+            // 4. Fetch most bought products for ALL top clients in one query
+            const boughtCondition = subCondition.replace(/created_at/g, 'o.created_at');
+            const multiBoughtQuery = `
+                WITH user_product_buys AS (
+                    SELECT 
+                        o.user_id, 
+                        oi.product_id, 
+                        SUM(oi.quantity) as qty
+                    FROM order_items oi
+                    JOIN orders o ON o.id = oi.order_id
+                    WHERE o.user_id = ANY($1::int[]) 
+                      AND ${boughtCondition}
+                    GROUP BY o.user_id, oi.product_id
+                ),
+                ranked_buys AS (
+                    SELECT 
+                        user_id, 
+                        product_id, 
+                        ROW_NUMBER() OVER(PARTITION BY user_id ORDER BY qty DESC) as rank
+                    FROM user_product_buys
+                )
+                SELECT rb.user_id, p.b1_desc
+                FROM ranked_buys rb
+                JOIN products p ON p.id = rb.product_id
+                WHERE rb.rank = 1
+            `;
+            const boughtResult = await pool2.query(multiBoughtQuery, [topClientIds, ...filter.params]);
+            const boughtMap = new Map(boughtResult.rows.map(r => [r.user_id, r.b1_desc]));
+
+            // Assemble topClients data
+            topClients = topClientsResult.rows.map(row => ({
+                ...row,
+                user: userMap.get(row.user_id) || { full_name: 'Unknown', email: '' },
+                mostViewedProduct: viewsMap.get(row.user_id) || 'N/A',
+                mostBoughtProduct: boughtMap.get(row.user_id) || 'N/A'
+            }));
         }
 
         return {
