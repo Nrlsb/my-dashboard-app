@@ -109,6 +109,7 @@ const corsOptions = {
       'http://localhost:5174', // Desarrollo Frontend (alternativo)
       'https://midashboard.com', // Producción Frontend
       'https://espint.pintureriasmercurio.com.ar', // (NUEVO) Frontend en Vercel
+      'http://espint.pintureriasmercurio.com.ar', // (FIX) Frontend HTTP
     ];
 
     // Permitir si el origen está en la lista o si no hay origen (peticiones de la misma máquina o Postman)
