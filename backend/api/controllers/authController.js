@@ -23,7 +23,7 @@ exports.loginController = catchAsync(async (req, res, next) => {
         };
 
         const token = jwt.sign(payload, process.env.JWT_SECRET, {
-            expiresIn: '7d',
+            expiresIn: '30d',
         });
 
         const userWithRole = { ...user, role: payload.role };
