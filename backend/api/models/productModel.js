@@ -305,30 +305,23 @@ const findProducts = async ({
     }
   }
 
+  // Lógica para condición de Precio Modificado
+  // timeModifiedCondition: Solo tiempo (usado para filtrar y por el reporte)
+  // labelPriceModifiedCondition: Tiempo + Restricción de grupos (usado para mostrar el cartelito)
+  const timeModifiedCondition = `pps.last_change_timestamp >= NOW() - INTERVAL '${modificationDays} days'`;
+  let labelPriceModifiedCondition = timeModifiedCondition;
+
   // FIXED: Do not use $1 for interval, inline it to avoid 'could not determine data type' and count mismatch
   let queryParams = [];
   let paramIndex = 1;
-
-  // Optimización: Uso de índices GIN (pg_trgm) y B-Tree
-  // Asegurarse de que las extensiones y los índices estén creados (ver scripts/optimize_db_indices.js)
   let countQuery =
     'SELECT COUNT(*) FROM products LEFT JOIN product_price_snapshots pps ON products.id = pps.product_id WHERE products.da1_prcven > 0 AND products.b1_desc IS NOT NULL';
 
-  // Logic for Price Modified Condition
-  // If allowedGroups is empty => Any group is allowed (legacy behavior)
-  // If allowedGroups has items => Only those groups show the legend
-  let priceModifiedCondition = `pps.last_change_timestamp >= NOW() - INTERVAL '${modificationDays} days'`;
-
   if (allowedGroups.length > 0) {
-    // Add condition: AND products.b1_grupo = ANY($Param)
-    // We need to manage the parameter index dynamically here which is tricky since we are building the string.
-    // Easiest way: Push the array to queryParams NOW and use its index.
     queryParams.push(allowedGroups);
-    priceModifiedCondition += ` AND products.b1_grupo = ANY($${paramIndex}::varchar[])`;
+    labelPriceModifiedCondition += ` AND products.b1_grupo = ANY($${paramIndex}::varchar[])`;
 
-    // [FIX] Ensure countQuery also uses this parameter index to prevent "could not determine data type of parameter $1"
-    // caused by gaps in parameter usage (e.g. usage of $2 without $1).
-    // The condition is logically a no-op (always true).
+    // Ensure countQuery also uses this parameter index to prevent gaps
     countQuery += ` AND ($${paramIndex}::varchar[] IS NOT NULL OR true) `;
 
     paramIndex++;
@@ -341,10 +334,10 @@ const findProducts = async ({
             WHEN products.b1_ts = '501' THEN products.da1_prcven * 1.105
             ELSE products.da1_prcven
         END AS price,
-             CASE
-             WHEN ${priceModifiedCondition} THEN true
-             ELSE false
-         END AS is_price_modified,
+              CASE
+              WHEN ${labelPriceModifiedCondition} THEN true
+              ELSE false
+          END AS is_price_modified,
         products.sbm_desc AS brand, products.b1_grupo AS product_group, products.sbm_desc AS group_description,
         products.z02_descri AS capacity_description, products.da1_moeda AS moneda, products.cotizacion,
         products.stock_disp AS stock_disponible, products.stock_prev AS stock_de_seguridad, products.sbz_desc AS indicator_description, 
@@ -374,8 +367,8 @@ const findProducts = async ({
   }
 
   if (onlyModifiedPrices) {
-    // [FIX] Use the comprehensive condition (Time + Allowed Groups)
-    const modifiedPriceFilter = ` AND (${priceModifiedCondition}) `;
+    // Usamos la condición de tiempo SOLAMENTE, para que coincida con el reporte
+    const modifiedPriceFilter = ` AND (${timeModifiedCondition}) `;
     countQuery += modifiedPriceFilter;
     dataQuery += modifiedPriceFilter;
   }
