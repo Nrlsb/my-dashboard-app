@@ -81,6 +81,9 @@ const ProductRow = ({ product, onAddToCart }) => {
         )}
       </td>
       <td className="py-3 px-4 text-sm text-gray-500">{product.brand}</td>
+      <td className="py-3 px-4 text-sm text-center font-medium text-gray-700">
+        {Number(product.pack_quantity) > 0 ? Number(product.pack_quantity) : 1}
+      </td>
       <td className="py-3 px-4 text-sm text-center">
         {stock <= 0 ? (
           <span className="text-red-600 font-medium">Sin Stock</span>
@@ -154,6 +157,9 @@ const ProductRowSkeleton = () => (
     </td>
     <td className="py-3 px-4">
       <div className="h-4 bg-gray-200 rounded w-24"></div>
+    </td>
+    <td className="py-3 px-4">
+      <div className="h-4 bg-gray-200 rounded w-12 mx-auto"></div>
     </td>
     <td className="py-3 px-4">
       <div className="h-4 bg-gray-200 rounded w-16 mx-auto"></div>
@@ -237,6 +243,7 @@ export default function PriceListPage() {
           { header: 'Código', key: 'code', width: 15 },
           { header: 'Descripción', key: 'name', width: 40 },
           { header: 'Marca', key: 'brand', width: 20 },
+          { header: 'Embalaje', key: 'pack_quantity', width: 12 },
           { header: 'Stock', key: 'stock', width: 15 },
           { header: 'Moneda', key: 'moneda', width: 12 },
           { header: 'Precio Final (ARS)', key: 'price', width: 20 },
@@ -256,6 +263,7 @@ export default function PriceListPage() {
             code: p.code,
             name: p.name,
             brand: p.brand,
+            pack_quantity: Number(p.pack_quantity) > 0 ? Number(p.pack_quantity) : 1,
             stock:
               p.stock_disponible <= 0
                 ? 'Sin Stock' + (p.stock_de_seguridad > 0 ? ' (Previsto)' : '')
@@ -526,6 +534,7 @@ export default function PriceListPage() {
                 <div className="text-xs text-gray-500">
                   <p>Cód: {product.code}</p>
                   <p>Marca: {product.brand}</p>
+                  <p>Emb: {Number(product.pack_quantity) > 0 ? Number(product.pack_quantity) : 1}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xl font-bold text-gray-900">{formatCurrency(product.price)}</p>
@@ -552,6 +561,9 @@ export default function PriceListPage() {
                 </th>
                 <th className="py-3 px-4 text-left text-xs font-semibold text-espint-blue uppercase tracking-wider">
                   Marca
+                </th>
+                <th className="py-3 px-4 text-center text-xs font-semibold text-espint-blue uppercase tracking-wider">
+                  Embalaje
                 </th>
                 <th className="py-3 px-4 text-center text-xs font-semibold text-espint-blue uppercase tracking-wider">
                   Stock

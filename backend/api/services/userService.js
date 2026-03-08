@@ -18,17 +18,13 @@ const authenticateUser = async (email, password) => {
   const identifier = email;
 
   try {
-    console.log(`[AUTH] Iniciando autenticación. Identificador: ${identifier}`);
     let userType = 'cliente';
     let user = null;
 
     // 1. Intentar buscar como Cliente Normal usando Número de Cliente (A1_COD)
-    // Se asume que el identificador es el código de cliente.
-    console.log(`[AUTH] Buscando usuario por Código de Cliente: ${identifier}`);
     let userRecord = await userModel.findUserByCode(identifier);
 
     if (userRecord) {
-      console.log('[AUTH] Usuario encontrado por Código de Cliente.');
       // Fetch role from DB2
       const roleData = await userModel.getUserRoleFromDB2(userRecord.id);
       user = {
@@ -39,7 +35,6 @@ const authenticateUser = async (email, password) => {
       };
     } else {
       // 2. Si no es cliente, buscar como Usuario de Prueba (Test User) por Nombre
-      console.log('[AUTH] No es cliente. Buscando como Test User por Nombre...');
       const testUserRecord = await testUserModel.getTestUserByName(identifier);
 
       if (testUserRecord) {
@@ -115,9 +110,8 @@ const authenticateUser = async (email, password) => {
           };
         }
 
-        // Chequeo directo de contraseña para test users
-        if (testUserRecord.password === password) {
-          console.log('[DEBUG AUTH] Autenticado EXITOSAMENTE como TEST USER:', testUserRecord.name);
+        // Verificación de contraseña con bcrypt para test users
+        if (await bcrypt.compare(password, testUserRecord.password)) {
           return {
             success: true,
             user: {
@@ -157,7 +151,6 @@ const authenticateUser = async (email, password) => {
             must_change_password: vendedorRecord.must_change_password,
           };
           userType = 'vendedor';
-          console.log('[DEBUG AUTH] Usuario identificado como VENDEDOR:', JSON.stringify(user, null, 2));
         } else {
           // Por último, intentar buscar cliente por email (legacy)
           userRecord = await userModel.findUserByEmail(identifier);
@@ -169,25 +162,17 @@ const authenticateUser = async (email, password) => {
               permissions: roleData ? roleData.permissions : [],
               is_admin: roleData ? roleData.role === 'admin' : false
             };
-            console.log('[AUTH] Cliente encontrado por Email (Legacy).');
           }
         }
       }
     }
 
     if (!user) {
-      console.log('[AUTH] Usuario NO encontrado en ningún registro.');
       return { success: false, message: 'Usuario o contraseña incorrectos.' };
     }
 
-    console.log(
-      '[DEBUG] Objeto de usuario/vendedor recuperado:',
-      JSON.stringify(user, null, 2)
-    );
-
-    // [NUEVO] Verificar si el usuario está activo (solo para usuarios que tienen este flag, principalmente clientes)
+    // Verificar si el usuario está activo
     if (user.is_active === false) {
-      console.log(`[AUTH] Usuario ${user.email || identifier} está desactivado por inactividad.`);
       return {
         success: false,
         message: 'Su cuenta ha sido desactivada por inactividad (más de un mes sin realizar pedidos). Contacte a soporte.'
@@ -197,17 +182,8 @@ const authenticateUser = async (email, password) => {
     // Verificación de credenciales (Hash) para Clientes y Vendedores
     // 1. Intentar con la contraseña temporal
     if (user.temp_password_hash) {
-      console.log('[DEBUG] Intentando con la contraseña temporal...');
-      const isTempMatch = await bcrypt.compare(
-        password,
-        user.temp_password_hash
-      );
-      console.log('[DEBUG] ¿La contraseña temporal coincide?:', isTempMatch);
+      const isTempMatch = await bcrypt.compare(password, user.temp_password_hash);
       if (isTempMatch) {
-        console.log(
-          `Usuario ${user.id} (${userType}) autenticado con contraseña temporal.`
-        );
-
         // Limpiar la contraseña temporal
         if (userType === 'cliente') {
           await userModel.clearTempPasswordHash(user.id);
@@ -215,30 +191,22 @@ const authenticateUser = async (email, password) => {
           await vendedorModel.clearTempPasswordHash(user.codigo);
         }
 
-        const { password_hash, temp_password_hash, ...userWithoutPassword } =
-          user;
+        const { password_hash, temp_password_hash, ...userWithoutPassword } = user;
         return { success: true, user: userWithoutPassword, first_login: true };
       }
     }
 
     // 2. Si no hay contraseña temporal o no coincide, intentar con la principal
-    console.log('[DEBUG] Intentando con la contraseña principal...');
     const isMatch = await bcrypt.compare(password, user.password_hash);
-    console.log('[DEBUG] ¿La contraseña principal coincide?:', isMatch);
     if (!isMatch) {
-      console.log('Contraseña incorrecta.');
       return { success: false, message: 'Usuario o contraseña incorrectos.' };
     }
 
-    console.log(
-      `Usuario ${user.id} (${userType}) autenticado con contraseña principal.`
-    );
     const { password_hash, temp_password_hash, ...userWithoutPassword } = user;
 
     if (userType === 'vendedor') {
       userWithoutPassword.is_admin = false;
     }
-    console.log('[DEBUG AUTH] Valor FINAL de userWithoutPassword.is_admin:', userWithoutPassword.is_admin, 'para userType:', userType);
 
     return { success: true, user: userWithoutPassword, first_login: !!user.must_change_password };
   } catch (error) {

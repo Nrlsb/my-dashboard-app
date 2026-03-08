@@ -14,8 +14,11 @@ import { Outlet } from 'react-router-dom';
 // import AppRoutes from './AppRoutes.jsx'; // Removed
 
 import AnalyticsTracker from './components/AnalyticsTracker';
+import ErrorBoundary from './components/ErrorBoundary';
 
 import Footer from './components/Footer';
+import PublicHeader from './components/PublicHeader';
+import NovedadesNotification from './components/NovedadesNotification';
 
 // --- Componente Raíz ---
 function App() {
@@ -27,9 +30,25 @@ function App() {
   const location = useLocation();
   const [isSessionExpired, setIsSessionExpired] = React.useState(false);
 
+  const isPublicCatalogRoute = [
+    '/catalogo',
+    '/solicitar-acceso',
+    '/products',
+    '/category',
+    '/product-detail',
+    '/offers',
+    '/brands',
+    '/new-releases'
+  ].some(path => location.pathname.startsWith(path));
+
   React.useEffect(() => {
     const handleSessionExpired = () => {
-      setIsSessionExpired(true);
+      if (isPublicCatalogRoute) {
+        // Silently logout and clear sensitive state, allowing guest browsing
+        logout();
+      } else {
+        setIsSessionExpired(true);
+      }
     };
 
     window.addEventListener('session-expired', handleSessionExpired);
@@ -37,16 +56,15 @@ function App() {
     return () => {
       window.removeEventListener('session-expired', handleSessionExpired);
     };
-  }, []);
+  }, [isPublicCatalogRoute, logout]);
 
   const handleExpiredConfirm = () => {
     setIsSessionExpired(false);
     handleLogout();
   };
 
-  const handleLogout = () => {
-    logout();
-    // clearCart(); // Removed to persist cart on logout
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
@@ -65,13 +83,21 @@ function App() {
     <div className="app-container flex flex-col min-h-screen">
       <AnalyticsTracker />
       <ScrollToTop />
+      {isPublicCatalogRoute && !isAuthenticated && (
+        <PublicHeader />
+      )}
       {isAuthenticated && !firstLogin && (
         <Header onLogout={handleLogout} currentUser={user} />
       )}
       <div className="page-content p-2 w-[95%] mx-auto my-2 box-border flex-grow">
-        <Outlet context={{ onCompleteOrder: handleCompleteOrder }} />
+        <ErrorBoundary>
+          <Outlet context={{ onCompleteOrder: handleCompleteOrder }} />
+        </ErrorBoundary>
       </div>
       {location.pathname !== '/login' && <Footer />}
+      {isAuthenticated && !firstLogin && ['cliente', 'test_user'].includes(user?.role) && (
+        <NovedadesNotification />
+      )}
       <Toaster position="top-right" />
       <SessionExpiredModal
         isOpen={isSessionExpired}
@@ -79,6 +105,7 @@ function App() {
       />
     </div>
   );
+
 }
 
 export default App;

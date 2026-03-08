@@ -3,6 +3,39 @@ import { useNavigate } from 'react-router-dom';
 import { UserPlus, ArrowLeft, Mail, Lock, User } from 'lucide-react';
 import apiService from '../api/apiService';
 
+const FormInput = ({
+  label,
+  id,
+  value,
+  onChange,
+  required = false,
+  disabled = false,
+  type = 'text',
+  placeholder = '',
+  icon: Icon,
+}) => (
+  <div>
+    <label htmlFor={id} className="block text-sm font-medium text-gray-700">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <div className="relative mt-1">
+      <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+        <Icon className="w-5 h-5 text-gray-400" />
+      </span>
+      <input
+        id={id}
+        type={type}
+        required={required}
+        className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        disabled={disabled}
+      />
+    </div>
+  </div>
+);
+
 const RegisterPage = () => {
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
@@ -48,39 +81,6 @@ const RegisterPage = () => {
       setIsLoading(false);
     }
   };
-
-  const FormInput = ({
-    label,
-    id,
-    value,
-    onChange,
-    required = false,
-    disabled = false,
-    type = 'text',
-    placeholder = '',
-    icon: Icon,
-  }) => (
-    <div>
-      <label htmlFor={id} className="block text-sm font-medium text-gray-700">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <div className="relative mt-1">
-        <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-          <Icon className="w-5 h-5 text-gray-400" />
-        </span>
-        <input
-          id={id}
-          type={type}
-          required={required}
-          className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
-          disabled={disabled}
-        />
-      </div>
-    </div>
-  );
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 font-sans py-12">

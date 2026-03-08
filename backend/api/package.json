@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "set NODE_ENV=development && node server.js",
+    "dev": "cross-env NODE_ENV=development nodemon server.js",
     "test": "jest",
     "test:watch": "jest --watch"
   },
@@ -19,6 +19,7 @@
     "bcryptjs": "^3.0.3",
     "cheerio": "^1.0.0-rc.12",
     "compression": "^1.8.1",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "csv-parser": "^3.2.0",
     "dotenv": "^17.2.3",
@@ -44,7 +45,9 @@
     "zod": "^4.1.13"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "jest": "^30.2.0",
+    "nodemon": "^3.1.14",
     "supertest": "^7.1.4"
   }
 }

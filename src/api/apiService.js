@@ -56,6 +56,7 @@ const apiService = {
   // Auth
   login: authService.login,
   register: authService.register,
+  logout: authService.logout,
   fetchUserProfile: authService.fetchUserProfile,
   updateUserProfile: authService.updateUserProfile,
   changePassword: authService.changePassword,

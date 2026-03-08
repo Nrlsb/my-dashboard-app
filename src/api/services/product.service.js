@@ -1,7 +1,7 @@
 import apiClient from '../core/client';
 
 export const productService = {
-    fetchProducts(page, searchTerm, brands, bypassCache = false, limit = 20, hasImage = '', onlyNewReleasesCandidates = false, onlyModifiedPrices = false, dateFilterType = '') {
+    fetchProducts(page, searchTerm, brands, bypassCache = false, limit = 20, hasImage = '', onlyNewReleasesCandidates = false, onlyModifiedPrices = false, dateFilterType = '', categories = []) {
         const params = {
             page,
             limit,
@@ -18,6 +18,10 @@ export const productService = {
 
         if (brands && brands.length > 0) {
             params.brand = brands.join(',');
+        }
+
+        if (categories && categories.length > 0) {
+            params.category = categories.join(',');
         }
         return apiClient.get('/products', { params });
     },
@@ -48,6 +52,10 @@ export const productService = {
 
     fetchProtheusBrands() {
         return apiClient.get('/products/brands');
+    },
+
+    fetchProtheusCategories() {
+        return apiClient.get('/products/categories');
     },
 
     getAccessories() {

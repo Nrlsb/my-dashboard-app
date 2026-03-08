@@ -1,9 +1,31 @@
 import React from 'react';
 import { CheckCircle } from 'lucide-react';
+import SEOHead from '../components/SEOHead';
+
+const LOCAL_BUSINESS_SCHEMA = {
+  '@context': 'https://schema.org',
+  '@type': 'WholesaleStore',
+  name: 'Distribuidora Espint',
+  description: 'Distribuidora mayorista de pinturas y accesorios para pinturerías. Marcas líderes, stock permanente y envíos a todo el país.',
+  url: import.meta.env.VITE_SITE_URL || 'https://espint.com.ar',
+  logo: `${import.meta.env.VITE_SITE_URL || 'https://espint.com.ar'}/logo.svg`,
+  areaServed: { '@type': 'Country', name: 'Argentina' },
+  hasOfferCatalog: {
+    '@type': 'OfferCatalog',
+    name: 'Catálogo de pinturas y accesorios',
+    url: `${import.meta.env.VITE_SITE_URL || 'https://espint.com.ar'}/catalogo`,
+  },
+};
 
 const AboutPage = () => {
   return (
     <div className="container mx-auto px-4 py-12 max-w-4xl">
+      <SEOHead
+        title="Sobre Nosotros"
+        description="Distribuidora Espint: venta mayorista de pinturas y accesorios para pinturerías. Marcas líderes del mercado, stock permanente, asesoramiento especializado y envíos a todo el país."
+        canonical="/about"
+        jsonLd={LOCAL_BUSINESS_SCHEMA}
+      />
       {/* Header Section */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-8">
         <div className="bg-espint-blue/95 p-6 text-center">

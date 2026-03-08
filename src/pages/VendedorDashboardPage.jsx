@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import apiService from '../api/apiService';
 
 import LoadingSpinner from '../components/LoadingSpinner';
+import NovedadesModal from '../components/NovedadesModal';
 
 const VendedorDashboardPage = () => {
   const navigate = useNavigate();
@@ -32,6 +33,7 @@ const VendedorDashboardPage = () => {
 
   return (
     <div className="p-8 bg-gray-50 min-h-screen font-sans">
+      <NovedadesModal />
       <div className="mb-10 text-center">
         <p className="text-lg text-gray-600 max-w-xl mx-auto">
           Bienvenido. Desde aquí puedes gestionar tus clientes, pedidos y

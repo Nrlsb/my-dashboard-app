@@ -6,9 +6,9 @@ import { ProtectedRoute, AdminRoute, MarketingRoute, LoadingFallback, PublicRout
 
 
 // --- Carga diferida (Lazy Loading) de Páginas ---
-import LoginPage from './pages/LoginPage.jsx';
-// const LoginPage = lazyImport(() => import('./pages/LoginPage.jsx'));
-const RegisterPage = lazyImport(() => import('./pages/RegisterPage.jsx'));
+const LoginPage = lazyImport(() => import('./pages/LoginPage.jsx'));
+const ContactRequestPage = lazyImport(() => import('./pages/ContactRequestPage.jsx'));
+const PublicDashboardPage = lazyImport(() => import('./pages/PublicDashboardPage.jsx'));
 const DashboardPage = lazyImport(() => import('./pages/DashboardPage.jsx'));
 const NewOrderPage = lazyImport(() => import('./pages/NewOrderPage.jsx'));
 const OrderHistoryPage = lazyImport(() => import('./pages/OrderHistoryPage.jsx'));
@@ -50,6 +50,8 @@ const LaunchGroupsPage = lazyImport(() => import('./pages/LaunchGroupsPage.jsx')
 const ManageLaunchGroupPage = lazyImport(() => import('./pages/ManageLaunchGroupPage.jsx'));
 const LaunchGroupPublicPage = lazyImport(() => import('./pages/LaunchGroupPublicPage.jsx'));
 const PriceSettingsPage = lazyImport(() => import('./pages/PriceSettingsPage.jsx'));
+const NovedadesPage = lazyImport(() => import('./pages/NovedadesPage.jsx'));
+const ProvinceRoutingPage = lazyImport(() => import('./pages/ProvinceRoutingPage.jsx'));
 
 // Error Element for Dashboard
 const DashboardError = () => (
@@ -63,7 +65,10 @@ import { useAuth } from './context/AuthContext';
 // --- Redirect Component based on Role ---
 const RootRedirect = () => {
     const { user, isAuthenticated } = useAuth();
-    if (isAuthenticated && user?.role === 'vendedor') {
+    if (!isAuthenticated) {
+        return <Navigate to="/catalogo" replace />;
+    }
+    if (user?.role === 'vendedor') {
         return <Navigate to="/vendedor-dashboard" replace />;
     }
     return <Navigate to="/dashboard" replace />;
@@ -87,10 +92,16 @@ const router = createBrowserRouter(
                     <TestUserExpiredPage />
                 </Suspense>
             } />
-            <Route path="register" element={
+            <Route path="solicitar-acceso" element={
+                <Suspense fallback={<LoadingFallback />}>
+                    <ContactRequestPage />
+                </Suspense>
+            } />
+
+            <Route path="catalogo" element={
                 <PublicRoute>
                     <Suspense fallback={<LoadingFallback />}>
-                        <RegisterPage />
+                        <PublicDashboardPage />
                     </Suspense>
                 </PublicRoute>
             } />
@@ -229,11 +240,9 @@ const router = createBrowserRouter(
             } />
 
             <Route path="products" element={
-                <ProtectedRoute>
-                    <Suspense fallback={<LoadingFallback />}>
-                        <ProductsPage />
-                    </Suspense>
-                </ProtectedRoute>
+                <Suspense fallback={<LoadingFallback />}>
+                    <ProductsPage />
+                </Suspense>
             } />
 
             <Route path="new-order" element={
@@ -285,20 +294,17 @@ const router = createBrowserRouter(
             } />
 
             <Route path="category/:groupCode" element={
-                <ProtectedRoute>
-                    <Suspense fallback={<LoadingFallback />}>
-                        <CategoryPage />
-                    </Suspense>
-                </ProtectedRoute>
+                <Suspense fallback={<LoadingFallback />}>
+                    <CategoryPage />
+                </Suspense>
             } />
 
             <Route path="product-detail/:productId" element={
-                <ProtectedRoute>
-                    <Suspense fallback={<LoadingFallback />}>
-                        <ProductDetailPage />
-                    </Suspense>
-                </ProtectedRoute>
+                <Suspense fallback={<LoadingFallback />}>
+                    <ProductDetailPage />
+                </Suspense>
             } />
+
 
             <Route path="account-balance" element={
                 <ProtectedRoute>
@@ -435,12 +441,28 @@ const router = createBrowserRouter(
                 </AdminRoute>
             } />
 
+            <Route path="admin/province-routing" element={
+                <AdminRoute>
+                    <Suspense fallback={<LoadingFallback />}>
+                        <ProvinceRoutingPage />
+                    </Suspense>
+                </AdminRoute>
+            } />
+
             <Route path="upload-images" element={
                 <AdminRoute>
                     <Suspense fallback={<LoadingFallback />}>
                         <ImageUpload />
                     </Suspense>
                 </AdminRoute>
+            } />
+
+            <Route path="novedades" element={
+                <ProtectedRoute>
+                    <Suspense fallback={<LoadingFallback />}>
+                        <NovedadesPage />
+                    </Suspense>
+                </ProtectedRoute>
             } />
 
             <Route path="*" element={<RootRedirect />} />

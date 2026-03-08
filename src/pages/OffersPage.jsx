@@ -22,8 +22,40 @@ const ErrorMessage = ({ message }) => (
   </div>
 );
 
+const formatCurrency = (amount) =>
+  new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount || 0);
+
 const ProductOfferCard = ({ product }) => {
   const navigate = useNavigate();
+
+  const renderPrice = () => {
+    if (product.discount_percentage != null) {
+      const discounted = product.discountedPrice ?? product.price * (1 - product.discount_percentage / 100);
+      return (
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <p className="text-xl font-bold text-red-600">{formatCurrency(discounted)}</p>
+          <p className="text-sm text-gray-400 line-through">{product.formattedPrice}</p>
+          <span className="text-xs font-semibold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">
+            -{product.discount_percentage}%
+          </span>
+        </div>
+      );
+    }
+    if (product.offer_price != null) {
+      return (
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <p className="text-xl font-bold text-green-700">{formatCurrency(product.offer_price)}</p>
+          <p className="text-sm text-gray-400 line-through">{product.formattedPrice}</p>
+        </div>
+      );
+    }
+    return <p className="text-2xl font-bold text-gray-900">{product.formattedPrice}</p>;
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-lg overflow-hidden transform transition-transform hover:scale-105 duration-300 flex flex-col justify-between h-full">
@@ -58,11 +90,7 @@ const ProductOfferCard = ({ product }) => {
           </p>
         )}
         <p className="text-sm text-gray-500 mb-4 font-mono">{product.code}</p>
-        <div className="mt-auto">
-          <p className="text-2xl font-bold text-gray-900">
-            {product.formattedPrice}
-          </p>
-        </div>
+        <div className="mt-auto">{renderPrice()}</div>
       </div>
       <div className="p-4 bg-gray-50 mt-auto">
         <button

@@ -13,20 +13,18 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const checkAuth = () => {
-      const token = localStorage.getItem('authToken');
+      // Token lives in HttpOnly cookie (handled automatically by the browser).
+      // We only persist the user object in localStorage for UI display purposes.
       const storedUser = localStorage.getItem('user');
 
-      if (token && storedUser) {
+      if (storedUser) {
         try {
           const parsedUser = JSON.parse(storedUser);
-          apiService.setAuthToken(token); // Configurar token en el servicio
           setIsAuthenticated(true);
           setUser(parsedUser);
         } catch (e) {
           console.error('Failed to parse user from localStorage', e);
           localStorage.removeItem('user');
-          localStorage.removeItem('authToken');
-          apiService.setAuthToken(null);
         }
       }
       setLoading(false);
@@ -40,9 +38,8 @@ export const AuthProvider = ({ children }) => {
       const data = await apiService.login({ email, password });
 
       if (data.success && data.token) {
-        localStorage.setItem('authToken', data.token);
+        // Token is stored in HttpOnly cookie by the server (no localStorage for security)
         localStorage.setItem('user', JSON.stringify(data.user));
-        apiService.setAuthToken(data.token); // Configurar token en el servicio
         queryClient.clear(); // Limpiar el cache de React Query para el nuevo usuario
         setIsAuthenticated(true);
         setUser(data.user);
@@ -82,10 +79,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await apiService.logout(); // Borrar cookie HttpOnly en el servidor
+    } catch {
+      // Continuar con el logout local aunque falle la llamada al servidor
+    }
     localStorage.removeItem('user');
-    localStorage.removeItem('authToken');
-    apiService.setAuthToken(null); // Limpiar token del servicio
+    localStorage.removeItem('authToken'); // Limpiar tokens legacy si existen
+    apiService.setAuthToken(null);
     queryClient.clear(); // Limpiar el cache de React Query al cerrar sesión
     setIsAuthenticated(false);
     setUser(null);

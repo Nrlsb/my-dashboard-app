@@ -34,6 +34,7 @@ const cors = require('cors');
 // const  path = require('path'); // Removed duplicate
 const mainRoutes = require('./routes/index'); // (NUEVO) Importar el enrutador principal
 const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 const compression = require('compression'); // (OPTIMIZACIÓN) Importar compresión
 const rateLimit = require('express-rate-limit'); // (SEGURIDAD) Importar Rate Limit
 const AppError = require('./utils/appError');
@@ -44,8 +45,26 @@ const app = express();
 // (SEGURIDAD) Confiar en el proxy de Render/Cloudflare para obtener la IP real
 app.set('trust proxy', 1);
 
-// Usar Helmet para securizar la app
-app.use(helmet());
+// Usar Helmet para securizar la app con CSP personalizado
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
+
+// Parsear cookies (necesario para autenticación via HttpOnly cookie)
+app.use(cookieParser());
 
 // DEBUG LOGGER - Verify requests reach the server (Moved UP)
 app.use((req, res, next) => {
@@ -74,8 +93,8 @@ const limiter = rateLimit({
   standardHeaders: true, // Devuelve info del límite en los headers `RateLimit-*`
   legacyHeaders: false, // Deshabilita headers `X-RateLimit-*`
   message: 'Demasiadas peticiones desde esta IP, por favor intente de nuevo en 15 minutos.',
-  // Skip preflight requests (OPTIONS)
-  skip: (req) => req.method === 'OPTIONS' || req.originalUrl.includes('/api/admin/sync-events'),
+  // Skip preflight requests, SSE, and development environment
+  skip: (req) => req.method === 'OPTIONS' || req.originalUrl.includes('/api/admin/sync-events') || process.env.NODE_ENV === 'development',
 });
 
 // Aplicar limiter global
@@ -84,8 +103,9 @@ app.use(limiter);
 // (SEGURIDAD) Limiter específico más estricto para Login/Register
 const authLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hora
-  max: 10, // Max 20 intentos de logueo por hora (ajustado a 10 para ser más estricto como pedido)
-  message: 'Demasiados intentos de inicio de sesión, intente de nuevo en una hora.'
+  max: 10,
+  message: 'Demasiados intentos de inicio de sesión, intente de nuevo en una hora.',
+  skip: () => process.env.NODE_ENV === 'development',
 });
 
 // Aplicar authLimiter solo a rutas de autenticación si existen aquí o en el router.
@@ -119,6 +139,7 @@ const corsOptions = {
       callback(new Error('No permitido por CORS'));
     }
   },
+  credentials: true, // Necesario para cookies cross-origin
   optionsSuccessStatus: 200, // Para compatibilidad con navegadores antiguos
 };
 

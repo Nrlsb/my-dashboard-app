@@ -22,7 +22,7 @@ const { formatCurrency } = require('../utils/helpers');
  * @returns {object} - Un objeto con el resultado de la operación.
  */
 const createOrder = async (orderData, userId) => {
-  const { items, total, paymentMethod } = orderData;
+  const { items, total, paymentMethod, isOffer = false } = orderData;
 
   // --- 1. Obtener datos del usuario para el email ---
   let user;
@@ -36,6 +36,19 @@ const createOrder = async (orderData, userId) => {
     throw error; // Detener la ejecución si no encontramos al usuario
   }
 
+  // --- 2. Pre-fetchear descuentos si es pedido de oferta ---
+  const discountMap = new Map();
+  if (isOffer) {
+    const productCodes = items.map((item) => item.code).filter(Boolean);
+    if (productCodes.length > 0) {
+      const offerResult = await pool2.query(
+        'SELECT product_code, discount_percentage FROM product_offer_status WHERE product_code = ANY($1::text[]) AND is_on_offer = true',
+        [productCodes]
+      );
+      offerResult.rows.forEach((r) => discountMap.set(r.product_code, r.discount_percentage));
+    }
+  }
+
   const client = await pool2.connect();
   let newOrder;
   let newOrderId;
@@ -44,22 +57,22 @@ const createOrder = async (orderData, userId) => {
     // Iniciar Transacción en BD 2
     await client.query('BEGIN');
 
-    // 2. Insertar el pedido principal (orders) en BD 2
+    // 3. Insertar el pedido principal (orders) en BD 2
     const orderInsertQuery = `
-      INSERT INTO orders (user_id, a1_cod, total, status)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO orders (user_id, a1_cod, total, status, is_offer)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING id, created_at;
     `;
-    const orderValues = [userId, user.a1_cod, total, 'Pendiente'];
+    const orderValues = [userId, user.a1_cod, total, 'Pendiente', isOffer];
 
     const orderResult = await client.query(orderInsertQuery, orderValues);
     newOrder = orderResult.rows[0];
     newOrderId = newOrder.id;
 
-    // 3. Insertar los items del pedido (order_items) en BD 2
+    // 4. Insertar los items del pedido (order_items) en BD 2
     const itemInsertQuery = `
-      INSERT INTO order_items (order_id, product_id, quantity, unit_price, product_code)
-      VALUES ($1, $2, $3, $4, $5);
+      INSERT INTO order_items (order_id, product_id, quantity, unit_price, product_code, discount_percentage)
+      VALUES ($1, $2, $3, $4, $5, $6);
     `;
 
     for (const item of items) {
@@ -69,6 +82,7 @@ const createOrder = async (orderData, userId) => {
         item.quantity,
         item.price,
         item.code,
+        discountMap.get(item.code) ?? null,
       ];
       await client.query(itemInsertQuery, itemValues);
     }
@@ -122,6 +136,7 @@ const createOrder = async (orderData, userId) => {
     const enrichedItems = items.map((item) => ({
       ...item,
       name: productMap.get(item.id) || 'Descripción no encontrada',
+      discount: discountMap.get(item.code) ?? null,
     }));
 
     let sellerEmail = process.env.SELLER_EMAIL;
@@ -144,7 +159,7 @@ const createOrder = async (orderData, userId) => {
         `[Pedido #${newOrderId}] Enviando correos a ${user.email} y ${sellerEmail}...`
       );
 
-      const orderDataForFiles = { user, newOrder, items: enrichedItems, total };
+      const orderDataForFiles = { user, newOrder, items: enrichedItems, total, isOffer };
 
       const pdfBuffer = await generateOrderPDF(orderDataForFiles);
       const csvBuffer = await generateOrderCSV(enrichedItems);
@@ -153,8 +168,11 @@ const createOrder = async (orderData, userId) => {
         filename: `Pedido_${newOrderId}.pdf`,
         content: pdfBuffer,
       };
+      const csvFilename = isOffer
+        ? `Pedido_${newOrderId}_Promocion.csv`
+        : `Pedido_${newOrderId}.csv`;
       const csvAttachment = {
-        filename: `Pedido_${newOrderId}.csv`,
+        filename: csvFilename,
         content: csvBuffer,
       };
 
@@ -173,7 +191,8 @@ const createOrder = async (orderData, userId) => {
         enrichedItems,
         total,
         user,
-        [pdfAttachment, csvAttachment]
+        [pdfAttachment, csvAttachment],
+        isOffer
       );
 
       console.log(
@@ -400,20 +419,20 @@ const downloadOrderPdf = async (orderId, user) => {
       name: productMap.get(item.product_id) || 'Descripción no encontrada',
       quantity: item.quantity,
       price: item.unit_price,
+      discount: item.discount_percentage ?? null,
     }));
 
     // 5. Preparar orderData para generateOrderPDF
-    // Modificación: Pasamos todo el objeto orderDetails como newOrder
-    // para que el generador tenga acceso a campos extra si existen.
     const orderDataForPdf = {
-      user: orderOwner, // Usar el dueño del pedido con todos sus campos
+      user: orderOwner,
       newOrder: {
-        ...orderDetails, // Pasamos todos los detalles del pedido
+        ...orderDetails,
         id: orderDetails.id,
         created_at: orderDetails.created_at,
       },
       items: enrichedItems,
       total: orderDetails.total,
+      isOffer: orderDetails.is_offer || false,
     };
 
     // 6. Generar el PDF

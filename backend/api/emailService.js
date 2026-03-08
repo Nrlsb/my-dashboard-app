@@ -141,14 +141,24 @@ const sendNewOrderNotificationEmail = async (
   items,
   total,
   customer,
-  attachments = []
+  attachments = [],
+  isOffer = false
 ) => {
-  const subject = `¡Nuevo Pedido Recibido! #${orderId} de ${customer.full_name}`;
+  const subject = isOffer
+    ? `¡Nuevo Pedido de PROMOCIONES! #${orderId} de ${customer.full_name}`
+    : `¡Nuevo Pedido Recibido! #${orderId} de ${customer.full_name}`;
   const itemsHtml = formatItemsToHTML(items);
+
+  const offerBanner = isOffer
+    ? `<div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 12px 16px; margin-bottom: 16px;">
+        <strong style="color: #856404;">&#9888;&#65039; Este pedido contiene productos en PROMOCIÓN</strong>
+      </div>`
+    : '';
 
   const htmlBody = `
     <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-      <h1 style="color: #333;">¡Nuevo Pedido Recibido!</h1>
+      ${offerBanner}
+      <h1 style="color: #333;">${isOffer ? '¡Nuevo Pedido de PROMOCIONES Recibido!' : '¡Nuevo Pedido Recibido!'}</h1>
       <p>Se ha generado un nuevo pedido en el portal de clientes.</p>
       
       <h2 style="color: #333; border-bottom: 2px solid #eee; padding-bottom: 5px;">Detalles del Cliente</h2>

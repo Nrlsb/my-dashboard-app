@@ -1,4 +1,5 @@
 const { pool2 } = require('../db');
+const bcrypt = require('bcryptjs');
 
 /**
  * Crea la tabla de usuarios de prueba si no existe.
@@ -37,12 +38,14 @@ createTestUsersTable();
 
 const createTestUser = async (vendedorCode, data) => {
   const { name, password, cellphone } = data;
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
   const query = `
     INSERT INTO test_users (vendedor_code, name, password, cellphone)
     VALUES ($1, $2, $3, $4)
     RETURNING *;
   `;
-  const result = await pool2.query(query, [vendedorCode, name, password, cellphone]);
+  const result = await pool2.query(query, [vendedorCode, name, hashedPassword, cellphone]);
   return result.rows[0];
 };
 

@@ -13,11 +13,12 @@ const formatCurrency = (amount) =>
 const ProductCard = ({ product }) => {
     const navigate = useNavigate();
     const { addToCart } = useCart();
-    const { user } = useAuth();
+    const { user, isAuthenticated } = useAuth();
     const [isAdded, setIsAdded] = useState(false);
 
     const handleAddToCart = (e) => {
         e.stopPropagation();
+        if (!isAuthenticated) return;
         addToCart(product, 1);
         setIsAdded(true);
         setTimeout(() => setIsAdded(false), 2000);
@@ -33,8 +34,10 @@ const ProductCard = ({ product }) => {
                 {product.imageUrl ? (
                     <>
                         <img
-                            src={product.imageUrl}
+                            src={product.thumbnailUrl || product.imageUrl}
                             alt={product.name}
+                            width={300}
+                            height={300}
                             className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-105"
                             loading="lazy"
                             referrerPolicy="no-referrer"
@@ -86,12 +89,34 @@ const ProductCard = ({ product }) => {
                     <div className="flex items-end justify-between gap-2">
                         <div className="flex flex-col">
                             <span className="text-xs text-gray-400 font-mono">{product.code}</span>
-                            <span className="text-lg font-bold text-gray-900">
-                                {formatCurrency(product.price)}
-                            </span>
+                            {isAuthenticated ? (
+                                product.discount_percentage != null ? (
+                                    <>
+                                        <span className="text-lg font-bold text-red-600">
+                                            {formatCurrency(product.discountedPrice ?? product.price * (1 - product.discount_percentage / 100))}
+                                        </span>
+                                        <span className="text-xs text-gray-400 line-through">{formatCurrency(product.price)}</span>
+                                    </>
+                                ) : product.offer_price != null ? (
+                                    <>
+                                        <span className="text-lg font-bold text-green-700">
+                                            {formatCurrency(product.offer_price)}
+                                        </span>
+                                        <span className="text-xs text-gray-400 line-through">{formatCurrency(product.price)}</span>
+                                    </>
+                                ) : (
+                                    <span className="text-lg font-bold text-gray-900">
+                                        {formatCurrency(product.price)}
+                                    </span>
+                                )
+                            ) : (
+                                <span className="text-xs font-medium text-blue-600 italic mt-1 uppercase tracking-tight">
+                                    Inicie sesión para ver precios
+                                </span>
+                            )}
                         </div>
 
-                        {user?.role !== 'vendedor' && (
+                        {isAuthenticated && user?.role !== 'vendedor' && (
                             <button
                                 onClick={handleAddToCart}
                                 className={`p-2 rounded-full transition-colors shadow-sm ${isAdded

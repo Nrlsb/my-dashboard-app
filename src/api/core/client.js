@@ -5,6 +5,7 @@ export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:30
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
+    withCredentials: true, // Enviar HttpOnly cookies en peticiones cross-origin
     headers: {
         'Content-Type': 'application/json',
     },
@@ -63,10 +64,12 @@ apiClient.interceptors.response.use(
             // Evitar mostar toast si es 401 y quizas estamos verificando sesion silenciosamente? 
             // Por ahora mantenemos el comportamiento original.
             if (status === 401) {
-                // No disparar "Sesión Expirada" si el error viene del login (credenciales inválidas)
+                // No disparar "Sesión Expirada" si el error viene del login (credenciales inválidas) o del logout
                 const isLoginRequest = error.config?.url?.includes('/login');
+                const isLogoutRequest = error.config?.url?.includes('/logout');
+                const isAnalyticsRequest = error.config?.url?.includes('/analytics/');
 
-                if (!isLoginRequest) {
+                if (!isLoginRequest && !isLogoutRequest && !isAnalyticsRequest) {
                     // Disparar evento de sesión expirada
                     window.dispatchEvent(new CustomEvent('session-expired'));
                 }

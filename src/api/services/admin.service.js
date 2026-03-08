@@ -5,6 +5,18 @@ export const adminService = {
         return apiClient.get('/admin/sellers');
     },
 
+    getProvinceRouting() {
+        return apiClient.get('/admin/province-routing');
+    },
+
+    upsertProvinceRouting(provincia, data) {
+        return apiClient.put(`/admin/province-routing/${encodeURIComponent(provincia)}`, data);
+    },
+
+    deleteProvinceRouting(provincia) {
+        return apiClient.delete(`/admin/province-routing/${encodeURIComponent(provincia)}`);
+    },
+
     updateVendorGroupPermissions(vendedorCode, deniedGroups) {
         return apiClient.put(`/admin/sellers/${vendedorCode}/product-groups`, { groups: deniedGroups });
     },

@@ -8,17 +8,18 @@ import {
     ArrowLeft,
     Search,
     X,
-    ChevronDown,
     ShoppingCart,
     CheckCircle,
 
     Package,
-    ArrowUp
+    ArrowUp,
+    Filter
 } from 'lucide-react';
 import apiService from '../api/apiService';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-
+import FilterSidebar from '../components/FilterSidebar';
+import { MENU_ITEMS } from '../data/categoriesData';
 // --- Formateadores ---
 
 const formatCurrency = (amount) =>
@@ -30,14 +31,18 @@ const formatCurrency = (amount) =>
 const ProductCard = ({ product }) => {
     const navigate = useNavigate();
     const { addToCart } = useCart();
+    const { isAuthenticated } = useAuth();
     const [isAdded, setIsAdded] = useState(false);
 
     const handleAddToCart = (e) => {
         e.stopPropagation();
+        if (!isAuthenticated) return;
         addToCart(product, 1);
         setIsAdded(true);
         setTimeout(() => setIsAdded(false), 2000);
     };
+
+    const hasPrice = product.price !== undefined && product.price !== null;
 
     return (
         <div
@@ -51,6 +56,8 @@ const ProductCard = ({ product }) => {
                         <img
                             src={product.thumbnailUrl || product.imageUrl}
                             alt={product.name}
+                            width={300}
+                            height={300}
                             className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-105"
                             loading="lazy"
                         />
@@ -96,27 +103,52 @@ const ProductCard = ({ product }) => {
                     <div className="flex items-end justify-between gap-2">
                         <div className="flex flex-col">
                             <span className="text-xs text-gray-400 font-mono">{product.code}</span>
-                            <span className="text-lg font-bold text-gray-900">
-                                {formatCurrency(product.price)}
-                            </span>
+                            {isAuthenticated && hasPrice ? (
+                                product.discount_percentage != null ? (
+                                    <>
+                                        <span className="text-lg font-bold text-red-600">
+                                            {formatCurrency(product.discountedPrice ?? product.price * (1 - product.discount_percentage / 100))}
+                                        </span>
+                                        <span className="text-xs text-gray-400 line-through">{formatCurrency(product.price)}</span>
+                                    </>
+                                ) : product.offer_price != null ? (
+                                    <>
+                                        <span className="text-lg font-bold text-green-700">
+                                            {formatCurrency(product.offer_price)}
+                                        </span>
+                                        <span className="text-xs text-gray-400 line-through">{formatCurrency(product.price)}</span>
+                                    </>
+                                ) : (
+                                    <span className="text-lg font-bold text-gray-900">
+                                        {formatCurrency(product.price)}
+                                    </span>
+                                )
+                            ) : (
+                                <span className="text-xs font-medium text-blue-600 italic mt-1 uppercase tracking-tight">
+                                    Inicie sesión para ver precios
+                                </span>
+                            )}
                         </div>
 
-                        <button
-                            onClick={handleAddToCart}
-                            className={`p-2 rounded-full transition-colors shadow-sm ${isAdded
-                                ? 'bg-green-100 text-green-600'
-                                : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
-                                }`}
-                            title="Agregar al carrito"
-                        >
-                            {isAdded ? <CheckCircle className="w-5 h-5" /> : <ShoppingCart className="w-5 h-5" />}
-                        </button>
+                        {isAuthenticated && (
+                            <button
+                                onClick={handleAddToCart}
+                                className={`p-2 rounded-full transition-colors shadow-sm ${isAdded
+                                    ? 'bg-green-100 text-green-600'
+                                    : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                                    }`}
+                                title="Agregar al carrito"
+                            >
+                                {isAdded ? <CheckCircle className="w-5 h-5" /> : <ShoppingCart className="w-5 h-5" />}
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
         </div>
     );
 };
+
 
 const ProductSkeleton = () => (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-pulse h-full">
@@ -135,19 +167,20 @@ const ProductSkeleton = () => (
 
 // --- Componente Principal ---
 export default function ProductsPage() {
-    const { user } = useAuth();
+    const { user, isAuthenticated } = useAuth();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
+
 
     // State for filters
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedBrands, setSelectedBrands] = useState([]);
-    const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
+    const [selectedCategories, setSelectedCategories] = useState([]);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
 
     const [showScrollTop, setShowScrollTop] = useState(false);
 
-    const brandDropdownRef = useRef(null);
     const debounceTimeout = useRef(null);
     const virtuosoRef = useRef(null);
 
@@ -159,6 +192,12 @@ export default function ProductsPage() {
         if (brandParam) {
             const brands = decodeURIComponent(brandParam).split(',');
             setSelectedBrands(brands);
+        }
+
+        const categoryParam = searchParams.get('category');
+        if (categoryParam) {
+            const categories = decodeURIComponent(categoryParam).split(',');
+            setSelectedCategories(categories);
         }
     }, [searchParams]);
 
@@ -172,15 +211,11 @@ export default function ProductsPage() {
         return () => clearTimeout(debounceTimeout.current);
     }, [searchTerm]);
 
-    // Close dropdown on outside click
+    // Show scroll-to-top button when user scrolls down
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (brandDropdownRef.current && !brandDropdownRef.current.contains(event.target)) {
-                setIsBrandDropdownOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        const handleScroll = () => setShowScrollTop(window.scrollY > 400);
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
     // Queries
@@ -193,9 +228,9 @@ export default function ProductsPage() {
         isError,
         error
     } = useInfiniteQuery({
-        queryKey: ['products-grid', debounceSearchTerm, selectedBrands, user?.id],
+        queryKey: ['products-grid', debounceSearchTerm, selectedBrands, selectedCategories, user?.id],
         queryFn: ({ pageParam = 1 }) => {
-            return apiService.fetchProducts(pageParam, debounceSearchTerm, selectedBrands, false, 20, '');
+            return apiService.fetchProducts(pageParam, debounceSearchTerm, selectedBrands, false, 20, '', false, false, '', selectedCategories);
         },
         getNextPageParam: (lastPage, allPages) => {
             const productsLoaded = allPages.reduce((acc, page) => acc + page.products.length, 0);
@@ -203,24 +238,21 @@ export default function ProductsPage() {
         },
         initialPageParam: 1,
         staleTime: 1000 * 60 * 5, // 5 minutes
-        enabled: !!user,
+        enabled: true,
     });
 
     const { data: brandsData, isLoading: isBrandsLoading } = useQuery({
         queryKey: ['brands', user?.id],
         queryFn: () => apiService.fetchProtheusBrands(),
         staleTime: 1000 * 60 * 60,
-        enabled: !!user,
+        enabled: true,
     });
+
 
     // Handlers
     const handleSearchChange = (e) => setSearchTerm(e.target.value);
 
-    const handleBrandChange = (brand) => {
-        const newBrands = selectedBrands.includes(brand)
-            ? selectedBrands.filter(b => b !== brand)
-            : [...selectedBrands, brand];
-
+    const handleBrandChange = (newBrands) => {
         setSelectedBrands(newBrands);
 
         // Update URL
@@ -233,9 +265,23 @@ export default function ProductsPage() {
         setSearchParams(params);
     };
 
+    const handleCategoryChange = (newCategories) => {
+        setSelectedCategories(newCategories);
+
+        // Update URL
+        const params = new URLSearchParams(searchParams);
+        if (newCategories.length > 0) {
+            params.set('category', encodeURIComponent(newCategories.join(',')));
+        } else {
+            params.delete('category');
+        }
+        setSearchParams(params);
+    };
+
     const handleClearFilters = () => {
         setSearchTerm('');
         setSelectedBrands([]);
+        setSelectedCategories([]);
         setSearchParams({});
     };
 
@@ -271,9 +317,9 @@ export default function ProductsPage() {
                     </div>
 
                     <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="flex flex-col md:flex-row gap-4">
                             {/* Search */}
-                            <div className="relative">
+                            <div className="relative flex-1">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                                 <input
                                     type="text"
@@ -284,125 +330,135 @@ export default function ProductsPage() {
                                 />
                             </div>
 
-                            {/* Brand Filter */}
-                            <div className="relative" ref={brandDropdownRef}>
-                                <button
-                                    onClick={() => setIsBrandDropdownOpen(!isBrandDropdownOpen)}
-                                    className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 border border-transparent hover:bg-gray-100 rounded-xl transition-all outline-none"
-                                >
-                                    <span className={`truncate ${selectedBrands.length > 0 ? 'text-espint-blue font-medium' : 'text-gray-600'}`}>
-                                        {getBrandButtonLabel()}
+                            {/* Mobile Filter Toggle */}
+                            <button
+                                onClick={() => setIsSidebarOpen(true)}
+                                className="lg:hidden flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl font-semibold border border-blue-100 hover:bg-blue-100 transition-colors"
+                            >
+                                <Filter size={20} />
+                                Filtros
+                                {(selectedBrands.length + selectedCategories.length) > 0 && (
+                                    <span className="bg-blue-600 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full ml-1">
+                                        {selectedBrands.length + selectedCategories.length}
                                     </span>
-                                    <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isBrandDropdownOpen ? 'rotate-180' : ''}`} />
-                                </button>
-
-                                {isBrandDropdownOpen && (
-                                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 max-h-80 overflow-y-auto z-20 p-2">
-                                        {brandsData?.map((brand) => (
-                                            <label
-                                                key={brand}
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    handleBrandChange(brand);
-                                                }}
-                                                className="flex items-center px-3 py-2 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
-                                            >
-                                                <div className={`w-5 h-5 rounded border flex items-center justify-center mr-3 transition-colors ${selectedBrands.includes(brand) ? 'bg-espint-blue border-espint-blue' : 'border-gray-300'
-                                                    }`}>
-                                                    {selectedBrands.includes(brand) && <CheckCircle className="w-3.5 h-3.5 text-white" />}
-                                                </div>
-                                                <span className="text-sm text-gray-700">{brand}</span>
-                                            </label>
-                                        ))}
-                                    </div>
                                 )}
-                            </div>
+                            </button>
                         </div>
 
-
-
                         {hasFilters && (
-                            <div className="mt-4 pt-3 border-t border-gray-100 flex justify-end">
+                            <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-2 items-center">
+                                <span className="text-xs text-gray-400 mr-2">Filtros activos:</span>
+                                {selectedCategories.map(catCode => {
+                                    const catName = MENU_ITEMS.flatMap(cat => cat.subcategories).find(c => c.id === catCode)?.name || catCode;
+                                    return (
+                                        <div key={catCode} className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-md border border-blue-100">
+                                            {catName}
+                                            <X size={14} className="cursor-pointer" onClick={() => handleCategoryChange(selectedCategories.filter(c => c !== catCode))} />
+                                        </div>
+                                    );
+                                })}
+                                {selectedBrands.map(brand => (
+                                    <div key={brand} className="flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-md border border-gray-200">
+                                        {brand}
+                                        <X size={14} className="cursor-pointer" onClick={() => handleBrandChange(selectedBrands.filter(b => b !== brand))} />
+                                    </div>
+                                ))}
                                 <button
                                     onClick={handleClearFilters}
-                                    className="text-sm text-red-500 hover:text-red-600 font-medium flex items-center gap-1 px-3 py-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                                    className="text-xs text-red-500 hover:text-red-600 font-medium px-2 py-1 hover:bg-red-50 rounded transition-colors ml-auto"
                                 >
-                                    <X className="w-4 h-4" />
-                                    Limpiar filtros
+                                    Limpiar todo
                                 </button>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Product Grid Virtualized */}
-                {allProducts.length > 0 && (
-                    <div className="w-full min-h-screen">
-                        <VirtuosoGrid
-                            ref={virtuosoRef}
-                            useWindowScroll
-                            data={allProducts}
-                            endReached={() => {
-                                if (hasNextPage && !isFetchingNextPage) {
-                                    fetchNextPage();
-                                }
-                            }}
-                            overscan={200}
-                            itemContent={(index, product) => (
-                                <div className="p-2 h-full">
-                                    <ProductCard product={product} />
-                                </div>
-                            )}
-                            components={{
-                                List: React.forwardRef(({ style, children, ...props }, ref) => (
-                                    <div
-                                        ref={ref}
-                                        {...props}
-                                        style={{ ...style }}
-                                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 mb-20 pb-20"
-                                    >
-                                        {children}
-                                    </div>
-                                )),
-                                Footer: () => (
-                                    <div className="py-8 flex justify-center w-full col-span-full">
-                                        {isFetchingNextPage ? (
-                                            <div className="flex items-center gap-2 text-gray-500">
-                                                <Loader2 className="w-5 h-5 animate-spin" />
-                                                <span>Cargando más productos...</span>
-                                            </div>
-                                        ) : hasNextPage ? (
-                                            <span className="text-gray-400 text-sm">Desliza para ver más</span>
-                                        ) : (
-                                            <span className="text-gray-400 text-sm">Has llegado al final del catálogo</span>
-                                        )}
-                                    </div>
-                                )
-                            }}
-                        />
-                    </div>
-                )}
+                <div className="flex gap-8">
+                    {/* Sidebar */}
+                    <FilterSidebar
+                        categories={MENU_ITEMS}
+                        brands={brandsData || []}
+                        selectedCategories={selectedCategories}
+                        selectedBrands={selectedBrands}
+                        onCategoryChange={handleCategoryChange}
+                        onBrandChange={handleBrandChange}
+                        onClearFilters={handleClearFilters}
+                        isOpen={isSidebarOpen}
+                        onClose={() => setIsSidebarOpen(false)}
+                    />
 
-                {/* Empty State */}
-                {!isLoading && allProducts.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-20 text-center">
-                        <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-                            <Search className="w-10 h-10 text-gray-400" />
-                        </div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">No se encontraron productos</h3>
-                        <p className="text-gray-500 max-w-md mx-auto">
-                            Intenta ajustar los filtros de búsqueda o prueba con otros términos.
-                        </p>
-                        {hasFilters && (
-                            <button
-                                onClick={handleClearFilters}
-                                className="mt-6 px-6 py-2 bg-espint-blue text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
-                            >
-                                Limpiar filtros
-                            </button>
+                    {/* Product Grid Virtualized */}
+                    <div className="flex-1 min-w-0">
+                        {allProducts.length > 0 ? (
+                            <div className="w-full">
+                                <VirtuosoGrid
+                                    ref={virtuosoRef}
+                                    useWindowScroll
+                                    data={allProducts}
+                                    endReached={() => {
+                                        if (hasNextPage && !isFetchingNextPage) {
+                                            fetchNextPage();
+                                        }
+                                    }}
+                                    overscan={200}
+                                    itemContent={(index, product) => (
+                                        <div className="p-2 h-full">
+                                            <ProductCard product={product} />
+                                        </div>
+                                    )}
+                                    components={{
+                                        List: React.forwardRef(({ style, children, ...props }, ref) => (
+                                            <div
+                                                ref={ref}
+                                                {...props}
+                                                style={{ ...style }}
+                                                className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 mb-20 pb-20"
+                                            >
+                                                {children}
+                                            </div>
+                                        )),
+                                        Footer: () => (
+                                            <div className="py-8 flex justify-center w-full col-span-full">
+                                                {isFetchingNextPage ? (
+                                                    <div className="flex items-center gap-2 text-gray-500">
+                                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                                        <span>Cargando más productos...</span>
+                                                    </div>
+                                                ) : hasNextPage ? (
+                                                    <span className="text-gray-400 text-sm">Desliza para ver más</span>
+                                                ) : (
+                                                    <span className="text-gray-400 text-sm">Has llegado al final del catálogo</span>
+                                                )}
+                                            </div>
+                                        )
+                                    }}
+                                />
+                            </div>
+                        ) : (
+                            /* Empty State */
+                            !isLoading && (
+                                <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-2xl border border-gray-100 shadow-sm h-[60vh] mt-2">
+                                    <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-6">
+                                        <Search className="w-10 h-10 text-gray-400" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-900 mb-2">No se encontraron productos</h3>
+                                    <p className="text-gray-500 max-w-md mx-auto px-4">
+                                        Intenta ajustar los filtros de búsqueda o prueba con otros términos.
+                                    </p>
+                                    {hasFilters && (
+                                        <button
+                                            onClick={handleClearFilters}
+                                            className="mt-6 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
+                                        >
+                                            Limpiar filtros
+                                        </button>
+                                    )}
+                                </div>
+                            )
                         )}
                     </div>
-                )}
+                </div>
 
                 {/* Error State */}
                 {isError && (

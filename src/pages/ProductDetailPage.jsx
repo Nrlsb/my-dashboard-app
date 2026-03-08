@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import apiService from '../api/apiService.js';
+import SEOHead from '../components/SEOHead.jsx';
 import { useCart } from '../context/CartContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useProductQuantity } from '../hooks/useProductQuantity';
@@ -61,7 +63,8 @@ export default function ProductDetailPage() {
   const { productId } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+
 
   const {
     data: product,
@@ -73,6 +76,7 @@ export default function ProductDetailPage() {
     queryFn: () => apiService.fetchProductById(productId),
     enabled: !!productId,
   });
+
 
   const {
     quantity,
@@ -138,16 +142,45 @@ export default function ProductDetailPage() {
             </span>
             <h2 className="text-3xl font-bold text-gray-900">{product.custom_title || product.name}</h2>
 
-            <div className="flex items-center space-x-3">
-              <p className="text-4xl font-extrabold text-gray-800">
-                {formatCurrency(product.price)}
-              </p>
-              {product.oferta && (
-                <span className="flex items-center px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full uppercase tracking-wider animate-pulse">
-                  <Sparkles className="w-4 h-4 mr-1" />
-                  ¡En Oferta!
-                </span>
-              )}
+            <div className="flex items-center space-x-3 flex-wrap gap-y-2">
+              {isAuthenticated && product.price !== undefined && product.price !== null ? (
+                product.discount_percentage != null ? (
+                  <>
+                    <p className="text-4xl font-extrabold text-red-600">
+                      {formatCurrency(product.discountedPrice ?? product.price * (1 - product.discount_percentage / 100))}
+                    </p>
+                    <div className="flex flex-col">
+                      <p className="text-lg text-gray-400 line-through">{formatCurrency(product.price)}</p>
+                      <span className="text-xs font-bold bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        -{product.discount_percentage}% OFF
+                      </span>
+                    </div>
+                  </>
+                ) : product.offer_price != null ? (
+                  <>
+                    <p className="text-4xl font-extrabold text-green-600">
+                      {formatCurrency(product.offer_price)}
+                    </p>
+                    <p className="text-lg text-gray-400 line-through">{formatCurrency(product.price)}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-4xl font-extrabold text-gray-800">
+                      {formatCurrency(product.price)}
+                    </p>
+                    {product.oferta && (
+                      <span className="flex items-center px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full uppercase tracking-wider animate-pulse">
+                        <Sparkles className="w-4 h-4 mr-1" />
+                        ¡En Oferta!
+                      </span>
+                    )}
+                  </>
+                )
+              ) : !isAuthenticated ? (
+                <p className="text-xl font-semibold text-blue-600 italic">
+                  Inicie sesión para ver precios
+                </p>
+              ) : null}
             </div>
 
             <p className="text-gray-600 leading-relaxed">
@@ -155,86 +188,93 @@ export default function ProductDetailPage() {
                 product.capacity_description}
             </p>
 
-            <div className="flex items-center space-x-4">
-              <span className="font-medium text-gray-700">Cantidad:</span>
-              <div className="flex items-center border border-gray-300 rounded-lg">
-                <button
-                  onClick={decrement}
-                  className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-l-lg cursor-pointer"
-                >
-                  -
-                </button>
-                <input
-                  type="number"
-                  value={quantity}
-                  onChange={handleInputChange}
-                  onBlur={handleBlur}
-                  className="w-16 text-center border-none focus:ring-0"
-                  min="1"
-                />
-                <button
-                  onClick={increment}
-                  className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-r-lg cursor-pointer"
-                >
-                  +
-                </button>
-              </div>
-            </div>
+            {isAuthenticated && (
+              <>
+                <div className="flex items-center space-x-4">
+                  <span className="font-medium text-gray-700">Cantidad:</span>
+                  <div className="flex items-center border border-gray-300 rounded-lg">
+                    <button
+                      onClick={decrement}
+                      className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-l-lg cursor-pointer"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      value={quantity}
+                      onChange={handleInputChange}
+                      onBlur={handleBlur}
+                      className="w-16 text-center border-none focus:ring-0"
+                      min="1"
+                    />
+                    <button
+                      onClick={increment}
+                      className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-r-lg cursor-pointer"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
 
-            {user?.role !== 'vendedor' && (
-              <button
-                onClick={handleAddToCart}
-                className={`w-full py-3 px-6 rounded-lg text-white font-semibold transition-colors duration-300 cursor-pointer ${isAdded
-                  ? 'bg-green-500 hover:bg-green-600'
-                  : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-              >
-                {isAdded ? (
-                  <span className="flex items-center justify-center">
-                    <CheckCircle className="w-5 h-5 mr-2" />
-                    Agregado
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-center">
-                    <ShoppingCart className="w-5 h-5 mr-2" />
-                    Agregar al Carrito
-                  </span>
+                {user?.role !== 'vendedor' && (
+                  <button
+                    onClick={handleAddToCart}
+                    className={`w-full py-3 px-6 rounded-lg text-white font-semibold transition-colors duration-300 cursor-pointer ${isAdded
+                      ? 'bg-green-500 hover:bg-green-600'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                      }`}
+                  >
+                    {isAdded ? (
+                      <span className="flex items-center justify-center">
+                        <CheckCircle className="w-5 h-5 mr-2" />
+                        Agregado
+                      </span>
+                    ) : (
+                      <span className="flex items-center justify-center">
+                        <ShoppingCart className="w-5 h-5 mr-2" />
+                        Agregar al Carrito
+                      </span>
+                    )}
+                  </button>
                 )}
-              </button>
+              </>
             )}
+
 
             <div className="flex items-center text-sm text-gray-500 justify-between mt-4">
               <div className="flex items-center">
                 <Info className="w-4 h-4 mr-2" />
                 <span>Cód: {product.code}</span>
               </div>
-              <div className="flex items-center font-medium">
-                <div className="flex items-center mt-1">
-                  {product.stock_disponible <= 0 ? (
-                    <div className="flex items-center">
-                      <span className="text-sm font-medium text-red-600">
-                        Sin Stock
-                      </span>
-                      {product.stock_de_seguridad > 0 && (
-                        <span className="ml-2 text-xs text-blue-600 font-medium">
-                          | Previsto de ingreso
+              {isAuthenticated && (
+                <div className="flex items-center font-medium">
+                  <div className="flex items-center mt-1">
+                    {product.stock_disponible <= 0 ? (
+                      <div className="flex items-center">
+                        <span className="text-sm font-medium text-red-600">
+                          Sin Stock
                         </span>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center">
-                      <span className="text-sm font-medium text-gray-600">
-                        Stock: {product.stock_disponible > 100 ? '+100' : product.stock_disponible}
-                      </span>
-                      {product.stock_de_seguridad > 0 && (
-                        <span className="ml-2 text-xs text-blue-600 font-medium">
-                          | Previsto de ingreso
+                        {product.stock_de_seguridad > 0 && (
+                          <span className="ml-2 text-xs text-blue-600 font-medium">
+                            | Previsto de ingreso
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center">
+                        <span className="text-sm font-medium text-gray-600">
+                          Stock: {product.stock_disponible > 100 ? '+100' : product.stock_disponible}
                         </span>
-                      )}
-                    </div>
-                  )}
+                        {product.stock_de_seguridad > 0 && (
+                          <span className="ml-2 text-xs text-blue-600 font-medium">
+                            | Previsto de ingreso
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -255,8 +295,55 @@ export default function ProductDetailPage() {
     );
   };
 
+  const productName = product?.custom_title || product?.name;
+  const productBrand = product?.brand;
+  const productDescription = product?.custom_description || product?.description || product?.capacity_description || product?.ai_description;
+  const productImage = product?.custom_image_url || product?.imageUrl;
+
+  const productJsonLd = product ? {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: productName,
+    ...(productBrand && { brand: { '@type': 'Brand', name: productBrand } }),
+    ...(productDescription && { description: productDescription }),
+    ...(productImage && { image: productImage }),
+    sku: product.code,
+    offers: {
+      '@type': 'Offer',
+      availability: (product.stock_disponible > 0)
+        ? 'https://schema.org/InStock'
+        : 'https://schema.org/OutOfStock',
+      priceCurrency: 'ARS',
+      seller: { '@type': 'Organization', name: 'Distribuidora Espint' },
+    },
+  } : null;
+
+  const breadcrumbJsonLd = product ? {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Catálogo', item: `${import.meta.env.VITE_SITE_URL || 'https://espint.com.ar'}/catalogo` },
+      { '@type': 'ListItem', position: 2, name: productName },
+    ],
+  } : null;
+
   return (
     <div className="p-6 bg-white min-h-screen">
+      {product && (
+        <>
+          <SEOHead
+            title={productBrand ? `${productName} - ${productBrand}` : productName}
+            description={productDescription
+              ? productDescription.slice(0, 155)
+              : `${productName}${productBrand ? ` de ${productBrand}` : ''} — Distribuidora Espint. Consultá stock y precio.`}
+            canonical={`/product-detail/${product.id}`}
+            image={productImage}
+            type="product"
+            jsonLd={[productJsonLd, breadcrumbJsonLd]}
+          />
+        </>
+      )}
+
       <header className="mb-6 flex items-center">
         <button
           onClick={() => navigate(-1)}
@@ -266,8 +353,15 @@ export default function ProductDetailPage() {
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">
-            Detalle del Producto
+          {/* Breadcrumb visible */}
+          <nav aria-label="Breadcrumb" className="text-sm text-gray-400 mb-1 flex items-center gap-1">
+            <Link to="/catalogo" className="hover:text-espint-blue transition-colors">Catálogo</Link>
+            <span>/</span>
+            <span className="text-gray-600 truncate max-w-xs">{productName || 'Producto'}</span>
+          </nav>
+          {/* h1 SEO: nombre real del producto */}
+          <h1 className="text-2xl font-bold text-gray-800 leading-tight">
+            {productName || 'Detalle del Producto'}
           </h1>
         </div>
       </header>
@@ -296,7 +390,7 @@ const AiDescriptionEditor = ({ product, isAdmin }) => {
       setIsEditing(true); // Allow editing after generation
     } catch (error) {
       console.error('Error generating description:', error);
-      alert('Error al generar la descripción');
+      toast.error('Error al generar la descripción');
     } finally {
       setIsGenerating(false);
     }
@@ -307,10 +401,10 @@ const AiDescriptionEditor = ({ product, isAdmin }) => {
     try {
       await apiService.saveAiDescription(product.id, description);
       setIsEditing(false);
-      // Optionally refresh product data or show success toast
+      toast.success('Descripción guardada correctamente');
     } catch (error) {
       console.error('Error saving description:', error);
-      alert('Error al guardar la descripción');
+      toast.error('Error al guardar la descripción');
     } finally {
       setIsSaving(false);
     }

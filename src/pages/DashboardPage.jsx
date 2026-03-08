@@ -29,6 +29,7 @@ const iconMap = {
 
 import DashboardSkeleton from '../components/DashboardSkeleton';
 import NewReleasesBanner from '../components/NewReleasesBanner';
+import NovedadesModal from '../components/NovedadesModal';
 
 const DashboardCards = () => {
   const { user } = useAuth();
@@ -110,6 +111,7 @@ const DashboardPage = () => {
 
   return (
     <div className="font-sans">
+      <NovedadesModal />
       <main className="p-2 md:p-4 w-full">
         <DashboardCards />
 

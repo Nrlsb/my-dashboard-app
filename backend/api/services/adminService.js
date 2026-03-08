@@ -694,7 +694,7 @@ module.exports = {
   getAllSellers: async () => {
     try {
       const result = await pool2.query(
-        'SELECT codigo, nombre FROM vendedores ORDER BY nombre ASC'
+        'SELECT codigo, nombre, email FROM vendedores ORDER BY nombre ASC'
       );
       return result.rows;
     } catch (error) {

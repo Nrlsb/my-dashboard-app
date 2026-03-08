@@ -28,9 +28,22 @@ const {
   updateDashboardPanelController,
 } = require('../controllers/dashboardController');
 const roleController = require('../controllers/roleController');
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { authenticateToken, authenticateTokenSSE, requireAdmin } = require('../middleware/auth');
+const rateLimit = require('express-rate-limit');
 
-// Todas las rutas en este archivo requieren autenticación.
+const adminSensitiveLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 20,
+  message: 'Demasiadas peticiones para esta operación, intente nuevamente en una hora.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// SSE route uses its own middleware (EventSource can't send custom headers)
+const { getSyncEvents } = require('../controllers/adminController');
+router.get('/sync-events', authenticateTokenSSE, requireAdmin, getSyncEvents);
+
+// Todas las demás rutas en este archivo requieren autenticación estricta (solo header).
 router.use(authenticateToken);
 
 const { requireMarketingOrAdmin, requirePermission } = require('../middleware/roleAuth');
@@ -97,13 +110,13 @@ router.get('/users/:userId/analytics', requireMarketingOrAdmin, analyticsControl
 
 // (NUEVO) Ruta para resetear contraseña de usuario
 const { resetUserPassword } = require('../controllers/adminController');
-router.put('/users/:userId/password', requireAdmin, resetUserPassword);
+router.put('/users/:userId/password', adminSensitiveLimiter, requireAdmin, resetUserPassword);
 
 // (NUEVO) Ruta para asignar contraseña a clientes (incluso sin usuario en BD)
-router.post('/users/assign-password', requireAdmin, assignClientPassword);
+router.post('/users/assign-password', adminSensitiveLimiter, requireAdmin, assignClientPassword);
 
 // (NUEVO) Ruta para eliminar usuario
-router.delete('/users/:userId', requirePermission('manage_admins'), deleteUserController);
+router.delete('/users/:userId', adminSensitiveLimiter, requirePermission('manage_admins'), deleteUserController);
 
 const {
   getCarouselGroups,
@@ -129,9 +142,24 @@ router.delete('/accessories/:productId', requireMarketingOrAdmin, removeAccessor
 router.post('/custom-collection/:groupId/items', requireMarketingOrAdmin, addCustomGroupItem);
 router.delete('/custom-collection/:groupId/items/:productId', requireMarketingOrAdmin, removeCustomGroupItem);
 
-const { triggerProductSync, triggerFullSync, getSyncEvents } = require('../controllers/adminController');
-router.get('/sync-events', requireAdmin, getSyncEvents);
+// Province → Seller routing
+const provinceRoutingController = require('../controllers/provinceRoutingController');
+router.get('/province-routing', requireAdmin, provinceRoutingController.getRouting);
+router.put('/province-routing/:provincia', requireAdmin, provinceRoutingController.upsertRouting);
+router.delete('/province-routing/:provincia', requireAdmin, provinceRoutingController.deleteRouting);
+
+const { triggerProductSync, triggerFullSync } = require('../controllers/adminController');
 router.post('/sync-products', requireAdmin, triggerProductSync);
 router.post('/sync-full', requireAdmin, triggerFullSync);
+
+const { addToBlacklist } = require('../utils/tokenBlacklist');
+router.post('/revoke-session', requireAdmin, async (req, res) => {
+  const { token } = req.body;
+  if (!token) {
+    return res.status(400).json({ message: 'Se requiere el campo token.' });
+  }
+  await addToBlacklist(token);
+  res.json({ success: true, message: 'Token revocado correctamente.' });
+});
 
 module.exports = router;

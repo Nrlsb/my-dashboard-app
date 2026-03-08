@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useParams, useNavigate } from 'react-router-dom';
 import apiService from '../api/apiService';
+import { useAuth } from '../context/AuthContext';
 
 const CollectionPage = () => {
     const { collectionId } = useParams();
     const navigate = useNavigate();
+    const { isAuthenticated } = useAuth();
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -107,9 +109,15 @@ const CollectionPage = () => {
                                 </h2>
                                 <p className="text-sm text-gray-500">{product.brand}</p>
                             </div>
-                            <p className="text-lg font-bold mt-2 text-right text-blue-700">
-                                {product.formattedPrice}
-                            </p>
+                            {isAuthenticated ? (
+                                <p className="text-lg font-bold mt-2 text-right text-blue-700">
+                                    {product.formattedPrice}
+                                </p>
+                            ) : (
+                                <p className="text-xs font-medium text-blue-600 italic mt-2 text-right uppercase tracking-tight">
+                                    Inicie sesión para ver precios
+                                </p>
+                            )}
                         </div>
                     ))}
                 </div>

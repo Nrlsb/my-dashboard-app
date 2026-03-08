@@ -1,0 +1,35 @@
+User-agent: *
+Allow: /
+
+# Páginas públicas indexables
+Allow: /catalogo
+Allow: /product-detail/
+Allow: /category/
+Allow: /collection/
+Allow: /new-releases
+Allow: /about
+Allow: /solicitar-acceso
+
+# Rutas privadas — no indexar
+Disallow: /dashboard
+Disallow: /dashboard-settings
+Disallow: /new-order
+Disallow: /order-history
+Disallow: /order-detail/
+Disallow: /order-preview
+Disallow: /price-list
+Disallow: /account-balance
+Disallow: /voucher-upload
+Disallow: /offers
+Disallow: /queries
+Disallow: /profile
+Disallow: /change-password
+Disallow: /manage-
+Disallow: /admin/
+Disallow: /upload-images
+Disallow: /analytics
+Disallow: /vendedor-
+Disallow: /client-
+Disallow: /test-user
+
+Sitemap: https://espint.com.ar/sitemap.xml

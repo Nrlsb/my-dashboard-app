@@ -67,9 +67,31 @@ const ProductCard = ({ product, setSelectedProduct, handleAddToCartClick }) => {
             </div>
 
             <div className="flex items-center justify-between md:flex-col md:items-end md:justify-center w-full md:w-auto mt-2 md:mt-0 pt-3 md:pt-0 border-t md:border-t-0 border-gray-100">
-                <p className="text-lg font-bold text-[#0B3D68]">
-                    {formatCurrency(product.price)}
-                </p>
+                {product.discount_percentage != null ? (
+                    <div className="flex flex-col items-end">
+                        <span className="text-[10px] font-bold bg-red-500 text-white px-2 py-0.5 rounded-full mb-0.5">
+                            OFERTA -{product.discount_percentage}%
+                        </span>
+                        <p className="text-lg font-bold text-red-600">
+                            {formatCurrency(product.discountedPrice ?? product.price * (1 - product.discount_percentage / 100))}
+                        </p>
+                        <p className="text-xs text-gray-400 line-through">{formatCurrency(product.price)}</p>
+                    </div>
+                ) : product.offer_price != null ? (
+                    <div className="flex flex-col items-end">
+                        <span className="text-[10px] font-bold bg-red-500 text-white px-2 py-0.5 rounded-full mb-0.5">
+                            OFERTA
+                        </span>
+                        <p className="text-lg font-bold text-green-700">
+                            {formatCurrency(product.offer_price)}
+                        </p>
+                        <p className="text-xs text-gray-400 line-through">{formatCurrency(product.price)}</p>
+                    </div>
+                ) : (
+                    <p className="text-lg font-bold text-[#0B3D68]">
+                        {formatCurrency(product.price)}
+                    </p>
+                )}
                 <button
                     onClick={(e) => {
                         e.stopPropagation();

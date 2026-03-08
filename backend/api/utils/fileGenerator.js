@@ -80,6 +80,7 @@ async function generateOrderPDF(orderData) {
                 codigo: item.code,
                 descripcion: item.name,
                 cantidad: item.quantity,
+                descuento: item.discount ?? null,
                 precioUnitario: formatCurrency(item.price),
                 precioTotal: formatCurrency(item.quantity * item.price)
             })),
@@ -87,6 +88,7 @@ async function generateOrderPDF(orderData) {
         };
 
         const { numero, fechaEmision, sucursal, cliente, items: mappedItems, total: orderTotal } = invoiceData;
+        const isOffer = !!orderData.isOffer;
 
         const pdfDoc = await PDFDocument.create();
         const page = pdfDoc.addPage([595.28, 841.89]); // A4 size
@@ -265,38 +267,65 @@ async function generateOrderPDF(orderData) {
         // === Items Table ===
         const tableTop = y;
         const tableHeaderY = y - 15;
-        // Adjusted column widths for new layout
         // Total width available: width - margin * 2 = 595.28 - 80 = 515.28
-        // Cols: Code, Description, Quantity, Unit Price, Total Price
-        const colWidths = [70, 225, 60, 80, 80];
-        const tableCols = [
-            margin,
-            margin + colWidths[0],
-            margin + colWidths[0] + colWidths[1],
-            margin + colWidths[0] + colWidths[1] + colWidths[2],
-            margin + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3]
-        ];
+        // Offer orders: Código | Descuento | Descripción | Cantidad | Precio Unit. | Subtotal
+        // Normal orders: Código | Descripción | Cantidad | Precio Unit. | Subtotal
+        let colWidths, tableCols;
+        if (isOffer) {
+            colWidths = [60, 55, 175, 55, 85, 85];
+            tableCols = [margin];
+            for (let i = 0; i < colWidths.length - 1; i++) {
+                tableCols.push(tableCols[i] + colWidths[i]);
+            }
+        } else {
+            colWidths = [70, 225, 60, 80, 80];
+            tableCols = [
+                margin,
+                margin + colWidths[0],
+                margin + colWidths[0] + colWidths[1],
+                margin + colWidths[0] + colWidths[1] + colWidths[2],
+                margin + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3]
+            ];
+        }
 
         page.drawLine({ start: { x: margin, y: tableTop }, end: { x: width - margin, y: tableTop }, thickness: 1.5 });
 
         // Encabezados
-        drawText('Código', tableCols[0] + 5, tableHeaderY, { bold: true, size: smallTextSize });
-        drawText('Descripción', tableCols[1] + 5, tableHeaderY, { bold: true, size: smallTextSize });
-        drawCenteredText('Cantidad', tableCols[2], colWidths[2], tableHeaderY, { bold: true, size: smallTextSize });
-        drawCenteredText('Precio Unit.', tableCols[3], colWidths[3], tableHeaderY, { bold: true, size: smallTextSize });
-        drawCenteredText('Subtotal', tableCols[4], colWidths[4], tableHeaderY, { bold: true, size: smallTextSize });
+        if (isOffer) {
+            drawText('Código', tableCols[0] + 5, tableHeaderY, { bold: true, size: smallTextSize });
+            drawCenteredText('Descuento', tableCols[1], colWidths[1], tableHeaderY, { bold: true, size: smallTextSize });
+            drawText('Descripción', tableCols[2] + 5, tableHeaderY, { bold: true, size: smallTextSize });
+            drawCenteredText('Cantidad', tableCols[3], colWidths[3], tableHeaderY, { bold: true, size: smallTextSize });
+            drawCenteredText('Precio Unit.', tableCols[4], colWidths[4], tableHeaderY, { bold: true, size: smallTextSize });
+            drawCenteredText('Subtotal', tableCols[5], colWidths[5], tableHeaderY, { bold: true, size: smallTextSize });
+        } else {
+            drawText('Código', tableCols[0] + 5, tableHeaderY, { bold: true, size: smallTextSize });
+            drawText('Descripción', tableCols[1] + 5, tableHeaderY, { bold: true, size: smallTextSize });
+            drawCenteredText('Cantidad', tableCols[2], colWidths[2], tableHeaderY, { bold: true, size: smallTextSize });
+            drawCenteredText('Precio Unit.', tableCols[3], colWidths[3], tableHeaderY, { bold: true, size: smallTextSize });
+            drawCenteredText('Subtotal', tableCols[4], colWidths[4], tableHeaderY, { bold: true, size: smallTextSize });
+        }
 
         page.drawLine({ start: { x: margin, y: tableHeaderY - 8 }, end: { x: width - margin, y: tableHeaderY - 8 }, thickness: 1.5 });
 
         let itemY = tableHeaderY - 20;
 
         (mappedItems || []).forEach(item => {
-            drawText(item.codigo, tableCols[0] + 5, itemY, { size: smallTextSize });
-            drawText((item.descripcion || '').substring(0, 45), tableCols[1] + 5, itemY, { size: smallTextSize });
-
-            drawCenteredText(String(item.cantidad || ''), tableCols[2], colWidths[2], itemY, { size: smallTextSize });
-            drawCenteredText(String(item.precioUnitario || ''), tableCols[3], colWidths[3], itemY, { size: smallTextSize });
-            drawCenteredText(String(item.precioTotal || ''), tableCols[4], colWidths[4], itemY, { size: smallTextSize });
+            if (isOffer) {
+                drawText(item.codigo, tableCols[0] + 5, itemY, { size: smallTextSize });
+                const discountText = item.descuento != null ? `${item.descuento}%` : '-';
+                drawCenteredText(discountText, tableCols[1], colWidths[1], itemY, { size: smallTextSize });
+                drawText((item.descripcion || '').substring(0, 40), tableCols[2] + 5, itemY, { size: smallTextSize });
+                drawCenteredText(String(item.cantidad || ''), tableCols[3], colWidths[3], itemY, { size: smallTextSize });
+                drawCenteredText(String(item.precioUnitario || ''), tableCols[4], colWidths[4], itemY, { size: smallTextSize });
+                drawCenteredText(String(item.precioTotal || ''), tableCols[5], colWidths[5], itemY, { size: smallTextSize });
+            } else {
+                drawText(item.codigo, tableCols[0] + 5, itemY, { size: smallTextSize });
+                drawText((item.descripcion || '').substring(0, 45), tableCols[1] + 5, itemY, { size: smallTextSize });
+                drawCenteredText(String(item.cantidad || ''), tableCols[2], colWidths[2], itemY, { size: smallTextSize });
+                drawCenteredText(String(item.precioUnitario || ''), tableCols[3], colWidths[3], itemY, { size: smallTextSize });
+                drawCenteredText(String(item.precioTotal || ''), tableCols[4], colWidths[4], itemY, { size: smallTextSize });
+            }
 
             itemY -= lineSpacing;
         });

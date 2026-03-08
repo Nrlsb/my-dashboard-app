@@ -2,7 +2,9 @@ const jwt = require('jsonwebtoken');
 const userService = require('../services/userService');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
-const logger = require('../utils/logger'); // (NUEVO) Importar logger
+const logger = require('../utils/logger');
+const { addToBlacklist } = require('../utils/tokenBlacklist');
+const { getTokenFromRequest } = require('../middleware/auth');
 
 exports.loginController = catchAsync(async (req, res, next) => {
     logger.info('POST /api/login -> Autenticando contra DB...');
@@ -29,6 +31,14 @@ exports.loginController = catchAsync(async (req, res, next) => {
         const userWithRole = { ...user, role: payload.role };
 
         logger.info(`Usuario autenticado exitosamente: ${email}`);
+
+        const isProduction = process.env.NODE_ENV === 'production';
+        res.cookie('auth_token', token, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? 'None' : 'Lax',
+            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 días
+        });
 
         res.json({
             success: true,
@@ -78,6 +88,19 @@ exports.authenticateProtheusUser = catchAsync(async (req, res, next) => {
     // Por ahora, solo un placeholder
     return next(new AppError('Funcionalidad de autenticación Protheus no implementada.', 501));
 });
+
+exports.logoutController = async (req, res) => {
+    const token = getTokenFromRequest(req);
+    if (token) await addToBlacklist(token);
+
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.clearCookie('auth_token', {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'None' : 'Lax',
+    });
+    res.json({ success: true, message: 'Sesión cerrada.' });
+};
 
 exports.registerProtheusUser = catchAsync(async (req, res, next) => {
     logger.info('POST /api/protheus-register -> Registrando usuario en Protheus...');

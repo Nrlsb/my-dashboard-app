@@ -8,4 +8,24 @@ const formatCurrency = (amount) => {
   }).format(amount || 0);
 };
 
-module.exports = { formatCurrency };
+/**
+ * Elimina campos de precios de un objeto o array de objetos.
+ * Útil para la vista pública (invitados).
+ */
+const stripPrices = (data) => {
+  if (!data) return data;
+
+  if (Array.isArray(data)) {
+    return data.map(item => stripPrices(item));
+  }
+
+  if (typeof data === 'object') {
+    const { price, formattedPrice, originalPrice, unit_price, ...rest } = data;
+    return rest;
+  }
+
+  return data;
+};
+
+module.exports = { formatCurrency, stripPrices };
+

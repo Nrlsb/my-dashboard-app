@@ -1,5 +1,6 @@
 ﻿const { pool, pool2 } = require('../db');
 const { redisClient, isRedisReady } = require('../redisClient');
+const { FUNCTIONAL_CATEGORIES } = require('../utils/categoryMappings');
 
 /**
  * FunciÃ³n interna para obtener los datos de productos en oferta.
@@ -26,7 +27,7 @@ const getOnOfferData = async (bypassCache = false) => {
     // The table product_offer_status now has product_code.
     // Let's select both.
     const result = await pool2.query(
-      'SELECT product_id, product_code, custom_title, custom_description, custom_image_url FROM product_offer_status WHERE is_on_offer = true'
+      'SELECT product_id, product_code, custom_title, custom_description, custom_image_url, discount_percentage, offer_price, offer_start_date, offer_end_date FROM product_offer_status WHERE is_on_offer = true'
     );
 
     if (isRedisReady()) {
@@ -251,6 +252,7 @@ const findProducts = async ({
   offset,
   search,
   brands,
+  categories,
   deniedGroups,
   allowedIds = [],
   excludedIds = [],
@@ -259,11 +261,12 @@ const findProducts = async ({
   onlyModifiedPrices = false,
   dateFilterType = '', // 'included' or 'modified'
 }) => {
-  const cacheKey = `products:search:v3:${JSON.stringify({
+  const cacheKey = `products:search:v4:${JSON.stringify({
     limit,
     offset,
     search: search ? search.trim() : '',
     brands: brands ? brands.sort() : [],
+    categories: categories ? categories.sort() : [],
     deniedGroups: deniedGroups ? deniedGroups.filter(g => g != null && g !== '').sort() : [],
     allowedIds: allowedIds ? allowedIds.sort() : [],
     excludedIds: excludedIds ? excludedIds.sort() : [],
@@ -430,13 +433,39 @@ const findProducts = async ({
     });
   }
 
-
   if (brands && brands.length > 0) {
     const brandQuery = ` AND TRIM(sbm_desc) = ANY($${paramIndex}::varchar[])`;
     countQuery += brandQuery;
     dataQuery += brandQuery;
     queryParams.push(brands);
     paramIndex++;
+  }
+
+  if (categories && categories.length > 0) {
+    const functionalCategoryCodes = FUNCTIONAL_CATEGORIES.map(c => c.code);
+    const selectedFunctionalCodes = categories.filter(c => functionalCategoryCodes.includes(c));
+    const normalCategories = categories.filter(c => !functionalCategoryCodes.includes(c));
+
+    const categoryConditions = [];
+
+    if (normalCategories.length > 0) {
+      categoryConditions.push(`b1_grupo = ANY($${paramIndex}::varchar[])`);
+      queryParams.push(normalCategories);
+      paramIndex++;
+    }
+
+    selectedFunctionalCodes.forEach(code => {
+      const funcCat = FUNCTIONAL_CATEGORIES.find(c => c.code === code);
+      if (funcCat) {
+        categoryConditions.push(funcCat.condition);
+      }
+    });
+
+    if (categoryConditions.length > 0) {
+      const finalCategoryQuery = ` AND (${categoryConditions.join(' OR ')})`;
+      countQuery += finalCategoryQuery;
+      dataQuery += finalCategoryQuery;
+    }
   }
 
   if (allowedIds && allowedIds.length > 0) {
@@ -466,12 +495,25 @@ const findProducts = async ({
     const totalProducts = parseInt(countResult.rows[0].count, 10);
     const products = dataResult.rows;
 
-    const onOfferProductCodes = await getOnOfferProductCodes(bypassCache);
-    const onOfferCodesSet = new Set(onOfferProductCodes);
-    const productsWithOfferStatus = products.map((product) => ({
-      ...product,
-      oferta: onOfferCodesSet.has(product.code),
-    }));
+    const onOfferData = await getOnOfferData(bypassCache);
+    const offerMap = new Map(onOfferData.map(item => [item.product_code, item]));
+    const now = new Date();
+    const productsWithOfferStatus = products.map((product) => {
+      const offerDetails = offerMap.get(product.code);
+      const isOnOffer = !!offerDetails;
+      const startOk = !offerDetails?.offer_start_date || new Date(offerDetails.offer_start_date) <= now;
+      const endOk = !offerDetails?.offer_end_date || new Date(offerDetails.offer_end_date) >= now;
+      const isActive = isOnOffer && startOk && endOk;
+      return {
+        ...product,
+        oferta: isActive,
+        is_on_offer: isOnOffer,
+        offer_start_date: offerDetails?.offer_start_date ?? null,
+        offer_end_date: offerDetails?.offer_end_date ?? null,
+        discount_percentage: offerDetails?.discount_percentage ?? null,
+        offer_price: offerDetails?.offer_price ?? null,
+      };
+    });
 
     const resultToReturn = {
       products: productsWithOfferStatus,
@@ -760,7 +802,9 @@ sbm_desc AS brand,
         custom_title: details?.custom_title || null,
         custom_description: details?.custom_description || null,
         custom_image_url: details?.custom_image_url || null,
-        created_at: details?.updated_at || null, // [CHANGED] - Use updated_at as created_at proxy
+        discount_percentage: details?.discount_percentage ?? null,
+        offer_price: details?.offer_price ?? null,
+        created_at: details?.updated_at || null,
         updated_at: details?.updated_at || null
       };
     });
@@ -885,7 +929,7 @@ const updateProductNewReleaseDetails = async (productCode, details) => {
 };
 
 const updateProductOfferDetails = async (productId, details) => {
-  const { custom_title, custom_description, custom_image_url } = details;
+  const { custom_title, custom_description, custom_image_url, discount_percentage, offer_price, offer_start_date, offer_end_date } = details;
   try {
     // 1. Get product code
     const productResult = await pool.query('SELECT b1_cod AS code FROM products WHERE id = $1', [productId]);
@@ -894,11 +938,14 @@ const updateProductOfferDetails = async (productId, details) => {
 
     // 2. Update in DB2
     const result = await pool2.query(
-      `UPDATE product_offer_status 
-       SET custom_title = $1, custom_description = $2, custom_image_url = $3, updated_at = CURRENT_TIMESTAMP
-       WHERE product_code = $4
-RETURNING * `,
-      [custom_title, custom_description, custom_image_url, productCode]
+      `UPDATE product_offer_status
+       SET custom_title = $1, custom_description = $2, custom_image_url = $3,
+           discount_percentage = $4, offer_price = $5,
+           offer_start_date = $6, offer_end_date = $7,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE product_code = $8
+       RETURNING *`,
+      [custom_title, custom_description, custom_image_url, discount_percentage ?? null, offer_price ?? null, offer_start_date ?? null, offer_end_date ?? null, productCode]
     );
     return result.rows[0];
   } catch (error) {
@@ -1416,13 +1463,12 @@ const findProductsWithImagesNoDescription = async (limit = 50) => {
   }
 };
 
-
 const findUniqueBrands = async (deniedGroups = []) => {
   try {
     let query = `
-      SELECT DISTINCT TRIM(sbm_desc) AS brand 
+      SELECT DISTINCT TRIM(sbm_desc) AS code, TRIM(sbm_desc) AS name 
       FROM products 
-      WHERE sbm_desc IS NOT NULL AND sbm_desc != ''
+      WHERE sbm_desc IS NOT NULL AND TRIM(sbm_desc) != ''
     `;
     let queryParams = [];
     let paramIndex = 1;
@@ -1433,13 +1479,42 @@ const findUniqueBrands = async (deniedGroups = []) => {
       paramIndex++;
     }
 
-    query += ' ORDER BY brand ASC';
+    query += ' ORDER BY name ASC';
 
-    // Ensure we use pool2 for the new DB
     const result = await pool2.query(query, queryParams);
-    return result.rows.map(row => row.brand);
+    return result.rows.map(row => row.name);
   } catch (error) {
     console.error('Error in findUniqueBrands:', error);
+    throw error;
+  }
+};
+
+const findUniqueCategories = async (deniedGroups = []) => {
+  try {
+    let query = `
+      SELECT DISTINCT b1_grupo AS code, TRIM(sbm_desc) AS name 
+      FROM products 
+      WHERE b1_grupo IS NOT NULL AND b1_grupo != ''
+    `;
+    let queryParams = [];
+    let paramIndex = 1;
+
+    if (deniedGroups.length > 0) {
+      query += ` AND b1_grupo NOT IN(SELECT unnest($${paramIndex}::varchar[])) `;
+      queryParams.push(deniedGroups);
+      paramIndex++;
+    }
+
+    query += ' ORDER BY name ASC';
+
+    const result = await pool2.query(query, queryParams);
+
+    // Añadimos las categorías funcionales dinámicamente al principio
+    const customCategories = FUNCTIONAL_CATEGORIES.map(c => ({ code: c.code, name: c.name }));
+
+    return [...customCategories, ...result.rows];
+  } catch (error) {
+    console.error('Error in findUniqueCategories:', error);
     throw error;
   }
 };
@@ -1451,6 +1526,7 @@ module.exports = {
   findProductById,
   findProductByCode,
   findUniqueBrands, // Exporting the actual function
+  findUniqueCategories, // [NEW]
   getOnOfferData,
   findOffers,
   findProductsByGroup,

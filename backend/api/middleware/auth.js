@@ -1,26 +1,69 @@
 const jwt = require('jsonwebtoken');
+const { isBlacklisted } = require('../utils/tokenBlacklist');
+
+const getTokenFromRequest = (req) => {
+  // Prefer HttpOnly cookie, fall back to Authorization header
+  if (req.cookies && req.cookies.auth_token) {
+    return req.cookies.auth_token;
+  }
+  const authHeader = req.headers['authorization'];
+  return authHeader && authHeader.split(' ')[1];
+};
 
 const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  let token = authHeader && authHeader.split(' ')[1]; // Formato "Bearer TOKEN"
+  const token = getTokenFromRequest(req);
 
-  // Allow token in query param for SSE or other direct links
-  if (!token && req.query && req.query.token) {
-    token = req.query.token;
-  }
-
-  if (token == null) {
+  if (!token) {
     return res
       .status(401)
       .json({ message: 'No autorizado: Token no proporcionado.' });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, userPayload) => {
+  jwt.verify(token, process.env.JWT_SECRET, async (err, userPayload) => {
     if (err) {
-      console.error('Error de verificación de JWT:', err.message);
       return res
         .status(401)
         .json({ message: 'No autorizado: Token no válido o expirado.' });
+    }
+
+    if (await isBlacklisted(token)) {
+      return res
+        .status(401)
+        .json({ message: 'Sesión inválida. Por favor, iniciá sesión nuevamente.' });
+    }
+
+    req.user = userPayload;
+    req.userId = userPayload.userId;
+
+    next();
+  });
+};
+
+// Middleware SSE: acepta token por query param porque EventSource no soporta headers personalizados
+const authenticateTokenSSE = (req, res, next) => {
+  let token = getTokenFromRequest(req);
+
+  if (!token && req.query && req.query.token) {
+    token = req.query.token;
+  }
+
+  if (!token) {
+    return res
+      .status(401)
+      .json({ message: 'No autorizado: Token no proporcionado.' });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, async (err, userPayload) => {
+    if (err) {
+      return res
+        .status(401)
+        .json({ message: 'No autorizado: Token no válido o expirado.' });
+    }
+
+    if (await isBlacklisted(token)) {
+      return res
+        .status(401)
+        .json({ message: 'Sesión inválida. Por favor, iniciá sesión nuevamente.' });
     }
 
     req.user = userPayload;
@@ -48,15 +91,14 @@ const requireAdmin = async (req, res, next) => {
 };
 
 const optionalAuthenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = getTokenFromRequest(req);
 
-  if (token == null) {
+  if (!token) {
     return next();
   }
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, userPayload) => {
-    if (!err) {
+  jwt.verify(token, process.env.JWT_SECRET, async (err, userPayload) => {
+    if (!err && !(await isBlacklisted(token))) {
       req.user = userPayload;
       req.userId = userPayload.userId;
     }
@@ -66,6 +108,8 @@ const optionalAuthenticateToken = (req, res, next) => {
 
 module.exports = {
   authenticateToken,
+  authenticateTokenSSE,
   requireAdmin,
   optionalAuthenticateToken,
+  getTokenFromRequest,
 };

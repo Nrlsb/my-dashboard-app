@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import apiService from '../api/apiService';
 import { useAuth } from '../context/AuthContext';
+import SEOHead from '../components/SEOHead';
 
 const PRODUCTS_PER_PAGE = 20;
 
 const CategoryPage = () => {
   const { groupCode } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -64,18 +65,46 @@ const CategoryPage = () => {
     return <div className="p-4 text-red-500 text-center">{error}</div>;
   }
 
+  const displayName = groupName || groupCode;
+  const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://espint.com.ar';
+
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Catálogo', item: `${SITE_URL}/catalogo` },
+      { '@type': 'ListItem', position: 2, name: displayName, item: `${SITE_URL}/category/${groupCode}` },
+    ],
+  };
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
-      <button
-        onClick={() => navigate('/dashboard')}
-        className="mb-4 text-blue-500 hover:underline"
-      >
-        &larr; Volver al Dashboard
-      </button>
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">
-        Categoría:{' '}
-        <span className="text-blue-600">{groupName || groupCode}</span>
+      <SEOHead
+        title={displayName}
+        description={`Explorá los productos de ${displayName} en Distribuidora Espint. Amplio stock disponible con envíos a todo el país.`}
+        canonical={`/category/${groupCode}`}
+        jsonLd={breadcrumbJsonLd}
+      />
+
+      {/* Breadcrumb */}
+      <nav aria-label="Breadcrumb" className="mb-4 text-sm text-gray-400 flex items-center gap-1">
+        <Link
+          to={isAuthenticated ? '/dashboard' : '/catalogo'}
+          className="hover:text-espint-blue transition-colors"
+        >
+          Catálogo
+        </Link>
+        <span>/</span>
+        <span className="text-gray-600">{displayName}</span>
+      </nav>
+
+      <h1 className="text-3xl font-bold mb-2 text-gray-800">
+        <span className="text-blue-600">{displayName}</span>
       </h1>
+      <p className="text-sm text-gray-500 mb-6">
+        Productos de <strong>{displayName}</strong> disponibles en Distribuidora Espint.
+        {!isAuthenticated && ' Iniciá sesión para ver precios y realizar pedidos.'}
+      </p>
 
       {products.length > 0 ? (
         <>
@@ -92,9 +121,15 @@ const CategoryPage = () => {
                   </h2>
                   <p className="text-sm text-gray-500">{product.brand}</p>
                 </div>
-                <p className="text-lg font-bold mt-2 text-right text-blue-700">
-                  {product.formattedPrice}
-                </p>
+                {isAuthenticated ? (
+                  <p className="text-lg font-bold mt-2 text-right text-blue-700">
+                    {product.formattedPrice}
+                  </p>
+                ) : (
+                  <p className="text-sm font-medium mt-2 text-right text-blue-500 italic">
+                    Inicie sesión para ver precios
+                  </p>
+                )}
               </div>
             ))}
           </div>

@@ -16,6 +16,7 @@ const {
   getNewReleasesController,
   toggleProductNewRelease,
   updateProductNewReleaseDetails,
+  getCategoriesController, // [NEW]
 } = require('../controllers/productController');
 const {
   optionalAuthenticateToken,
@@ -42,6 +43,9 @@ router.get('/group/:groupCode', getProductsByGroupController);
 
 // Cachear marcas por 1 hora (3600s)
 router.get('/brands', getBrandsController);
+
+// Cachear categorías por 1 hora (3600s)
+router.get('/categories', getCategoriesController);
 
 // Cachear ofertas por 5 minutos (300s)
 router.get('/offers', getOffersController);

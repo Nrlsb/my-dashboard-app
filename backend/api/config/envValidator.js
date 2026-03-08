@@ -21,7 +21,7 @@ const envSchema = z.object({
     REDIS_URL: z.string().optional(), // Optional if logic handles it, but good to validate if present
 
     // Security
-    JWT_SECRET: z.string().min(10, "JWT_SECRET must be at least 10 chars"),
+    JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 chars"),
 });
 
 const validateEnv = () => {

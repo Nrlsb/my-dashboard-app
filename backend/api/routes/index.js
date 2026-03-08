@@ -5,11 +5,12 @@ const router = express.Router();
 // Simplemente registra todos los enrutadores modulares, los cuales
 // ya contienen sus propias rutas y middlewares de seguridad.
 
+router.use('/products', require('./product.routes'));
+router.use('/public', require('./public.routes'));
 router.use('/', require('./auth.routes'));
 router.use('/', require('./misc.routes')); // Move up to avoid auth block from user.routes
 router.use('/', require('./user.routes'));
 router.use('/', require('./accounting.routes'));
-router.use('/products', require('./product.routes'));
 
 router.use('/vendedor', require('./vendedor.routes'));
 router.use('/orders', require('./order.routes'));

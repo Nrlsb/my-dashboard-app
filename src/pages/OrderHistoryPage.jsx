@@ -35,6 +35,10 @@ function OrderHistoryPage() {
 
   const handleVendorSalesOrderNumberChange = (orderId, value) => {
     setVendorSalesOrderNumbers((prev) => ({ ...prev, [orderId]: value }));
+    setOrderStatus((prev) => ({
+      ...prev,
+      [orderId]: value.trim() ? 'Confirmado' : 'Pendiente',
+    }));
   };
 
   const handleOrderStatusChange = (orderId, value) => {

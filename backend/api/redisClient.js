@@ -7,7 +7,9 @@ const redisClient = createClient({
     url: process.env.REDIS_URL,
     socket: {
         tls: process.env.REDIS_URL.startsWith('rediss://'),
-        rejectUnauthorized: false // Required for some providers like Render/Heroku if using self-signed certs
+        rejectUnauthorized: false, // Required for some providers like Render/Heroku if using self-signed certs
+        reconnectStrategy: (retries) => Math.min(retries * 200, 5000),
+        keepAlive: 10000,
     }
 });
 

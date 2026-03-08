@@ -1,27 +1,31 @@
 const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
-const { loginController, registerController } = require('../controllers/authController'); // Importar controladores específicos
-console.log('Login Controller Type:', typeof loginController);
-if (loginController && loginController.getMockName) {
-  console.log('Login Controller is a Mock:', loginController.getMockName());
-} else {
-  console.log('Login Controller is NOT a Mock');
-}
+const { loginController, registerController, logoutController } = require('../controllers/authController');
 const validate = require('../middleware/validate');
 const { loginSchema, registerSchema } = require('../schemas/auth.schema');
 
 // --- Rate Limiter for login ---
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 login requests per `window` (here, per 15 minutes)
+  max: 5,
   message:
     'Demasiados intentos de inicio de sesión desde esta IP, por favor intente de nuevo después de 15 minutos',
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === 'development',
 });
 
-// --- Autenticación ---
+// --- Rate Limiter for register ---
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 5,
+  message: 'Demasiados intentos de registro desde esta IP, intente de nuevo en una hora.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === 'development',
+});
+
 /**
  * @swagger
  * tags:
@@ -48,31 +52,18 @@ const loginLimiter = rateLimit({
  *               email:
  *                 type: string
  *                 format: email
- *                 description: User's email
  *               password:
  *                 type: string
  *                 format: password
- *                 description: User's password
  *     responses:
  *       200:
  *         description: Login successful
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 token:
- *                   type: string
- *                 user:
- *                   type: object
  *       400:
  *         description: Invalid input
  *       401:
  *         description: Invalid credentials
  */
-router.post('/login', (req, res, next) => { console.error('Hit /login route'); next(); }, loginLimiter, validate(loginSchema), loginController);
+router.post('/login', loginLimiter, validate(loginSchema), loginController);
 
 /**
  * @swagger
@@ -108,6 +99,8 @@ router.post('/login', (req, res, next) => { console.error('Hit /login route'); n
  *       409:
  *         description: Email already exists
  */
-router.post('/register', validate(registerSchema), registerController);
+router.post('/register', registerLimiter, validate(registerSchema), registerController);
+
+router.post('/logout', logoutController);
 
 module.exports = router;

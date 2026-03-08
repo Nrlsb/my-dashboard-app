@@ -1,6 +1,7 @@
 const productService = require('../services/productService');
 const catchAsync = require('../utils/catchAsync');
 const logger = require('../utils/logger'); // (NUEVO) Importar logger
+const { stripPrices } = require('../utils/helpers');
 
 exports.getProductsController = catchAsync(async (req, res) => {
     const {
@@ -15,6 +16,7 @@ exports.getProductsController = catchAsync(async (req, res) => {
         onlyNewReleasesCandidates = 'false',
         onlyModifiedPrices = 'false',
         dateFilterType = '', // 'included' | 'modified'
+        category = '',
     } = req.query;
     if (bypassCache === 'true' || isExport === 'true') {
         logger.debug(`getProductsController - bypassCache: ${bypassCache}, isExport: ${isExport}`);
@@ -36,8 +38,15 @@ exports.getProductsController = catchAsync(async (req, res) => {
         onlyNewReleasesCandidates: String(onlyNewReleasesCandidates).toLowerCase() === 'true',
         onlyModifiedPrices: String(onlyModifiedPrices).toLowerCase() === 'true',
         dateFilterType,
+        category,
     });
     res.set('Cache-Control', 'no-store');
+
+    // Strip prices if no user
+    if (!req.user) {
+        data.products = stripPrices(data.products);
+    }
+
     res.json(data);
 });
 
@@ -53,6 +62,12 @@ exports.getProductsByGroupController = catchAsync(async (req, res) => {
         limit,
         req.user
     );
+
+    // Strip prices if no user
+    if (!req.user) {
+        data.products = stripPrices(data.products);
+    }
+
     res.json(data);
 });
 
@@ -61,10 +76,21 @@ exports.getBrandsController = catchAsync(async (req, res) => {
     res.json(brands);
 });
 
+exports.getCategoriesController = catchAsync(async (req, res) => {
+    const categories = await productService.fetchProtheusCategories(req.user);
+    res.json(categories);
+});
+
 exports.getOffersController = catchAsync(async (req, res) => {
     logger.info('GET /api/offers -> Consultando ofertas en DB...');
-    const offers = await productService.fetchProtheusOffers(req.user);
+    let offers = await productService.fetchProtheusOffers(req.user);
     res.set('Cache-Control', 'no-store');
+
+    // Strip prices if no user
+    if (!req.user) {
+        offers = stripPrices(offers);
+    }
+
     res.json(offers);
 });
 
@@ -73,11 +99,15 @@ exports.getProductsByIdController = catchAsync(async (req, res) => {
     logger.debug(
         `GET /api/products/${productId} -> Consultando producto individual...`
     );
-    const product = await productService.fetchProductDetails(
+    let product = await productService.fetchProductDetails(
         productId,
         req.user
     );
     if (product) {
+        // Strip prices if no user
+        if (!req.user) {
+            product = stripPrices(product);
+        }
         res.json(product);
     } else {
         res.status(404).json({ message: 'Producto no encontrado.' });
@@ -89,16 +119,21 @@ exports.getProductsByCodeController = catchAsync(async (req, res) => {
     logger.debug(
         `GET /api/products/code/${productCode} -> Consultando producto por código...`
     );
-    const product = await productService.fetchProductDetailsByCode(
+    let product = await productService.fetchProductDetailsByCode(
         productCode,
         req.user
     );
     if (product) {
+        // Strip prices if no user
+        if (!req.user) {
+            product = stripPrices(product);
+        }
         res.json(product);
     } else {
         res.status(404).json({ message: 'Producto no encontrado.' });
     }
 });
+
 
 exports.getProductsOrdersController = catchAsync(async (req, res) => {
     logger.warn('GET /api/products/orders -> Endpoint para /api/products/orders alcanzado. No implementado.');
@@ -125,11 +160,15 @@ exports.toggleProductOfferStatus = catchAsync(async (req, res) => {
 
 exports.updateProductOfferDetails = catchAsync(async (req, res) => {
     const { id } = req.params;
-    const { custom_title, custom_description, custom_image_url } = req.body;
+    const { custom_title, custom_description, custom_image_url, discount_percentage, offer_price, offer_start_date, offer_end_date } = req.body;
     const result = await productService.updateProductOfferDetails(id, {
         custom_title,
         custom_description,
         custom_image_url,
+        discount_percentage: discount_percentage !== undefined ? Number(discount_percentage) || null : null,
+        offer_price: offer_price !== undefined ? Number(offer_price) || null : null,
+        offer_start_date: offer_start_date || null,
+        offer_end_date: offer_end_date || null,
     });
     res.json(result);
 });
@@ -182,10 +221,17 @@ exports.getBatchGenerationProgress = catchAsync(async (req, res) => {
 });
 
 exports.getNewReleasesController = catchAsync(async (req, res) => {
-    const releases = await productService.fetchNewReleases(req.user);
+    let releases = await productService.fetchNewReleases(req.user);
     res.set('Cache-Control', 'no-store');
+
+    // Strip prices if no user
+    if (!req.user) {
+        releases = stripPrices(releases);
+    }
+
     res.json(releases);
 });
+
 
 exports.toggleProductNewRelease = catchAsync(async (req, res) => {
     const { id } = req.params;

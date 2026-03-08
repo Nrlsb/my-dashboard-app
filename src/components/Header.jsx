@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useCart } from '../context/CartContext.jsx';
 import useDolar from '../hooks/useDolar';
+import { NOVEDADES } from '../data/novedades';
 import {
   User,
   LogOut,
@@ -16,8 +17,24 @@ import {
   ChevronDown,
   Phone,
   Mail,
-  AlertCircle
+  AlertCircle,
+  Sparkles,
+  MapPin
 } from 'lucide-react';
+
+const SEEN_KEY = 'espint_novedades_seen';
+
+function getUnseenCount(userRole, isAdmin) {
+  try {
+    const seen = JSON.parse(localStorage.getItem(SEEN_KEY) || '[]');
+    return NOVEDADES.filter((n) => {
+      if (seen.includes(n.id)) return false;
+      return isAdmin || n.sections.some((s) => s.roles.includes(userRole));
+    }).length;
+  } catch {
+    return 0;
+  }
+}
 import logoWhite from '../assets/espintBlanco.svg';
 import logoColor from '../assets/logo.svg';
 import SearchBar from './SearchBar';
@@ -25,11 +42,19 @@ import SearchBar from './SearchBar';
 const Header = ({ onLogout, currentUser }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSellerInfoOpen, setIsSellerInfoOpen] = useState(false);
+  const [unseenCount, setUnseenCount] = useState(0);
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const { cart } = useCart();
   const { dolar } = useDolar();
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  useEffect(() => {
+    const update = () => setUnseenCount(getUnseenCount(currentUser?.role, currentUser?.is_admin));
+    update();
+    window.addEventListener('storage', update);
+    return () => window.removeEventListener('storage', update);
+  }, [currentUser?.role, currentUser?.is_admin]);
 
   const handleNavigation = (path) => {
     navigate(path);
@@ -168,12 +193,17 @@ const Header = ({ onLogout, currentUser }) => {
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   className="flex items-center gap-1 md:gap-2 p-1 rounded-lg hover:bg-white/10 transition-all duration-300 group"
                 >
-                  <div className="h-8 w-8 md:h-9 md:w-9 rounded-full bg-gradient-to-br from-espint-green to-[#aadd00] flex items-center justify-center shadow-md group-hover:shadow-lg transition-all">
+                  <div className="relative h-8 w-8 md:h-9 md:w-9 rounded-full bg-gradient-to-br from-espint-green to-[#aadd00] flex items-center justify-center shadow-md group-hover:shadow-lg transition-all">
                     <span className="text-espint-blue font-bold text-xs md:text-sm">
                       {currentUser?.full_name
                         ? currentUser.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
                         : <User className="w-4 h-4 text-espint-blue" />}
                     </span>
+                    {unseenCount > 0 && (
+                      <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-0.5 text-[10px] font-bold text-white bg-espint-blue rounded-full shadow-sm border-2 border-espint-blue ring-1 ring-espint-green">
+                        {unseenCount}
+                      </span>
+                    )}
                   </div>
                   <ChevronDown
                     className={`w-3 h-3 md:w-4 md:h-4 text-white/70 group-hover:text-white transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`}
@@ -198,6 +228,19 @@ const Header = ({ onLogout, currentUser }) => {
                       >
                         <User className="w-4 h-4 mr-3 text-gray-400" />
                         Mi Perfil
+                      </button>
+
+                      <button
+                        onClick={() => handleNavigation('/novedades')}
+                        className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-espint-blue rounded-lg transition-colors"
+                      >
+                        <Sparkles className="w-4 h-4 mr-3 text-gray-400" />
+                        Novedades
+                        {unseenCount > 0 && (
+                          <span className="ml-auto flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-espint-green rounded-full">
+                            {unseenCount}
+                          </span>
+                        )}
                       </button>
 
 
@@ -286,6 +329,13 @@ const Header = ({ onLogout, currentUser }) => {
                             <AlertCircle className="w-4 h-4 mr-3 text-gray-400" />
                             Alertas de Precio
                           </button>
+                          <button
+                            onClick={() => handleNavigation('/admin/province-routing')}
+                            className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-espint-blue rounded-lg transition-colors"
+                          >
+                            <MapPin className="w-4 h-4 mr-3 text-gray-400" />
+                            Routing por Provincia
+                          </button>
                         </>
                       )}
 
@@ -326,6 +376,8 @@ const Header = ({ onLogout, currentUser }) => {
           </div>
         </div>
       </header>
+
+
     </div>
   );
 };

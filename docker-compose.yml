@@ -1,3 +1,4 @@
+# Recomendado: crear un archivo .env en la raíz con las variables de entorno.
 services:
   # Database Service (PostgreSQL)
   postgres:
@@ -5,15 +6,15 @@ services:
     container_name: dashboard-postgres
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: dashboard_db
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER env var is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD env var is required}
+      POSTGRES_DB: ${POSTGRES_DB:-dashboard_db}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -45,14 +46,37 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3001
+      # DB1 (mismo postgres local)
       - DB_HOST=postgres
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_DATABASE=dashboard_db
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      # JWT Secrets and others should ideally be passed via .env file or secrets
-      # For now assuming defaults or loaded from .env if not overridden
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_DATABASE=${POSTGRES_DB:-dashboard_db}
+      - DB_PORT=5432
+      # DB2 (mismo postgres local — el backend usa DB2_* como conexión principal)
+      - DB2_HOST=postgres
+      - DB2_USER=${POSTGRES_USER}
+      - DB2_PASSWORD=${POSTGRES_PASSWORD}
+      - DB2_DATABASE=${POSTGRES_DB:-dashboard_db}
+      - DB2_PORT=5432
+      # Redis local
+      - REDIS_URL=redis://redis:6379
+      # JWT
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET env var is required}
+      # Servicios externos (se leen del .env raíz)
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - EMAIL_FROM=${EMAIL_FROM:-}
+      - SELLER_EMAIL=${SELLER_EMAIL:-}
+      - CLOUD_NAME=${CLOUD_NAME:-}
+      - API_KEY=${API_KEY:-}
+      - API_SECRET=${API_SECRET:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-}
+      - SMTP_SECURE=${SMTP_SECURE:-}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - ADMIN_NOTIFICATION_EMAIL=${ADMIN_NOTIFICATION_EMAIL:-}
+      - CORS_ORIGIN=http://localhost:5173
     depends_on:
       postgres:
         condition: service_healthy

@@ -49,6 +49,7 @@ const fetchProducts = async ({
   onlyNewReleasesCandidates = false,
   onlyModifiedPrices = false,
   dateFilterType = '',
+  category = '',
 }) => {
   try {
     // 1. Obtener cotizaciones
@@ -82,6 +83,7 @@ const fetchProducts = async ({
       onlyNewReleasesCandidates,
       onlyModifiedPrices,
       dateFilterType, // Pass to model
+      categories: category ? category.split(',') : [],
     };
 
     // Filtro por imagen
@@ -111,6 +113,9 @@ const fetchProducts = async ({
 
     const products = rawProducts.map((prod) => {
       const { finalPrice, cotizacionUsed, formattedPrice } = calculateFinalPrice(prod, exchangeRates);
+      const discountedPrice = prod.discount_percentage != null
+        ? finalPrice * (1 - prod.discount_percentage / 100)
+        : null;
 
       return {
         id: prod.id,
@@ -128,6 +133,9 @@ const fetchProducts = async ({
         originalPrice: prod.price,
         product_group: prod.product_group,
         oferta: prod.oferta,
+        is_on_offer: prod.is_on_offer,
+        offer_start_date: prod.offer_start_date ?? null,
+        offer_end_date: prod.offer_end_date ?? null,
         recentlyChanged: false, // Legacy support, logic removed
         stock_disponible: prod.stock_disponible,
         stock_de_seguridad: prod.stock_de_seguridad,
@@ -136,6 +144,9 @@ const fetchProducts = async ({
         isPriceModified: prod.is_price_modified,
         inclusion_date: prod.inclusion_date, // Map from DB
         modification_date: prod.modification_date, // Map from DB
+        discount_percentage: prod.discount_percentage ?? null,
+        offer_price: prod.offer_price ?? null,
+        discountedPrice,
       };
     });
 
@@ -267,6 +278,22 @@ const fetchProductDetails = async (productId, user = null) => {
 
     const { finalPrice, formattedPrice } = calculateFinalPrice(prod, exchangeRates);
 
+    // Offer details
+    let offerDetails = null;
+    try {
+      const onOfferData = await productModel.getOnOfferData();
+      offerDetails = onOfferData.find(item => item.product_code === prod.code) || null;
+    } catch (e) { console.error('Error fetching offer data for product detail', e); }
+
+    const now = new Date();
+    const startOk = !offerDetails?.offer_start_date || new Date(offerDetails.offer_start_date) <= now;
+    const endOk = !offerDetails?.offer_end_date || new Date(offerDetails.offer_end_date) >= now;
+    const isOfferActive = !!offerDetails && startOk && endOk;
+
+    const discountedPrice = isOfferActive && offerDetails?.discount_percentage != null
+      ? finalPrice * (1 - offerDetails.discount_percentage / 100)
+      : null;
+
     const productDetails = {
       id: prod.id,
       code: prod.code,
@@ -285,6 +312,10 @@ const fetchProductDetails = async (productId, user = null) => {
       stock_de_seguridad: prod.stock_de_seguridad,
       indicator_description: prod.indicator_description,
       pack_quantity: prod.pack_quantity,
+      oferta: isOfferActive,
+      discount_percentage: isOfferActive ? (offerDetails?.discount_percentage ?? null) : null,
+      offer_price: isOfferActive ? (offerDetails?.offer_price ?? null) : null,
+      discountedPrice,
     };
 
     const [enrichedProduct] = await enrichProductsWithImages([productDetails]);
@@ -315,6 +346,22 @@ const fetchProductDetailsByCode = async (productCode, user = null) => {
 
     const { finalPrice, formattedPrice } = calculateFinalPrice(prod, exchangeRates);
 
+    // Offer details
+    let offerDetails = null;
+    try {
+      const onOfferData = await productModel.getOnOfferData();
+      offerDetails = onOfferData.find(item => item.product_code === prod.code) || null;
+    } catch (e) { console.error('Error fetching offer data for product detail by code', e); }
+
+    const now = new Date();
+    const startOk = !offerDetails?.offer_start_date || new Date(offerDetails.offer_start_date) <= now;
+    const endOk = !offerDetails?.offer_end_date || new Date(offerDetails.offer_end_date) >= now;
+    const isOfferActive = !!offerDetails && startOk && endOk;
+
+    const discountedPrice = isOfferActive && offerDetails?.discount_percentage != null
+      ? finalPrice * (1 - offerDetails.discount_percentage / 100)
+      : null;
+
     const productDetails = {
       id: prod.id,
       code: prod.code,
@@ -333,6 +380,10 @@ const fetchProductDetailsByCode = async (productCode, user = null) => {
       stock_de_seguridad: prod.stock_de_seguridad,
       indicator_description: prod.indicator_description,
       pack_quantity: prod.pack_quantity,
+      oferta: isOfferActive,
+      discount_percentage: isOfferActive ? (offerDetails?.discount_percentage ?? null) : null,
+      offer_price: isOfferActive ? (offerDetails?.offer_price ?? null) : null,
+      discountedPrice,
     };
 
     const [enrichedProduct] = await enrichProductsWithImages([productDetails]);
@@ -357,11 +408,31 @@ const fetchProtheusBrands = async (user = null) => {
   }
 };
 
+const fetchProtheusCategories = async (user = null) => {
+  try {
+    const { deniedGroups } = await getUserFilters(user);
+    const categories = await productModel.findUniqueCategories(deniedGroups);
+    return categories;
+  } catch (error) {
+    console.error('Error in fetchProtheusCategories (service):', error);
+    throw error;
+  }
+};
+
 const fetchProtheusOffers = async (user = null) => {
   try {
     const { deniedGroups } = await getUserFilters(user);
     const offerData = await productModel.getOnOfferData();
-    const rawOffers = await productModel.findOffers(offerData, deniedGroups);
+
+    // Filter to only currently active offers (respects scheduled start/end dates)
+    const now = new Date();
+    const activeOfferData = offerData.filter(o => {
+      const startOk = !o.offer_start_date || new Date(o.offer_start_date) <= now;
+      const endOk = !o.offer_end_date || new Date(o.offer_end_date) >= now;
+      return startOk && endOk;
+    });
+
+    const rawOffers = await productModel.findOffers(activeOfferData, deniedGroups);
 
     if (rawOffers.length === 0) {
       return [];
@@ -381,6 +452,10 @@ const fetchProtheusOffers = async (user = null) => {
     const offers = rawOffers.map((prod) => {
       const { finalPrice, cotizacionUsed, formattedPrice } = calculateFinalPrice(prod, exchangeRates);
 
+      const discountedPrice = prod.discount_percentage != null
+        ? finalPrice * (1 - prod.discount_percentage / 100)
+        : null;
+
       return {
         id: prod.id,
         code: prod.code,
@@ -399,6 +474,9 @@ const fetchProtheusOffers = async (user = null) => {
         custom_title: prod.custom_title,
         custom_description: prod.custom_description,
         custom_image_url: prod.custom_image_url,
+        discount_percentage: prod.discount_percentage ?? null,
+        offer_price: prod.offer_price ?? null,
+        discountedPrice,
       };
     });
 
@@ -430,10 +508,12 @@ const fetchProductsByGroup = async (
     const offset = (page - 1) * limit;
 
     // Use helper to get permissions and restricted products
-    const { deniedGroups, allowedProductCodes, isRestrictedUser } = await getUserFilters(user);
+    const { deniedGroups, allowedProductCodes, isRestrictedUser, role } = await getUserFilters(user);
 
     let effectiveAllowedCodes = [];
-    if (isRestrictedUser) {
+    // Guests (unauthenticated) can browse all products in a category (prices are stripped in controller)
+    // Only apply image-code restriction to logged-in restricted users (e.g. test_user)
+    if (isRestrictedUser && role !== 'guest') {
       if (allowedProductCodes.length === 0) {
         return { products: [], totalProducts: 0, groupName: '' };
       }
@@ -449,7 +529,6 @@ const fetchProductsByGroup = async (
       limit,
       offset,
       deniedGroups,
-      [],
       effectiveAllowedCodes
     );
 
@@ -940,6 +1019,7 @@ module.exports = {
   fetchProductDetails,
   fetchProductDetailsByCode,
   fetchProtheusBrands,
+  fetchProtheusCategories,
   fetchProtheusOffers,
   fetchProductsByGroup,
   toggleProductOfferStatus,

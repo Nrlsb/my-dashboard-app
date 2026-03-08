@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import SEOHead from '../components/SEOHead';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -46,6 +47,12 @@ const LoginPage = () => {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#F3F4F6] font-sans">
+      <SEOHead
+        title="Iniciar Sesión"
+        description="Accedé a tu cuenta de Distribuidora Espint para ver precios, realizar pedidos y gestionar tu cuenta mayorista."
+        canonical="/login"
+        noindex={false}
+      />
       <div className="w-full max-w-sm p-8 space-y-6 bg-white rounded-xl shadow-xl border border-gray-100">
         <div className="text-center flex justify-center">
           <img
@@ -128,6 +135,25 @@ const LoginPage = () => {
           </button>
         </form>
 
+        <div className="flex flex-col gap-3 pt-2">
+          <div className="text-sm text-center text-gray-600">
+            ¿No tenés cuenta?{' '}
+            <button
+              onClick={() => navigate('/solicitar-acceso')}
+              className="font-medium text-[#0B3D68] hover:text-[#0a3459]"
+            >
+              Solicitá acceso
+            </button>
+          </div>
+          <div className="text-sm text-center">
+            <button
+              onClick={() => navigate('/catalogo')}
+              className="font-medium text-gray-500 hover:text-gray-700"
+            >
+              Ver catálogo →
+            </button>
+          </div>
+        </div>
 
       </div>
     </div>

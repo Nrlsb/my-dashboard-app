@@ -20,4 +20,8 @@ export const authService = {
     changePassword(newPassword) {
         return apiClient.put('/change-password', { newPassword });
     },
+
+    logout() {
+        return apiClient.post('/logout');
+    },
 };

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Search, Filter, Share2 } from 'lucide-react';
 import apiService from '../api/apiService';
@@ -9,6 +9,7 @@ import ProductCard from '../components/ProductCard';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import SEOHead from '../components/SEOHead';
 
 const LaunchGroupPublicPage = () => {
     const { id } = useParams();
@@ -102,8 +103,25 @@ const LaunchGroupPublicPage = () => {
         );
     }
 
+    const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://espint.com.ar';
+    const breadcrumbJsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Catálogo', item: `${SITE_URL}/catalogo` },
+            { '@type': 'ListItem', position: 2, name: groupName, item: `${SITE_URL}/collection/${id}` },
+        ],
+    };
+
     return (
         <div className="container mx-auto p-4 max-w-7xl">
+            <SEOHead
+                title={groupName !== 'Colección' ? groupName : 'Colección de Productos'}
+                description={`Explorá la colección ${groupName} de Distribuidora Espint. ${products.length} productos disponibles.`}
+                canonical={`/collection/${id}`}
+                jsonLd={breadcrumbJsonLd}
+            />
+
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <div className="flex items-center gap-3 w-full md:w-auto">
@@ -114,6 +132,11 @@ const LaunchGroupPublicPage = () => {
                         <ArrowLeft className="w-6 h-6 text-gray-600" />
                     </button>
                     <div>
+                        <nav aria-label="Breadcrumb" className="text-xs text-gray-400 flex items-center gap-1 mb-0.5">
+                            <Link to="/catalogo" className="hover:text-espint-blue transition-colors">Catálogo</Link>
+                            <span>/</span>
+                            <span className="text-gray-600">{groupName}</span>
+                        </nav>
                         <h1 className="text-2xl font-bold text-gray-800">{groupName}</h1>
                         <p className="text-sm text-gray-500">{products.length} productos</p>
                     </div>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <!-- Página principal pública -->
+  <url>
+    <loc>https://espint.com.ar/catalogo</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Acerca de -->
+  <url>
+    <loc>https://espint.com.ar/about</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Solicitar acceso -->
+  <url>
+    <loc>https://espint.com.ar/solicitar-acceso</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Nuevos lanzamientos -->
+  <url>
+    <loc>https://espint.com.ar/new-releases</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Login -->
+  <url>
+    <loc>https://espint.com.ar/login</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+</urlset>
