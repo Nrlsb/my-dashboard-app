@@ -6,29 +6,31 @@ import apiService from '../api/apiService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import NovedadesModal from '../components/NovedadesModal';
 
+const FALLBACK_PANELS = [
+  { id: 'clients', title: 'Mis Clientes', subtitle: 'Gestioná tus clientes asignados y sus datos.', navigation_path: '/vendedor-clients' },
+  { id: 'cuentas', title: 'Cuentas Corrientes', subtitle: 'Revisá el estado de cuenta de tus clientes.', navigation_path: '/vendedor-cuentas-corrientes' },
+  { id: 'pedidos', title: 'Pedidos de Ventas', subtitle: 'Consultá el historial de pedidos realizados.', navigation_path: '/vendedor-pedidos-ventas' },
+  { id: 'precios', title: 'Lista de Precios', subtitle: 'Accedé a las listas de precios vigentes.', navigation_path: '/vendedor-price-list' },
+  { id: 'test-users', title: 'Usuarios de Prueba', subtitle: 'Administrá los usuarios de prueba de tus clientes.', navigation_path: '/vendedor-test-users' },
+];
+
 const VendedorDashboardPage = () => {
   const navigate = useNavigate();
 
   const {
-    data: panels = [],
+    data: panels,
     isLoading,
-    error,
   } = useQuery({
     queryKey: ['dashboardPanels'],
     queryFn: () => apiService.getDashboardPanels(),
     staleTime: 1000 * 60 * 5, // 5 minutos
+    retry: 1,
   });
+
+  const displayPanels = (panels && panels.length > 0) ? panels : FALLBACK_PANELS;
 
   if (isLoading) {
     return <LoadingSpinner text="Cargando dashboard..." />;
-  }
-
-  if (error) {
-    return (
-      <div className="text-center p-8 text-red-500">
-        Error al cargar el dashboard: {error.message}
-      </div>
-    );
   }
 
   return (
@@ -41,8 +43,7 @@ const VendedorDashboardPage = () => {
         </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {/* Manual Panel for Test Users */}
-        {panels.map((panel) => (
+        {displayPanels.map((panel) => (
           <div
             key={panel.id}
             onClick={() => navigate(panel.navigation_path)}

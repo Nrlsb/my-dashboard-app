@@ -124,9 +124,27 @@ const ContactRequestPage = () => {
             setIsDetecting(false);
         };
 
+        const tryIPGeolocation = async () => {
+            try {
+                const res = await fetch('https://ipapi.co/json/');
+                if (!res.ok) throw new Error('IP API error');
+                const data = await res.json();
+                if (data.country_code === 'AR' && data.region) {
+                    const provincia = findProvincia(data.region);
+                    if (provincia) {
+                        applyProvincia(provincia);
+                        return;
+                    }
+                }
+            } catch {
+                // Silencioso
+            }
+            setIsDetecting(false);
+        };
+
         const tryGeolocation = () => {
             if (!navigator.geolocation) {
-                setIsDetecting(false);
+                tryIPGeolocation();
                 return;
             }
             navigator.geolocation.getCurrentPosition(
@@ -147,15 +165,12 @@ const ContactRequestPage = () => {
                                     return;
                                 }
                             }
-                            setIsDetecting(false);
+                            tryIPGeolocation();
                         })
-                        .catch(() => setIsDetecting(false));
+                        .catch(() => tryIPGeolocation());
                 },
-                () => {
-                    // Permiso denegado o error: el usuario selecciona manualmente
-                    setIsDetecting(false);
-                },
-                { timeout: 8000 }
+                () => tryIPGeolocation()
+                // Sin timeout: el timer no corre mientras el usuario responde al dialog de permiso
             );
         };
 

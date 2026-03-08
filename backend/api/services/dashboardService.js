@@ -10,6 +10,7 @@ const productService = require('./productService');
  * @returns {Promise<Array<object>>} - Una promesa que se resuelve con la lista de paneles filtrada.
  */
 const getDashboardPanels = async (user) => {
+  if (!user) return [];
   const isAdmin = user.isAdmin;
   const isVendedor = user.role === 'vendedor';
 
