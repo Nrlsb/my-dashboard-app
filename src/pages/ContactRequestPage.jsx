@@ -125,20 +125,8 @@ const ContactRequestPage = () => {
         };
 
         const tryIPGeolocation = async () => {
-            try {
-                const res = await fetch('https://ipapi.co/json/');
-                if (!res.ok) throw new Error('IP API error');
-                const data = await res.json();
-                if (data.country_code === 'AR' && data.region) {
-                    const provincia = findProvincia(data.region);
-                    if (provincia) {
-                        applyProvincia(provincia);
-                        return;
-                    }
-                }
-            } catch {
-                // Silencioso
-            }
+            // IP geolocation es imprecisa en Argentina (IPs registradas en Bs.As. aunque el usuario esté en otra provincia).
+            // Solo se usa para detener el spinner, no para pre-seleccionar la provincia.
             setIsDetecting(false);
         };
 
