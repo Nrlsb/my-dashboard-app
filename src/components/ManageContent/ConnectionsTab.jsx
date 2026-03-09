@@ -55,12 +55,11 @@ const ConnectionsTab = () => {
         setStatusMessage('Iniciando conexión...');
 
         // 1. Setup SSE Listener
-        const token = localStorage.getItem('authToken');
-        const eventSourceUrl = `${API_BASE_URL}/admin/sync-events?token=${token}`;
+        const eventSourceUrl = `${API_BASE_URL}/admin/sync-events`;
 
         const connectSSE = () => {
             return new Promise((resolve, reject) => {
-                const eventSource = new EventSource(eventSourceUrl);
+                const eventSource = new EventSource(eventSourceUrl, { withCredentials: true });
 
                 eventSource.onopen = () => {
                     console.log("SSE Connection Opened");
