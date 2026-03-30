@@ -823,7 +823,7 @@ const GroupEditModal = ({ brandName, productCount, onClose, onSave, isSaving }) 
 };
 
 // --- Pestaña Ofertas por Grupo ---
-const GroupOffersTab = () => {
+const GroupOffersTab = ({ onPreview, onEdit }) => {
   const [selectedBrand, setSelectedBrand] = useState(null);
   const [brandFilter, setBrandFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -990,15 +990,27 @@ const GroupOffersTab = () => {
           <span className="text-gray-400">/</span>
           <span className="text-sm font-semibold text-gray-800">{selectedBrand}</span>
         </div>
-        {activeOfferProducts.length > 0 && (
-          <button
-            onClick={() => setIsBrandEditorOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-          >
-            <Edit2 className="w-4 h-4" />
-            Editar oferta para la marca
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {activeOfferProducts.length > 0 && (
+            <>
+              <button
+                onClick={() => onPreview(activeOfferProducts[0])}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+                title="Vista previa de cómo queda la oferta en esta marca"
+              >
+                <Eye className="w-4 h-4" />
+                Vista Previa
+              </button>
+              <button
+                onClick={() => setIsBrandEditorOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+              >
+                <Edit2 className="w-4 h-4" />
+                Editar oferta para la marca
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Búsqueda dentro de la marca */}
@@ -1034,6 +1046,20 @@ const GroupOffersTab = () => {
               <div className="flex items-center justify-between pt-2 border-t border-gray-50">
                 <OfferStatusBadge product={product} size="sm" />
                 <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => onPreview(product)}
+                    className="p-2 text-gray-400 hover:text-blue-600 bg-gray-50 rounded-full transition-colors cursor-pointer"
+                    aria-label="Vista previa"
+                  >
+                    <Eye className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => onEdit(product)}
+                    className="p-2 text-gray-400 hover:text-blue-600 bg-gray-50 rounded-full transition-colors cursor-pointer"
+                    aria-label="Editar oferta"
+                  >
+                    <Edit2 className="w-5 h-5" />
+                  </button>
                   <ToggleSwitch
                     checked={product.is_on_offer !== undefined ? product.is_on_offer : product.oferta}
                     onChange={() => toggleOffer(product.id)}
@@ -1067,31 +1093,14 @@ const GroupOffersTab = () => {
                 <tr><td colSpan="4" className="p-8 text-center text-gray-500">No se encontraron productos de esta marca.</td></tr>
               )}
               {products.map((product) => (
-                <tr key={product.id} className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="py-3 px-4 text-sm text-gray-500 font-mono">{product.code}</td>
-                  <td className="py-3 px-4 text-sm text-gray-900 font-medium">
-                    <div>
-                      {product.custom_title || product.name}
-                      {product.custom_title && (
-                        <span className="ml-2 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">Personalizado</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-sm text-gray-500">
-                    <OfferStatusBadge product={product} />
-                  </td>
-                  <td className="py-3 px-4 text-center">
-                    <div className="flex items-center justify-center">
-                      <ToggleSwitch
-                        checked={product.is_on_offer !== undefined ? product.is_on_offer : product.oferta}
-                        onChange={() => toggleOffer(product.id)}
-                        disabled={isToggling}
-                        labelOff="Activar oferta"
-                        labelOn="Desactivar oferta"
-                      />
-                    </div>
-                  </td>
-                </tr>
+                <ProductRow
+                  key={product.id}
+                  product={product}
+                  onToggle={() => toggleOffer(product.id)}
+                  isToggling={isToggling}
+                  onEdit={onEdit}
+                  onPreview={onPreview}
+                />
               ))}
             </tbody>
           </table>
@@ -1312,21 +1321,19 @@ export default function ManageOffersPage() {
         <nav className="-mb-px flex space-x-6">
           <button
             onClick={() => setActiveTab('individual')}
-            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
-              activeTab === 'individual'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors cursor-pointer ${activeTab === 'individual'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
           >
             Ofertas Individuales
           </button>
           <button
             onClick={() => setActiveTab('group')}
-            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'group'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${activeTab === 'group'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
           >
             <Layers className="w-4 h-4" />
             Ofertas por Grupo
@@ -1335,7 +1342,7 @@ export default function ManageOffersPage() {
       </div>
 
       {/* Pestaña: Ofertas por Grupo */}
-      {activeTab === 'group' && <GroupOffersTab />}
+      {activeTab === 'group' && <GroupOffersTab onPreview={setPreviewProduct} onEdit={setEditingProduct} />}
 
       {/* Pestaña: Ofertas Individuales */}
       {activeTab === 'individual' && (
@@ -1367,159 +1374,159 @@ export default function ManageOffersPage() {
             </div>
           </div>
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        {/* Mobile Card View */}
-        <div className="md:hidden divide-y divide-gray-200">
-          {isLoading && (
-            <div className="p-4">
-              <LoadingSpinner text="Cargando productos..." />
-            </div>
-          )}
-          {isError && (
-            <div className="p-8 text-center text-red-500">
-              Error: {error?.message}
-            </div>
-          )}
-          {!isLoading && !isError && productsToShow.length === 0 && (
-            <div className="p-8 text-center text-gray-500">
-              No se encontraron productos{showOnlyActive ? ' activos.' : '.'}
-            </div>
-          )}
-          {productsToShow.map((product) => (
-            <div key={product.id} className="p-4 flex flex-col space-y-3">
-              <div className="flex justify-between items-start">
-                <div className="pr-4">
-                  <h3 className="text-sm font-bold text-gray-900 line-clamp-2">
-                    {product.custom_title || product.name}
-                  </h3>
-                  <p className="text-xs text-gray-500 font-mono mt-1">
-                    Cód: {product.code}
-                  </p>
-                  {product.custom_title && (
-                    <span className="inline-block mt-1 text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
-                      Personalizado
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-gray-50">
-                <OfferStatusBadge product={product} size="sm" />
-                <div className="flex items-center space-x-3">
-                  <button
-                    onClick={() => setPreviewProduct(product)}
-                    className="p-2 text-gray-400 hover:text-blue-600 bg-gray-50 rounded-full transition-colors cursor-pointer"
-                    aria-label="Vista previa"
-                  >
-                    <Eye className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => setEditingProduct(product)}
-                    className="p-2 text-gray-400 hover:text-blue-600 bg-gray-50 rounded-full transition-colors cursor-pointer"
-                    aria-label="Editar oferta"
-                  >
-                    <Edit2 className="w-5 h-5" />
-                  </button>
-                  <ToggleSwitch
-                    checked={product.is_on_offer !== undefined ? product.is_on_offer : product.oferta}
-                    onChange={() => toggleOffer(product.id)}
-                    disabled={isToggling}
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Desktop Table View */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="min-w-full bg-white">
-            <thead className="bg-gray-100 border-b border-gray-300">
-              <tr>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Código
-                </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Descripción
-                </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Estado Actual
-                </th>
-                <th className="py-3 px-4 text-center text-xs font-semibold text-gray-600 uppercase">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y divide-gray-200">
               {isLoading && (
-                <tr>
-                  <td colSpan="4" className="p-0">
-                    <LoadingSpinner text="Cargando productos..." />
-                  </td>
-                </tr>
+                <div className="p-4">
+                  <LoadingSpinner text="Cargando productos..." />
+                </div>
               )}
               {isError && (
-                <tr>
-                  <td colSpan="4" className="p-8 text-center text-red-500">
-                    Error: {error?.message}
-                  </td>
-                </tr>
+                <div className="p-8 text-center text-red-500">
+                  Error: {error?.message}
+                </div>
               )}
               {!isLoading && !isError && productsToShow.length === 0 && (
-                <tr>
-                  <td colSpan="4" className="p-8 text-center text-gray-500">
-                    No se encontraron productos{showOnlyActive ? ' activos.' : '.'}
-                  </td>
-                </tr>
+                <div className="p-8 text-center text-gray-500">
+                  No se encontraron productos{showOnlyActive ? ' activos.' : '.'}
+                </div>
               )}
               {productsToShow.map((product) => (
-                <ProductRow
-                  key={product.id}
-                  product={product}
-                  onToggle={() => toggleOffer(product.id)}
-                  isToggling={isToggling}
-                  onEdit={setEditingProduct}
-                  onPreview={setPreviewProduct}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+                <div key={product.id} className="p-4 flex flex-col space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div className="pr-4">
+                      <h3 className="text-sm font-bold text-gray-900 line-clamp-2">
+                        {product.custom_title || product.name}
+                      </h3>
+                      <p className="text-xs text-gray-500 font-mono mt-1">
+                        Cód: {product.code}
+                      </p>
+                      {product.custom_title && (
+                        <span className="inline-block mt-1 text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                          Personalizado
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
-        {/* Helper for pagination only when not filtering */}
-        {!showOnlyActive && (
-          <div className="p-4 text-center">
-            {hasNextPage && (
-              <button
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-                className="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-              >
-                {isFetchingNextPage ? 'Cargando...' : 'Cargar más productos'}
-              </button>
-            )}
-            {!hasNextPage && !isLoading && productsToShow.length > 0 && (
-              <p className="text-gray-500 text-sm">Fin de los resultados.</p>
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-50">
+                    <OfferStatusBadge product={product} size="sm" />
+                    <div className="flex items-center space-x-3">
+                      <button
+                        onClick={() => setPreviewProduct(product)}
+                        className="p-2 text-gray-400 hover:text-blue-600 bg-gray-50 rounded-full transition-colors cursor-pointer"
+                        aria-label="Vista previa"
+                      >
+                        <Eye className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => setEditingProduct(product)}
+                        className="p-2 text-gray-400 hover:text-blue-600 bg-gray-50 rounded-full transition-colors cursor-pointer"
+                        aria-label="Editar oferta"
+                      >
+                        <Edit2 className="w-5 h-5" />
+                      </button>
+                      <ToggleSwitch
+                        checked={product.is_on_offer !== undefined ? product.is_on_offer : product.oferta}
+                        onChange={() => toggleOffer(product.id)}
+                        disabled={isToggling}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-full bg-white">
+                <thead className="bg-gray-100 border-b border-gray-300">
+                  <tr>
+                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Código
+                    </th>
+                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Descripción
+                    </th>
+                    <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Estado Actual
+                    </th>
+                    <th className="py-3 px-4 text-center text-xs font-semibold text-gray-600 uppercase">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {isLoading && (
+                    <tr>
+                      <td colSpan="4" className="p-0">
+                        <LoadingSpinner text="Cargando productos..." />
+                      </td>
+                    </tr>
+                  )}
+                  {isError && (
+                    <tr>
+                      <td colSpan="4" className="p-8 text-center text-red-500">
+                        Error: {error?.message}
+                      </td>
+                    </tr>
+                  )}
+                  {!isLoading && !isError && productsToShow.length === 0 && (
+                    <tr>
+                      <td colSpan="4" className="p-8 text-center text-gray-500">
+                        No se encontraron productos{showOnlyActive ? ' activos.' : '.'}
+                      </td>
+                    </tr>
+                  )}
+                  {productsToShow.map((product) => (
+                    <ProductRow
+                      key={product.id}
+                      product={product}
+                      onToggle={() => toggleOffer(product.id)}
+                      isToggling={isToggling}
+                      onEdit={setEditingProduct}
+                      onPreview={setPreviewProduct}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Helper for pagination only when not filtering */}
+            {!showOnlyActive && (
+              <div className="p-4 text-center">
+                {hasNextPage && (
+                  <button
+                    onClick={() => fetchNextPage()}
+                    disabled={isFetchingNextPage}
+                    className="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+                  >
+                    {isFetchingNextPage ? 'Cargando...' : 'Cargar más productos'}
+                  </button>
+                )}
+                {!hasNextPage && !isLoading && productsToShow.length > 0 && (
+                  <p className="text-gray-500 text-sm">Fin de los resultados.</p>
+                )}
+              </div>
             )}
           </div>
-        )}
-      </div>
 
-      {editingProduct && (
-        <EditOfferModal
-          product={editingProduct}
-          onClose={() => setEditingProduct(null)}
-          onSave={(productId, details) => saveOfferDetails({ productId, details })}
-          isSaving={isSavingDetails}
-        />
-      )}
+          {editingProduct && (
+            <EditOfferModal
+              product={editingProduct}
+              onClose={() => setEditingProduct(null)}
+              onSave={(productId, details) => saveOfferDetails({ productId, details })}
+              isSaving={isSavingDetails}
+            />
+          )}
 
-      {previewProduct && (
-        <PreviewOfferModal
-          product={previewProduct}
-          onClose={() => setPreviewProduct(null)}
-        />
-      )}
+          {previewProduct && (
+            <PreviewOfferModal
+              product={previewProduct}
+              onClose={() => setPreviewProduct(null)}
+            />
+          )}
         </>
       )}
     </div>
