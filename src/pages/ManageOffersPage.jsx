@@ -542,7 +542,7 @@ const ProductRow = ({ product, onToggle, isToggling, onEdit, onPreview }) => (
 );
 
 // --- Modal de Edición por Marca (aplica a todos los productos) ---
-const GroupEditModal = ({ brandName, productCount, onClose, onSave, isSaving }) => {
+const GroupEditModal = ({ brandName, productCount, onClose, onSave, onPreview, isSaving }) => {
   const [formData, setFormData] = useState({
     custom_title: '',
     custom_description: '',
@@ -568,6 +568,25 @@ const GroupEditModal = ({ brandName, productCount, onClose, onSave, isSaving }) 
     } else {
       setFormData(prev => ({ ...prev, discount_percentage: '', offer_price: '' }));
     }
+  };
+
+  const handlePreview = () => {
+    const previewData = {
+      name: `Producto de la marca ${brandName}`,
+      code: 'MUESTRA',
+      brand: brandName,
+      price: 15000, // Precio base de muestra
+      custom_title: formData.custom_title,
+      custom_description: formData.custom_description,
+      custom_image_url: formData.custom_image_url,
+      discount_percentage: priceType === 'discount' && formData.discount_percentage !== '' ? Number(formData.discount_percentage) : null,
+      offer_price: priceType === 'fixed' && formData.offer_price !== '' ? Number(formData.offer_price) : null,
+      offer_start_date: formData.offer_start_date || null,
+      offer_end_date: formData.offer_end_date || null,
+      is_on_offer: true,
+      oferta: true
+    };
+    onPreview(previewData);
   };
 
   const handleSubmit = (e) => {
@@ -789,31 +808,41 @@ const GroupEditModal = ({ brandName, productCount, onClose, onSave, isSaving }) 
               </div>
             </div>
 
-            <div className="pt-4 flex justify-end space-x-3">
+            <div className="pt-4 flex justify-between space-x-3">
               <button
                 type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer"
+                onClick={handlePreview}
+                className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 flex items-center cursor-pointer"
               >
-                Cancelar
+                <Eye className="w-4 h-4 mr-2" />
+                Vista Previa
               </button>
-              <button
-                type="submit"
-                disabled={isSaving || formData.isUploading}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 flex items-center disabled:opacity-50 cursor-pointer"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Guardando...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    Aplicar a todos
-                  </>
-                )}
-              </button>
+              <div className="flex space-x-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving || formData.isUploading}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 flex items-center disabled:opacity-50 cursor-pointer"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Aplicar a seleccionados
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -825,6 +854,7 @@ const GroupEditModal = ({ brandName, productCount, onClose, onSave, isSaving }) 
 // --- Pestaña Ofertas por Grupo ---
 const GroupOffersTab = ({ onPreview, onEdit }) => {
   const [selectedBrand, setSelectedBrand] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]); // Array de IDs seleccionados
   const [brandFilter, setBrandFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
@@ -847,6 +877,10 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
   });
 
   const brands = brandsData || [];
+
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [selectedBrand]);
 
   const {
     data: infiniteData,
@@ -897,9 +931,17 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
 
   const activeOfferProducts = products.filter((p) => p.oferta);
 
+  // Mutación para guardar detalles por lote
   const { mutate: saveBrandOfferDetails, isPending: isSavingBrandDetails } = useMutation({
     mutationFn: async (details) => {
-      await Promise.all(activeOfferProducts.map((p) => apiService.updateProductOfferDetails(p.id, details)));
+      // Aplicar detalles SOLO a los productos seleccionados
+      const targets = selectedIds.length > 0
+        ? selectedIds
+        : activeOfferProducts.map(p => p.id); // Si no hay seleccionados, falla o aplica a todos según lógica
+
+      if (targets.length === 0) throw new Error("No hay productos seleccionados o en oferta.");
+
+      await Promise.all(targets.map((id) => apiService.updateProductOfferDetails(id, details)));
       return details;
     },
     onSuccess: (details) => {
@@ -991,22 +1033,38 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
           <span className="text-sm font-semibold text-gray-800">{selectedBrand}</span>
         </div>
         <div className="flex items-center gap-2">
-          {activeOfferProducts.length > 0 && (
+          {products.length > 0 && (
             <>
               <button
-                onClick={() => onPreview(activeOfferProducts[0])}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
-                title="Vista previa de cómo queda la oferta en esta marca"
+                onClick={() => {
+                  const target = selectedIds.length > 0
+                    ? products.find(p => selectedIds.includes(p.id))
+                    : activeOfferProducts[0] || products[0];
+                  if (target) onPreview(target);
+                  else toast.error("No hay productos para previsualizar");
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors cursor-pointer ${selectedIds.length > 0
+                  ? 'text-blue-600 bg-blue-50 border border-blue-200 hover:bg-blue-100'
+                  : 'text-gray-400 bg-gray-50 border border-gray-200 hover:bg-gray-100'
+                  }`}
+                title="Vista previa de un producto (usa el primero seleccionado)"
               >
                 <Eye className="w-4 h-4" />
-                Vista Previa
+                Vista Previa {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
               </button>
               <button
-                onClick={() => setIsBrandEditorOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+                onClick={() => {
+                  if (selectedIds.length === 0) {
+                    toast.error("Seleccioná al menos un producto para editar la oferta del grupo.");
+                    return;
+                  }
+                  setIsBrandEditorOpen(true);
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors cursor-pointer ${selectedIds.length > 0 ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'
+                  }`}
               >
                 <Edit2 className="w-4 h-4" />
-                Editar oferta para la marca
+                Editar oferta para seleccionados
               </button>
             </>
           )}
@@ -1036,30 +1094,27 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
           )}
           {products.map((product) => (
             <div key={product.id} className="p-4 flex flex-col space-y-3">
-              <div>
-                <h3 className="text-sm font-bold text-gray-900 line-clamp-2">{product.custom_title || product.name}</h3>
-                <p className="text-xs text-gray-500 font-mono mt-1">Cód: {product.code}</p>
-                {product.custom_title && (
-                  <span className="inline-block mt-1 text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">Personalizado</span>
-                )}
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(product.id)}
+                  onChange={() => {
+                    setSelectedIds(prev =>
+                      prev.includes(product.id)
+                        ? prev.filter(id => id !== product.id)
+                        : [...prev, product.id]
+                    );
+                  }}
+                  className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                />
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-gray-900 line-clamp-2">{product.custom_title || product.name}</h3>
+                  <p className="text-xs text-gray-500 font-mono mt-1">Cód: {product.code}</p>
+                </div>
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-gray-50">
                 <OfferStatusBadge product={product} size="sm" />
                 <div className="flex items-center space-x-3">
-                  <button
-                    onClick={() => onPreview(product)}
-                    className="p-2 text-gray-400 hover:text-blue-600 bg-gray-50 rounded-full transition-colors cursor-pointer"
-                    aria-label="Vista previa"
-                  >
-                    <Eye className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => onEdit(product)}
-                    className="p-2 text-gray-400 hover:text-blue-600 bg-gray-50 rounded-full transition-colors cursor-pointer"
-                    aria-label="Editar oferta"
-                  >
-                    <Edit2 className="w-5 h-5" />
-                  </button>
                   <ToggleSwitch
                     checked={product.is_on_offer !== undefined ? product.is_on_offer : product.oferta}
                     onChange={() => toggleOffer(product.id)}
@@ -1076,6 +1131,17 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
           <table className="min-w-full bg-white">
             <thead className="bg-gray-100 border-b border-gray-300">
               <tr>
+                <th className="py-3 px-4 text-center">
+                  <input
+                    type="checkbox"
+                    checked={products.length > 0 && selectedIds.length === products.length}
+                    onChange={(e) => {
+                      if (e.target.checked) setSelectedIds(products.map(p => p.id));
+                      else setSelectedIds([]);
+                    }}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                  />
+                </th>
                 <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Código</th>
                 <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Descripción</th>
                 <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Estado Actual</th>
@@ -1084,23 +1150,54 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {isLoadingProducts && (
-                <tr><td colSpan="4" className="p-0"><LoadingSpinner text="Cargando productos..." /></td></tr>
+                <tr><td colSpan="5" className="p-0"><LoadingSpinner text="Cargando productos..." /></td></tr>
               )}
               {isErrorProducts && (
-                <tr><td colSpan="4" className="p-8 text-center text-red-500">Error: {errorProducts?.message}</td></tr>
+                <tr><td colSpan="5" className="p-8 text-center text-red-500">Error: {errorProducts?.message}</td></tr>
               )}
               {!isLoadingProducts && !isErrorProducts && products.length === 0 && (
-                <tr><td colSpan="4" className="p-8 text-center text-gray-500">No se encontraron productos de esta marca.</td></tr>
+                <tr><td colSpan="5" className="p-8 text-center text-gray-500">No se encontraron productos de esta marca.</td></tr>
               )}
               {products.map((product) => (
-                <ProductRow
-                  key={product.id}
-                  product={product}
-                  onToggle={() => toggleOffer(product.id)}
-                  isToggling={isToggling}
-                  onEdit={onEdit}
-                  onPreview={onPreview}
-                />
+                <tr key={product.id} className="border-b border-gray-200 hover:bg-gray-50">
+                  <td className="py-3 px-4 text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(product.id)}
+                      onChange={() => {
+                        setSelectedIds(prev =>
+                          prev.includes(product.id)
+                            ? prev.filter(id => id !== product.id)
+                            : [...prev, product.id]
+                        );
+                      }}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                    />
+                  </td>
+                  <td className="py-3 px-4 text-sm text-gray-500 font-mono">{product.code}</td>
+                  <td className="py-3 px-4 text-sm text-gray-900 font-medium">
+                    <div>
+                      {product.custom_title || product.name}
+                      {product.custom_title && (
+                        <span className="ml-2 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">Personalizado</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-3 px-4 text-sm text-gray-500">
+                    <OfferStatusBadge product={product} />
+                  </td>
+                  <td className="py-3 px-4 text-center">
+                    <div className="flex items-center justify-center">
+                      <ToggleSwitch
+                        checked={product.is_on_offer !== undefined ? product.is_on_offer : product.oferta}
+                        onChange={() => toggleOffer(product.id)}
+                        disabled={isToggling}
+                        labelOff="Activar oferta"
+                        labelOn="Desactivar oferta"
+                      />
+                    </div>
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table>
@@ -1127,9 +1224,10 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
       {isBrandEditorOpen && (
         <GroupEditModal
           brandName={selectedBrand}
-          productCount={activeOfferProducts.length}
+          productCount={selectedIds.length}
           onClose={() => setIsBrandEditorOpen(false)}
           onSave={(details) => saveBrandOfferDetails(details)}
+          onPreview={onPreview}
           isSaving={isSavingBrandDetails}
         />
       )}
@@ -1512,22 +1610,23 @@ export default function ManageOffersPage() {
             )}
           </div>
 
-          {editingProduct && (
-            <EditOfferModal
-              product={editingProduct}
-              onClose={() => setEditingProduct(null)}
-              onSave={(productId, details) => saveOfferDetails({ productId, details })}
-              isSaving={isSavingDetails}
-            />
-          )}
-
-          {previewProduct && (
-            <PreviewOfferModal
-              product={previewProduct}
-              onClose={() => setPreviewProduct(null)}
-            />
-          )}
         </>
+      )}
+
+      {editingProduct && (
+        <EditOfferModal
+          product={editingProduct}
+          onClose={() => setEditingProduct(null)}
+          onSave={(productId, details) => saveOfferDetails({ productId, details })}
+          isSaving={isSavingDetails}
+        />
+      )}
+
+      {previewProduct && (
+        <PreviewOfferModal
+          product={previewProduct}
+          onClose={() => setPreviewProduct(null)}
+        />
       )}
     </div>
   );
