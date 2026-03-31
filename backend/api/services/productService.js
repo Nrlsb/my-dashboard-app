@@ -146,7 +146,13 @@ const fetchProducts = async ({
         modification_date: prod.modification_date, // Map from DB
         discount_percentage: prod.discount_percentage ?? null,
         offer_price: prod.offer_price ?? null,
+        min_quantity: prod.min_quantity ?? 0,
+        min_quantity_unit: prod.min_quantity_unit ?? 'unidades',
+        min_quantity_cumulative: prod.min_quantity_cumulative ?? false,
+        min_quantity_group_all: prod.min_quantity_group_all ?? false,
+        total_group_products: prod.total_group_products ?? 1,
         discountedPrice,
+
       };
     });
 
@@ -315,6 +321,11 @@ const fetchProductDetails = async (productId, user = null) => {
       oferta: isOfferActive,
       discount_percentage: isOfferActive ? (offerDetails?.discount_percentage ?? null) : null,
       offer_price: isOfferActive ? (offerDetails?.offer_price ?? null) : null,
+      min_quantity: isOfferActive ? (offerDetails?.min_quantity ?? 0) : 0,
+      min_quantity_unit: isOfferActive ? (offerDetails?.min_quantity_unit ?? 'unidades') : 'unidades',
+      min_quantity_cumulative: isOfferActive ? (offerDetails?.min_quantity_cumulative ?? false) : false,
+      min_quantity_group_all: isOfferActive ? (offerDetails?.min_quantity_group_all ?? false) : false,
+      total_group_products: isOfferActive ? (offerDetails?.total_group_products ?? 1) : 1,
       discountedPrice,
     };
 
@@ -383,6 +394,11 @@ const fetchProductDetailsByCode = async (productCode, user = null) => {
       oferta: isOfferActive,
       discount_percentage: isOfferActive ? (offerDetails?.discount_percentage ?? null) : null,
       offer_price: isOfferActive ? (offerDetails?.offer_price ?? null) : null,
+      min_quantity: isOfferActive ? (offerDetails?.min_quantity ?? 0) : 0,
+      min_quantity_unit: isOfferActive ? (offerDetails?.min_quantity_unit ?? 'unidades') : 'unidades',
+      min_quantity_cumulative: isOfferActive ? (offerDetails?.min_quantity_cumulative ?? false) : false,
+      min_quantity_group_all: isOfferActive ? (offerDetails?.min_quantity_group_all ?? false) : false,
+      total_group_products: isOfferActive ? (offerDetails?.total_group_products ?? 1) : 1,
       discountedPrice,
     };
 
@@ -476,7 +492,13 @@ const fetchProtheusOffers = async (user = null) => {
         custom_image_url: prod.custom_image_url,
         discount_percentage: prod.discount_percentage ?? null,
         offer_price: prod.offer_price ?? null,
-        discountedPrice,
+        min_quantity: prod.min_quantity ?? 0,
+        min_quantity_unit: prod.min_quantity_unit ?? 'unidades',
+        min_quantity_cumulative: prod.min_quantity_cumulative ?? false,
+        min_quantity_group_all: prod.min_quantity_group_all ?? false,
+        total_group_products: prod.total_group_products ?? 1,
+        discountedPrice: prod.offer_price ?? discountedPrice,
+
       };
     });
 
@@ -545,6 +567,15 @@ const fetchProductsByGroup = async (
         imageUrl: null,
         thumbnailUrl: null,
         capacityDesc: prod.capacity_description,
+        oferta: prod.oferta,
+        is_on_offer: prod.is_on_offer,
+        discount_percentage: prod.discount_percentage,
+        offer_price: prod.offer_price,
+        min_quantity: prod.min_quantity,
+        min_quantity_unit: prod.min_quantity_unit,
+        min_quantity_cumulative: prod.min_quantity_cumulative,
+        min_quantity_group_all: prod.min_quantity_group_all,
+        total_group_products: prod.total_group_products,
       };
     });
 
@@ -595,7 +626,7 @@ const toggleProductOfferStatus = async (productId) => {
       newOfferStatus = true;
       await pool2.query(
         'INSERT INTO product_offer_status (product_id, product_code, is_on_offer) VALUES ($1, $2, $3)',
-        [productId, productDetails.code, newOfferStatus]
+        [newOfferStatus, productDetails.code, productId]
       );
     }
 
@@ -684,68 +715,24 @@ const deleteCarouselGroup = async (id) => {
   return result;
 };
 
-const getCustomCollectionProducts_Duplicate = async (collectionId, user = null) => {
+const getCustomCollectionProducts = async (collectionId, user = null) => {
   // 1. Get group details to check type
   const group = await productModel.findGroupById(collectionId);
 
   let rawProducts = [];
-  if (group && group.is_launch_group) {
-    console.log(`[DEBUG] Collection ${collectionId} is a Launch Group. Fetching new releases...`);
-    // Reuse fetchNewReleases logic but we need raw products here to filter later or reuse filtering logic.
-    // fetchNewReleases returns enriched products directly.
-    // Ideally we should get raw data first.
-    // Let's call a helper or getNewReleasesData directly.
-    const newReleasesData = await productModel.getNewReleasesData();
-    // findOffers is used in fetchNewReleases to get full details matching newReleasesData codes
-    // But findOffers already filters by denied groups if passed.
-    // Let's rely on fetchNewReleases implementation which handles everything including enrichment.
-    // BUT getCustomCollectionProducts usually expects to do filtering itself?
-    // Let's look at how getCustomCollectionProducts works: it gets raw, filters, then enriches.
-
-    // We can call fetchNewReleases(user) and return immediately because it handles permissions.
-    return await fetchNewReleases(user);
-  } else {
-    rawProducts = await productModel.findCustomCollectionProducts(collectionId);
-  }
+  // [MODIFIED] Treat launch groups as normal custom collections to allow manual add/remove
+  // if (group && group.is_launch_group) { ... } logic removed.
+  rawProducts = await productModel.findCustomCollectionProducts(collectionId);
 
   let filteredProducts = rawProducts;
   if (user) {
-    // Check permissions using helper (handles admins and test users internally now)
     const { deniedGroups, allowedProductCodes, isRestrictedUser } = await getUserFilters(user);
-
-    // If getUserFilters returned "no restrictions" (empty denied, no restricted flag) but user MIGHT be allowed, we need to apply logic.
-    // Actually optimize: REUSE getUserFilters logic rather than reimplementing.
-
-    // However, getUserFilters calls DB for admin check if only ID passed.
-    // Here we might have duplicates. 
-    // Let's rely on getUserFilters.
-
-    // Legacy logic here was checking is_admin manually.
-    // getUserFilters handles is_admin.
-
-    // Check for marketing role (legacy logic preserved?)
-    // getUserFilters doesn't check marketing role explicitly for images.
-    // Let's keep marketing logic but use getUserFilters for groups.
-
-    // Re-implementation using getUserFilters for consistency:
-
-    // 1. Filter by denied groups
     filteredProducts = rawProducts.filter(prod => !deniedGroups.includes(prod.product_group));
-
-    // 2. Filter by images/marketing
-    // Logic from legacy:
-    // Check for marketing role to decide on image restrictions
-    // If not marketing, filter by allowedImageCodes.
-    // This is "isRestrictedUser" logic mostly.
-
-    // Since we don't return "userRole" from getUserFilters, we might need to fetch it or rely on isRestrictedUser.
-    // isRestrictedUser in getUserFilters is true if NOT admin and NOT marketing.
 
     if (isRestrictedUser) {
       filteredProducts = filteredProducts.filter(prod => allowedProductCodes.includes(prod.code));
     }
   } else {
-    // If no user, apply global restrictions AND image restriction
     const globalDeniedCodes = await productModel.getGlobalDeniedProducts();
     const allowedImageCodes = await productModel.getAllProductImageCodes();
 
@@ -764,19 +751,18 @@ const getCustomCollectionProducts_Duplicate = async (collectionId, user = null) 
   const ventaDivisa = exchangeRates.venta_divisa || 1;
 
   const mappedProducts = filteredProducts.map((prod) => {
-    let originalPrice = prod.price;
-    let finalPrice = prod.price;
+    const { finalPrice, formattedPrice } = calculateFinalPrice(prod, exchangeRates);
 
-    if (prod.moneda === 2) {
-      finalPrice = originalPrice * ventaBillete;
-    } else if (prod.moneda === 3) {
-      finalPrice = originalPrice * ventaDivisa;
+    // [DEBUG] Log conversion for verification
+    if (prod.moneda === 2 || prod.moneda === 3) {
+      console.log(`[DEBUG] Product ${prod.code} (Moneda ${prod.moneda}): Original ${prod.price} -> Final ${finalPrice} (Rate: ${exchangeRates.venta_billete}/${exchangeRates.venta_divisa})`);
     }
 
     return {
       ...prod,
       name: prod.description,
-      price: finalPrice
+      price: finalPrice,
+      formattedPrice: formattedPrice
     };
   });
   return await enrichProductsWithImages(mappedProducts);
@@ -958,63 +944,11 @@ const updateProductNewReleaseDetails = async (productId, details) => {
   }
 };
 
-const getCustomCollectionProducts = async (collectionId, user = null) => {
-  // 1. Get group details to check type
-  const group = await productModel.findGroupById(collectionId);
 
-  let rawProducts = [];
-  // [MODIFIED] Treat launch groups as normal custom collections to allow manual add/remove
-  // if (group && group.is_launch_group) { ... } logic removed.
-  rawProducts = await productModel.findCustomCollectionProducts(collectionId);
-
-  let filteredProducts = rawProducts;
-  if (user) {
-    const { deniedGroups, allowedProductCodes, isRestrictedUser } = await getUserFilters(user);
-    filteredProducts = rawProducts.filter(prod => !deniedGroups.includes(prod.product_group));
-
-    if (isRestrictedUser) {
-      filteredProducts = filteredProducts.filter(prod => allowedProductCodes.includes(prod.code));
-    }
-  } else {
-    const globalDeniedCodes = await productModel.getGlobalDeniedProducts();
-    const allowedImageCodes = await productModel.getAllProductImageCodes();
-
-    filteredProducts = rawProducts.filter(prod =>
-      !globalDeniedCodes.includes(prod.code) && allowedImageCodes.includes(prod.code)
-    );
-  }
-
-  let exchangeRates;
-  try {
-    exchangeRates = await getExchangeRates();
-  } catch (error) {
-    exchangeRates = { venta_billete: 1, venta_divisa: 1 };
-  }
-  const ventaBillete = exchangeRates.venta_billete || 1;
-  const ventaDivisa = exchangeRates.venta_divisa || 1;
-
-  const mappedProducts = filteredProducts.map((prod) => {
-    const { finalPrice, formattedPrice } = calculateFinalPrice(prod, exchangeRates);
-
-    // [DEBUG] Log conversion for verification
-    if (prod.moneda === 2 || prod.moneda === 3) {
-      console.log(`[DEBUG] Product ${prod.code} (Moneda ${prod.moneda}): Original ${prod.price} -> Final ${finalPrice} (Rate: ${exchangeRates.venta_billete}/${exchangeRates.venta_divisa})`);
-    }
-
-    return {
-      ...prod,
-      name: prod.description,
-      price: finalPrice,
-      formattedPrice: formattedPrice
-    };
-  });
-  return await enrichProductsWithImages(mappedProducts);
-};
 
 module.exports = {
   fetchProducts,
   getAccessories,
-  getProductGroupsDetails,
   getProductGroupsDetails,
   fetchProductDetails,
   fetchProductDetailsByCode,
@@ -1025,7 +959,6 @@ module.exports = {
   toggleProductOfferStatus,
   updateProductOfferDetails,
   getProductGroupsForAdmin,
-  // New exports
   addCarouselAccessory,
   removeCarouselAccessory,
   getCarouselGroups,
@@ -1036,10 +969,8 @@ module.exports = {
   addCustomGroupItem,
   removeCustomGroupItem,
   updateProductAiDescription,
-  updateProductAiDescription,
   batchGenerateAiDescriptions,
   getBatchProgress,
-  // New Release Exports
   fetchNewReleases,
   toggleProductNewRelease,
   updateProductNewReleaseDetails,

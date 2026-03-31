@@ -4,6 +4,7 @@ import { useCart } from '../context/CartContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { AlertCircle, CheckCircle, Info } from 'lucide-react';
 import apiService from '../api/apiService.js';
+import { calculateCartState } from '../utils/cartCalculations';
 
 const formatCurrency = (value) => {
   const numberValue = Number(value);
@@ -31,7 +32,8 @@ const OrderPreviewPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [offerCodesSet, setOfferCodesSet] = useState(new Set());
+  const [productMap, setProductMap] = useState(new Map());
+  const [offerCodesSet, setOfferCodesSet] = useState(new Set()); // Keep for mixed order splitting logic
 
   // Fetch current offer product codes from the API (source of truth)
   useEffect(() => {
@@ -40,17 +42,27 @@ const OrderPreviewPage = () => {
         const offers = Array.isArray(data) ? data : [];
         const codes = new Set(offers.map((p) => p.code).filter(Boolean));
         setOfferCodesSet(codes);
+
+        // Also build a map to have offer details available for calculation
+        const map = new Map();
+        offers.forEach(p => map.set(p.id, p));
+        setProductMap(map);
       })
       .catch((err) => {
         console.error('Could not fetch offer codes:', err);
       });
   }, []);
 
-  const normalItems = useMemo(() => cart.filter((item) => !offerCodesSet.has(item.code)), [cart, offerCodesSet]);
-  const offerItems = useMemo(() => cart.filter((item) => offerCodesSet.has(item.code)), [cart, offerCodesSet]);
-  const isMixed = normalItems.length > 0 && offerItems.length > 0;
+  const cartData = useMemo(() => {
+    return calculateCartState(cart, productMap);
+  }, [cart, productMap]);
 
-  const localCartTotal = useMemo(() => calcTotal(cart), [cart]);
+  const processedItems = cartData.items;
+  const localCartTotal = cartData.totalPrice;
+
+  const normalItems = useMemo(() => processedItems.filter((item) => !item.isOfferActive), [processedItems]);
+  const offerItems = useMemo(() => processedItems.filter((item) => item.isOfferActive), [processedItems]);
+  const isMixed = normalItems.length > 0 && offerItems.length > 0;
 
   if (cart.length === 0) {
     return (
@@ -93,18 +105,58 @@ const OrderPreviewPage = () => {
     setSuccess(null);
 
     try {
+      // Preparamos los items finales con el precio efectivo calculado
+      const finalNormalItems = normalItems.map(item => ({
+        ...item,
+        price: item.effectivePrice,
+        total: item.totalPrice
+      }));
+
+      const finalOfferItems = offerItems.map(item => ({
+        ...item,
+        price: item.effectivePrice,
+        total: item.totalPrice
+      }));
+
       if (isMixed) {
-        // Create two separate orders
-        const [normalResult, offerResult] = await Promise.all([
-          apiService.createOrder(buildOrderData(normalItems, orderType, false)),
-          apiService.createOrder(buildOrderData(offerItems, orderType, true)),
-        ]);
+        // Orden Normal
+        const normalOrder = {
+          items: finalNormalItems,
+          total: finalNormalItems.reduce((acc, item) => acc + item.total, 0),
+          type: orderType,
+          isOffer: false,
+          deliveryInfo: { type: deliveryType, address: 'Dirección del cliente' }
+        };
+        const normalResult = await apiService.createOrder(normalOrder);
+
+        // Orden de Oferta
+        const offerOrder = {
+          items: finalOfferItems,
+          total: finalOfferItems.reduce((acc, item) => acc + item.total, 0),
+          type: orderType,
+          isOffer: true,
+          deliveryInfo: { type: deliveryType, address: 'Dirección del cliente' }
+        };
+        const offerResult = await apiService.createOrder(offerOrder);
+
         setSuccess(
           `Se crearon 2 pedidos: Pedido normal (ID: ${normalResult.orderId}) y Pedido de promociones (ID: ${offerResult.orderId})`
         );
       } else {
-        const allAreOffers = offerItems.length > 0 && normalItems.length === 0;
-        const result = await apiService.createOrder(buildOrderData(cart, orderType, allAreOffers));
+        const finalItems = processedItems.map(item => ({
+          ...item,
+          price: item.effectivePrice,
+          total: item.totalPrice
+        }));
+
+        const singleOrder = {
+          items: finalItems,
+          total: localCartTotal,
+          type: orderType,
+          isOffer: offerItems.length > 0,
+          deliveryInfo: { type: deliveryType, address: 'Dirección del cliente' }
+        };
+        const result = await apiService.createOrder(singleOrder);
         setSuccess(
           `¡${orderType === 'quote' ? 'Presupuesto' : 'Pedido'} enviado con éxito! ID: ${result.orderId}`
         );
@@ -138,25 +190,23 @@ const OrderPreviewPage = () => {
           Resumen de Productos
         </h2>
         <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
-          {cart.map((item) => (
+          {processedItems.map((item) => (
             <div key={item.id} className="flex justify-between items-center">
               <div>
                 <p className="font-semibold text-gray-700">
                   {item.name}
-                  {offerCodesSet.has(item.code) && (
+                  {item.isOfferActive && (
                     <span className="ml-2 text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full align-middle">
                       OFERTA
                     </span>
                   )}
                 </p>
                 <p className="text-sm text-gray-500">
-                  {item.quantity} x {formatCurrency(Number(item.price) || 0)}
+                  {item.quantity} x {formatCurrency(item.effectivePrice)}
                 </p>
               </div>
               <p className="font-semibold text-gray-800">
-                {formatCurrency(
-                  (Number(item.quantity) || 0) * (Number(item.price) || 0)
-                )}
+                {formatCurrency(item.totalPrice)}
               </p>
             </div>
           ))}

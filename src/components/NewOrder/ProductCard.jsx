@@ -72,6 +72,11 @@ const ProductCard = ({ product, setSelectedProduct, handleAddToCartClick }) => {
                         <span className="text-[10px] font-bold bg-red-500 text-white px-2 py-0.5 rounded-full mb-0.5">
                             OFERTA -{product.discount_percentage}%
                         </span>
+                        {product.min_quantity > 0 && (
+                            <span className="text-[9px] font-medium text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 mb-1">
+                                Mín. {product.min_quantity} {product.min_quantity_unit}
+                            </span>
+                        )}
                         <p className="text-lg font-bold text-red-600">
                             {formatCurrency(product.discountedPrice ?? product.price * (1 - product.discount_percentage / 100))}
                         </p>
@@ -82,6 +87,11 @@ const ProductCard = ({ product, setSelectedProduct, handleAddToCartClick }) => {
                         <span className="text-[10px] font-bold bg-red-500 text-white px-2 py-0.5 rounded-full mb-0.5">
                             OFERTA
                         </span>
+                        {product.min_quantity > 0 && (
+                            <span className="text-[9px] font-medium text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 mb-1">
+                                Mín. {product.min_quantity} {product.min_quantity_unit}
+                            </span>
+                        )}
                         <p className="text-lg font-bold text-green-700">
                             {formatCurrency(product.offer_price)}
                         </p>

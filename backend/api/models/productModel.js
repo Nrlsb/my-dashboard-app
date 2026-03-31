@@ -27,8 +27,9 @@ const getOnOfferData = async (bypassCache = false) => {
     // The table product_offer_status now has product_code.
     // Let's select both.
     const result = await pool2.query(
-      'SELECT product_id, product_code, custom_title, custom_description, custom_image_url, discount_percentage, offer_price, offer_start_date, offer_end_date FROM product_offer_status WHERE is_on_offer = true'
+      'SELECT product_id, product_code, custom_title, custom_description, custom_image_url, discount_percentage, offer_price, offer_start_date, offer_end_date, min_quantity, min_quantity_unit, min_quantity_cumulative, min_quantity_group_all, total_group_products FROM product_offer_status WHERE is_on_offer = true'
     );
+
 
     if (isRedisReady()) {
       // Cache for 10 minutes
@@ -512,7 +513,13 @@ const findProducts = async ({
         offer_end_date: offerDetails?.offer_end_date ?? null,
         discount_percentage: offerDetails?.discount_percentage ?? null,
         offer_price: offerDetails?.offer_price ?? null,
+        min_quantity: offerDetails?.min_quantity ?? 0,
+        min_quantity_unit: offerDetails?.min_quantity_unit ?? 'unidades',
+        min_quantity_cumulative: offerDetails?.min_quantity_cumulative ?? false,
+        min_quantity_group_all: offerDetails?.min_quantity_group_all ?? false,
+        total_group_products: offerDetails?.total_group_products ?? 1,
       };
+
     });
 
     const resultToReturn = {
@@ -804,6 +811,11 @@ sbm_desc AS brand,
         custom_image_url: details?.custom_image_url || null,
         discount_percentage: details?.discount_percentage ?? null,
         offer_price: details?.offer_price ?? null,
+        min_quantity: details?.min_quantity ?? 0,
+        min_quantity_unit: details?.min_quantity_unit ?? 'unidades',
+        min_quantity_cumulative: details?.min_quantity_cumulative ?? false,
+        min_quantity_group_all: details?.min_quantity_group_all ?? false,
+        total_group_products: details?.total_group_products ?? 1,
         created_at: details?.updated_at || null,
         updated_at: details?.updated_at || null
       };
@@ -859,7 +871,6 @@ b1_grupo AS brand,
     paramIndex++;
   }
 
-  // (OPTIMIZACIÃ“N) EjecuciÃ³n en paralelo
   const [countResult, dataResult] = await Promise.all([
     pool2.query(countQuery, queryParams),
     pool2.query(dataQuery + ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1} `, [...queryParams, limit, offset])
@@ -868,9 +879,36 @@ b1_grupo AS brand,
   const totalProducts = parseInt(countResult.rows[0].count, 10);
   const products = dataResult.rows;
 
+  // Enriquecer con información de oferta (similar a findProducts)
+  const onOfferData = await getOnOfferData();
+  const offerMap = new Map(onOfferData.map(item => [item.product_code, item]));
+  const now = new Date();
+
+  const productsWithOfferStatus = products.map((product) => {
+    const offerDetails = offerMap.get(product.code);
+    const isOnOffer = !!offerDetails;
+    const startOk = !offerDetails?.offer_start_date || new Date(offerDetails.offer_start_date) <= now;
+    const endOk = !offerDetails?.offer_end_date || new Date(offerDetails.offer_end_date) >= now;
+    const isActive = isOnOffer && startOk && endOk;
+    return {
+      ...product,
+      oferta: isActive,
+      is_on_offer: isOnOffer,
+      offer_start_date: offerDetails?.offer_start_date ?? null,
+      offer_end_date: offerDetails?.offer_end_date ?? null,
+      discount_percentage: offerDetails?.discount_percentage ?? null,
+      offer_price: offerDetails?.offer_price ?? null,
+      min_quantity: offerDetails?.min_quantity ?? 0,
+      min_quantity_unit: offerDetails?.min_quantity_unit ?? 'unidades',
+      min_quantity_cumulative: offerDetails?.min_quantity_cumulative ?? false,
+      min_quantity_group_all: offerDetails?.min_quantity_group_all ?? false,
+      total_group_products: offerDetails?.total_group_products ?? 1,
+    };
+  });
+
   let groupName = '';
-  if (products.length > 0) {
-    groupName = products[0].brand;
+  if (productsWithOfferStatus.length > 0) {
+    groupName = productsWithOfferStatus[0].brand;
   } else {
     const groupNameResult = await pool2.query(
       'SELECT b1_grupo AS brand FROM products WHERE b1_grupo = $1 LIMIT 1',
@@ -881,7 +919,7 @@ b1_grupo AS brand,
     }
   }
 
-  return { products, totalProducts, groupName };
+  return { products: productsWithOfferStatus, totalProducts, groupName };
 };
 
 // getRecentlyChangedProducts removed as logic is deprecated
@@ -929,25 +967,72 @@ const updateProductNewReleaseDetails = async (productCode, details) => {
 };
 
 const updateProductOfferDetails = async (productId, details) => {
-  const { custom_title, custom_description, custom_image_url, discount_percentage, offer_price, offer_start_date, offer_end_date } = details;
+  const {
+    custom_title,
+    custom_description,
+    custom_image_url,
+    discount_percentage,
+    offer_price,
+    offer_start_date,
+    offer_end_date,
+    min_quantity,
+    min_quantity_unit,
+    min_quantity_cumulative,
+    min_quantity_group_all,
+    total_group_products
+  } = details;
+
   try {
     // 1. Get product code
     const productResult = await pool.query('SELECT b1_cod AS code FROM products WHERE id = $1', [productId]);
     if (productResult.rows.length === 0) throw new Error('Product not found');
     const productCode = productResult.rows[0].code;
 
-    // 2. Update in DB2
-    const result = await pool2.query(
-      `UPDATE product_offer_status
-       SET custom_title = $1, custom_description = $2, custom_image_url = $3,
-           discount_percentage = $4, offer_price = $5,
-           offer_start_date = $6, offer_end_date = $7,
-           updated_at = CURRENT_TIMESTAMP
-       WHERE product_code = $8
-       RETURNING *`,
-      [custom_title, custom_description, custom_image_url, discount_percentage ?? null, offer_price ?? null, offer_start_date ?? null, offer_end_date ?? null, productCode]
-    );
-    return result.rows[0];
+    // 2. Update or Insert in DB2 (Upsert)
+    // Usamos INSERT ... ON CONFLICT si existe un índice único en product_code, 
+    // de lo contrario usamos lógica de verificación previa.
+    const checkQuery = 'SELECT product_id FROM product_offer_status WHERE product_code = $1';
+    const checkResult = await pool2.query(checkQuery, [productCode]);
+
+    if (checkResult.rows.length > 0) {
+      const query = `
+        UPDATE product_offer_status 
+        SET custom_title = $1, custom_description = $2, custom_image_url = $3, 
+            discount_percentage = $4, offer_price = $5, offer_start_date = $6, offer_end_date = $7, 
+            min_quantity = $8, min_quantity_unit = $9, min_quantity_cumulative = $10,
+            min_quantity_group_all = $11, total_group_products = $12,
+            updated_at = CURRENT_TIMESTAMP 
+        WHERE product_id = $13
+        RETURNING *
+      `;
+      const values = [
+        custom_title, custom_description, custom_image_url,
+        discount_percentage ?? null, offer_price ?? null, offer_start_date ?? null, offer_end_date ?? null,
+        min_quantity ?? 0, min_quantity_unit ?? 'unidades', min_quantity_cumulative ?? false,
+        min_quantity_group_all ?? false, total_group_products ?? 1,
+        productId
+      ];
+      const result = await pool2.query(query, values);
+      return result.rows[0];
+    } else {
+      const result = await pool2.query(
+        `INSERT INTO product_offer_status 
+         (product_id, product_code, custom_title, custom_description, custom_image_url, 
+          discount_percentage, offer_price, offer_start_date, offer_end_date, 
+          min_quantity, min_quantity_unit, min_quantity_cumulative, 
+          min_quantity_group_all, total_group_products, is_on_offer)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, true)
+         RETURNING *`,
+        [
+          productId, productCode, custom_title, custom_description, custom_image_url,
+          discount_percentage ?? null, offer_price ?? null, offer_start_date ?? null, offer_end_date ?? null,
+          min_quantity ?? 0, min_quantity_unit ?? 'unidades', min_quantity_cumulative ?? false,
+          min_quantity_group_all ?? false, total_group_products ?? 1
+        ]
+      );
+
+      return result.rows[0];
+    }
   } catch (error) {
     console.error('Error in updateProductOfferDetails:', error);
     throw error;

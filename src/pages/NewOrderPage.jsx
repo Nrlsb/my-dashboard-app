@@ -10,6 +10,7 @@ import ProductFilters from '../components/NewOrder/ProductFilters';
 import ProductCard from '../components/NewOrder/ProductCard';
 import CartSidebar from '../components/NewOrder/CartSidebar';
 import MobileCartModal from '../components/NewOrder/MobileCartModal';
+import { calculateCartState } from '../utils/cartCalculations';
 
 const PRODUCTS_PER_PAGE = 20;
 
@@ -194,9 +195,11 @@ const NewOrderPage = () => {
     navigate('/order-preview');
   };
 
-  const totalPrice = useMemo(() => {
-    return cart.reduce((total, item) => total + item.price * item.quantity, 0);
-  }, [cart]);
+  const cartData = useMemo(() => {
+    return calculateCartState(cart, productMap);
+  }, [cart, productMap]);
+
+  const totalPrice = cartData.totalPrice;
 
   const totalItems = useMemo(() => {
     return cart.reduce((total, item) => total + item.quantity, 0);

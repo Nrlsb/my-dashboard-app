@@ -8,7 +8,7 @@ import {
   useQueryClient,
   useMutation,
 } from '@tanstack/react-query';
-import { Loader2, ArrowLeft, Search, CheckCircle, XCircle, Edit2, Save, X, Filter, Upload, Eye, Tag, Percent, DollarSign, Layers, ChevronLeft, Clock, Calendar } from 'lucide-react';
+import { Loader2, ArrowLeft, Search, CheckCircle, XCircle, Edit2, Save, X, Filter, Upload, Eye, Tag, Percent, DollarSign, Layers, ChevronLeft, Clock, Calendar, Package } from 'lucide-react';
 import apiService from '../api/apiService.js';
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -56,7 +56,13 @@ const EditOfferModal = ({ product, onClose, onSave, isSaving }) => {
     offer_price: product.offer_price ?? '',
     offer_start_date: toDateTimeLocal(product.offer_start_date),
     offer_end_date: toDateTimeLocal(product.offer_end_date),
+    min_quantity: product.min_quantity ?? '',
+    min_quantity_unit: product.min_quantity_unit ?? 'unidades',
+    min_quantity_cumulative: product.min_quantity_cumulative ?? false,
+    min_quantity_group_all: product.min_quantity_group_all ?? false,
+    total_group_products: product.total_group_products ?? 1,
   });
+
   const [priceType, setPriceType] = useState(initialPriceType);
 
   const handleChange = (e) => {
@@ -86,7 +92,13 @@ const EditOfferModal = ({ product, onClose, onSave, isSaving }) => {
       offer_price: priceType === 'fixed' && formData.offer_price !== '' ? Number(formData.offer_price) : null,
       offer_start_date: formData.offer_start_date || null,
       offer_end_date: formData.offer_end_date || null,
+      min_quantity: formData.min_quantity !== '' ? Number(formData.min_quantity) : 0,
+      min_quantity_unit: formData.min_quantity_unit,
+      min_quantity_cumulative: formData.min_quantity_cumulative,
+      min_quantity_group_all: formData.min_quantity_group_all,
+      total_group_products: formData.total_group_products,
     };
+
     onSave(product.id, payload);
   };
 
@@ -297,6 +309,71 @@ const EditOfferModal = ({ product, onClose, onSave, isSaving }) => {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Opciones Avanzadas */}
+            <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+              <label className="block text-sm font-bold text-blue-800 mb-3 flex items-center gap-1.5">
+                <Layers className="w-4 h-4" />
+                Opciones Avanzadas (Activación)
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Cantidad Mínima
+                  </label>
+                  <input
+                    type="number"
+                    name="min_quantity"
+                    value={formData.min_quantity}
+                    onChange={handleChange}
+                    min="0"
+                    step="0.1"
+                    placeholder="Ej: 5"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Unidad
+                  </label>
+                  <select
+                    name="min_quantity_unit"
+                    value={formData.min_quantity_unit}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="unidades">Unidades</option>
+                    <option value="litros">Litros</option>
+                  </select>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between bg-white/50 p-2 rounded border border-blue-100">
+                <span className="text-xs font-medium text-blue-800">Cantidad mínima acumulativa</span>
+                <ToggleSwitch
+                  checked={formData.min_quantity_cumulative}
+                  onChange={() => setFormData(prev => ({ ...prev, min_quantity_cumulative: !prev.min_quantity_cumulative }))}
+                  colorClass="bg-blue-600"
+                />
+              </div>
+
+              {formData.min_quantity_cumulative && (
+                <div className="mt-3 flex items-center justify-between bg-white/50 p-2 rounded border border-blue-100 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <div>
+                    <span className="text-xs font-medium text-blue-800 block">Total de productos en el grupo</span>
+                    <p className="text-[9px] text-blue-500 leading-tight">La promo solo aplica si se lleva al menos uno de CADA producto seleccionado.</p>
+                  </div>
+                  <ToggleSwitch
+                    checked={formData.min_quantity_group_all}
+                    onChange={() => setFormData(prev => ({ ...prev, min_quantity_group_all: !prev.min_quantity_group_all }))}
+                    colorClass="bg-blue-600"
+                  />
+                </div>
+              )}
+
+              <p className="text-[10px] text-blue-600 mt-2 font-medium">
+                * Si es acumulativa, el mínimo se cumple sumando todos los productos de la oferta. Si no, debe cumplirse por cada producto.
+              </p>
             </div>
 
             <div className="pt-4 flex justify-end space-x-3">
@@ -542,17 +619,25 @@ const ProductRow = ({ product, onToggle, isToggling, onEdit, onPreview }) => (
 );
 
 // --- Modal de Edición por Marca (aplica a todos los productos) ---
-const GroupEditModal = ({ brandName, productCount, onClose, onSave, onPreview, isSaving }) => {
+const GroupEditModal = ({ brandName, productCount, onClose, onSave, onPreview, isSaving, initialData }) => {
   const [formData, setFormData] = useState({
-    custom_title: '',
-    custom_description: '',
-    custom_image_url: '',
-    discount_percentage: '',
-    offer_price: '',
-    offer_start_date: '',
-    offer_end_date: '',
+    custom_title: initialData?.title || '',
+    custom_description: initialData?.description || '',
+    custom_image_url: initialData?.image || '',
+    discount_percentage: initialData?.discount_percentage ?? '',
+    offer_price: initialData?.offer_price ?? '',
+    offer_start_date: toDateTimeLocal(initialData?.offer_start_date) || '',
+    offer_end_date: toDateTimeLocal(initialData?.offer_end_date) || '',
+    min_quantity: initialData?.min_quantity ?? '',
+    min_quantity_unit: initialData?.min_quantity_unit || 'unidades',
+    min_quantity_cumulative: initialData?.min_quantity_cumulative ?? false,
+    min_quantity_group_all: initialData?.min_quantity_group_all ?? false,
   });
-  const [priceType, setPriceType] = useState('none');
+
+  const [priceType, setPriceType] = useState(
+    initialData?.discount_percentage != null ? 'discount' :
+      initialData?.offer_price != null ? 'fixed' : 'none'
+  );
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -583,7 +668,13 @@ const GroupEditModal = ({ brandName, productCount, onClose, onSave, onPreview, i
       offer_price: priceType === 'fixed' && formData.offer_price !== '' ? Number(formData.offer_price) : null,
       offer_start_date: formData.offer_start_date || null,
       offer_end_date: formData.offer_end_date || null,
+      min_quantity: formData.min_quantity !== '' ? Number(formData.min_quantity) : 0,
+      min_quantity_unit: formData.min_quantity_unit,
+      min_quantity_cumulative: formData.min_quantity_cumulative,
+      min_quantity_group_all: formData.min_quantity_group_all,
+      total_group_products: productCount,
       is_on_offer: true,
+
       oferta: true
     };
     onPreview(previewData);
@@ -599,7 +690,13 @@ const GroupEditModal = ({ brandName, productCount, onClose, onSave, onPreview, i
       offer_price: priceType === 'fixed' && formData.offer_price !== '' ? Number(formData.offer_price) : null,
       offer_start_date: formData.offer_start_date || null,
       offer_end_date: formData.offer_end_date || null,
+      min_quantity: formData.min_quantity !== '' ? Number(formData.min_quantity) : null,
+      min_quantity_unit: formData.min_quantity !== '' ? formData.min_quantity_unit : null,
+      min_quantity_cumulative: formData.min_quantity !== '' ? formData.min_quantity_cumulative : null,
+      min_quantity_group_all: formData.min_quantity !== '' ? formData.min_quantity_group_all : null,
+      total_group_products: formData.min_quantity !== '' ? productCount : null,
     };
+
     onSave(payload);
   };
 
@@ -618,7 +715,10 @@ const GroupEditModal = ({ brandName, productCount, onClose, onSave, onPreview, i
 
         <div className="px-6 py-3 bg-blue-50 border-b border-blue-100">
           <p className="text-xs text-blue-700">
-            Los cambios se aplicarán a los <strong>{productCount}</strong> productos <strong>en oferta</strong> de la marca <strong>{brandName}</strong>.
+            Los cambios se aplicarán a los <strong>{productCount}</strong> productos seleccionados de la marca <strong>{brandName}</strong>.
+          </p>
+          <p className="text-[10px] text-blue-600 mt-1 italic">
+            Tip: Si asignas el <strong>mismo título e imagen</strong> a todos, el sistema creará automáticamente una <strong>portada única</strong> en la tienda.
           </p>
         </div>
 
@@ -808,6 +908,68 @@ const GroupEditModal = ({ brandName, productCount, onClose, onSave, onPreview, i
               </div>
             </div>
 
+            {/* Opciones Avanzadas */}
+            <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+              <label className="block text-sm font-bold text-blue-800 mb-3 flex items-center gap-1.5">
+                <Layers className="w-4 h-4" />
+                Opciones Avanzadas (Activación)
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Cantidad Mínima
+                  </label>
+                  <input
+                    type="number"
+                    name="min_quantity"
+                    value={formData.min_quantity}
+                    onChange={handleChange}
+                    min="0"
+                    step="0.1"
+                    placeholder="No modificar"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Unidad
+                  </label>
+                  <select
+                    name="min_quantity_unit"
+                    value={formData.min_quantity_unit}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="unidades">Unidades</option>
+                    <option value="litros">Litros</option>
+                  </select>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between bg-white/50 p-2 rounded border border-blue-100">
+                <span className="text-xs font-medium text-blue-800">Cantidad mínima acumulativa</span>
+                <ToggleSwitch
+                  checked={formData.min_quantity_cumulative}
+                  onChange={() => setFormData(prev => ({ ...prev, min_quantity_cumulative: !prev.min_quantity_cumulative }))}
+                  colorClass="bg-blue-600"
+                />
+              </div>
+
+              {formData.min_quantity_cumulative && (
+                <div className="mt-3 flex items-center justify-between bg-white/50 p-2 rounded border border-blue-100 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <div>
+                    <span className="text-xs font-medium text-blue-800 block">Total de productos en el grupo</span>
+                    <p className="text-[9px] text-blue-500 leading-tight">La promo solo aplica si se lleva al menos uno de CADA producto seleccionado.</p>
+                  </div>
+                  <ToggleSwitch
+                    checked={formData.min_quantity_group_all}
+                    onChange={() => setFormData(prev => ({ ...prev, min_quantity_group_all: !prev.min_quantity_group_all }))}
+                    colorClass="bg-blue-600"
+                  />
+                </div>
+              )}
+
+            </div>
+
             <div className="pt-4 flex justify-between space-x-3">
               <button
                 type="button"
@@ -855,12 +1017,53 @@ const GroupEditModal = ({ brandName, productCount, onClose, onSave, onPreview, i
 const GroupOffersTab = ({ onPreview, onEdit }) => {
   const [selectedBrand, setSelectedBrand] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]); // Array de IDs seleccionados
+  const [selectedGroupData, setSelectedGroupData] = useState(null);
   const [brandFilter, setBrandFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
   const [isBrandEditorOpen, setIsBrandEditorOpen] = useState(false);
   const debounceTimeout = useRef(null);
   const queryClient = useQueryClient();
+
+  // --- Lógica de Grupos Activos ---
+  const { data: activeOffers, isLoading: isLoadingActiveGroups } = useQuery({
+    queryKey: ['activeOffers-grouping'],
+    queryFn: () => apiService.fetchOffers(),
+    staleTime: 1000 * 60 * 5,
+    enabled: !selectedBrand,
+  });
+
+  const activeGroups = React.useMemo(() => {
+    if (!activeOffers) return [];
+    const groupsMap = new Map();
+    activeOffers.forEach(product => {
+      // Un grupo se define por tener un título personalizado (la imagen es opcional)
+      if (!product.custom_title) return;
+      const key = `${product.custom_image_url || ''}_${product.custom_title}`;
+      if (!groupsMap.has(key)) {
+        groupsMap.set(key, {
+          title: product.custom_title,
+          image: product.custom_image_url,
+          brand: product.brand,
+          description: product.custom_description || product.description,
+          productIds: [],
+          products: [],
+          min_quantity: product.min_quantity,
+          min_quantity_unit: product.min_quantity_unit,
+          min_quantity_cumulative: product.min_quantity_cumulative,
+          min_quantity_group_all: product.min_quantity_group_all,
+          discount_percentage: product.discount_percentage,
+          offer_price: product.offer_price,
+          offer_start_date: product.offer_start_date,
+          offer_end_date: product.offer_end_date
+        });
+      }
+      const group = groupsMap.get(key);
+      group.productIds.push(product.id);
+      group.products.push(product);
+    });
+    return Array.from(groupsMap.values()).sort((a, b) => a.title.localeCompare(b.title));
+  }, [activeOffers]);
 
   useEffect(() => {
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
@@ -878,15 +1081,15 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
 
   const brands = brandsData || [];
 
-  useEffect(() => {
-    setSelectedIds([]);
-  }, [selectedBrand]);
+  // Eliminar el useEffect que limpiaba selectedIds al cambiar de marca
+  // para permitir que "Editar Grupo" los establezca primero.
 
   const {
     data: infiniteData,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isFetching: isFetchingProducts, // Añadir isFetching para mejor estado de carga
     isLoading: isLoadingProducts,
     isError: isErrorProducts,
     error: errorProducts,
@@ -934,14 +1137,9 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
   // Mutación para guardar detalles por lote
   const { mutate: saveBrandOfferDetails, isPending: isSavingBrandDetails } = useMutation({
     mutationFn: async (details) => {
-      // Aplicar detalles SOLO a los productos seleccionados
-      const targets = selectedIds.length > 0
-        ? selectedIds
-        : activeOfferProducts.map(p => p.id); // Si no hay seleccionados, falla o aplica a todos según lógica
+      if (selectedIds.length === 0) throw new Error("No hay productos seleccionados.");
 
-      if (targets.length === 0) throw new Error("No hay productos seleccionados o en oferta.");
-
-      await Promise.all(targets.map((id) => apiService.updateProductOfferDetails(id, details)));
+      await Promise.all(selectedIds.map((id) => apiService.updateProductOfferDetails(id, details)));
       return details;
     },
     onSuccess: (details) => {
@@ -954,7 +1152,7 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
             pages: oldData.pages.map((page) => ({
               ...page,
               products: page.products.map((p) =>
-                p.oferta ? { ...p, ...details } : p
+                selectedIds.includes(p.id) ? { ...p, ...details, oferta: true, is_on_offer: true } : p
               ),
             })),
           };
@@ -963,7 +1161,8 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
       queryClient.invalidateQueries({ queryKey: ['activeOffers'] });
       queryClient.invalidateQueries({ queryKey: ['offers'] });
       setIsBrandEditorOpen(false);
-      toast.success(`Detalles actualizados para ${activeOfferProducts.length} productos en oferta de ${selectedBrand}`);
+      setSelectedIds([]); // Limpiar selección tras aplicar cambios
+      toast.success(`Detalles actualizados y ofertas activadas para ${selectedIds.length} productos de ${selectedBrand}`);
     },
     onError: (err) => toast.error(`Error al guardar los detalles: ${err.message}`),
   });
@@ -972,14 +1171,125 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
     ? brands.filter((b) => b.toLowerCase().includes(brandFilter.toLowerCase()))
     : brands;
 
-  // --- Vista: Lista de marcas ---
+  // --- Vista: Lista de marcas y Grupos Activos ---
   if (!selectedBrand) {
     return (
       <div>
+        {/* Sección de Grupos Activos Consolidados */}
+        {!brandFilter.trim() && (
+          <div className="mb-10">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-1.5 bg-blue-100 rounded-lg">
+                <Layers className="w-5 h-5 text-blue-600" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-800">Ofertas Grupales Activas</h2>
+              {activeGroups.length > 0 && (
+                <span className="ml-2 px-2.5 py-0.5 bg-blue-600 text-white text-xs font-bold rounded-full">
+                  {activeGroups.length} {activeGroups.length === 1 ? 'grupo' : 'grupos'}
+                </span>
+              )}
+            </div>
+
+            {isLoadingActiveGroups ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-48 bg-gray-100 animate-pulse rounded-xl border border-gray-200"></div>
+                ))}
+              </div>
+            ) : activeGroups.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {activeGroups.map((group, idx) => (
+                  <div
+                    key={idx}
+                    className="group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg hover:border-blue-300 transition-all duration-300 flex flex-col"
+                  >
+                    <div className="relative h-40 w-full bg-gray-50 overflow-hidden">
+                      {group.image ? (
+                        <img
+                          src={group.image}
+                          alt={group.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-blue-500 to-blue-700 flex flex-col items-center justify-center p-4 text-white/90">
+                          <Package className="w-10 h-10 mb-2 opacity-50" />
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-center">
+                            Promoción Especial
+                          </span>
+                        </div>
+                      )}
+                      <div className="absolute top-2 right-2 px-2 py-1 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold rounded-md uppercase tracking-wider">
+                        Consolidado
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+                        <span className="text-[10px] font-bold text-blue-300 uppercase">{group.brand}</span>
+                        <h3 className="text-white text-sm font-bold truncate leading-tight">{group.title}</h3>
+                      </div>
+                    </div>
+                    <div className="p-4 flex-grow flex flex-col justify-between">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] text-gray-400 uppercase font-bold tracking-tight">Productos</span>
+                          <span className="text-sm font-bold text-gray-700">{group.productIds.length} ítems</span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-[10px] text-gray-400 uppercase font-bold tracking-tight">Beneficio</span>
+                          <span className="text-sm font-bold text-orange-600">
+                            {group.discount_percentage ? `-${group.discount_percentage}%` : group.offer_price ? `$${group.offer_price}` : 'Especial'}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const normalizedBrand = group.brand?.trim() || "";
+                          setSelectedBrand(normalizedBrand);
+                          // Importante: No limpiamos selectedIds aquí porque los estamos estableciendo
+                          setSelectedIds(group.productIds);
+                          setSelectedGroupData(group);
+                          setSearchTerm('');
+                          setDebounceSearchTerm('');
+                          setIsBrandEditorOpen(true);
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-2 bg-blue-50 text-blue-600 text-sm font-bold rounded-lg hover:bg-blue-600 hover:text-white transition-colors cursor-pointer"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                        Editar Grupo
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl p-8 text-center">
+                <div className="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                  <Layers className="w-6 h-6 text-gray-400" />
+                </div>
+                <h3 className="text-sm font-bold text-gray-600">No hay ofertas grupales activas</h3>
+                <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
+                  Asigna el mismo título e imagen a varios productos de una marca para crear un grupo consolidado.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 mb-4">
+          <div className="p-1.5 bg-gray-100 rounded-lg">
+            <Search className="w-5 h-5 text-gray-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-800">Gestionar por Marca</h2>
+        </div>
+
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-          <p className="text-sm text-gray-500">
-            Seleccioná una marca para ver y gestionar las ofertas de todos sus productos.
-          </p>
+          <div>
+            <p className="text-sm text-gray-500">
+              Seleccioná una marca para ver y gestionar las ofertas de sus productos.
+            </p>
+            <p className="text-[11px] text-blue-600 mt-1 font-medium bg-blue-50 px-2 py-0.5 rounded-full inline-block border border-blue-100">
+              Nuevo: Agrupa productos con el mismo título e imagen para crear una portada única.
+            </p>
+          </div>
           <div className="relative sm:ml-auto sm:w-64">
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -998,7 +1308,10 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
             {filteredBrands.map((brand) => (
               <button
                 key={brand}
-                onClick={() => setSelectedBrand(brand)}
+                onClick={() => {
+                  setSelectedBrand(brand);
+                  setSelectedIds([]); // Limpiar selección manualmente solo aquí
+                }}
                 className="bg-white border border-gray-200 rounded-lg px-4 py-3 text-sm font-medium text-gray-700 hover:border-blue-400 hover:text-blue-700 hover:shadow-md transition-all text-left cursor-pointer"
               >
                 <Layers className="w-4 h-4 mb-1 text-gray-400" />
@@ -1087,10 +1400,10 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         {/* Mobile */}
         <div className="md:hidden divide-y divide-gray-200">
-          {isLoadingProducts && <div className="p-4"><LoadingSpinner text="Cargando productos..." /></div>}
+          {(isLoadingProducts || isFetchingProducts) && <div className="p-4"><LoadingSpinner text="Cargando productos..." /></div>}
           {isErrorProducts && <div className="p-8 text-center text-red-500">Error: {errorProducts?.message}</div>}
-          {!isLoadingProducts && !isErrorProducts && products.length === 0 && (
-            <div className="p-8 text-center text-gray-500">No se encontraron productos de esta marca.</div>
+          {!isLoadingProducts && !isFetchingProducts && !isErrorProducts && products.length === 0 && (
+            <div className="p-8 text-center text-gray-500">No se encontraron productos de esta marca para tu búsqueda.</div>
           )}
           {products.map((product) => (
             <div key={product.id} className="p-4 flex flex-col space-y-3">
@@ -1149,14 +1462,14 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {isLoadingProducts && (
+              {(isLoadingProducts || isFetchingProducts) && (
                 <tr><td colSpan="5" className="p-0"><LoadingSpinner text="Cargando productos..." /></td></tr>
               )}
               {isErrorProducts && (
                 <tr><td colSpan="5" className="p-8 text-center text-red-500">Error: {errorProducts?.message}</td></tr>
               )}
-              {!isLoadingProducts && !isErrorProducts && products.length === 0 && (
-                <tr><td colSpan="5" className="p-8 text-center text-gray-500">No se encontraron productos de esta marca.</td></tr>
+              {!isLoadingProducts && !isFetchingProducts && !isErrorProducts && products.length === 0 && (
+                <tr><td colSpan="5" className="p-8 text-center text-gray-500">No se encontraron productos de esta marca para tu búsqueda.</td></tr>
               )}
               {products.map((product) => (
                 <tr key={product.id} className="border-b border-gray-200 hover:bg-gray-50">
@@ -1225,10 +1538,14 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
         <GroupEditModal
           brandName={selectedBrand}
           productCount={selectedIds.length}
-          onClose={() => setIsBrandEditorOpen(false)}
+          onClose={() => {
+            setIsBrandEditorOpen(false);
+            setSelectedGroupData(null);
+          }}
           onSave={(details) => saveBrandOfferDetails(details)}
           onPreview={onPreview}
           isSaving={isSavingBrandDetails}
+          initialData={selectedGroupData}
         />
       )}
     </div>

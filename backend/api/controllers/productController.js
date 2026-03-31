@@ -160,7 +160,21 @@ exports.toggleProductOfferStatus = catchAsync(async (req, res) => {
 
 exports.updateProductOfferDetails = catchAsync(async (req, res) => {
     const { id } = req.params;
-    const { custom_title, custom_description, custom_image_url, discount_percentage, offer_price, offer_start_date, offer_end_date } = req.body;
+    const {
+        custom_title,
+        custom_description,
+        custom_image_url,
+        discount_percentage,
+        offer_price,
+        offer_start_date,
+        offer_end_date,
+        min_quantity,
+        min_quantity_unit,
+        min_quantity_cumulative,
+        min_quantity_group_all,
+        total_group_products
+    } = req.body;
+
     const result = await productService.updateProductOfferDetails(id, {
         custom_title,
         custom_description,
@@ -169,7 +183,13 @@ exports.updateProductOfferDetails = catchAsync(async (req, res) => {
         offer_price: offer_price !== undefined ? Number(offer_price) || null : null,
         offer_start_date: offer_start_date || null,
         offer_end_date: offer_end_date || null,
+        min_quantity: min_quantity !== undefined ? Number(min_quantity) || 0 : 0,
+        min_quantity_unit: min_quantity_unit || 'unidades',
+        min_quantity_cumulative: min_quantity_cumulative ?? false,
+        min_quantity_group_all: min_quantity_group_all ?? false,
+        total_group_products: total_group_products !== undefined ? Number(total_group_products) || 1 : 1,
     });
+
     res.json(result);
 });
 

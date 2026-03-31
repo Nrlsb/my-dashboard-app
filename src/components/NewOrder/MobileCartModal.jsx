@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShoppingCart, Trash2, X } from 'lucide-react';
+import { calculateCartState } from '../../utils/cartCalculations';
 
 const formatCurrency = (amount) => {
     return new Intl.NumberFormat('es-AR', {
@@ -21,6 +22,8 @@ const MobileCartModal = ({
     clearCart
 }) => {
     if (!isOpen) return null;
+
+    const { items: processedItems, totalPrice: calculatedTotalPrice } = calculateCartState(cart, productMap);
 
     return (
         <div
@@ -64,7 +67,7 @@ const MobileCartModal = ({
                                     Vaciar Carrito
                                 </button>
                             </div>
-                            {(cart.map((item) => {
+                            {(processedItems.map((item) => {
                                 const product = productMap.get(item.id) || item;
                                 const rawIndicator = product?.indicator_description;
                                 const isRestricted = rawIndicator !== null && rawIndicator !== undefined && (String(rawIndicator).trim() === '0' || Number(rawIndicator) === 0);
@@ -83,9 +86,16 @@ const MobileCartModal = ({
                                             )}
 
                                             <div className="flex items-center justify-between mt-2">
-                                                <span className="text-sm font-bold text-espint-blue">
-                                                    {formatCurrency(item.price)}
-                                                </span>
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-bold text-espint-blue">
+                                                        {formatCurrency(item.effectivePrice)}
+                                                    </span>
+                                                    {item.minQuantity > 0 && !item.isOfferActive && (
+                                                        <span className="text-[9px] text-red-500 font-medium">
+                                                            Mín. {item.minQuantity} {item.minQuantityUnit}{item.isCumulative ? ' acum.' : ''}
+                                                        </span>
+                                                    )}
+                                                </div>
 
                                                 <div className="flex items-center gap-2">
                                                     <div className="flex items-center border border-gray-300 rounded-md bg-gray-50 h-8">

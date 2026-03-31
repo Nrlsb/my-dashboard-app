@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShoppingCart, Trash2, CheckCircle } from 'lucide-react';
+import { calculateCartState } from '../../utils/cartCalculations';
 
 const formatCurrency = (amount) => {
     return new Intl.NumberFormat('es-AR', {
@@ -10,8 +11,11 @@ const formatCurrency = (amount) => {
 
 import { useCart } from '../../context/CartContext';
 
-const CartSidebar = ({ cart, productMap, updateQuantity, removeFromCart, totalPrice, handleReviewOrder, handleQuantityChange }) => {
+const CartSidebar = ({ cart, productMap, updateQuantity, removeFromCart, totalPrice: propTotalPrice, handleReviewOrder, handleQuantityChange }) => {
     const { clearCart } = useCart();
+
+    const { items: processedItems, totalPrice } = calculateCartState(cart, productMap);
+
     return (
         <div className="lg-col-span-1 hidden lg:block">
             <div className="sticky top-8 bg-white rounded-lg shadow-md flex flex-col max-h-[calc(100vh-4rem)] border-t-4 border-espint-magenta">
@@ -40,7 +44,7 @@ const CartSidebar = ({ cart, productMap, updateQuantity, removeFromCart, totalPr
                             Tu carrito está vacío.
                         </p>
                     )}
-                    {cart.map((item) => {
+                    {processedItems.map((item) => {
                         const product = productMap.get(item.id) || item;
                         const rawIndicator = product?.indicator_description;
                         const isRestricted = rawIndicator !== null && rawIndicator !== undefined && (String(rawIndicator).trim() === '0' || Number(rawIndicator) === 0);
@@ -60,7 +64,12 @@ const CartSidebar = ({ cart, productMap, updateQuantity, removeFromCart, totalPr
                                         </span>
                                     )}
                                     <p className="text-sm text-gray-500 mt-1">
-                                        {formatCurrency(item.price)}
+                                        {formatCurrency(item.effectivePrice)}
+                                        {item.minQuantity > 0 && !item.isOfferActive && (
+                                            <span className="ml-2 text-[10px] text-red-500 font-medium">
+                                                (Mín. {item.minQuantity} {item.minQuantityUnit}{item.isCumulative ? ' acumulados' : ''} para oferta)
+                                            </span>
+                                        )}
                                     </p>
                                     <div className="flex items-center mt-2">
                                         <label
