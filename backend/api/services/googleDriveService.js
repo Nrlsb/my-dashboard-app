@@ -55,6 +55,15 @@ const authorize = async () => {
 
         try {
             oAuth2Client.setCredentials(token);
+
+            // Handle token refresh automatically
+            oAuth2Client.on('tokens', (tokens) => {
+                console.log('Detected new tokens from Google OAuth2...');
+                const updatedToken = { ...token, ...tokens };
+                fs.writeFileSync(TOKEN_PATH, JSON.stringify(updatedToken, null, 2));
+                console.log('Saved refreshed tokens to', TOKEN_PATH);
+            });
+
             return oAuth2Client;
         } catch (jsonError) {
             console.error('Error parsing token:', jsonError);
