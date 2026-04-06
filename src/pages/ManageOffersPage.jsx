@@ -1338,8 +1338,33 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
   if (!selectedBrand) {
     return (
       <div>
+        {/* Banner de modo "Agregando a grupo" (Vista Marcas) */}
+        {isAddingToGroup && (
+          <div className="mb-6 bg-gradient-to-r from-green-600 to-emerald-700 text-white p-4 rounded-xl shadow-lg border border-green-500 animate-in fade-in slide-in-from-top-4 duration-500 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                <Package className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="font-bold text-lg leading-tight">Agregando productos a "{isAddingToGroup.title}"</p>
+                <p className="text-sm text-green-100 opacity-90">Seleccioná una marca o búsqueda global para encontrar los ítems.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setIsAddingToGroup(null);
+                setSelectedGroupData(null);
+                setSelectedIds([]);
+              }}
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-bold transition-colors border border-white/20 cursor-pointer whitespace-nowrap self-start sm:self-auto"
+            >
+              Cancelar operación
+            </button>
+          </div>
+        )}
+
         {/* Sección de Grupos Activos Consolidados */}
-        {!brandFilter.trim() && (
+        {!brandFilter.trim() && !isAddingToGroup && (
           <div className="mb-10">
             <div className="flex items-center gap-2 mb-4">
               <div className="p-1.5 bg-blue-100 rounded-lg">
@@ -1423,7 +1448,7 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
                       </button>
                       <button
                         onClick={() => {
-                          setSelectedBrand('Búsqueda Global'); // Llevamos a búsqueda global directamente
+                          setSelectedBrand(null); // Llevamos a la vista de marcas para elegir origen
                           setSelectedIds([]); // Empezamos de cero para seleccionar los nuevos
                           setSelectedGroupData(group);
                           setIsAddingToGroup(group); // Guardamos el objeto del grupo
