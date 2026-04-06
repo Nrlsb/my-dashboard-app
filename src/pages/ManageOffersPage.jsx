@@ -1080,6 +1080,7 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
   const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
   const [isBrandEditorOpen, setIsBrandEditorOpen] = useState(false);
   const [isFetchingAllIds, setIsFetchingAllIds] = useState(false);
+  const [isAddingToGroup, setIsAddingToGroup] = useState(null); // Nuevo estado para flujo guiado
   const debounceTimeout = useRef(null);
   const lastAutoSelectedBrand = useRef(null);
   const processedProductIds = useRef(new Set());
@@ -1112,6 +1113,7 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
           min_quantity_unit: product.min_quantity_unit,
           min_quantity_cumulative: product.min_quantity_cumulative,
           min_quantity_group_all: product.min_quantity_group_all,
+          min_individual_quantity: product.min_individual_quantity,
           discount_percentage: product.discount_percentage,
           offer_price: product.offer_price,
           offer_start_date: product.offer_start_date,
@@ -1256,12 +1258,16 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
   // Mutación para guardar detalles por lote
   const { mutate: saveBrandOfferDetails, isPending: isSavingBrandDetails } = useMutation({
     mutationFn: async (details) => {
-      if (selectedIds.length === 0) throw new Error("No hay productos seleccionados.");
+      const allIdsToUpdate = isAddingToGroup
+        ? Array.from(new Set([...selectedIds, ...isAddingToGroup.productIds]))
+        : selectedIds;
 
-      await Promise.all(selectedIds.map((id) => apiService.updateProductOfferDetails(id, details)));
-      return details;
+      if (allIdsToUpdate.length === 0) throw new Error("No hay productos seleccionados.");
+
+      await Promise.all(allIdsToUpdate.map((id) => apiService.updateProductOfferDetails(id, details)));
+      return { details, allIdsToUpdate };
     },
-    onSuccess: (details) => {
+    onSuccess: ({ details, allIdsToUpdate }) => {
       queryClient.setQueryData(
         ['products-by-brand', selectedBrand, debounceSearchTerm],
         (oldData) => {
@@ -1271,7 +1277,7 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
             pages: oldData.pages.map((page) => ({
               ...page,
               products: page.products.map((p) =>
-                selectedIds.includes(p.id) ? { ...p, ...details, oferta: true, is_on_offer: true } : p
+                allIdsToUpdate.includes(p.id) ? { ...p, ...details, oferta: true, is_on_offer: true } : p
               ),
             })),
           };
@@ -1280,6 +1286,7 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
       queryClient.invalidateQueries({ queryKey: ['activeOffers'] });
       queryClient.invalidateQueries({ queryKey: ['offers'] });
       setIsBrandEditorOpen(false);
+      setIsAddingToGroup(null); // Limpiar modo anexión
       setSelectedIds([]); // Limpiar selección tras aplicar cambios
       toast.success(`Detalles actualizados y ofertas activadas para ${selectedIds.length} productos de ${selectedBrand}`);
     },
@@ -1393,6 +1400,7 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
                           // Importante: No limpiamos selectedIds aquí porque los estamos estableciendo
                           setSelectedIds(group.productIds);
                           setSelectedGroupData(group);
+                          setIsAddingToGroup(null); // No estamos en modo anexión, sino edición directa
                           setSearchTerm('');
                           setDebounceSearchTerm('');
                           setIsBrandEditorOpen(true);
@@ -1401,6 +1409,21 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
                       >
                         <Edit2 className="w-4 h-4" />
                         Editar Grupo
+                      </button>
+                      <button
+                        onClick={() => {
+                          const normalizedBrand = group.brand?.trim() || "";
+                          setSelectedBrand(normalizedBrand);
+                          setSelectedIds([]); // Empezamos de cero para seleccionar los nuevos
+                          setSelectedGroupData(group);
+                          setIsAddingToGroup(group); // Guardamos el objeto del grupo
+                          setSearchTerm('');
+                          setDebounceSearchTerm('');
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-2 mt-2 bg-green-50 text-green-600 text-sm font-bold rounded-lg hover:bg-green-600 hover:text-white transition-colors cursor-pointer border border-green-100"
+                      >
+                        <Package className="w-4 h-4" />
+                        Agregar productos
                       </button>
                     </div>
                   </div>
@@ -1478,6 +1501,31 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
   // --- Vista: Productos de la marca seleccionada ---
   return (
     <div>
+      {/* Banner de modo "Agregando a grupo" */}
+      {isAddingToGroup && (
+        <div className="mb-6 bg-gradient-to-r from-green-600 to-emerald-700 text-white p-4 rounded-xl shadow-lg border border-green-500 animate-in fade-in slide-in-from-top-4 duration-500 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+              <Package className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="font-bold text-lg leading-tight">Agregando productos a "{isAddingToGroup.title}"</p>
+              <p className="text-sm text-green-100 opacity-90">Seleccioná los ítems que faltan y hacé clic en confirmar para incorporarlos a la oferta.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setIsAddingToGroup(null);
+              setSelectedGroupData(null);
+              setSelectedIds([]);
+            }}
+            className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-bold transition-colors border border-white/20"
+          >
+            Cancelar operación
+          </button>
+        </div>
+      )}
+
       {/* Header de la marca */}
       <div className="flex items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
@@ -1518,8 +1566,28 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
                     return;
                   }
 
-                  // Intentar pre-cargar datos de una oferta activa existente entre los seleccionados
-                  // si no tenemos datos de grupo establecidos ya
+                  // Si estamos en modo anexión, guardamos directamente sin abrir el modal
+                  if (isAddingToGroup && selectedGroupData) {
+                    const details = {
+                      custom_title: selectedGroupData.title,
+                      custom_description: selectedGroupData.description,
+                      custom_image_url: selectedGroupData.image,
+                      discount_percentage: selectedGroupData.discount_percentage,
+                      offer_price: selectedGroupData.offer_price,
+                      offer_start_date: selectedGroupData.offer_start_date,
+                      offer_end_date: selectedGroupData.offer_end_date,
+                      min_quantity: selectedGroupData.min_quantity,
+                      min_quantity_unit: selectedGroupData.min_quantity_unit,
+                      min_quantity_cumulative: selectedGroupData.min_quantity_cumulative,
+                      min_quantity_group_all: selectedGroupData.min_quantity_group_all,
+                      min_individual_quantity: selectedGroupData.min_individual_quantity,
+                      total_group_products: isAddingToGroup.productIds.length + selectedIds.length,
+                    };
+                    saveBrandOfferDetails(details);
+                    return;
+                  }
+
+                  // Lógica normal para cuando NO estamos en modo anexión dirigida
                   if (!selectedGroupData) {
                     const templateProduct = products.find(p => selectedIds.includes(p.id) && (p.oferta || p.is_on_offer));
                     if (templateProduct) {
@@ -1543,11 +1611,11 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
 
                   setIsBrandEditorOpen(true);
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors cursor-pointer ${selectedIds.length > 0 ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors cursor-pointer ${selectedIds.length > 0 ? (isAddingToGroup ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700') : 'bg-gray-400 cursor-not-allowed'
                   }`}
               >
-                <Edit2 className="w-4 h-4" />
-                Editar oferta para seleccionados
+                {isAddingToGroup ? (isSavingBrandDetails ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />) : <Edit2 className="w-4 h-4" />}
+                {isAddingToGroup ? (isSavingBrandDetails ? 'Guardando...' : `Confirmar incorporación (${selectedIds.length})`) : 'Editar oferta para seleccionados'}
               </button>
               <button
                 onClick={() => {
@@ -1726,10 +1794,10 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
       {isBrandEditorOpen && (
         <GroupEditModal
           brandName={selectedBrand}
-          productCount={selectedIds.length}
+          productCount={isAddingToGroup ? (isAddingToGroup.productIds.length + selectedIds.length) : selectedIds.length}
           onClose={() => {
             setIsBrandEditorOpen(false);
-            setSelectedGroupData(null);
+            if (!isAddingToGroup) setSelectedGroupData(null);
           }}
           onSave={(details) => saveBrandOfferDetails(details)}
           onPreview={onPreview}
