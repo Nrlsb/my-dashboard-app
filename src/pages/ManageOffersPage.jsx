@@ -1026,6 +1026,7 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
   const [isBrandEditorOpen, setIsBrandEditorOpen] = useState(false);
+  const [isFetchingAllIds, setIsFetchingAllIds] = useState(false);
   const debounceTimeout = useRef(null);
   const lastAutoSelectedBrand = useRef(null);
   const processedProductIds = useRef(new Set());
@@ -1139,6 +1140,31 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
   const products = infiniteData?.pages.flatMap((page) => page.products) || [];
 
   const activeOfferProducts = products.filter((p) => p.oferta);
+
+  const handleSelectAll = async (e) => {
+    const isChecked = e.target.checked;
+    if (isChecked) {
+      if (hasNextPage) {
+        setIsFetchingAllIds(true);
+        try {
+          // fetchAllProductsForPDF ya tiene un límite de 9999 y devuelve los productos de la marca/búsqueda
+          const allProducts = await apiService.fetchAllProductsForPDF(debounceSearchTerm, selectedBrand ? [selectedBrand] : []);
+          setSelectedIds(allProducts.map(p => p.id));
+        } catch (error) {
+          console.error("Error fetching all product IDs:", error);
+          toast.error("Error al seleccionar todos los productos");
+          // Fallback a los ya cargados
+          setSelectedIds(products.map(p => p.id));
+        } finally {
+          setIsFetchingAllIds(false);
+        }
+      } else {
+        setSelectedIds(products.map(p => p.id));
+      }
+    } else {
+      setSelectedIds([]);
+    }
+  };
 
   // Auto-seleccionar productos que ya están en oferta al entrar a una marca o al cargar más páginas
   useEffect(() => {
@@ -1528,15 +1554,18 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
             <thead className="bg-gray-100 border-b border-gray-300">
               <tr>
                 <th className="py-3 px-4 text-center">
-                  <input
-                    type="checkbox"
-                    checked={products.length > 0 && selectedIds.length === products.length}
-                    onChange={(e) => {
-                      if (e.target.checked) setSelectedIds(products.map(p => p.id));
-                      else setSelectedIds([]);
-                    }}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
-                  />
+                  <div className="flex items-center justify-center gap-2">
+                    {isFetchingAllIds ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                    ) : (
+                      <input
+                        type="checkbox"
+                        checked={products.length > 0 && selectedIds.length >= (infiniteData?.pages[0]?.totalProducts || products.length)}
+                        onChange={handleSelectAll}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                      />
+                    )}
+                  </div>
                 </th>
                 <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Código</th>
                 <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Descripción</th>
