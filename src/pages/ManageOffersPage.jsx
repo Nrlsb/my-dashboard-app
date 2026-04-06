@@ -1517,6 +1517,30 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
                     toast.error("Seleccioná al menos un producto para editar la oferta del grupo.");
                     return;
                   }
+
+                  // Intentar pre-cargar datos de una oferta activa existente entre los seleccionados
+                  // si no tenemos datos de grupo establecidos ya
+                  if (!selectedGroupData) {
+                    const templateProduct = products.find(p => selectedIds.includes(p.id) && (p.oferta || p.is_on_offer));
+                    if (templateProduct) {
+                      setSelectedGroupData({
+                        title: templateProduct.custom_title,
+                        description: templateProduct.custom_description || templateProduct.description,
+                        image: templateProduct.custom_image_url,
+                        brand: templateProduct.brand,
+                        min_quantity: templateProduct.min_quantity,
+                        min_quantity_unit: templateProduct.min_quantity_unit,
+                        min_quantity_cumulative: templateProduct.min_quantity_cumulative,
+                        min_quantity_group_all: templateProduct.min_quantity_group_all,
+                        min_individual_quantity: templateProduct.min_individual_quantity,
+                        discount_percentage: templateProduct.discount_percentage,
+                        offer_price: templateProduct.offer_price,
+                        offer_start_date: templateProduct.offer_start_date,
+                        offer_end_date: templateProduct.offer_end_date,
+                      });
+                    }
+                  }
+
                   setIsBrandEditorOpen(true);
                 }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors cursor-pointer ${selectedIds.length > 0 ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'

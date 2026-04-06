@@ -981,7 +981,8 @@ const updateProductOfferDetails = async (productId, details) => {
     min_quantity_unit,
     min_quantity_cumulative,
     min_quantity_group_all,
-    total_group_products
+    total_group_products,
+    min_individual_quantity
   } = details;
 
   try {
@@ -1004,6 +1005,7 @@ const updateProductOfferDetails = async (productId, details) => {
             discount_percentage = $4, offer_price = $5, offer_start_date = $6, offer_end_date = $7, 
             min_quantity = $8, min_quantity_unit = $9, min_quantity_cumulative = $10,
             min_quantity_group_all = $11, total_group_products = $12, min_individual_quantity = $13,
+            is_on_offer = true,
             updated_at = CURRENT_TIMESTAMP 
         WHERE product_id = $14
         RETURNING *
