@@ -224,14 +224,15 @@ const GroupOfferCard = ({ group, onSelect }) => {
             </span>
           </div>
         )}
-        <div className="absolute top-2 right-2 bg-blue-600/90 text-white text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1.5 backdrop-blur-sm border border-blue-400">
-          <Package className="w-3 h-3" />
-          {productsCount} {productsCount === 1 ? 'Producto' : 'Productos'}
-        </div>
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 flex items-end justify-between">
           <span className="inline-block bg-white/20 backdrop-blur-md text-white text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase border border-white/30">
             {brand}
           </span>
+          <div className="bg-blue-600/90 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-lg flex items-center gap-1.5 backdrop-blur-sm border border-blue-400/50">
+            <Package className="w-3 h-3" />
+            <span>{productsCount} {productsCount === 1 ? 'Producto' : 'Productos'}</span>
+          </div>
         </div>
       </div>
 
@@ -273,15 +274,32 @@ const GroupProductItem = ({ product, onAddToCart, navigate }) => {
   };
 
   return (
-    <div className="group border border-gray-100 hover:border-blue-200 rounded-xl p-4 transition-all hover:shadow-md bg-white flex flex-col h-full">
-      <div className="flex-1">
-        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase tracking-wider block w-fit mb-2">
-          {product.brand}
-        </span>
-        <h4 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors line-clamp-2 min-h-[2.5rem]">
+    <div className="group border border-gray-100 hover:border-blue-200 rounded-xl p-0 overflow-hidden transition-all hover:shadow-md bg-white flex flex-col h-full">
+      <div className="relative aspect-square bg-gray-50 overflow-hidden border-b border-gray-50">
+        {product.imageUrl || product.custom_image_url ? (
+          <img
+            src={product.thumbnailUrl || product.imageUrl || product.custom_image_url}
+            alt={product.name}
+            className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-105"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center text-gray-200">
+            <Package className="w-12 h-12 mb-2" />
+            <span className="text-xs">Sin imagen</span>
+          </div>
+        )}
+        <div className="absolute top-2 left-2">
+          <span className="text-[10px] font-bold text-blue-600 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
+            {product.brand}
+          </span>
+        </div>
+      </div>
+      <div className="p-4 flex-1 flex flex-col">
+        <h4 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors line-clamp-2 min-h-[2.5rem] text-sm">
           {product.name}
         </h4>
-        <p className="text-xs text-gray-400 font-mono mt-1.5 mb-3">Cód: {product.code}</p>
+        <p className="text-[10px] text-gray-400 font-mono mt-1 mb-3">Cód: {product.code}</p>
 
         <div className="mb-4">
           {product.discount_percentage != null ? (
