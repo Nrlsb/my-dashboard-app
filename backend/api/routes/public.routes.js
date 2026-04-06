@@ -52,6 +52,18 @@ router.get(
 );
 
 /**
+ * GET /api/public/discontinued
+ * Devuelve los productos discontinuados sin precios.
+ */
+router.get(
+    '/discontinued',
+    catchAsync(async (req, res) => {
+        const products = await productService.getDiscontinuedProducts(null);
+        res.json(stripPrices(products));
+    })
+);
+
+/**
  * POST /api/public/contact-request
  * Recibe una solicitud de registro/contacto.
  */

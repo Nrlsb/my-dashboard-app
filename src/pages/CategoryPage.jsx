@@ -4,6 +4,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import apiService from '../api/apiService';
 import { useAuth } from '../context/AuthContext';
 import SEOHead from '../components/SEOHead';
+import ProductCard from '../components/ProductCard';
 
 const PRODUCTS_PER_PAGE = 20;
 
@@ -53,9 +54,6 @@ const CategoryPage = () => {
     }
   };
 
-  const handleViewProductDetails = (productId) => {
-    navigate(`/product-detail/${productId}`);
-  };
 
   if (loading) {
     return <LoadingSpinner text="Cargando productos..." />;
@@ -65,7 +63,7 @@ const CategoryPage = () => {
     return <div className="p-4 text-red-500 text-center">{error}</div>;
   }
 
-  const displayName = groupName || groupCode;
+  const displayName = groupCode === '0902' ? 'PRODUCTOS DISCONTINUADOS' : (groupName || groupCode);
   const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://espint.com.ar';
 
   const breadcrumbJsonLd = {
@@ -110,27 +108,7 @@ const CategoryPage = () => {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {products.map((product) => (
-              <div
-                key={product.id}
-                className="border p-4 rounded-lg shadow-md bg-white flex flex-col justify-between cursor-pointer"
-                onClick={() => handleViewProductDetails(product.id)}
-              >
-                <div>
-                  <h2 className="text-base font-semibold text-gray-800 h-12">
-                    {product.name}
-                  </h2>
-                  <p className="text-sm text-gray-500">{product.brand}</p>
-                </div>
-                {isAuthenticated ? (
-                  <p className="text-lg font-bold mt-2 text-right text-blue-700">
-                    {product.formattedPrice}
-                  </p>
-                ) : (
-                  <p className="text-sm font-medium mt-2 text-right text-blue-500 italic">
-                    Inicie sesión para ver precios
-                  </p>
-                )}
-              </div>
+              <ProductCard key={product.id} product={product} />
             ))}
           </div>
 

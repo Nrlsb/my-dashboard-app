@@ -1,5 +1,5 @@
 ﻿const { pool, pool2 } = require('../db');
-const { redisClient, isRedisReady } = require('../redisClient');
+const { redisClient, isRedisReady, clearCacheByPattern } = require('../redisClient');
 const { FUNCTIONAL_CATEGORIES } = require('../utils/categoryMappings');
 
 /**
@@ -548,6 +548,7 @@ const findAccessories = async (accessoryGroups) => {
             WHEN b1_ts = '501' THEN da1_prcven * 1.105
             ELSE da1_prcven
           END AS price,
+          sbm_desc AS brand,
           b1_grupo AS product_group
         FROM products
         WHERE b1_grupo = ANY($1) 
@@ -850,7 +851,7 @@ CASE
   WHEN b1_ts = '501' THEN da1_prcven * 1.105
   ELSE da1_prcven
 END AS price,
-b1_grupo AS brand,
+sbm_desc AS brand,
   z02_descri AS capacity_description, da1_moeda AS moneda, cotizacion, b1_grupo AS product_group,
   stock_disp AS stock_disponible, stock_prev AS stock_de_seguridad,
   sbz_desc AS indicator_description, b1_qe AS pack_quantity
@@ -994,6 +995,7 @@ const updateProductOfferDetails = async (productId, details) => {
     const checkQuery = 'SELECT product_id FROM product_offer_status WHERE product_code = $1';
     const checkResult = await pool2.query(checkQuery, [productCode]);
 
+    let result;
     if (checkResult.rows.length > 0) {
       const query = `
         UPDATE product_offer_status 
@@ -1012,10 +1014,9 @@ const updateProductOfferDetails = async (productId, details) => {
         min_quantity_group_all ?? false, total_group_products ?? 1,
         productId
       ];
-      const result = await pool2.query(query, values);
-      return result.rows[0];
+      result = await pool2.query(query, values);
     } else {
-      const result = await pool2.query(
+      result = await pool2.query(
         `INSERT INTO product_offer_status 
          (product_id, product_code, custom_title, custom_description, custom_image_url, 
           discount_percentage, offer_price, offer_start_date, offer_end_date, 
@@ -1030,11 +1031,93 @@ const updateProductOfferDetails = async (productId, details) => {
           min_quantity_group_all ?? false, total_group_products ?? 1
         ]
       );
-
-      return result.rows[0];
     }
+
+    if (isRedisReady()) {
+      await invalidateOfferCache(productId, productCode);
+    }
+
+    return result.rows[0];
   } catch (error) {
     console.error('Error in updateProductOfferDetails:', error);
+    throw error;
+  }
+};
+
+/**
+ * Invalida todos los cachés relacionados con ofertas de un producto.
+ */
+const invalidateOfferCache = async (productId, productCode) => {
+  if (!isRedisReady()) return;
+  try {
+    // 1. Invalida lista general de ofertas
+    await redisClient.del('products:on_offer');
+
+    // 2. Invalida detalles del producto individual (por ID y por Código)
+    if (productId) {
+      await clearCacheByPattern(`product:id:${productId}:*`);
+    }
+    if (productCode) {
+      await clearCacheByPattern(`product:code:${productCode}:*`);
+    }
+
+    // 3. Invalida TODOS los resultados de búsqueda de productos
+    await clearCacheByPattern('products:search:v4:*');
+
+    console.log(`[Cache] Invalidated offer cache for product ${productId} (${productCode})`);
+  } catch (err) {
+    console.error(`Error invalidating offer cache:`, err);
+  }
+};
+
+/**
+ * Alterna el estado de oferta de un producto.
+ */
+const toggleProductOfferStatus = async (productId) => {
+  try {
+    // 1. Verificar si el producto existe
+    const productResult = await pool2.query(
+      'SELECT id, b1_desc as description, b1_cod as code, da1_prcven as price FROM products WHERE id = $1',
+      [productId]
+    );
+    if (productResult.rows.length === 0) {
+      throw new Error('Producto no encontrado.');
+    }
+    const productDetails = productResult.rows[0];
+
+    // 2. Obtener estado actual
+    const existingOffer = await pool2.query(
+      'SELECT is_on_offer FROM product_offer_status WHERE product_id = $1',
+      [productId]
+    );
+
+    let newOfferStatus;
+    if (existingOffer.rows.length > 0) {
+      newOfferStatus = !existingOffer.rows[0].is_on_offer;
+      await pool2.query(
+        'UPDATE product_offer_status SET is_on_offer = $1, product_code = $2, updated_at = CURRENT_TIMESTAMP WHERE product_id = $3',
+        [newOfferStatus, productDetails.code, productId]
+      );
+    } else {
+      newOfferStatus = true;
+      await pool2.query(
+        'INSERT INTO product_offer_status (product_id, product_code, is_on_offer) VALUES ($1, $2, $3)',
+        [productId, productDetails.code, newOfferStatus]
+      );
+    }
+
+    // 3. Invalidar caché
+    await invalidateOfferCache(productId, productDetails.code);
+
+    return {
+      id: productDetails.id,
+      description: productDetails.description,
+      code: productDetails.code,
+      price: productDetails.price,
+      oferta: newOfferStatus,
+    };
+  } catch (error) {
+    console.error(`Error in toggleProductOfferStatus (model):`, error);
     throw error;
   }
 };
@@ -1068,7 +1151,7 @@ const findCarouselAccessories = async () => {
         WHEN b1_ts = '501' THEN da1_prcven * 1.105
         ELSE da1_prcven
       END as price,
-      b1_grupo as brand, z02_descri as capacity_description, b1_grupo as product_group, stock_disp as stock_disponible, stock_prev as stock_de_seguridad
+      sbm_desc as brand, z02_descri as capacity_description, b1_grupo as product_group, stock_disp as stock_disponible, stock_prev as stock_de_seguridad
       FROM products
       WHERE b1_cod = ANY($1:: varchar[])
   `;
@@ -1431,7 +1514,9 @@ const getGlobalDeniedProductsWithDetails = async () => {
         WHEN b1_ts = '503' THEN da1_prcven * 1.21
         WHEN b1_ts = '501' THEN da1_prcven * 1.105
         ELSE da1_prcven
-      END AS price
+      END AS price,
+      sbm_desc AS brand,
+      b1_grupo AS product_group
       FROM products 
       WHERE b1_cod = ANY($1:: varchar[])
   `;
@@ -1604,6 +1689,92 @@ const findUniqueCategories = async (deniedGroups = []) => {
   }
 };
 
+/**
+ * Obtiene productos discontinuados basados en el indicador SBZ_DESC.
+ * @returns {Promise<object[]>} - Array de productos discontinuados.
+ */
+const findDiscontinuedProducts = async () => {
+  const cacheKey = 'products:discontinued';
+
+  if (isRedisReady()) {
+    try {
+      const cachedData = await redisClient.get(cacheKey);
+      if (cachedData) {
+        return JSON.parse(cachedData);
+      }
+    } catch (err) {
+      console.error('Redis error in findDiscontinuedProducts:', err);
+    }
+  }
+
+  try {
+    const query = `
+      SELECT id, b1_cod as code, b1_desc as description, 
+      CASE
+        WHEN b1_ts = '503' THEN da1_prcven * 1.21
+        WHEN b1_ts = '501' THEN da1_prcven * 1.105
+        ELSE da1_prcven
+      END as price,
+      sbm_desc as brand, z02_descri as capacity_description, b1_grupo as product_group, stock_disp as stock_disponible, stock_prev as stock_de_seguridad, da1_moeda as moneda
+      FROM products
+      WHERE b1_grupo = '0902'
+      AND da1_prcven > 0
+      ORDER BY last_synced_at DESC
+      LIMIT 20
+    `;
+    const result = await pool2.query(query);
+    const rows = result.rows;
+
+    if (isRedisReady()) {
+      try {
+        await redisClient.set(cacheKey, JSON.stringify(rows), { EX: 3600 }); // 1 hour TTL
+      } catch (err) {
+        console.error('Redis error setting cache in findDiscontinuedProducts:', err);
+      }
+    }
+
+    return rows;
+  } catch (error) {
+    console.error('Error in findDiscontinuedProducts:', error);
+    throw error;
+  }
+};
+
+/**
+ * (Admin) Desactiva múltiples ofertas por lote.
+ */
+const batchDeactivateOffers = async (productIds) => {
+  if (!productIds || productIds.length === 0) return { success: true, count: 0 };
+
+  try {
+    const result = await pool2.query(
+      'UPDATE product_offer_status SET is_on_offer = false WHERE product_id = ANY($1::int[]) RETURNING product_id, product_code',
+      [productIds]
+    );
+
+    if (isRedisReady()) {
+      // Invalida lista general y búsquedas
+      await redisClient.del('products:on_offer');
+      await clearCacheByPattern('products:search:v4:*');
+
+      // Invalida cada producto individualmente para asegurar consistencia en el detalle
+      for (const row of result.rows) {
+        if (row.product_id) {
+          await clearCacheByPattern(`product:id:${row.product_id}:*`);
+        }
+        if (row.product_code) {
+          await clearCacheByPattern(`product:code:${row.product_code}:*`);
+        }
+      }
+    }
+
+    return { success: true, count: result.rowCount };
+  } catch (error) {
+    console.error('Error in batchDeactivateOffers (model):', error);
+    throw error;
+  }
+};
+
 module.exports = {
   findProducts,
   findAccessories,
@@ -1617,6 +1788,8 @@ module.exports = {
   findProductsByGroup,
 
   updateProductOfferDetails,
+  toggleProductOfferStatus,
+  batchDeactivateOffers, // [NEW]
   // Carousel exports
   findCarouselAccessories,
   addCarouselAccessory,
@@ -1645,4 +1818,5 @@ module.exports = {
   updateProductNewReleaseDetails,
   getVendorDeniedProductGroups, // [NEW]
   getGlobalSetting,
+  findDiscontinuedProducts, // [NEW]
 };

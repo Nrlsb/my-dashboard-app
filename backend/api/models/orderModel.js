@@ -14,7 +14,7 @@ const findOrders = async (userIds) => {
 
   if (Array.isArray(userIds)) {
     query = `
-      SELECT id, user_id, total, status, 
+      SELECT id, user_id, total, status, is_offer, 
              TO_CHAR(created_at, 'DD/MM/YYYY') as formatted_date,
              (SELECT COUNT(*) FROM order_items WHERE order_id = orders.id) as item_count,
              vendor_sales_order_number,
@@ -26,7 +26,7 @@ const findOrders = async (userIds) => {
     values = [userIds];
   } else {
     query = `
-      SELECT id, user_id, total, status, 
+      SELECT id, user_id, total, status, is_offer, 
              TO_CHAR(created_at, 'DD/MM/YYYY') as formatted_date,
              (SELECT COUNT(*) FROM order_items WHERE order_id = orders.id) as item_count,
              vendor_sales_order_number,
@@ -177,7 +177,7 @@ const findOrdersByClientCodes = async (clientCodes) => {
   }
 
   const query = `
-      SELECT id, user_id, a1_cod, total, status, 
+      SELECT id, user_id, a1_cod, total, status, is_offer, 
              TO_CHAR(created_at, 'DD/MM/YYYY') as formatted_date,
              (SELECT COUNT(*) FROM order_items WHERE order_id = orders.id) as item_count,
              vendor_sales_order_number,

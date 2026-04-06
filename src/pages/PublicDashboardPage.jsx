@@ -279,6 +279,67 @@ const PublicAccessoriesGrid = ({ accessories }) => {
     );
 };
 
+/**
+ * Grid de productos discontinuados sin precios.
+ */
+const PublicDiscontinuedGrid = ({ products }) => {
+    if (!products || products.length === 0) return null;
+
+    const displayed = products.slice(0, 5);
+
+    return (
+        <div className="relative py-4 mt-8">
+            <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold text-espint-blue">
+                    Productos Discontinuados
+                </h2>
+                <Link
+                    to="/category/0902"
+                    className="flex items-center gap-2 bg-[#0B3D68] hover:bg-[#0a3459] text-white font-semibold px-5 py-2 rounded-xl transition-all shadow-md active:scale-95 group/btn"
+                >
+                    <span>Ver todos</span>
+                    <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+                </Link>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                {displayed.map((item) => (
+                    <Link
+                        key={item.id}
+                        to={`/product-detail/${item.id}`}
+                        className="w-full bg-white rounded-lg overflow-hidden transition-all duration-200 ease-in-out hover:-translate-y-1 shadow-sm hover:shadow-md border-b-[3px] border-red-500 group"
+                    >
+                        <div className="relative">
+                            {item.imageUrl ? (
+                                <>
+                                    <img
+                                        src={item.imageUrl}
+                                        alt={item.name}
+                                        className="w-full h-32 object-contain p-2"
+                                        referrerPolicy="no-referrer"
+                                        loading="lazy"
+                                    />
+                                    <span className="absolute bottom-0 right-0 bg-black/60 text-white text-[7px] px-1.5 py-0.5 pointer-events-none uppercase font-bold rounded-tl-sm">
+                                        Ilustrativa
+                                    </span>
+                                </>
+                            ) : (
+                                <div className="w-full h-32 bg-gray-100 flex items-center justify-center">
+                                    <Package className="w-8 h-8 text-gray-300" />
+                                </div>
+                            )}
+                        </div>
+                        <div className="p-3">
+                            <h3 className="text-sm font-bold text-espint-blue whitespace-nowrap truncate">
+                                {item.name}
+                            </h3>
+                        </div>
+                    </Link>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 // ============================================================
 // Skeleton de carga
 // ============================================================
@@ -331,7 +392,17 @@ const PublicDashboardPage = () => {
         staleTime: 1000 * 60 * 5,
     });
 
-    const isLoading = loadingGroups || loadingAccessories || loadingReleases;
+    const { data: discontinued = [], isLoading: loadingDiscontinued } = useQuery({
+        queryKey: ['public-discontinued'],
+        queryFn: async () => {
+            const res = await fetch(`${API_BASE}/public/discontinued`);
+            if (!res.ok) throw new Error('Error cargando productos discontinuados');
+            return res.json();
+        },
+        staleTime: 1000 * 60 * 5,
+    });
+
+    const isLoading = loadingGroups || loadingAccessories || loadingReleases || loadingDiscontinued;
 
     if (isLoading) {
         return <PublicDashboardSkeleton />;
@@ -376,6 +447,10 @@ const PublicDashboardPage = () => {
                         <PublicCategoriesGrid groups={groups} />
                         <PublicAccessoriesGrid accessories={accessories} />
                     </div>
+                </div>
+
+                <div className="mt-8">
+                    <PublicDiscontinuedGrid products={discontinued} />
                 </div>
 
                 {/* Bottom CTA */}

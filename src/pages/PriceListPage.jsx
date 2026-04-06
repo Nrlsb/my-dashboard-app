@@ -85,7 +85,11 @@ const ProductRow = ({ product, onAddToCart }) => {
         {Number(product.pack_quantity) > 0 ? Number(product.pack_quantity) : 1}
       </td>
       <td className="py-3 px-4 text-sm text-center">
-        {stock <= 0 ? (
+        {product.product_group === '0902' || product.brand?.toUpperCase() === 'PRODUCTOS DISCONTINUADOS' ? (
+          <span className="text-orange-600 font-bold whitespace-nowrap px-2 py-0.5 bg-orange-50 rounded border border-orange-100">
+            Consultar Stock
+          </span>
+        ) : stock <= 0 ? (
           <span className="text-red-600 font-medium">Sin Stock</span>
         ) : (
           <span className="text-gray-600 font-medium">
@@ -265,12 +269,14 @@ export default function PriceListPage() {
             brand: p.brand,
             pack_quantity: Number(p.pack_quantity) > 0 ? Number(p.pack_quantity) : 1,
             stock:
-              p.stock_disponible <= 0
-                ? 'Sin Stock' + (p.stock_de_seguridad > 0 ? ' (Previsto)' : '')
-                : (p.stock_disponible > 100
-                  ? '+100'
-                  : p.stock_disponible) +
-                (p.stock_de_seguridad > 0 ? ' (Previsto)' : ''),
+              p.product_group === '0902' || p.brand?.toUpperCase() === 'PRODUCTOS DISCONTINUADOS'
+                ? 'Consultar Stock'
+                : p.stock_disponible <= 0
+                  ? 'Sin Stock' + (p.stock_de_seguridad > 0 ? ' (Previsto)' : '')
+                  : (p.stock_disponible > 100
+                    ? '+100'
+                    : p.stock_disponible) +
+                  (p.stock_de_seguridad > 0 ? ' (Previsto)' : ''),
             moneda: formatMoneda(p.moneda),
             price: Number(p.price),
           });

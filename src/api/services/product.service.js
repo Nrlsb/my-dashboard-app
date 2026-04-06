@@ -79,6 +79,10 @@ export const productService = {
         return apiClient.get('/products/new-releases');
     },
 
+    getDiscontinuedProducts() {
+        return apiClient.get('/products/discontinued');
+    },
+
     toggleProductOffer(productId) {
         if (!productId) throw new Error('ID de producto requerido');
         return apiClient.put(`/products/${productId}/toggle-offer`);
@@ -87,6 +91,11 @@ export const productService = {
     updateProductOfferDetails(productId, details) {
         if (!productId) throw new Error('ID de producto requerido');
         return apiClient.put(`/products/${productId}/offer-details`, details);
+    },
+
+    batchDeactivateOffers(productIds) {
+        if (!productIds || !Array.isArray(productIds)) throw new Error('productIds debe ser un array');
+        return apiClient.put('/products/batch-deactivate-offers', { productIds });
     },
 
     toggleProductNewRelease(productId) {

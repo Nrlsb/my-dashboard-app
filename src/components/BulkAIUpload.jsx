@@ -235,7 +235,13 @@ const BulkAIUpload = () => {
                                                             )}
                                                             <div>
                                                                 <p className="font-bold text-sm">{prod.description}</p>
-                                                                <p className="text-xs text-gray-500">Código: {prod.code} | Stock: {prod.stock}</p>
+                                                                <p className="text-xs text-gray-500">
+                                                                    Código: {prod.code} | Stock: {
+                                                                        prod.product_group === '0902' || prod.brand?.toUpperCase() === 'PRODUCTOS DISCONTINUADOS'
+                                                                            ? 'Consultar Stock'
+                                                                            : prod.stock
+                                                                    }
+                                                                </p>
                                                             </div>
                                                         </div>
 

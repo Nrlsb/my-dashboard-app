@@ -185,7 +185,14 @@ function OrderDetailPage() {
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
-      <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 border-b-2 border-gray-200 pb-2">Detalle del Pedido #{orderDetails.id}</h2>
+      <div className="flex items-center gap-3 mb-6 border-b-2 border-gray-200 pb-2">
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Detalle del Pedido #{orderDetails.id}</h2>
+        {orderDetails.is_offer && (
+          <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-bold rounded-full uppercase tracking-wider">
+            Promoción
+          </span>
+        )}
+      </div>
 
       <div className="flex flex-col md:flex-row gap-4 mb-8 items-center">
         <button

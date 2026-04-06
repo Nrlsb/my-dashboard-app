@@ -39,7 +39,11 @@ const ProductCard = ({ product, setSelectedProduct, handleAddToCartClick }) => {
                         {product.brand} <span className="mx-1">•</span> Cód: {product.code}
                     </p>
                     <div className="flex items-center mt-1">
-                        {product.stock_disponible <= 0 ? (
+                        {product.product_group === '0902' || product.brand?.toUpperCase() === 'PRODUCTOS DISCONTINUADOS' ? (
+                            <span className="text-xs md:text-sm font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-100">
+                                Consultar Stock
+                            </span>
+                        ) : product.stock_disponible <= 0 ? (
                             <div className="flex items-center">
                                 <span className="text-xs md:text-sm font-medium text-red-600">
                                     Sin Stock

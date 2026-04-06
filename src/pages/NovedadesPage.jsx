@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { NOVEDADES } from '../data/novedades';
-import { ArrowLeft, CheckCircle, BookOpen, Sparkles, CalendarDays, Tag, ArrowRight } from 'lucide-react';
+import apiService from '../api/apiService';
+import { ArrowLeft, CheckCircle, BookOpen, Sparkles, CalendarDays, Tag, ArrowRight, ShoppingCart } from 'lucide-react';
 
 const TAG_COLORS = {
   blue: {
@@ -36,7 +37,7 @@ function markAllSeen(ids) {
     const seen = getSeenIds();
     const updated = Array.from(new Set([...seen, ...ids]));
     localStorage.setItem(SEEN_KEY, JSON.stringify(updated));
-  } catch {}
+  } catch { }
 }
 
 function formatDate(dateStr) {
@@ -52,6 +53,24 @@ export default function NovedadesPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const userRole = user?.role || '';
+  const [hasOffers, setHasOffers] = useState(false);
+
+  // Consultar si hay ofertas activas
+  useEffect(() => {
+    async function checkOffers() {
+      try {
+        const offers = await apiService.fetchOffers();
+        if (Array.isArray(offers) && offers.length > 0) {
+          setHasOffers(true);
+        }
+      } catch (error) {
+        console.error('Error fetching offers for novedades:', error);
+      }
+    }
+    if (user?.id) {
+      checkOffers();
+    }
+  }, [user]);
 
   // Filtrar novedades relevantes para este usuario
   const visibleNovedades = NOVEDADES.map((novedad) => {
@@ -101,6 +120,32 @@ export default function NovedadesPage() {
 
       {/* Content */}
       <div className="container mx-auto max-w-4xl px-4 sm:px-6 py-8 sm:py-12">
+        {/* Banner Dinámico de Ofertas */}
+        {hasOffers && (
+          <div className="mb-10 animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl p-6 text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4 border border-orange-400">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                  <ShoppingCart className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-extrabold">¡Hay ofertas exclusivas hoy!</h3>
+                  <p className="text-white/80 text-sm">
+                    No te pierdas los descuentos vigentes en productos seleccionados.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate('/offers')}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white text-orange-600 font-bold px-6 py-2.5 rounded-xl transition-all hover:bg-orange-50 shadow-md active:scale-95 whitespace-nowrap"
+              >
+                Ver todas las ofertas
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {visibleNovedades.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
             <BookOpen className="w-10 h-10 mx-auto mb-3 opacity-40" />
@@ -187,11 +232,10 @@ export default function NovedadesPage() {
                           {section.path && (
                             <button
                               onClick={() => navigate(section.path)}
-                              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
-                                section.tagColor === 'green'
+                              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${section.tagColor === 'green'
                                   ? 'bg-green-500 hover:bg-green-600 text-white'
                                   : 'bg-blue-500 hover:bg-blue-600 text-white'
-                              }`}
+                                }`}
                             >
                               {section.buttonLabel || 'Ir al apartado'}
                               <ArrowRight className="w-3.5 h-3.5" />

@@ -5,6 +5,45 @@
  */
 export const NOVEDADES = [
   {
+    id: 'nov-2026-04-06-001',
+    version: '3.1.0',
+    date: '2026-04-06',
+    sections: [
+      {
+        roles: ['cliente', 'test_user'],
+        tag: 'Nuevo',
+        tagColor: 'blue',
+        title: 'Productos Discontinuados',
+        path: '/dashboard',
+        buttonLabel: 'Ver en el Dashboard',
+        description:
+          'Ahora podés identificar rápidamente productos que están saliendo del catálogo. Buscá la nueva barra roja en tu panel principal.',
+        guide: [
+          'Ingresá a tu Dashboard principal.',
+          'Buscá la sección "Productos Discontinuados" al final de la página.',
+          'Hacé clic en cualquier producto para ver su detalle o en "Ver todos" para ir a la categoría completa.',
+          'Aprovechá estos productos antes de que se agote su stock permanente.',
+        ],
+      },
+      {
+        roles: ['cliente', 'test_user'],
+        tag: 'Oferta',
+        tagColor: 'green',
+        title: 'Sección de Ofertas',
+        path: '/offers',
+        buttonLabel: 'Ir a Ofertas',
+        description:
+          'Accedé fácilmente a todos los productos con descuentos, promociones especiales y precios de oferta.',
+        guide: [
+          'Hacé clic en el botón "Ir a Ofertas" o buscá el icono de etiqueta en el menú.',
+          'Verás un listado de productos con sus precios originales y el precio de oferta destacado.',
+          'Algunas ofertas están agrupadas por títulos especiales (ej. Promociones de Marca).',
+          'Podés agregar productos directamente al carrito desde esta sección.',
+        ],
+      },
+    ],
+  },
+  {
     id: 'nov-2026-03-08-001',
     version: '3.0.202',
     date: '2026-03-08',

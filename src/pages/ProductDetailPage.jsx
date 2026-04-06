@@ -249,7 +249,11 @@ export default function ProductDetailPage() {
               {isAuthenticated && (
                 <div className="flex items-center font-medium">
                   <div className="flex items-center mt-1">
-                    {product.stock_disponible <= 0 ? (
+                    {product.product_group === '0902' || product.brand?.toUpperCase() === 'PRODUCTOS DISCONTINUADOS' ? (
+                      <span className="text-sm font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded border border-orange-100">
+                        Consultar Stock
+                      </span>
+                    ) : product.stock_disponible <= 0 ? (
                       <div className="flex items-center">
                         <span className="text-sm font-medium text-red-600">
                           Sin Stock

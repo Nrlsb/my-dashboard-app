@@ -110,7 +110,13 @@ const ProductModal = ({ product, onClose, onAddToCart }) => {
                                 <Plus className="w-4 h-4" />
                             </button>
                         </div>
-                        {stock <= 0 ? (
+                        {product.product_group === '0902' || product.brand?.toUpperCase() === 'PRODUCTOS DISCONTINUADOS' ? (
+                            <div className="flex items-center ml-2">
+                                <span className="text-sm font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-100">
+                                    Consultar Stock
+                                </span>
+                            </div>
+                        ) : stock <= 0 ? (
                             <div className="flex items-center ml-2">
                                 <span className="text-sm font-medium text-red-600">
                                     Sin Stock

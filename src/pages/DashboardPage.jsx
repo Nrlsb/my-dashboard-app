@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import DashboardCard from '/src/components/DashboardCard.jsx';
 import AccessoryCarousel from '../components/AccessoryCarousel';
+import DiscontinuedProductsCarousel from '../components/DiscontinuedProductsCarousel';
 import ProductGroupCarousel from '../components/ProductGroupCarousel';
 import apiService from '../api/apiService';
 
@@ -138,6 +139,9 @@ const DashboardPage = () => {
             <ProductGroupCarousel />
             <AccessoryCarousel />
           </div>
+        </div>
+        <div className="mt-8">
+          <DiscontinuedProductsCarousel />
         </div>
       </main>
     </div>

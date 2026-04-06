@@ -200,6 +200,47 @@ const getAccessories = async (user) => {
   }
 };
 
+const getDiscontinuedProducts = async (user) => {
+  try {
+    const dbDiscontinued = await productModel.findDiscontinuedProducts();
+
+    if (dbDiscontinued.length > 0) {
+      const { deniedGroups } = await getUserFilters(user);
+
+      let filtered = dbDiscontinued;
+      if (deniedGroups && deniedGroups.length > 0) {
+        filtered = dbDiscontinued.filter(p => !deniedGroups.includes(p.product_group));
+      }
+
+      const exchangeRates = await getExchangeRates();
+
+      const mapped = filtered.map((prod) => {
+        const { finalPrice, formattedPrice } = calculateFinalPrice(prod, exchangeRates);
+        return {
+          id: prod.id,
+          code: prod.code,
+          name: prod.description,
+          price: finalPrice,
+          formattedPrice: formattedPrice,
+          imageUrl: null,
+          thumbnailUrl: null,
+          group_code: prod.product_group,
+          brand: prod.brand,
+          stock_disponible: prod.stock_disponible,
+          indicator_description: prod.indicator_description,
+          product_group: prod.product_group // (NUEVO) Para consistencia con el frontend
+        };
+      });
+
+      return await enrichProductsWithImages(mapped);
+    }
+    return [];
+  } catch (error) {
+    console.error('Error en getDiscontinuedProducts (service):', error);
+    throw error;
+  }
+};
+
 const getProductGroupsDetails = async (user) => {
   try {
     const dbGroups = await productModel.findCarouselGroups();
@@ -576,6 +617,7 @@ const fetchProductsByGroup = async (
         min_quantity_cumulative: prod.min_quantity_cumulative,
         min_quantity_group_all: prod.min_quantity_group_all,
         total_group_products: prod.total_group_products,
+        product_group: prod.product_group, // (NUEVO)
       };
     });
 
@@ -597,51 +639,7 @@ const fetchProductsByGroup = async (
  */
 const toggleProductOfferStatus = async (productId) => {
   try {
-    // 1. Verificar si el producto existe en DB2
-    const productResult = await pool2.query(
-      'SELECT id, b1_desc as description, b1_cod as code, da1_prcven as price FROM products WHERE id = $1',
-      [productId]
-    );
-    if (productResult.rows.length === 0) {
-      throw new Error('Producto no encontrado en la base de datos principal.');
-    }
-    const productDetails = productResult.rows[0];
-
-    // 2. Intentar obtener el estado de oferta del producto desde DB2
-    const existingOffer = await pool2.query(
-      'SELECT is_on_offer FROM product_offer_status WHERE product_id = $1',
-      [productId]
-    );
-
-    let newOfferStatus;
-    if (existingOffer.rows.length > 0) {
-      // Si existe, alternar el estado
-      newOfferStatus = !existingOffer.rows[0].is_on_offer;
-      await pool2.query(
-        'UPDATE product_offer_status SET is_on_offer = $1, product_code = $2, updated_at = CURRENT_TIMESTAMP WHERE product_id = $3',
-        [newOfferStatus, productDetails.code, productId]
-      );
-    } else {
-      // Si no existe, insertar un nuevo registro con is_on_offer = true
-      newOfferStatus = true;
-      await pool2.query(
-        'INSERT INTO product_offer_status (product_id, product_code, is_on_offer) VALUES ($1, $2, $3)',
-        [newOfferStatus, productDetails.code, productId]
-      );
-    }
-
-    console.log(
-      `Estado de oferta para producto ${productId} cambiado a ${newOfferStatus} en DB2.`
-    );
-
-    // Devolver la información del producto combinada con el nuevo estado de oferta
-    return {
-      id: productDetails.id,
-      description: productDetails.description,
-      code: productDetails.code,
-      price: productDetails.price,
-      oferta: newOfferStatus, // Usamos 'oferta' para compatibilidad con el frontend
-    };
+    return await productModel.toggleProductOfferStatus(productId);
   } catch (error) {
     console.error(
       `Error en toggleProductOfferStatus para producto ${productId}:`,
@@ -946,6 +944,18 @@ const updateProductNewReleaseDetails = async (productId, details) => {
 
 
 
+/**
+ * (Admin) Desactiva múltiples ofertas por lote.
+ */
+const batchDeactivateOffers = async (productIds) => {
+  try {
+    return await productModel.batchDeactivateOffers(productIds);
+  } catch (error) {
+    console.error('Error in batchDeactivateOffers (service):', error);
+    throw error;
+  }
+};
+
 module.exports = {
   fetchProducts,
   getAccessories,
@@ -958,6 +968,7 @@ module.exports = {
   fetchProductsByGroup,
   toggleProductOfferStatus,
   updateProductOfferDetails,
+  batchDeactivateOffers, // [NEW]
   getProductGroupsForAdmin,
   addCarouselAccessory,
   removeCarouselAccessory,
@@ -974,4 +985,5 @@ module.exports = {
   fetchNewReleases,
   toggleProductNewRelease,
   updateProductNewReleaseDetails,
+  getDiscontinuedProducts,
 };

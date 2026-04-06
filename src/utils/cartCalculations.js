@@ -48,7 +48,8 @@ export const getCartGroups = (cart, productMap) => {
                     minQuantityUnit: product.min_quantity_unit || 'unidades',
                     isCumulative: product.min_quantity_cumulative || false,
                     minQuantityGroupAll: product.min_quantity_group_all || false,
-                    totalGroupProducts: product.total_group_products || 1
+                    totalGroupProducts: product.total_group_products || 1,
+                    individualMet: new Map()
                 });
             }
 
@@ -70,8 +71,14 @@ export const getCartGroups = (cart, productMap) => {
             group.items.push(item.id);
             group.uniqueProductIds.add(item.id);
             const qty = Number(item.quantity) || 0;
+            const liters = qty * extractLiters(product.name, product.capacityDesc);
+
             group.totalUnits += qty;
-            group.totalLiters += qty * extractLiters(product.name, product.capacityDesc);
+            group.totalLiters += liters;
+
+            // Seguimiento de mínimos individuales dentro del grupo
+            const currentIndividualValue = group.minQuantityUnit === 'litros' ? liters : qty;
+            group.individualMet.set(item.id, (group.individualMet.get(item.id) || 0) + currentIndividualValue);
         }
     });
 
@@ -103,9 +110,15 @@ export const calculateCartState = (cart, productMap) => {
 
             if (group.minQuantityGroupAll) {
                 // Validación estricta: deben estar TODOS los productos distintos del grupo
-                // Comparamos el tamaño del set de IDs únicos con el total esperado.
+                // Y además CADA uno debe cumplir el mínimo individualmente.
                 const hasAllGroupProducts = group.uniqueProductIds.size >= group.totalGroupProducts;
-                isOfferActive = quantityMet && hasAllGroupProducts;
+
+                let allIndividualMet = true;
+                group.individualMet.forEach((val) => {
+                    if (val < group.minQuantity) allIndividualMet = false;
+                });
+
+                isOfferActive = quantityMet && hasAllGroupProducts && allIndividualMet;
             } else {
                 isOfferActive = quantityMet;
             }

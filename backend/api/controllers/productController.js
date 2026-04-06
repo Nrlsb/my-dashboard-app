@@ -94,6 +94,19 @@ exports.getOffersController = catchAsync(async (req, res) => {
     res.json(offers);
 });
 
+exports.getDiscontinuedProductsController = catchAsync(async (req, res) => {
+    logger.info('GET /api/products/discontinued -> Consultando productos discontinuados...');
+    let products = await productService.getDiscontinuedProducts(req.user);
+    res.set('Cache-Control', 'no-store');
+
+    // Strip prices if no user
+    if (!req.user) {
+        products = stripPrices(products);
+    }
+
+    res.json(products);
+});
+
 exports.getProductsByIdController = catchAsync(async (req, res) => {
     const productId = req.params.id;
     logger.debug(
@@ -190,6 +203,15 @@ exports.updateProductOfferDetails = catchAsync(async (req, res) => {
         total_group_products: total_group_products !== undefined ? Number(total_group_products) || 1 : 1,
     });
 
+    res.json(result);
+});
+
+exports.batchDeactivateOffers = catchAsync(async (req, res) => {
+    const { productIds } = req.body;
+    if (!productIds || !Array.isArray(productIds)) {
+        return res.status(400).json({ message: 'productIds debe ser un array de números.' });
+    }
+    const result = await productService.batchDeactivateOffers(productIds);
     res.json(result);
 });
 

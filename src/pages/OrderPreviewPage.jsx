@@ -203,6 +203,11 @@ const OrderPreviewPage = () => {
                 </p>
                 <p className="text-sm text-gray-500">
                   {item.quantity} x {formatCurrency(item.effectivePrice)}
+                  {item.minQuantity > 0 && !item.isOfferActive && (
+                    <span className="ml-2 text-[10px] text-red-500 font-medium">
+                      (Mín. {item.minQuantity} {item.minQuantityUnit}{item.isCumulative ? ' acumulados' : ''} para oferta)
+                    </span>
+                  )}
                 </p>
               </div>
               <p className="font-semibold text-gray-800">

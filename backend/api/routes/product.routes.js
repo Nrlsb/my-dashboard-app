@@ -17,6 +17,7 @@ const {
   toggleProductNewRelease,
   updateProductNewReleaseDetails,
   getCategoriesController, // [NEW]
+  getDiscontinuedProductsController, // [NEW]
 } = require('../controllers/productController');
 const {
   optionalAuthenticateToken,
@@ -53,6 +54,7 @@ router.get('/offers', getOffersController);
 router.get('/orders', getProductsOrdersController); // Nueva ruta para /api/products/orders
 
 router.get('/new-releases', getNewReleasesController);
+router.get('/discontinued', getDiscontinuedProductsController);
 
 // Cachear producto individual por 5 minutos (300s)
 router.get('/:id', getProductsByIdController);
@@ -60,6 +62,13 @@ router.get('/:id', getProductsByIdController);
 router.get('/code/:code', getProductsByCodeController);
 
 router.get('/collection/:collectionId', getCustomCollectionProducts);
+
+router.put(
+  '/batch-deactivate-offers',
+  authenticateToken,
+  requireMarketingOrAdmin,
+  require('../controllers/productController').batchDeactivateOffers
+);
 
 // Esta ruta requiere permisos de marketing o administrador.
 router.put(

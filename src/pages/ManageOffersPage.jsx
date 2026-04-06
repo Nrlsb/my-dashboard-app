@@ -349,7 +349,7 @@ const EditOfferModal = ({ product, onClose, onSave, isSaving }) => {
                 </div>
               </div>
               <div className="mt-3 flex items-center justify-between bg-white/50 p-2 rounded border border-blue-100">
-                <span className="text-xs font-medium text-blue-800">Cantidad mínima acumulativa</span>
+                <span className="text-xs font-medium text-blue-800">Combinar productos del grupo</span>
                 <ToggleSwitch
                   checked={formData.min_quantity_cumulative}
                   onChange={() => setFormData(prev => ({ ...prev, min_quantity_cumulative: !prev.min_quantity_cumulative }))}
@@ -361,7 +361,7 @@ const EditOfferModal = ({ product, onClose, onSave, isSaving }) => {
                 <div className="mt-3 flex items-center justify-between bg-white/50 p-2 rounded border border-blue-100 animate-in fade-in slide-in-from-top-1 duration-200">
                   <div>
                     <span className="text-xs font-medium text-blue-800 block">Total de productos en el grupo</span>
-                    <p className="text-[9px] text-blue-500 leading-tight">La promo solo aplica si se lleva al menos uno de CADA producto seleccionado.</p>
+                    <p className="text-[9px] text-blue-500 leading-tight">La promo solo aplica si se lleva el mínimo requerido de cada producto seleccionado.</p>
                   </div>
                   <ToggleSwitch
                     checked={formData.min_quantity_group_all}
@@ -372,7 +372,7 @@ const EditOfferModal = ({ product, onClose, onSave, isSaving }) => {
               )}
 
               <p className="text-[10px] text-blue-600 mt-2 font-medium">
-                * Si es acumulativa, el mínimo se cumple sumando todos los productos de la oferta. Si no, debe cumplirse por cada producto.
+                * Si está activo, el mínimo se cumple sumando las cantidades de todos los productos (ej: 60 lts + 40 lts). Si no, debe cumplirse por cada producto individual.
               </p>
             </div>
 
@@ -946,7 +946,7 @@ const GroupEditModal = ({ brandName, productCount, onClose, onSave, onPreview, i
                 </div>
               </div>
               <div className="mt-3 flex items-center justify-between bg-white/50 p-2 rounded border border-blue-100">
-                <span className="text-xs font-medium text-blue-800">Cantidad mínima acumulativa</span>
+                <span className="text-xs font-medium text-blue-800">Combinar productos del grupo</span>
                 <ToggleSwitch
                   checked={formData.min_quantity_cumulative}
                   onChange={() => setFormData(prev => ({ ...prev, min_quantity_cumulative: !prev.min_quantity_cumulative }))}
@@ -958,7 +958,7 @@ const GroupEditModal = ({ brandName, productCount, onClose, onSave, onPreview, i
                 <div className="mt-3 flex items-center justify-between bg-white/50 p-2 rounded border border-blue-100 animate-in fade-in slide-in-from-top-1 duration-200">
                   <div>
                     <span className="text-xs font-medium text-blue-800 block">Total de productos en el grupo</span>
-                    <p className="text-[9px] text-blue-500 leading-tight">La promo solo aplica si se lleva al menos uno de CADA producto seleccionado.</p>
+                    <p className="text-[9px] text-blue-500 leading-tight">La promo solo aplica si se lleva el mínimo requerido de cada producto seleccionado.</p>
                   </div>
                   <ToggleSwitch
                     checked={formData.min_quantity_group_all}
@@ -967,6 +967,10 @@ const GroupEditModal = ({ brandName, productCount, onClose, onSave, onPreview, i
                   />
                 </div>
               )}
+
+              <p className="text-[10px] text-blue-600 mt-2 font-medium">
+                * Si está activo, el mínimo se cumple sumando las cantidades de todos los productos (ej: 60 lts + 40 lts). Si no, debe cumplirse por cada producto individual.
+              </p>
 
             </div>
 
@@ -1023,6 +1027,8 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
   const [debounceSearchTerm, setDebounceSearchTerm] = useState('');
   const [isBrandEditorOpen, setIsBrandEditorOpen] = useState(false);
   const debounceTimeout = useRef(null);
+  const lastAutoSelectedBrand = useRef(null);
+  const processedProductIds = useRef(new Set());
   const queryClient = useQueryClient();
 
   // --- Lógica de Grupos Activos ---
@@ -1134,6 +1140,40 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
 
   const activeOfferProducts = products.filter((p) => p.oferta);
 
+  // Auto-seleccionar productos que ya están en oferta al entrar a una marca o al cargar más páginas
+  useEffect(() => {
+    if (!selectedBrand) {
+      lastAutoSelectedBrand.current = null;
+      processedProductIds.current.clear();
+      return;
+    }
+
+    if (products.length > 0) {
+      // Si cambiamos de marca, limpiamos el set de IDs procesados
+      if (selectedBrand !== lastAutoSelectedBrand.current) {
+        processedProductIds.current.clear();
+        lastAutoSelectedBrand.current = selectedBrand;
+        setSelectedIds([]); // Limpiar selección previa al cambiar de marca
+      }
+
+      // Identificar NUEVOS productos que están en oferta y no han sido procesados aún
+      const newOnOfferIds = products
+        .filter(p => p.oferta && !processedProductIds.current.has(p.id))
+        .map(p => p.id);
+
+      if (newOnOfferIds.length > 0) {
+        setSelectedIds(prev => [...new Set([...prev, ...newOnOfferIds])]);
+        // Marcar estos IDs como procesados para no volver a auto-seleccionarlos si el usuario los quita
+        newOnOfferIds.forEach(id => processedProductIds.current.add(id));
+      }
+
+      // También marcar como procesados los que NO están en oferta para no evaluarlos de nuevo
+      products.forEach(p => {
+        if (!p.oferta) processedProductIds.current.add(p.id);
+      });
+    }
+  }, [selectedBrand, products]);
+
   // Mutación para guardar detalles por lote
   const { mutate: saveBrandOfferDetails, isPending: isSavingBrandDetails } = useMutation({
     mutationFn: async (details) => {
@@ -1165,6 +1205,33 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
       toast.success(`Detalles actualizados y ofertas activadas para ${selectedIds.length} productos de ${selectedBrand}`);
     },
     onError: (err) => toast.error(`Error al guardar los detalles: ${err.message}`),
+  });
+
+  // Mutación para desactivación masiva
+  const { mutate: batchDeactivateOffers, isPending: isDeactivating } = useMutation({
+    mutationFn: (ids) => apiService.batchDeactivateOffers(ids),
+    onSuccess: (data) => {
+      queryClient.setQueryData(
+        ['products-by-brand', selectedBrand, debounceSearchTerm],
+        (oldData) => {
+          if (!oldData) return oldData;
+          return {
+            ...oldData,
+            pages: oldData.pages.map((page) => ({
+              ...page,
+              products: page.products.map((p) =>
+                selectedIds.includes(p.id) ? { ...p, oferta: false, is_on_offer: false, discount_percentage: null, offer_price: null } : p
+              ),
+            })),
+          };
+        }
+      );
+      queryClient.invalidateQueries({ queryKey: ['activeOffers'] });
+      queryClient.invalidateQueries({ queryKey: ['offers'] });
+      setSelectedIds([]); // Limpiar selección tras desactivar
+      toast.success(`Se han dado de baja ${data.count} ofertas correctamente.`);
+    },
+    onError: (err) => toast.error(`Error al dar de baja: ${err.message}`),
   });
 
   const filteredBrands = brandFilter.trim()
@@ -1345,7 +1412,7 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
           <span className="text-gray-400">/</span>
           <span className="text-sm font-semibold text-gray-800">{selectedBrand}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center flex-wrap justify-end gap-2">
           {products.length > 0 && (
             <>
               <button
@@ -1378,6 +1445,22 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
               >
                 <Edit2 className="w-4 h-4" />
                 Editar oferta para seleccionados
+              </button>
+              <button
+                onClick={() => {
+                  if (selectedIds.length === 0) {
+                    toast.error("Seleccioná al menos un producto para dar de baja.");
+                    return;
+                  }
+                  if (window.confirm(`¿Estás seguro de que deseas dar de baja las ofertas de los ${selectedIds.length} productos seleccionados?`)) {
+                    batchDeactivateOffers(selectedIds);
+                  }
+                }}
+                disabled={isDeactivating}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors cursor-pointer ${selectedIds.length > 0 ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-400 cursor-not-allowed'}`}
+              >
+                {isDeactivating ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                Dar de baja seleccionados
               </button>
             </>
           )}

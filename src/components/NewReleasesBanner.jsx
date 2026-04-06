@@ -151,13 +151,9 @@ const NewReleasesBanner = ({ products: propProducts }) => {
                     </h3>
 
                     <div className="flex flex-col mt-2">
-                        {currentProduct.is_launch_group ? (
+                        {currentProduct.is_launch_group && (
                             <span className="text-sm text-white/90 line-clamp-2">
                                 {currentProduct.description || 'Ver colección completa'}
-                            </span>
-                        ) : (
-                            <span className="text-2xl font-black text-white tracking-tight">
-                                {currentProduct.formattedPrice}
                             </span>
                         )}
                     </div>

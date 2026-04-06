@@ -72,6 +72,7 @@ const apiService = {
   fetchProductsByGroup: productService.fetchProductsByGroup,
   fetchOffers: productService.fetchOffers,
   fetchNewReleases: productService.fetchNewReleases,
+  getDiscontinuedProducts: productService.getDiscontinuedProducts,
   toggleProductOffer: productService.toggleProductOffer,
   updateProductOfferDetails: productService.updateProductOfferDetails,
   toggleProductNewRelease: productService.toggleProductNewRelease,

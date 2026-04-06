@@ -179,7 +179,14 @@ function OrderHistoryPage() {
               <div key={order.id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
                 {/* Header: ID and Status */}
                 <div className="flex justify-between items-start mb-2">
-                  <span className="text-lg font-bold text-[#183B64]">#{order.id}</span>
+                  <div className="flex flex-col">
+                    <span className="text-lg font-bold text-[#183B64]">#{order.id}</span>
+                    {order.is_offer && (
+                      <span className="mt-1 w-fit px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                        Promoción
+                      </span>
+                    )}
+                  </div>
                   <span
                     className={`px-2 py-1 rounded-full text-xs font-semibold
                       ${order.status === 'Pendiente' ? 'bg-yellow-100 text-yellow-800' : ''}
@@ -290,7 +297,14 @@ function OrderHistoryPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-mono">#{order.id}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-mono">
+                      #{order.id}
+                      {order.is_offer && (
+                        <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                          Promoción
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{order.formatted_date}</td>
                     {isVendor && <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-medium">{order.client_code} - {order.client_name}</td>}
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-mono">{order.formattedTotal}</td>
