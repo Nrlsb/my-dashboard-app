@@ -1105,6 +1105,8 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
         groupsMap.set(key, {
           title: product.custom_title,
           image: product.custom_image_url,
+          brands: new Set([product.brand]),
+          brandText: product.brand,
           brand: product.brand,
           description: product.custom_description || product.description,
           productIds: [],
@@ -1119,6 +1121,14 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
           offer_start_date: product.offer_start_date,
           offer_end_date: product.offer_end_date
         });
+      } else {
+        const group = groupsMap.get(key);
+        if (product.brand) group.brands.add(product.brand);
+        const brandsArray = Array.from(group.brands);
+        if (brandsArray.length > 1) {
+          group.brandText = 'Multimarca';
+          group.brand = 'Multimarca';
+        }
       }
       const group = groupsMap.get(key);
       group.productIds.push(product.id);
@@ -1158,7 +1168,7 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
   } = useInfiniteQuery({
     queryKey: ['products-by-brand', selectedBrand, debounceSearchTerm],
     queryFn: ({ pageParam = 1 }) =>
-      apiService.fetchProducts(pageParam, debounceSearchTerm, selectedBrand ? [selectedBrand] : [], true),
+      apiService.fetchProducts(pageParam, debounceSearchTerm, selectedBrand && selectedBrand !== 'Búsqueda Global' ? [selectedBrand] : [], true),
     getNextPageParam: (lastPage, allPages) => {
       const loaded = allPages.reduce((acc, page) => acc + page.products.length, 0);
       return loaded < lastPage.totalProducts ? allPages.length + 1 : undefined;
@@ -1203,7 +1213,7 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
         setIsFetchingAllIds(true);
         try {
           // fetchAllProductsForPDF ya tiene un límite de 9999 y devuelve los productos de la marca/búsqueda
-          const allProducts = await apiService.fetchAllProductsForPDF(debounceSearchTerm, selectedBrand ? [selectedBrand] : []);
+          const allProducts = await apiService.fetchAllProductsForPDF(debounceSearchTerm, selectedBrand && selectedBrand !== 'Búsqueda Global' ? [selectedBrand] : []);
           setSelectedIds(allProducts.map(p => p.id));
         } catch (error) {
           console.error("Error fetching all product IDs:", error);
@@ -1395,7 +1405,8 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
                       </div>
                       <button
                         onClick={() => {
-                          const normalizedBrand = group.brand?.trim() || "";
+                          const isMulti = group.brandText === 'Multimarca';
+                          const normalizedBrand = isMulti ? 'Búsqueda Global' : (group.brand?.trim() || "");
                           setSelectedBrand(normalizedBrand);
                           // Importante: No limpiamos selectedIds aquí porque los estamos estableciendo
                           setSelectedIds(group.productIds);
@@ -1412,8 +1423,7 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
                       </button>
                       <button
                         onClick={() => {
-                          const normalizedBrand = group.brand?.trim() || "";
-                          setSelectedBrand(normalizedBrand);
+                          setSelectedBrand('Búsqueda Global'); // Llevamos a búsqueda global directamente
                           setSelectedIds([]); // Empezamos de cero para seleccionar los nuevos
                           setSelectedGroupData(group);
                           setIsAddingToGroup(group); // Guardamos el objeto del grupo
@@ -1474,6 +1484,18 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
           <LoadingSpinner text="Cargando marcas..." />
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {(!brandFilter || 'Búsqueda Global'.toLowerCase().includes(brandFilter.toLowerCase())) && (
+              <button
+                onClick={() => {
+                  setSelectedBrand('Búsqueda Global');
+                  setSelectedIds([]);
+                }}
+                className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm font-medium text-blue-700 hover:border-blue-400 hover:text-blue-800 hover:shadow-md transition-all text-left cursor-pointer"
+              >
+                <Search className="w-4 h-4 mb-1 text-blue-500" />
+                Búsqueda Global
+              </button>
+            )}
             {filteredBrands.map((brand) => (
               <button
                 key={brand}
