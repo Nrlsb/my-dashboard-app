@@ -27,7 +27,7 @@ const getOnOfferData = async (bypassCache = false) => {
     // The table product_offer_status now has product_code.
     // Let's select both.
     const result = await pool2.query(
-      'SELECT product_id, product_code, custom_title, custom_description, custom_image_url, discount_percentage, offer_price, offer_start_date, offer_end_date, min_quantity, min_quantity_unit, min_quantity_cumulative, min_quantity_group_all, total_group_products FROM product_offer_status WHERE is_on_offer = true'
+      'SELECT product_id, product_code, custom_title, custom_description, custom_image_url, discount_percentage, offer_price, offer_start_date, offer_end_date, min_quantity, min_quantity_unit, min_quantity_cumulative, min_quantity_group_all, total_group_products, min_individual_quantity FROM product_offer_status WHERE is_on_offer = true'
     );
 
 
@@ -518,6 +518,7 @@ const findProducts = async ({
         min_quantity_cumulative: offerDetails?.min_quantity_cumulative ?? false,
         min_quantity_group_all: offerDetails?.min_quantity_group_all ?? false,
         total_group_products: offerDetails?.total_group_products ?? 1,
+        min_individual_quantity: offerDetails?.min_individual_quantity ?? 0,
       };
 
     });
@@ -1002,16 +1003,16 @@ const updateProductOfferDetails = async (productId, details) => {
         SET custom_title = $1, custom_description = $2, custom_image_url = $3, 
             discount_percentage = $4, offer_price = $5, offer_start_date = $6, offer_end_date = $7, 
             min_quantity = $8, min_quantity_unit = $9, min_quantity_cumulative = $10,
-            min_quantity_group_all = $11, total_group_products = $12,
+            min_quantity_group_all = $11, total_group_products = $12, min_individual_quantity = $13,
             updated_at = CURRENT_TIMESTAMP 
-        WHERE product_id = $13
+        WHERE product_id = $14
         RETURNING *
       `;
       const values = [
         custom_title, custom_description, custom_image_url,
         discount_percentage ?? null, offer_price ?? null, offer_start_date ?? null, offer_end_date ?? null,
         min_quantity ?? 0, min_quantity_unit ?? 'unidades', min_quantity_cumulative ?? false,
-        min_quantity_group_all ?? false, total_group_products ?? 1,
+        min_quantity_group_all ?? false, total_group_products ?? 1, min_individual_quantity ?? 0,
         productId
       ];
       result = await pool2.query(query, values);
@@ -1021,14 +1022,14 @@ const updateProductOfferDetails = async (productId, details) => {
          (product_id, product_code, custom_title, custom_description, custom_image_url, 
           discount_percentage, offer_price, offer_start_date, offer_end_date, 
           min_quantity, min_quantity_unit, min_quantity_cumulative, 
-          min_quantity_group_all, total_group_products, is_on_offer)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, true)
+          min_quantity_group_all, total_group_products, min_individual_quantity, is_on_offer)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, true)
          RETURNING *`,
         [
           productId, productCode, custom_title, custom_description, custom_image_url,
           discount_percentage ?? null, offer_price ?? null, offer_start_date ?? null, offer_end_date ?? null,
           min_quantity ?? 0, min_quantity_unit ?? 'unidades', min_quantity_cumulative ?? false,
-          min_quantity_group_all ?? false, total_group_products ?? 1
+          min_quantity_group_all ?? false, total_group_products ?? 1, min_individual_quantity ?? 0
         ]
       );
     }

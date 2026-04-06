@@ -46,8 +46,9 @@ export const getCartGroups = (cart, productMap) => {
                     uniqueProductIds: new Set(),
                     minQuantity: product.min_quantity || 0,
                     minQuantityUnit: product.min_quantity_unit || 'unidades',
-                    isCumulative: product.min_quantity_cumulative || false,
-                    minQuantityGroupAll: product.min_quantity_group_all || false,
+                    minQuantityCumulative: product.min_quantity_cumulative,
+                    minQuantityGroupAll: product.min_quantity_group_all,
+                    minIndividualQuantity: product.min_individual_quantity || 0,
                     totalGroupProducts: product.total_group_products || 1,
                     individualMet: new Map()
                 });
@@ -103,7 +104,7 @@ export const calculateCartState = (cart, productMap) => {
 
         let isOfferActive = false;
 
-        if (group && group.isCumulative) {
+        if (group && group.minQuantityCumulative) {
             // Regla acumulativa por grupo
             const totalToCompare = group.minQuantityUnit === 'litros' ? group.totalLiters : group.totalUnits;
             const quantityMet = totalToCompare >= group.minQuantity;
@@ -120,7 +121,16 @@ export const calculateCartState = (cart, productMap) => {
 
                 isOfferActive = quantityMet && hasAllGroupProducts && allIndividualMet;
             } else {
-                isOfferActive = quantityMet;
+                // New logic: Check if at least one item meets the minIndividualQuantity if defined
+                let atLeastOneIndividualMet = true;
+                if (group.minIndividualQuantity > 0) {
+                    atLeastOneIndividualMet = false;
+                    group.individualMet.forEach((val) => {
+                        if (val >= group.minIndividualQuantity) atLeastOneIndividualMet = true;
+                    });
+                }
+
+                isOfferActive = quantityMet && atLeastOneIndividualMet;
             }
         } else {
             // Regla individual (o grupo no acumulativo)
@@ -147,7 +157,7 @@ export const calculateCartState = (cart, productMap) => {
             // Guardamos metadatos útiles para la UI
             minQuantity: group?.minQuantity || product.min_quantity,
             minQuantityUnit: group?.minQuantityUnit || product.min_quantity_unit,
-            isCumulative: group?.isCumulative || product.min_quantity_cumulative,
+            isCumulative: group?.minQuantityCumulative || product.min_quantity_cumulative,
             minQuantityGroupAll: group?.minQuantityGroupAll || product.min_quantity_group_all,
             totalGroupProducts: group?.totalGroupProducts || product.total_group_products
         };

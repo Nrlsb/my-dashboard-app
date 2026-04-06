@@ -60,6 +60,7 @@ const EditOfferModal = ({ product, onClose, onSave, isSaving }) => {
     min_quantity_unit: product.min_quantity_unit ?? 'unidades',
     min_quantity_cumulative: product.min_quantity_cumulative ?? false,
     min_quantity_group_all: product.min_quantity_group_all ?? false,
+    min_individual_quantity: product.min_individual_quantity ?? '',
     total_group_products: product.total_group_products ?? 1,
   });
 
@@ -96,6 +97,7 @@ const EditOfferModal = ({ product, onClose, onSave, isSaving }) => {
       min_quantity_unit: formData.min_quantity_unit,
       min_quantity_cumulative: formData.min_quantity_cumulative,
       min_quantity_group_all: formData.min_quantity_group_all,
+      min_individual_quantity: formData.min_individual_quantity !== '' ? Number(formData.min_individual_quantity) : 0,
       total_group_products: formData.total_group_products,
     };
 
@@ -358,16 +360,40 @@ const EditOfferModal = ({ product, onClose, onSave, isSaving }) => {
               </div>
 
               {formData.min_quantity_cumulative && (
-                <div className="mt-3 flex items-center justify-between bg-white/50 p-2 rounded border border-blue-100 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <div>
-                    <span className="text-xs font-medium text-blue-800 block">Total de productos en el grupo</span>
-                    <p className="text-[9px] text-blue-500 leading-tight">La promo solo aplica si se lleva el mínimo requerido de cada producto seleccionado.</p>
+                <div className="mt-3 bg-white/50 p-2 rounded border border-blue-100 animate-in fade-in slide-in-from-top-1 duration-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-medium text-blue-800 block">Total de productos en el grupo</span>
+                      <p className="text-[9px] text-blue-500 leading-tight">La promo solo aplica si se lleva el mínimo requerido de cada producto seleccionado.</p>
+                    </div>
+                    <ToggleSwitch
+                      checked={formData.min_quantity_group_all}
+                      onChange={() => setFormData(prev => ({ ...prev, min_quantity_group_all: !prev.min_quantity_group_all }))}
+                      colorClass="bg-blue-600"
+                    />
                   </div>
-                  <ToggleSwitch
-                    checked={formData.min_quantity_group_all}
-                    onChange={() => setFormData(prev => ({ ...prev, min_quantity_group_all: !prev.min_quantity_group_all }))}
-                    colorClass="bg-blue-600"
-                  />
+
+                  <div className="pt-2 border-t border-blue-50">
+                    <label className="block text-[10px] font-bold text-blue-800 mb-1 uppercase tracking-wider">
+                      Mínimo por cada ítem individual
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        name="min_individual_quantity"
+                        value={formData.min_individual_quantity}
+                        onChange={handleChange}
+                        min="0"
+                        step="0.1"
+                        placeholder="Ej: 3 (Para 6x3 con 3 lts del mismo color)"
+                        className="flex-1 px-3 py-1.5 text-xs border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      />
+                      <span className="text-[10px] text-blue-500 font-medium">{formData.min_quantity_unit}</span>
+                    </div>
+                    <p className="text-[9px] text-blue-400 mt-1 leading-tight">
+                      * Define cuántas unidades/litros como mínimo debe tener al menos un producto del grupo para activar la oferta.
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -632,6 +658,7 @@ const GroupEditModal = ({ brandName, productCount, onClose, onSave, onPreview, i
     min_quantity_unit: initialData?.min_quantity_unit || 'unidades',
     min_quantity_cumulative: initialData?.min_quantity_cumulative ?? false,
     min_quantity_group_all: initialData?.min_quantity_group_all ?? false,
+    min_individual_quantity: initialData?.min_individual_quantity ?? '',
   });
 
   const [priceType, setPriceType] = useState(
@@ -672,6 +699,7 @@ const GroupEditModal = ({ brandName, productCount, onClose, onSave, onPreview, i
       min_quantity_unit: formData.min_quantity_unit,
       min_quantity_cumulative: formData.min_quantity_cumulative,
       min_quantity_group_all: formData.min_quantity_group_all,
+      min_individual_quantity: formData.min_individual_quantity !== '' ? Number(formData.min_individual_quantity) : 0,
       total_group_products: productCount,
       is_on_offer: true,
 
@@ -694,6 +722,7 @@ const GroupEditModal = ({ brandName, productCount, onClose, onSave, onPreview, i
       min_quantity_unit: formData.min_quantity !== '' ? formData.min_quantity_unit : null,
       min_quantity_cumulative: formData.min_quantity !== '' ? formData.min_quantity_cumulative : null,
       min_quantity_group_all: formData.min_quantity !== '' ? formData.min_quantity_group_all : null,
+      min_individual_quantity: formData.min_individual_quantity !== '' ? Number(formData.min_individual_quantity) : null,
       total_group_products: formData.min_quantity !== '' ? productCount : null,
     };
 
@@ -955,16 +984,40 @@ const GroupEditModal = ({ brandName, productCount, onClose, onSave, onPreview, i
               </div>
 
               {formData.min_quantity_cumulative && (
-                <div className="mt-3 flex items-center justify-between bg-white/50 p-2 rounded border border-blue-100 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <div>
-                    <span className="text-xs font-medium text-blue-800 block">Total de productos en el grupo</span>
-                    <p className="text-[9px] text-blue-500 leading-tight">La promo solo aplica si se lleva el mínimo requerido de cada producto seleccionado.</p>
+                <div className="mt-3 bg-white/50 p-2 rounded border border-blue-100 animate-in fade-in slide-in-from-top-1 duration-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-medium text-blue-800 block">Total de productos en el grupo</span>
+                      <p className="text-[9px] text-blue-500 leading-tight">La promo solo aplica si se lleva el mínimo requerido de cada producto seleccionado.</p>
+                    </div>
+                    <ToggleSwitch
+                      checked={formData.min_quantity_group_all}
+                      onChange={() => setFormData(prev => ({ ...prev, min_quantity_group_all: !prev.min_quantity_group_all }))}
+                      colorClass="bg-blue-600"
+                    />
                   </div>
-                  <ToggleSwitch
-                    checked={formData.min_quantity_group_all}
-                    onChange={() => setFormData(prev => ({ ...prev, min_quantity_group_all: !prev.min_quantity_group_all }))}
-                    colorClass="bg-blue-600"
-                  />
+
+                  <div className="pt-2 border-t border-blue-50">
+                    <label className="block text-[10px] font-bold text-blue-800 mb-1 uppercase tracking-wider">
+                      Mínimo por cada ítem individual
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        name="min_individual_quantity"
+                        value={formData.min_individual_quantity}
+                        onChange={handleChange}
+                        min="0"
+                        step="0.1"
+                        placeholder="Sin modificar"
+                        className="flex-1 px-3 py-1.5 text-xs border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      />
+                      <span className="text-[10px] text-blue-500 font-medium">{formData.min_quantity_unit}</span>
+                    </div>
+                    <p className="text-[9px] text-blue-400 mt-1 leading-tight">
+                      * Define cuántas unidades/litros como mínimo debe tener al menos un producto del grupo para activar la oferta.
+                    </p>
+                  </div>
                 </div>
               )}
 

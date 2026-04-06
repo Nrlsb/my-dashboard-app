@@ -75,6 +75,7 @@ const apiService = {
   getDiscontinuedProducts: productService.getDiscontinuedProducts,
   toggleProductOffer: productService.toggleProductOffer,
   updateProductOfferDetails: productService.updateProductOfferDetails,
+  batchDeactivateOffers: productService.batchDeactivateOffers,
   toggleProductNewRelease: productService.toggleProductNewRelease,
   updateProductNewReleaseDetails: productService.updateProductNewReleaseDetails,
   getCustomCollectionProducts: productService.getCustomCollectionProducts,

@@ -185,7 +185,8 @@ exports.updateProductOfferDetails = catchAsync(async (req, res) => {
         min_quantity_unit,
         min_quantity_cumulative,
         min_quantity_group_all,
-        total_group_products
+        total_group_products,
+        min_individual_quantity
     } = req.body;
 
     const result = await productService.updateProductOfferDetails(id, {
@@ -201,6 +202,7 @@ exports.updateProductOfferDetails = catchAsync(async (req, res) => {
         min_quantity_cumulative: min_quantity_cumulative ?? false,
         min_quantity_group_all: min_quantity_group_all ?? false,
         total_group_products: total_group_products !== undefined ? Number(total_group_products) || 1 : 1,
+        min_individual_quantity: min_individual_quantity !== undefined ? Number(min_individual_quantity) || 0 : 0,
     });
 
     res.json(result);
