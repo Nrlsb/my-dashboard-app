@@ -126,11 +126,11 @@ const ProductOfferCard = ({ product }) => {
   return (
     <div className="bg-white rounded-lg shadow-lg overflow-hidden transform transition-transform hover:scale-105 duration-300 flex flex-col justify-between h-full border border-gray-100">
       {product.custom_image_url && (
-        <div className="h-48 w-full overflow-hidden relative">
+        <div className="h-48 w-full overflow-hidden relative bg-white">
           <img
             src={product.custom_image_url}
             alt={product.custom_title || product.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
           />
           <span className="absolute bottom-0 right-0 bg-black/50 text-white text-[9px] px-2 py-0.5 pointer-events-none uppercase tracking-wider font-bold rounded-tl-md backdrop-blur-sm">
             Imagen ilustrativa
@@ -209,12 +209,12 @@ const GroupOfferCard = ({ group, onSelect }) => {
       onClick={onSelect}
       className="bg-white rounded-lg shadow-lg overflow-hidden transform transition-transform hover:scale-105 duration-300 flex flex-col justify-between h-full border-2 border-blue-100 cursor-pointer group"
     >
-      <div className="h-48 w-full overflow-hidden relative bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
+      <div className={`h-48 w-full overflow-hidden relative flex items-center justify-center ${group.custom_image_url ? 'bg-white' : 'bg-gradient-to-br from-blue-500 to-blue-700'}`}>
         {group.custom_image_url ? (
           <img
             src={group.custom_image_url}
             alt={group.custom_title}
-            className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+            className="w-full h-full object-contain group-hover:opacity-90 transition-opacity"
           />
         ) : (
           <div className="flex flex-col items-center justify-center text-white/80 p-4">
