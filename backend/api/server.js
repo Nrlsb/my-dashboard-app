@@ -45,6 +45,32 @@ const app = express();
 // (SEGURIDAD) Confiar en el proxy de Render/Cloudflare para obtener la IP real
 app.set('trust proxy', 1);
 
+// (NUEVO) Opciones de CORS para mayor seguridad
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Lista de dominios permitidos
+    const allowedOrigins = [
+      'http://localhost:5173', // Desarrollo Frontend
+      'http://localhost:5174', // Desarrollo Frontend (alternativo)
+      'https://midashboard.com', // Producción Frontend
+      'https://espint.pintureriasmercurio.com.ar', // (NUEVO) Frontend en Vercel
+      'http://espint.pintureriasmercurio.com.ar', // (FIX) Frontend HTTP
+    ];
+
+    // Permitir si el origen está en la lista o si no hay origen (peticiones de la misma máquina o Postman)
+    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      callback(null, true);
+    } else {
+      callback(new Error('No permitido por CORS'));
+    }
+  },
+  credentials: true, // Necesario para cookies cross-origin
+  optionsSuccessStatus: 200, // Para compatibilidad con navegadores antiguos
+};
+
+// Aplicar CORS antes de cualquier otro middleware que pueda enviar una respuesta
+app.use(cors(corsOptions));
+
 // Usar Helmet para securizar la app con CSP personalizado
 app.use(helmet({
   contentSecurityPolicy: {
@@ -120,30 +146,6 @@ app.use('/api/auth/register', authLimiter);
 const PORT = process.env.PORT || 3001;
 
 // --- Configuración ---
-// (NUEVO) Opciones de CORS para mayor seguridad
-const corsOptions = {
-  origin: (origin, callback) => {
-    // Lista de dominios permitidos
-    const allowedOrigins = [
-      'http://localhost:5173', // Desarrollo Frontend
-      'http://localhost:5174', // Desarrollo Frontend (alternativo)
-      'https://midashboard.com', // Producción Frontend
-      'https://espint.pintureriasmercurio.com.ar', // (NUEVO) Frontend en Vercel
-      'http://espint.pintureriasmercurio.com.ar', // (FIX) Frontend HTTP
-    ];
-
-    // Permitir si el origen está en la lista o si no hay origen (peticiones de la misma máquina o Postman)
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
-      callback(null, true);
-    } else {
-      callback(new Error('No permitido por CORS'));
-    }
-  },
-  credentials: true, // Necesario para cookies cross-origin
-  optionsSuccessStatus: 200, // Para compatibilidad con navegadores antiguos
-};
-
-app.use(cors(corsOptions));
 app.use(express.json());
 
 // (NUEVO) Servir archivos estáticos (para los comprobantes subidos)
