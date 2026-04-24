@@ -115,7 +115,7 @@ app.use(compression({
 // Limita a cada IP a 100 peticiones por ventana de 15 minutos
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // Límite de 100 peticiones
+  max: 1000, // Límite de 1000 peticiones
   standardHeaders: true, // Devuelve info del límite en los headers `RateLimit-*`
   legacyHeaders: false, // Deshabilita headers `X-RateLimit-*`
   message: 'Demasiadas peticiones desde esta IP, por favor intente de nuevo en 15 minutos.',

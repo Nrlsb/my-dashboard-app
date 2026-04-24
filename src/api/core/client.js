@@ -39,6 +39,8 @@ const getFriendlyErrorMessage = (status) => {
             return "Recurso no encontrado.";
         case 409:
             return "Conflicto en la solicitud. Intente nuevamente.";
+        case 429:
+            return "Demasiadas peticiones. Por favor, espere un momento antes de reintentar.";
         case 500:
         case 502:
         case 503:
