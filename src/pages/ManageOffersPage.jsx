@@ -8,7 +8,7 @@ import {
   useQueryClient,
   useMutation,
 } from '@tanstack/react-query';
-import { Loader2, ArrowLeft, Search, CheckCircle, XCircle, Edit2, Save, X, Filter, Upload, Eye, Tag, Percent, DollarSign, Layers, ChevronLeft, Clock, Calendar, Package } from 'lucide-react';
+import { Loader2, ArrowLeft, Search, CheckCircle, XCircle, Edit2, Save, X, Filter, Upload, Eye, Tag, Percent, DollarSign, Layers, ChevronLeft, Clock, Calendar, Package, Trash2 } from 'lucide-react';
 import apiService from '../api/apiService.js';
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -1323,6 +1323,7 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
         }
       );
       queryClient.invalidateQueries({ queryKey: ['activeOffers'] });
+      queryClient.invalidateQueries({ queryKey: ['activeOffers-grouping'] });
       queryClient.invalidateQueries({ queryKey: ['offers'] });
       setSelectedIds([]); // Limpiar selección tras desactivar
       toast.success(`Se han dado de baja ${data.count} ofertas correctamente.`);
@@ -1459,6 +1460,22 @@ const GroupOffersTab = ({ onPreview, onEdit }) => {
                       >
                         <Package className="w-4 h-4" />
                         Agregar productos
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`¿Estás seguro de que deseas dar de baja la promoción "${group.title}" completa? Se desactivarán los ${group.productIds.length} productos del grupo.`)) {
+                            batchDeactivateOffers(group.productIds);
+                          }
+                        }}
+                        disabled={isDeactivating}
+                        className="w-full flex items-center justify-center gap-2 py-2 mt-2 bg-red-50 text-red-600 text-sm font-bold rounded-lg hover:bg-red-600 hover:text-white transition-colors cursor-pointer border border-red-100 disabled:opacity-50"
+                      >
+                        {isDeactivating ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                        Dar de baja promo
                       </button>
                     </div>
                   </div>
